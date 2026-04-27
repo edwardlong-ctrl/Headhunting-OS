@@ -41,21 +41,24 @@
 - Task 5C only appends explicitly marked operational `CLAIM_CANDIDATE` fixture fields under `intake.bridge_eligible.*`; these records are internal-only claims, not canonical candidate/company/job facts.
 - Task 5C `ClaimLedgerItem` rows remain claims, not facts; ClaimLedger-to-canonical promotion is still blocked by future review/gate work.
 - Task 5C adds V6 `claim_ledger_org_source_span_idx` for narrow source-span idempotency lookup and deterministic duplicate suppression.
+- Task 5D now provides a backend-owned governed-intake ClaimLedger-to-ReviewEvent bridge skeleton.
+- Task 5D reads only `governance.claim_ledger_item` records by organization-scoped claim id, requires Task 5C governed-intake `intake.*` lineage, and appends review evidence only through `ReviewEventService`.
+- Task 5D ReviewEvent append is review evidence, not fact promotion. It does not mutate ClaimLedger verification status, does not call CanonicalWrite, and does not write CandidateProfile.
+- Task 5D stores claim lineage in `governance.review_event.claim_ledger_item_id` and deterministic `source_span_ref` values. It added no new migration or table.
+- Task 5D duplicate behavior is deterministic: identical bridge requests return the existing review event id; materially different review evidence is allowed as a new review event.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
-- For the Task 5C bridge, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
+- For the Task 5C and Task 5D bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
 - No real AI extraction exists yet.
-- ReviewEvent creation from governed intake remains future Task 5 work.
 - CanonicalWrite boundary integration from governed intake remains future Task 5 work.
 - No default-placeholder business ClaimLedger append from intake exists.
-- No ReviewEvent creation from intake exists yet.
 - No CanonicalWrite from intake exists yet.
 - No CandidateProfile persistence exists from intake.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add ReviewEvent creation, CanonicalWrite boundary integration, CandidateProfile persistence, and required audit/review gates.
+- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CanonicalWrite boundary integration, CandidateProfile persistence, and downstream privacy/access surfaces.
 
 ## Client-safe Projection Not Implemented
 

@@ -23,6 +23,7 @@
 - Task 5A current worktree: adds backend-owned `SourceItem` and `InformationPacket` governed-intake contracts, narrow create/attach/read service and persistence ports, JDBC adapters, and a V4 `intake` schema with packet/source link table.
 - Task 5B current worktree: adds backend-owned governed-intake extraction run/output contracts, a deterministic no-real-AI placeholder extractor, a narrow extraction-run persistence port/JDBC adapter, and a V5 `intake.extraction_run` JSONB output-envelope table.
 - Task 5C current worktree: adds a backend-owned `IntakeClaimLedgerBridgeService` skeleton that reads `intake.extraction_run` output envelopes, validates governed-intake lineage through `intake.information_packet`, and appends only explicitly bridge-eligible operational claim candidates through `ClaimLedgerService`.
+- Task 5D current worktree: adds a backend-owned `IntakeReviewBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` rows by organization-scoped claim id and appends human review evidence only through `ReviewEventService`.
 
 ## Current Test State
 
@@ -34,6 +35,7 @@
 - Task 5A adds focused unit and PostgreSQL/Testcontainers coverage for SourceItem/InformationPacket validation, duplicate attach rejection, organization-scoped lookup/list behavior, V4 migration application, source/packet/link persistence, and non-canonical boundary assertions.
 - Task 5B adds focused unit and PostgreSQL/Testcontainers coverage for deterministic extraction validation, no-source failed run behavior, output-envelope flags, duplicate extraction determinism, organization-scoped persistence/readback, V5 migration application, and the absence of ClaimLedger, ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, and old `recruiting.*` writes.
 - Task 5C adds focused unit and PostgreSQL/Testcontainers coverage for bridge request validation, missing/wrong-organization/failed/missing-output extraction rejection, default placeholder no-claim behavior, explicit operational bridge-eligible fixture append, duplicate source-reference replay, organization isolation, V6 migration/index application, and absence of ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, raw Candidate/Profile, and old `recruiting.*` use.
+- Task 5D adds focused unit and PostgreSQL/Testcontainers coverage for review bridge request validation, missing/wrong-organization claim blocking, governed-intake-only claim policy, ReviewEvent append through `ReviewEventService`, claim lineage persistence, deterministic duplicate review handling, materially different review evidence, T3/T4 human reviewer enforcement, ClaimLedger immutability, and absence of CanonicalWrite, CandidateProfile, raw Candidate/Profile, workflow, API/UI, and old `recruiting.*` use.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -79,6 +81,14 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - Task 5C stores governed-intake lineage in deterministic `source_span_ref` values and uses V6 `claim_ledger_org_source_span_idx` for narrow idempotency lookup. It does not populate `source_item_id` from `intake.source_item` because the existing V2 column still references `recruiting.source_item`.
 - Repeated bridge calls for the same extraction-run/field/source reference return the existing claim id and do not append duplicate claims.
 - For Task 5C, `intake.*` is the operational governed-intake source for ClaimLedger linkage; earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
+- `IntakeReviewBridgeService` provides the Task 5D governed-intake ClaimLedger-to-ReviewEvent bridge skeleton.
+- The review bridge reads `governance.claim_ledger_item` by organization-scoped claim id through `ClaimLedgerItemReviewLookupPort`, requires Task 5C governed-intake `intake.*` lineage markers, and rejects non-governed-intake claims.
+- The review bridge appends review evidence only through `ReviewEventService`; `ReviewEvent` remains review evidence, not fact promotion.
+- The review bridge stores claim lineage in `governance.review_event.claim_ledger_item_id` and a deterministic `source_span_ref` containing the reviewed `claim_ledger_item_id`.
+- Repeated identical review bridge calls return the existing review event id; materially different review evidence creates a new review event.
+- T3/T4 review bridge requests require a non-AI/non-system reviewer and a reason.
+- ReviewEvent append does not mutate ClaimLedger verification status and does not call CanonicalWrite.
+- For Task 5D, `intake.*` lineage remains the governed-intake source lineage. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -90,7 +100,6 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
 - No business-fact ClaimLedger append from default governed-intake placeholder output.
-- No ReviewEvent creation from governed intake.
 - No CanonicalWrite call from governed intake.
 - No CandidateProfile persistence from governed intake.
 - No workflow engine.
@@ -106,4 +115,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add ReviewEvent creation, CanonicalWrite boundary integration, CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.
+- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CanonicalWrite boundary integration, CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.
