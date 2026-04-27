@@ -124,7 +124,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.EXTERNAL_VERIFIED,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
+        RiskTier.T4_TRANSACTION_LEGAL,
         false,
         false,
         false));

@@ -90,6 +90,6 @@ public final class CanonicalWriteGate {
   }
 
   private static boolean requiresExplicitReview(RiskTier riskTier) {
-    return riskTier == RiskTier.T3_HIGH || riskTier == RiskTier.T4_TRANSACTION_LEGAL_BLOCKING;
+    return riskTier == RiskTier.T3_HIGH || riskTier == RiskTier.T4_TRANSACTION_LEGAL;
   }
 }
