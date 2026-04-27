@@ -58,8 +58,8 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
 
   @Test
   void flywayMigrationCreatesGovernedIntakeTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(5);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(6);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6");
     assertThat(schemaExists("intake")).isTrue();
     assertThat(tableExists("intake", "source_item")).isTrue();
     assertThat(tableExists("intake", "information_packet")).isTrue();

@@ -29,6 +29,7 @@ public final class JdbcClaimLedgerPort implements ClaimLedgerPort {
         canonical_write_allowed,
         client_shareability,
         target_field_path,
+        claim_value_text,
         source_item_id,
         ai_task_run_id
       )
@@ -44,6 +45,7 @@ public final class JdbcClaimLedgerPort implements ClaimLedgerPort {
         ?::governance.verification_status,
         false,
         ?::governance.client_shareability,
+        ?,
         ?,
         ?,
         ?
@@ -86,8 +88,9 @@ public final class JdbcClaimLedgerPort implements ClaimLedgerPort {
     statement.setString(9, command.verificationStatus().wireValue());
     statement.setString(10, command.clientShareability().wireValue());
     statement.setString(11, command.targetFieldPath());
-    setNullableUuid(statement, 12, command.sourceItemId());
-    setNullableUuid(statement, 13, aiTaskRunUuid(command.aiTaskRunId()));
+    setNullableString(statement, 12, command.claimValue());
+    setNullableUuid(statement, 13, command.sourceItemId());
+    setNullableUuid(statement, 14, aiTaskRunUuid(command.aiTaskRunId()));
   }
 
   private static UUID aiTaskRunUuid(AITaskRunId aiTaskRunId) {
@@ -106,5 +109,16 @@ public final class JdbcClaimLedgerPort implements ClaimLedgerPort {
       return;
     }
     statement.setObject(index, value);
+  }
+
+  private static void setNullableString(
+      PreparedStatement statement,
+      int index,
+      String value) throws SQLException {
+    if (value == null) {
+      statement.setNull(index, Types.VARCHAR);
+      return;
+    }
+    statement.setString(index, value);
   }
 }

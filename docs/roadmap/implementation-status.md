@@ -22,6 +22,7 @@
 - Task 4D current worktree: adds a backend-internal `WorkflowTransitionAuditService` / `WorkflowTransitionAuditRequest` skeleton for recording requested workflow state-transition audit events with `before_state` and `after_state`.
 - Task 5A current worktree: adds backend-owned `SourceItem` and `InformationPacket` governed-intake contracts, narrow create/attach/read service and persistence ports, JDBC adapters, and a V4 `intake` schema with packet/source link table.
 - Task 5B current worktree: adds backend-owned governed-intake extraction run/output contracts, a deterministic no-real-AI placeholder extractor, a narrow extraction-run persistence port/JDBC adapter, and a V5 `intake.extraction_run` JSONB output-envelope table.
+- Task 5C current worktree: adds a backend-owned `IntakeClaimLedgerBridgeService` skeleton that reads `intake.extraction_run` output envelopes, validates governed-intake lineage through `intake.information_packet`, and appends only explicitly bridge-eligible operational claim candidates through `ClaimLedgerService`.
 
 ## Current Test State
 
@@ -32,6 +33,7 @@
 - Task 4D adds focused unit and PostgreSQL/Testcontainers coverage for transition audit request validation, transition-action classification, idempotency/correlation/causation propagation, persistence, read-model visibility, and organization isolation.
 - Task 5A adds focused unit and PostgreSQL/Testcontainers coverage for SourceItem/InformationPacket validation, duplicate attach rejection, organization-scoped lookup/list behavior, V4 migration application, source/packet/link persistence, and non-canonical boundary assertions.
 - Task 5B adds focused unit and PostgreSQL/Testcontainers coverage for deterministic extraction validation, no-source failed run behavior, output-envelope flags, duplicate extraction determinism, organization-scoped persistence/readback, V5 migration application, and the absence of ClaimLedger, ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, and old `recruiting.*` writes.
+- Task 5C adds focused unit and PostgreSQL/Testcontainers coverage for bridge request validation, missing/wrong-organization/failed/missing-output extraction rejection, default placeholder no-claim behavior, explicit operational bridge-eligible fixture append, duplicate source-reference replay, organization isolation, V6 migration/index application, and absence of ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, raw Candidate/Profile, and old `recruiting.*` use.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -70,6 +72,13 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - If an `InformationPacket` has no attached `SourceItem`, Task 5B persists a deterministic `FAILED` extraction run with no output envelope and the failure reason `information packet has no attached source items`.
 - Duplicate extraction is allowed in Task 5B: each call creates a new extraction run id, while the source snapshot hash and deterministic placeholder output remain stable for the same packet/source metadata.
 - Task 5B does not update `InformationPacket.processingStatus`; packet status transitions remain future governed-intake work.
+- `IntakeClaimLedgerBridgeService` provides the Task 5C governed-intake extraction-output to ClaimLedger bridge skeleton.
+- The bridge reads `intake.extraction_run` by organization-scoped extraction run id, validates a `SUCCEEDED` run with an output envelope, validates the packet through `intake.information_packet`, and appends only through `ClaimLedgerService`.
+- Default deterministic placeholder extraction output is intentionally not bridge-eligible and creates no fake business claims.
+- Bridge-eligible fixture fields must be explicitly marked `CLAIM_CANDIDATE`, use the `intake.bridge_eligible.*` operational field prefix, have intake source-item lineage, and are mapped to internal-only `ClaimLedgerItem` records with `claim_value_text`, `verification_status=ai_extracted`, `assertion_strength=weak_signal`, `claim_type=inference`, and `canonical_write_allowed=false`.
+- Task 5C stores governed-intake lineage in deterministic `source_span_ref` values and uses V6 `claim_ledger_org_source_span_idx` for narrow idempotency lookup. It does not populate `source_item_id` from `intake.source_item` because the existing V2 column still references `recruiting.source_item`.
+- Repeated bridge calls for the same extraction-run/field/source reference return the existing claim id and do not append duplicate claims.
+- For Task 5C, `intake.*` is the operational governed-intake source for ClaimLedger linkage; earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -80,7 +89,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No raw Candidate/Profile persistence.
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
-- No ClaimLedger append from governed intake.
+- No business-fact ClaimLedger append from default governed-intake placeholder output.
 - No ReviewEvent creation from governed intake.
 - No CanonicalWrite call from governed intake.
 - No CandidateProfile persistence from governed intake.
@@ -97,4 +106,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add extraction, ClaimLedger append, ReviewEvent, CanonicalWrite boundary usage, and downstream privacy/access surfaces.
+- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add ReviewEvent creation, CanonicalWrite boundary integration, CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.

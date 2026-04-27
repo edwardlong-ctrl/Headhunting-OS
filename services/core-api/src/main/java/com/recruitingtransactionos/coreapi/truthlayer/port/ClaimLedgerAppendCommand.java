@@ -11,6 +11,7 @@ public record ClaimLedgerAppendCommand(
     UUID organizationId,
     EntityRef targetEntity,
     String targetFieldPath,
+    String claimValue,
     ClaimType claimType,
     AssertionStrength assertionStrength,
     SourceSpanRef sourceSpanReference,
@@ -24,11 +25,41 @@ public record ClaimLedgerAppendCommand(
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(targetEntity, "targetEntity must not be null");
     targetFieldPath = PortContractGuards.requireNonBlank(targetFieldPath, "targetFieldPath");
+    claimValue = claimValue == null ? null : PortContractGuards.requireNonBlank(
+        claimValue,
+        "claimValue");
     Objects.requireNonNull(claimType, "claimType must not be null");
     Objects.requireNonNull(assertionStrength, "assertionStrength must not be null");
     Objects.requireNonNull(sourceSpanReference, "sourceSpanReference must not be null");
     Objects.requireNonNull(speaker, "speaker must not be null");
     Objects.requireNonNull(verificationStatus, "verificationStatus must not be null");
     Objects.requireNonNull(clientShareability, "clientShareability must not be null");
+  }
+
+  public ClaimLedgerAppendCommand(
+      UUID organizationId,
+      EntityRef targetEntity,
+      String targetFieldPath,
+      ClaimType claimType,
+      AssertionStrength assertionStrength,
+      SourceSpanRef sourceSpanReference,
+      ActorRole speaker,
+      VerificationStatus verificationStatus,
+      ClientShareability clientShareability,
+      UUID sourceItemId,
+      AITaskRunId aiTaskRunId) {
+    this(
+        organizationId,
+        targetEntity,
+        targetFieldPath,
+        null,
+        claimType,
+        assertionStrength,
+        sourceSpanReference,
+        speaker,
+        verificationStatus,
+        clientShareability,
+        sourceItemId,
+        aiTaskRunId);
   }
 }

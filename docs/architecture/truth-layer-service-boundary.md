@@ -16,6 +16,15 @@ Governed intake extraction placeholder:
 → `IntakeExtractionRunPort`
 → `intake.extraction_run`
 
+Governed intake ClaimLedger bridge:
+
+`IntakeClaimLedgerBridgeService`
+→ `IntakeExtractionRunPort`
+→ `InformationPacketPersistencePort`
+→ `ClaimLedgerSourceReferenceLookupPort`
+→ `ClaimLedgerService`
+→ `governance.claim_ledger_item`
+
 Claim/review/canonical chain:
 
 `ClaimLedgerService`
@@ -81,6 +90,29 @@ Read-only audit side:
 - `intake.extraction_run` links to `intake.information_packet` through an organization-scoped foreign key.
 - `output_json` is JSONB for the intermediate extraction envelope only; it is not a canonical profile, ClaimLedger item, ReviewEvent, or client-facing projection.
 - The adapter does not write `governance.claim_ledger_item`, `governance.review_event`, `workflow.workflow_event`, `recruiting.candidate`, `recruiting.candidate_profile`, `recruiting.source_item`, or `recruiting.information_packet`.
+
+## IntakeClaimLedgerBridgeService
+
+- Backend-owned Task 5C service boundary for bridging governed-intake extraction output envelopes into ClaimLedger append.
+- Requires an organization-scoped `IntakeClaimLedgerBridgeRequest` with `organization_id`, `extraction_run_id`, actor provenance, and bridge policy.
+- Loads extraction runs through `IntakeExtractionRunPort` by organization and extraction run id.
+- Rejects missing runs, wrong-organization runs, `FAILED` runs, non-succeeded runs, and runs without an output envelope.
+- Validates the extraction output envelope matches the run and validates the packet through `InformationPacketPersistencePort`.
+- Uses `intake.extraction_run` and `intake.information_packet` for Task 5C governed-intake lineage. It does not read or write earlier V2 `recruiting.source_item` or `recruiting.information_packet` skeleton tables.
+- Treats default deterministic placeholder output as non-bridge-eligible and appends no fake business claims.
+- Only maps fields explicitly marked `CLAIM_CANDIDATE` and prefixed with `intake.bridge_eligible.*`.
+- Blocks placeholder metadata such as `source_count`, `source_types`, `extraction_mode`, `real_ai_extraction_performed`, `claim_ledger_append_allowed`, `canonical_write_allowed`, and `needs_future_extraction` even if malformed input marks them as claim candidates.
+- Maps bridge-eligible operational fixtures to internal-only ClaimLedger claims with `claim_value_text`, `verification_status=ai_extracted`, `assertion_strength=weak_signal`, `claim_type=inference`, and `canonical_write_allowed=false`.
+- Stores governed-intake lineage in deterministic `source_span_ref` values. It leaves `source_item_id` null because the current V2 ClaimLedger column references `recruiting.source_item`, not `intake.source_item`.
+- Uses `ClaimLedgerSourceReferenceLookupPort` and V6 `claim_ledger_org_source_span_idx` for narrow duplicate detection; repeated equivalent bridge calls return existing claim ids instead of appending duplicates.
+- Appends ClaimLedger records only through `ClaimLedgerService`.
+- Does not create ReviewEvent, call CanonicalWriteService, write CandidateProfile, write raw Candidate/Profile persistence, append WorkflowEvent, mutate entity state, implement a workflow engine, validate transition legality, expose API/controller/UI behavior, expose output to Client, wire AI models, implement Consent/Disclosure, or implement RBAC/ABAC.
+
+## ClaimLedgerSourceReferenceLookupPort / JdbcClaimLedgerSourceReferenceLookupPort
+
+- Narrow read-only lookup used only for Task 5C bridge idempotency by exact organization and `source_span_ref`.
+- Reads only `governance.claim_ledger_item`.
+- Does not provide generic ClaimLedger search, dashboard analytics, API exposure, canonical read models, candidate/company/job joins, or client-safe projection.
 
 ## ClaimLedgerService
 
@@ -177,7 +209,8 @@ Read-only audit side:
 - Do not treat `SourceItem` or `InformationPacket` as canonical facts.
 - Do not treat `DeterministicIntakeExtractionService` as real AI extraction, semantic parsing, ClaimLedger append, ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, or raw Candidate exposure.
 - Do not treat `IntakeExtractionOutputEnvelope` or `intake.extraction_run.output_json` as canonical facts, ClaimLedger, ReviewEvent, CandidateProfile, CanonicalWrite output, API DTO, UI state, or client-safe projection.
-- Do not treat Task 5B as the bridge/migration/deprecation decision between `intake.*` and earlier `recruiting.*` source/packet skeleton tables.
+- Do not treat `IntakeClaimLedgerBridgeService` as ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
+- Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.

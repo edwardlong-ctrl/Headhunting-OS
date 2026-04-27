@@ -21,6 +21,10 @@
     },
     "client_shareability": { "$ref": "truth-layer.enums.schema.json#/$defs/client_shareability" },
     "target_field_path": { "type": "string" },
+    "claim_value_text": {
+      "type": "string",
+      "$comment": "Optional claim value text. A populated value remains a claim, not a canonical fact."
+    },
     "source_item_id": { "type": "string", "format": "uuid" },
     "candidate_evidence_item_id": { "type": "string", "format": "uuid" },
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
