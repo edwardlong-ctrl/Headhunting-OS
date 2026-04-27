@@ -29,6 +29,12 @@ public final class CanonicalWriteGate {
       blockReasons.add("weak_signal_intent_cannot_become_confirmed_fact");
     }
 
+    if (claim.type() == ClaimType.INTENT
+        && claim.assertionStrength() == AssertionStrength.IMPLIED
+        && request.targetVerificationStatus() == VerificationStatus.CANDIDATE_CONFIRMED) {
+      blockReasons.add("implied_intent_cannot_become_confirmed_fact");
+    }
+
     if (claim.bulkApproved()
         && request.targetVerificationStatus() == VerificationStatus.CANDIDATE_CONFIRMED) {
       blockReasons.add("bulk_approve_cannot_create_candidate_confirmed");
@@ -37,6 +43,10 @@ public final class CanonicalWriteGate {
     if (claim.bulkApproved()
         && request.targetVerificationStatus() == VerificationStatus.EXTERNAL_VERIFIED) {
       blockReasons.add("bulk_approve_cannot_create_external_verified");
+    }
+
+    if (claim.bulkApproved() && request.targetRiskTier() == RiskTier.T4_TRANSACTION_LEGAL) {
+      blockReasons.add("t4_transaction_legal_cannot_use_bulk_approval");
     }
 
     if (request.targetRiskTier() == RiskTier.T1_LOW
@@ -58,6 +68,7 @@ public final class CanonicalWriteGate {
     }
 
     if (request.conflictsWithCanonical()
+        || claim.verificationStatus() == VerificationStatus.CONFLICTING
         || claim.assertionStrength() == AssertionStrength.CONTRADICTION) {
       if (!request.explicitReviewApproved()) {
         reviewReasons.add("conflicting_claim_requires_explicit_review");
