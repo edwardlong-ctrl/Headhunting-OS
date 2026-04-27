@@ -1,0 +1,364 @@
+package com.recruitingtransactionos.coreapi.truthlayer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewDecision;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+import java.util.logging.Logger;
+import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.output.MigrateResult;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+
+@Testcontainers
+class CanonicalWriteTransactionBoundaryIntegrationTest {
+
+  private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
+  private static final Instant OCCURRED_AT = Instant.parse("2026-04-28T03:30:00Z");
+
+  @Container
+  private static final PostgreSQLContainer<?> POSTGRES =
+      new PostgreSQLContainer<>(POSTGRES_IMAGE);
+
+  private static MigrateResult migrateResult;
+  private static DataSource dataSource;
+
+  @BeforeAll
+  static void migrate() {
+    migrateResult = Flyway.configure()
+        .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+        .locations("classpath:db/migration")
+        .cleanDisabled(true)
+        .load()
+        .migrate();
+    dataSource = postgresDataSource();
+  }
+
+  @Test
+  void allowedBoundaryAppendsWorkflowEventInPostgres() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080001");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080002");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080003");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080004");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    CanonicalWriteResult result = service().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(result.workflowEventAppended()).isTrue();
+    assertThat(result.workflowEventId()).isNotNull();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+    assertThat(countRows("recruiting.candidate", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+    assertThat(findWorkflowAction(result.workflowEventId().value()))
+        .isEqualTo("canonical_write.boundary_allowed");
+  }
+
+  @Test
+  void blockedBoundaryDoesNotAppendWorkflowEventInPostgres() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080101");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080102");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080103");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080104");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    CanonicalWriteResult result = service().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(result.workflowEventAppended()).isFalse();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+  }
+
+  @Test
+  void canonicalPersistenceRemainsExplicitlyDeferred() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080201");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080202");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080203");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080204");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    CanonicalWriteResult result = service().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .build());
+
+    assertThat(tableExists("recruiting", "candidate_profile")).isTrue();
+    assertThat(result.canonicalPersistencePerformed()).isFalse();
+    assertThat(result.canonicalPersistenceStatus())
+        .isEqualTo("not_implemented_no_safe_canonical_write_target_in_task_3d");
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+  }
+
+  @Test
+  void fullFlywayMigrationStillAppliesBeforeCanonicalWriteBoundaryTest()
+      throws SQLException {
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(2);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2");
+  }
+
+  private static CanonicalWriteService service() {
+    return new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        CanonicalWriteTransactionBoundary.immediate());
+  }
+
+  private static CanonicalWriteCommand.Builder commandBuilder(
+      UUID organizationId,
+      UUID actorId,
+      UUID candidateId,
+      UUID reviewEventId) {
+    return CanonicalWriteCommand.builder()
+        .organizationId(organizationId)
+        .targetEntity(new EntityRef("candidate", candidateId))
+        .targetFieldPath("headline")
+        .proposedValueRef("claim-value:headline:v1")
+        .claimId(new ClaimId(uuid("00000000-0000-0000-0000-000000080999")))
+        .claim(new ClaimInput(
+            ClaimType.FACT,
+            AssertionStrength.EXPLICIT,
+            VerificationStatus.HUMAN_ACKNOWLEDGED,
+            ClientShareability.CLIENT_SAFE,
+            false))
+        .reviewEvidence(new CanonicalWriteReviewEvidence(
+            new ReviewEventId(reviewEventId),
+            ReviewDecision.APPROVED,
+            false,
+            false,
+            "reviewed source span before canonical boundary"))
+        .targetVerificationStatus(VerificationStatus.HUMAN_ACKNOWLEDGED)
+        .targetRiskTier(RiskTier.T1_LOW)
+        .clientVisible(false)
+        .conflictsWithCanonical(false)
+        .actor(new ActorRef(actorId, ActorRole.CONSULTANT))
+        .reason("reviewed source span before canonical boundary")
+        .correlationId(uuid("00000000-0000-0000-0000-000000080998"))
+        .idempotencyKey("canonical-write-boundary-" + organizationId)
+        .occurredAt(OCCURRED_AT);
+  }
+
+  private static void insertOrganizationUserAndReview(
+      UUID organizationId,
+      UUID userId,
+      UUID candidateId,
+      UUID reviewEventId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement organization = connection.prepareStatement("""
+            INSERT INTO identity.organization (
+              organization_id,
+              legal_name,
+              display_name,
+              status,
+              default_timezone
+            )
+            VALUES (?, ?, ?, 'active', 'UTC')
+            """);
+        PreparedStatement user = connection.prepareStatement("""
+            INSERT INTO identity.user_account (
+              user_account_id,
+              organization_id,
+              email,
+              display_name,
+              status
+            )
+            VALUES (?, ?, ?, ?, 'active')
+            """);
+        PreparedStatement review = connection.prepareStatement("""
+            INSERT INTO governance.review_event (
+              review_event_id,
+              organization_id,
+              reviewer_user_id,
+              target_entity_type,
+              target_entity_id,
+              field_path,
+              risk_tier,
+              decision,
+              bulk_flag,
+              duration_ms,
+              reason
+            )
+            VALUES (?, ?, ?, 'candidate', ?, 'headline', ?::governance.risk_tier,
+              'approved', false, 700, 'reviewed source span before canonical boundary')
+            """)) {
+      organization.setObject(1, organizationId);
+      organization.setString(2, "Task 3D Org " + organizationId);
+      organization.setString(3, "Task 3D Org");
+      organization.executeUpdate();
+
+      user.setObject(1, userId);
+      user.setObject(2, organizationId);
+      user.setString(3, "canonical-boundary-" + userId + "@example.test");
+      user.setString(4, "Task 3D Reviewer");
+      user.executeUpdate();
+
+      review.setObject(1, reviewEventId);
+      review.setObject(2, organizationId);
+      review.setObject(3, userId);
+      review.setObject(4, candidateId);
+      review.setString(5, RiskTier.T1_LOW.wireValue());
+      review.executeUpdate();
+    }
+  }
+
+  private static int countRows(String tableName, UUID organizationId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            "SELECT count(*) FROM " + tableName + " WHERE organization_id = ?")) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private static String findWorkflowAction(UUID workflowEventId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT action
+            FROM workflow.workflow_event
+            WHERE workflow_event_id = ?
+            """)) {
+      statement.setObject(1, workflowEventId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getString("action");
+      }
+    }
+  }
+
+  private static java.util.List<String> appliedMigrationVersions() throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank");
+        ResultSet resultSet = statement.executeQuery()) {
+      java.util.List<String> versions = new java.util.ArrayList<>();
+      while (resultSet.next()) {
+        versions.add(resultSet.getString("version"));
+      }
+      return versions;
+    }
+  }
+
+  private static boolean tableExists(String schema, String table) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            "SELECT EXISTS ("
+                + "SELECT 1 FROM information_schema.tables "
+                + "WHERE table_schema = ? AND table_name = ? AND table_type = 'BASE TABLE')")) {
+      statement.setString(1, schema);
+      statement.setString(2, table);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getBoolean(1);
+      }
+    }
+  }
+
+  private static Connection connection() throws SQLException {
+    return DriverManager.getConnection(
+        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+  }
+
+  private static DataSource postgresDataSource() {
+    return new DataSource() {
+      @Override
+      public Connection getConnection() throws SQLException {
+        return connection();
+      }
+
+      @Override
+      public Connection getConnection(String username, String password) throws SQLException {
+        return DriverManager.getConnection(POSTGRES.getJdbcUrl(), username, password);
+      }
+
+      @Override
+      public PrintWriter getLogWriter() {
+        return DriverManager.getLogWriter();
+      }
+
+      @Override
+      public void setLogWriter(PrintWriter out) {
+        DriverManager.setLogWriter(out);
+      }
+
+      @Override
+      public void setLoginTimeout(int seconds) {
+        DriverManager.setLoginTimeout(seconds);
+      }
+
+      @Override
+      public int getLoginTimeout() {
+        return DriverManager.getLoginTimeout();
+      }
+
+      @Override
+      public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException("DriverManager parent logger is not supported");
+      }
+
+      @Override
+      public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface.isInstance(this)) {
+          return iface.cast(this);
+        }
+        throw new SQLException("DataSource does not wrap " + iface.getName());
+      }
+
+      @Override
+      public boolean isWrapperFor(Class<?> iface) {
+        return iface.isInstance(this);
+      }
+    };
+  }
+
+  private static UUID uuid(String value) {
+    return UUID.fromString(value);
+  }
+}
