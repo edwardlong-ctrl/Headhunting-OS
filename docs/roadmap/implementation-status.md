@@ -17,13 +17,15 @@
 - `9f6e097` Add canonical write transaction boundary: added the CanonicalWriteTransactionBoundary skeleton.
 - `e55069c` Harden truth layer service boundaries: hardened service boundaries and regression coverage through Task 3E.
 - Task 4A: added stable workflow action/entity/risk/actor/AI involvement vocabulary, a workflow audit policy registry, and append-boundary policy validation for `WorkflowEventService`.
-- Task 4B current worktree: adds `WorkflowEvent` idempotency, correlation, and causation guardrails at the audit append boundary.
+- Task 4B: added `WorkflowEvent` idempotency, correlation, and causation guardrails at the audit append boundary.
+- Task 4C current worktree: adds a backend-internal, read-only `WorkflowEvent` audit query/read model skeleton.
 
 ## Current Test State
 
 - Full Maven backend reached 119 tests, 0 failures/errors, 1 existing skip after Task 4A.
 - Full Maven backend reached 131 tests, 0 failures/errors, 1 existing skip after Task 4B.
 - Task 4B added focused unit and PostgreSQL/Testcontainers coverage for idempotency/correlation/causation behavior.
+- Task 4C adds focused unit and PostgreSQL/Testcontainers coverage for read-only audit query behavior and boundaries.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -41,6 +43,9 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `WorkflowEventService` validates idempotency, correlation, and causation identifiers before append.
 - `WorkflowEventService` returns the existing event for duplicate equivalent idempotency-key appends and rejects duplicate different payloads as idempotency conflicts.
 - `WorkflowActionRegistry` defines one policy per stable action code, including allowed entity types, risk tier, before/after-state requirements, reason requirements, and AI-only finalization limits.
+- `WorkflowAuditQueryService` provides a backend-internal, read-only audit read-model boundary for `workflow.workflow_event` records.
+- `WorkflowAuditReadPort` supports narrow audit filters by organization, event id, entity, action, actor, correlation, causation, idempotency key, and occurred-at range.
+- `JdbcWorkflowAuditReadPort` reads only from `workflow.workflow_event`; it does not join Candidate, Company, Job, Consent, Disclosure, Placement, or Commission tables.
 - `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts, propagating idempotency/correlation/causation identifiers when supplied.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
@@ -60,3 +65,5 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Consent/Disclosure implementation.
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
+- No dashboard analytics or generic repository search.
+- No CandidateProfile canonical persistence.

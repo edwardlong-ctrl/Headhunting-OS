@@ -8,6 +8,12 @@
 → `CanonicalWriteService`
 → `WorkflowEventService`
 
+Read-only audit side:
+
+`WorkflowAuditQueryService`
+→ `WorkflowAuditReadPort`
+→ `workflow.workflow_event`
+
 ## ClaimLedgerService
 
 - Appends claims.
@@ -34,8 +40,32 @@
 - Does not validate transitions.
 - Does not mutate entity state.
 - Does not query or update the target entity.
-- Does not expose broad workflow search/list/read-model behavior; the only lookup is idempotency-key scoped.
+- Does not expose broad workflow search/list/read-model behavior; append idempotency lookup remains idempotency-key scoped.
+- Task 4C audit read-model behavior is separated into `WorkflowAuditQueryService` and `WorkflowAuditReadPort`.
 - Uses `workflow.workflow_event`.
+
+## WorkflowAuditQueryService
+
+- Backend-internal read-only service for appended `WorkflowEvent` audit records.
+- Requires `organization_id` for every query.
+- Validates limit, offset, and occurred-at range.
+- Supports narrow audit filters only: event id, entity type/id, action code, actor type/id, correlation id, causation id, idempotency key, and occurred-at range.
+- Returns deterministic ordering: `occurred_at DESC`, then `workflow_event_id DESC`.
+- Does not append, update, delete, or mutate any state.
+- Does not validate transition legality.
+- Does not authorize users yet; RBAC/ABAC remains future work.
+- Does not expose API/controller/UI behavior.
+- Does not produce client-safe projections.
+
+## WorkflowAuditReadPort / JdbcWorkflowAuditReadPort
+
+- Read-only port and JDBC adapter for the `workflow.workflow_event` audit read model.
+- Reads only from `workflow.workflow_event`.
+- Does not replace `WorkflowEventPort`.
+- Does not join Candidate, Company, Job, Consent, Disclosure, Placement, or Commission tables.
+- Does not expose raw Candidate/Profile payloads, source document contents, metadata JSON, or business entity internals.
+- Does not implement full-text search, arbitrary SQL filters, generic sorting, dashboard analytics, or broad repository behavior.
+- Uses existing Task 4B columns and indexes for idempotency, correlation, causation, entity timeline, and event id lookup.
 
 ## CanonicalWriteGate
 
@@ -64,8 +94,9 @@
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat WorkflowEvent action policy validation as transition legality validation.
 - Do not treat WorkflowEvent idempotency/correlation/causation guardrails as a workflow engine, SLA engine, automation engine, API, or UI.
+- Do not treat Task 4C audit read model as API, UI, client-safe projection, RBAC/ABAC, dashboard analytics, or workflow engine.
 - Do not treat `ReviewEventService` as verification promotion.
 - Do not treat `ClaimLedgerService` as canonical fact storage.
 - Do not treat transaction boundary skeleton as real rollback.
 - Do not expose raw Candidate to Client.
-- Do not treat Task 4B as ConsentRecord, DisclosureRecord, RBAC/ABAC, Client-safe projection, AI model wiring, or CandidateProfile canonical persistence.
+- Do not treat Task 4C as ConsentRecord, DisclosureRecord, RBAC/ABAC, Client-safe projection, AI model wiring, or CandidateProfile canonical persistence.

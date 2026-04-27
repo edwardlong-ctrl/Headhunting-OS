@@ -43,18 +43,23 @@
 - WorkflowEvent append exists.
 - Workflow action vocabulary and audit policy exist after Task 4A.
 - WorkflowEvent idempotency, correlation, and causation guardrails exist after Task 4B.
+- WorkflowEvent audit query/read model skeleton exists after Task 4C.
 - Workflow action audit still exists only at append-boundary validation level.
-- Idempotency lookup is limited to `findByIdempotencyKey`; Task 4C read/query models are not implemented.
 - No state machine.
 - No transition legality validation.
 - No entity-state lookup or mutation is performed by WorkflowEvent policy validation.
 - No SLA/automation workflow engine.
 
-## Workflow Read Model Not Implemented
+## Workflow Read Model Remaining Gaps
 
-- No audit query/read model exists yet.
-- No generic list/search repository exists for WorkflowEvent.
-- Correlation and causation identifiers are stored for audit lineage, but no user-facing timeline/query API exists yet.
+- Task 4C adds a backend-internal, read-only audit query/read model for `WorkflowEvent`.
+- It is not an API/controller layer.
+- It is not UI integration.
+- It is not a client-safe projection.
+- It does not expose raw Candidate/Profile payloads or business entity internals.
+- It does not join Candidate, Company, Job, Consent, Disclosure, Placement, or Commission tables.
+- It is not dashboard analytics, full reporting, full-text search, generic repository search, or arbitrary SQL filtering.
+- Correlation and causation identifiers are queryable for backend audit lineage, but no user-facing timeline/query API exists yet.
 
 ## API Boundary Not Implemented
 
