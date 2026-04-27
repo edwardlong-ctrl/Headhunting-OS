@@ -26,6 +26,21 @@
 - No prompt/model/schema version tracking yet.
 - No `write_back_target` enforcement beyond current boundary concepts.
 
+## Governed Intake Minimal Slice Incomplete
+
+- Task 5A now provides backend-owned `SourceItem` and `InformationPacket` contracts, persistence ports/adapters, and `intake.source_item`, `intake.information_packet`, and `intake.information_packet_source_item` tables.
+- These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
+- `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
+- Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
+- No real AI extraction exists yet.
+- No ClaimLedger append from intake exists yet.
+- No ReviewEvent creation from intake exists yet.
+- No CanonicalWrite from intake exists yet.
+- No CandidateProfile persistence exists from intake.
+- No API/UI exposure exists for governed intake.
+- Before any ClaimLedger linkage from governed intake, a future Task 5 subtask must decide the bridge/migration/deprecation path between the Task 5A `intake.*` tables and the earlier V2 `recruiting.*` skeleton tables.
+- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add extraction output handling, ClaimLedger append, ReviewEvent, CanonicalWrite boundary integration, and required audit/review gates.
+
 ## Client-safe Projection Not Implemented
 
 - Raw Candidate must never be exposed to Client.
@@ -54,7 +69,7 @@
 - No entity-state lookup or mutation is performed by `WorkflowTransitionAuditService`.
 - No SLA/automation workflow engine.
 - Full workflow engine remains future work.
-- Task 5 Governed Intake Minimal Slice remains future work.
+- Task 5A SourceItem + InformationPacket persistence exists, but the broader Governed Intake workflow remains future work.
 
 ## Workflow Read Model Remaining Gaps
 
@@ -77,6 +92,7 @@
 
 - No UI integration exists for WorkflowEvent audit guardrails.
 - No real AI model wiring exists for workflow actions.
+- No API/controller/UI integration exists for governed intake.
 - No Consent/Disclosure behavior exists.
 - No RBAC/ABAC implementation exists.
 - No Client-safe projection or redaction behavior exists.

@@ -20,6 +20,7 @@
 - Task 4B: added `WorkflowEvent` idempotency, correlation, and causation guardrails at the audit append boundary.
 - Task 4C: added a backend-internal, read-only `WorkflowEvent` audit query/read model skeleton.
 - Task 4D current worktree: adds a backend-internal `WorkflowTransitionAuditService` / `WorkflowTransitionAuditRequest` skeleton for recording requested workflow state-transition audit events with `before_state` and `after_state`.
+- Task 5A current worktree: adds backend-owned `SourceItem` and `InformationPacket` governed-intake contracts, narrow create/attach/read service and persistence ports, JDBC adapters, and a V4 `intake` schema with packet/source link table.
 
 ## Current Test State
 
@@ -28,6 +29,7 @@
 - Task 4B added focused unit and PostgreSQL/Testcontainers coverage for idempotency/correlation/causation behavior.
 - Task 4C adds focused unit and PostgreSQL/Testcontainers coverage for read-only audit query behavior and boundaries.
 - Task 4D adds focused unit and PostgreSQL/Testcontainers coverage for transition audit request validation, transition-action classification, idempotency/correlation/causation propagation, persistence, read-model visibility, and organization isolation.
+- Task 5A adds focused unit and PostgreSQL/Testcontainers coverage for SourceItem/InformationPacket validation, duplicate attach rejection, organization-scoped lookup/list behavior, V4 migration application, source/packet/link persistence, and non-canonical boundary assertions.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -52,6 +54,11 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `WorkflowTransitionAuditService` requires `before_state` and `after_state`, rejects equal states, rejects unknown action codes, and rejects action policies that are not configured as state transitions.
 - `WorkflowTransitionAuditService` preserves existing `WorkflowEvent` idempotency, correlation, and causation behavior by mapping to the existing append command.
 - `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts, propagating idempotency/correlation/causation identifiers when supplied.
+- `GovernedIntakeService` creates and reads governed-intake `SourceItem` and `InformationPacket` records and attaches source items to packets through narrow backend-owned ports.
+- `SourceItem` stores provenance/raw-source metadata, refs, hashes, actor provenance, received/created timestamps, metadata JSON, and source status in `intake.source_item`.
+- `InformationPacket` stores packet grouping intent, intended entity type/id, creator provenance, processing status, notes, timestamps, and metadata JSON in `intake.information_packet`.
+- `intake.information_packet_source_item` records packet/source grouping and rejects duplicate source attachment for the same organization and packet.
+- Governed-intake lookup and list operations are organization-scoped.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -60,6 +67,12 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 
 - No CandidateProfile canonical persistence.
 - No raw Candidate/Profile persistence.
+- No real AI extraction from SourceItem or InformationPacket.
+- No deterministic extraction placeholder beyond intake statuses.
+- No ClaimLedger append from governed intake.
+- No ReviewEvent creation from governed intake.
+- No CanonicalWrite call from governed intake.
+- No CandidateProfile persistence from governed intake.
 - No workflow engine.
 - No SLA/automation workflow engine.
 - No transition validation.
@@ -73,4 +86,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- No CandidateProfile canonical persistence.
+- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add extraction, ClaimLedger append, ReviewEvent, CanonicalWrite boundary usage, and downstream privacy/access surfaces.

@@ -138,8 +138,8 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   @Test
   void fullFlywayMigrationStillAppliesBeforeCanonicalWriteBoundaryTest()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(3);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(4);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4");
   }
 
   private static CanonicalWriteService service() {

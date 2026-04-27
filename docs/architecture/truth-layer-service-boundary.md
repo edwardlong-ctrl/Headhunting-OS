@@ -2,6 +2,15 @@
 
 ## Current Boundary Chain
 
+Governed intake foundation:
+
+`GovernedIntakeService`
+→ `SourceItemPersistencePort`
+→ `InformationPacketPersistencePort`
+→ `intake.source_item` / `intake.information_packet` / `intake.information_packet_source_item`
+
+Claim/review/canonical chain:
+
 `ClaimLedgerService`
 → `ReviewEventService`
 → `CanonicalWriteGate`
@@ -18,6 +27,30 @@ Read-only audit side:
 `WorkflowAuditQueryService`
 → `WorkflowAuditReadPort`
 → `workflow.workflow_event`
+
+## GovernedIntakeService
+
+- Backend-owned service boundary for Task 5A SourceItem + InformationPacket persistence.
+- Registers `SourceItem` records as raw/source provenance metadata and refs.
+- Creates `InformationPacket` records that group source material by intended packet/entity type.
+- Attaches a SourceItem to an InformationPacket only when both records are visible in the same `organization_id`.
+- Rejects duplicate SourceItem attachment to the same packet.
+- Reads SourceItem and InformationPacket records only through organization-scoped lookup/list methods.
+- Does not parse CV/JD/WeChat/email/call-note content.
+- Does not run real AI extraction, OCR, STT, file conversion, or deterministic extraction.
+- Does not append ClaimLedgerItem, create ReviewEvent, call CanonicalWriteService, or write CandidateProfile.
+- Does not append WorkflowEvent in Task 5A; packet/source registration audit is intentionally deferred until a later governed-intake subtask defines suitable workflow action vocabulary and state semantics.
+- Does not mutate Job, Candidate, Company, Shortlist, Consent, Disclosure, Placement, or Commission state.
+- Does not expose API/controller/UI behavior.
+
+## SourceItem / InformationPacket Persistence Ports
+
+- `SourceItemPersistencePort` is narrow: append/register SourceItem and find SourceItem by organization-scoped id.
+- `InformationPacketPersistencePort` is narrow: create InformationPacket, find by organization-scoped id, attach SourceItem, test duplicate attachment, and list SourceItems for a packet.
+- `intake.source_item` stores provenance/raw-source metadata, source type, origin, actor provenance, refs/hashes, language, timestamps, metadata JSON, and status.
+- `intake.information_packet` stores packet type, intended entity type/id, creator provenance, processing status, notes, timestamps, and metadata JSON.
+- `intake.information_packet_source_item` is the Task 5A link table; its primary key rejects duplicate attachment and its composite foreign keys preserve organization isolation.
+- These tables are not client-facing views and are not canonical fact tables.
 
 ## ClaimLedgerService
 
@@ -110,6 +143,8 @@ Read-only audit side:
 
 ## Forbidden Current Misreadings
 
+- Do not treat `GovernedIntakeService` as AI extraction, ClaimLedger append, ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, or raw Candidate exposure.
+- Do not treat `SourceItem` or `InformationPacket` as canonical facts.
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.
