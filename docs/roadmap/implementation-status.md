@@ -1,0 +1,52 @@
+# Implementation Status
+
+## Current Git Main Milestones
+
+- `beb71d4` Add product specs as source of truth: established `docs/specs/CURRENT_SPEC.md`, v2.1 as current product source of truth, and preserved v2.0 as UI / portal baseline.
+- `f1b2e0a` Initialize production kernel skeleton: created the first production-kernel repo skeleton for the production-first Recruiting Transaction OS.
+- `45f979a` Document contracts-first truth layer design: added the Task 2A contracts-first truth-layer design documents.
+- `1aca18b` Add truth layer contract skeleton: introduced the initial truth-layer Java/domain contract skeleton.
+- `09571ee` Verify truth layer migrations against PostgreSQL: verified Flyway/PostgreSQL truth-layer migration behavior.
+- `22bdf98` Add truth layer canonical write gate skeleton: introduced the first CanonicalWriteGate boundary.
+- `fc18e0e` Add truth layer alignment tests: checked alignment across domain contracts, documentation, and migration shape.
+- `4d90e2c` Add truth layer negative policy tests: added negative policy coverage for unsafe truth-layer behavior.
+- `8a8b670` Add truth layer persistence port contracts: added minimal append-oriented persistence port contracts.
+- `1ffc5d5` Implement claim ledger append persistence: implemented append persistence for ClaimLedger records.
+- `53d6469` Implement review event append persistence: implemented append persistence for ReviewEvent records.
+- `eac26cd` Implement workflow event append persistence: implemented append persistence for WorkflowEvent records.
+- `9f6e097` Add canonical write transaction boundary: added the CanonicalWriteTransactionBoundary skeleton.
+- `e55069c` Harden truth layer service boundaries: hardened service boundaries and regression coverage through Task 3E.
+
+## Current Test State
+
+- Full Maven backend reached 107 tests, 0 failures/errors, 1 existing skip after Task 3E.
+- Docker/Testcontainers PostgreSQL is part of required validation.
+- `docker info` must pass before full Maven validation.
+- Maven command:
+
+```sh
+PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
+```
+
+## Current Truth Layer Capabilities
+
+- `ClaimLedgerService` appends to `governance.claim_ledger_item`.
+- `ReviewEventService` appends to `governance.review_event`.
+- `WorkflowEventService` appends to `workflow.workflow_event`.
+- `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts.
+- Canonical persistence is explicitly deferred.
+- `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
+- No endpoint/API/UI/AI wiring exists for this flow yet.
+
+## Current Non-capabilities
+
+- No CandidateProfile canonical persistence.
+- No raw Candidate/Profile persistence.
+- No workflow engine.
+- No transition validation.
+- No API layer.
+- No UI integration.
+- No AI model integration.
+- No Consent/Disclosure implementation.
+- No Client-safe projection.
+- No RBAC/ABAC implementation.
