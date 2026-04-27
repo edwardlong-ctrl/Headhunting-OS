@@ -3,7 +3,9 @@ package com.recruitingtransactionos.coreapi.governedintake;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcInformationPacketPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcIntakeExtractionRunPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcSourceItemPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.service.DeterministicIntakeExtractionService;
 import com.recruitingtransactionos.coreapi.governedintake.service.GovernedIntakeService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import java.io.PrintWriter;
@@ -29,12 +31,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
-class GovernedIntakePostgresPersistenceIntegrationTest {
+class IntakeExtractionPostgresPersistenceIntegrationTest {
 
   private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
-  private static final UUID ORG_A = uuid("00000000-0000-0000-0000-000000060001");
-  private static final UUID ORG_B = uuid("00000000-0000-0000-0000-000000060002");
-  private static final Instant RECEIVED_AT = Instant.parse("2026-04-28T09:00:00Z");
+  private static final UUID ORG_A = uuid("00000000-0000-0000-0000-000000160001");
+  private static final UUID ORG_B = uuid("00000000-0000-0000-0000-000000160002");
+  private static final Instant RECEIVED_AT = Instant.parse("2026-04-28T11:00:00Z");
 
   @Container
   private static final PostgreSQLContainer<?> POSTGRES =
@@ -57,89 +59,90 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
   }
 
   @Test
-  void flywayMigrationCreatesGovernedIntakeTables() throws SQLException {
+  void flywayMigrationCreatesExtractionRunTableAndIndexes() throws SQLException {
     assertThat(migrateResult.migrationsExecuted).isEqualTo(5);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5");
-    assertThat(schemaExists("intake")).isTrue();
-    assertThat(tableExists("intake", "source_item")).isTrue();
-    assertThat(tableExists("intake", "information_packet")).isTrue();
-    assertThat(tableExists("intake", "information_packet_source_item")).isTrue();
-    assertThat(indexExists("intake", "source_item", "intake_source_item_org_status_idx"))
-        .isTrue();
-    assertThat(indexExists("intake", "information_packet",
-        "intake_information_packet_org_type_status_idx")).isTrue();
-    assertThat(indexExists("intake", "information_packet_source_item",
-        "intake_packet_source_item_source_idx")).isTrue();
+    assertThat(tableExists("intake", "extraction_run")).isTrue();
+    assertThat(indexExists("intake", "extraction_run",
+        "intake_extraction_run_org_packet_created_idx")).isTrue();
+    assertThat(indexExists("intake", "extraction_run",
+        "intake_extraction_run_org_status_idx")).isTrue();
   }
 
   @Test
-  void sourceItemPersistsAndReadsBack() {
-    SourceItem sourceItem = service().registerSourceItem(sourceCommand(ORG_A, "readback").build());
-
-    Optional<SourceItem> readBack = service().findSourceItem(ORG_A, sourceItem.sourceItemId());
-
-    assertThat(readBack).contains(sourceItem);
-    assertThat(sourceItem.organizationId()).isEqualTo(ORG_A);
-    assertThat(sourceItem.sourceType()).isEqualTo(SourceItemType.CV);
-    assertThat(sourceItem.origin()).isEqualTo(SourceItemOrigin.CONSULTANT_UPLOAD);
-    assertThat(sourceItem.status()).isEqualTo(SourceItemStatus.REGISTERED);
-    assertThat(sourceItem.contentHash()).isEqualTo("sha256:060001-readback");
-    assertThat(sourceItem.storageRef()).isEqualTo("s3://internal-intake/060001-readback");
-    assertThat(sourceItem.rawRef()).isEqualTo("vault://source-060001-readback/raw");
-    assertThat(sourceItem.metadataJson()).isEqualTo("{\"case\":\"060001-readback\"}");
-  }
-
-  @Test
-  void informationPacketPersistsAndReadsBack() {
-    InformationPacket packet = service().createInformationPacket(packetCommand(ORG_A).build());
-
-    Optional<InformationPacket> readBack =
-        service().findInformationPacket(ORG_A, packet.informationPacketId());
-
-    assertThat(readBack).contains(packet);
-    assertThat(packet.packetType()).isEqualTo(InformationPacketType.CANDIDATE);
-    assertThat(packet.intendedEntityType()).isEqualTo(IntendedEntityType.CANDIDATE);
-    assertThat(packet.processingStatus()).isEqualTo(InformationPacketStatus.CREATED);
-    assertThat(packet.notes()).isEqualTo("candidate packet 060001");
-  }
-
-  @Test
-  void sourceItemToInformationPacketLinkPersistsAndReadsBack() {
-    GovernedIntakeService service = service();
-    SourceItem sourceItem = service.registerSourceItem(sourceCommand(ORG_A, "link").build());
-    InformationPacket packet = service.createInformationPacket(packetCommand(ORG_A).build());
-
-    service.attachSourceItemToPacket(new AttachSourceItemToPacketCommand(
+  void extractionRunAndOutputEnvelopePersistAndReadBack() {
+    GovernedIntakeService intakeService = intakeService();
+    SourceItem sourceItem = intakeService.registerSourceItem(
+        sourceCommand(ORG_A, "readback").build());
+    InformationPacket packet = intakeService.createInformationPacket(packetCommand(ORG_A).build());
+    intakeService.attachSourceItemToPacket(new AttachSourceItemToPacketCommand(
         ORG_A,
         packet.informationPacketId(),
         sourceItem.sourceItemId()));
 
-    assertThat(service.listSourceItemsForPacket(ORG_A, packet.informationPacketId()))
-        .containsExactly(sourceItem);
+    IntakeExtractionRun run =
+        extractionService().extract(ORG_A, packet.informationPacketId());
+
+    Optional<IntakeExtractionRun> readBack =
+        extractionPort().findById(ORG_A, run.extractionRunId());
+
+    assertThat(readBack).contains(run);
+    assertThat(run.status()).isEqualTo(IntakeExtractionStatus.SUCCEEDED);
+    assertThat(run.mode()).isEqualTo(IntakeExtractionMode.DETERMINISTIC_PLACEHOLDER);
+    assertThat(run.outputEnvelope()).isPresent();
+    assertThat(run.outputEnvelope().orElseThrow().sourceItemIds())
+        .containsExactly(sourceItem.sourceItemId());
+    assertThat(run.outputEnvelope().orElseThrow().packetType())
+        .isEqualTo(InformationPacketType.CANDIDATE);
+    assertThat(fieldValue(run.outputEnvelope().orElseThrow(), "real_ai_extraction_performed"))
+        .isEqualTo("false");
+    assertThat(fieldValue(run.outputEnvelope().orElseThrow(), "claim_ledger_append_allowed"))
+        .isEqualTo("false");
+    assertThat(fieldValue(run.outputEnvelope().orElseThrow(), "canonical_write_allowed"))
+        .isEqualTo("false");
   }
 
   @Test
-  void organizationIsolationWorksForReadAndAttachment() throws SQLException {
-    GovernedIntakeService service = service();
-    SourceItem orgASource = service.registerSourceItem(sourceCommand(ORG_A, "isolation-a").build());
-    SourceItem orgBSource = service.registerSourceItem(sourceCommand(ORG_B, "isolation-b").build());
-    InformationPacket orgAPacket = service.createInformationPacket(packetCommand(ORG_A).build());
-
-    service.attachSourceItemToPacket(new AttachSourceItemToPacketCommand(
+  void extractionRunIsOrganizationScopedAndLinkedToIntakeInformationPacket() {
+    GovernedIntakeService intakeService = intakeService();
+    SourceItem sourceItem = intakeService.registerSourceItem(
+        sourceCommand(ORG_A, "scope").build());
+    InformationPacket packet = intakeService.createInformationPacket(packetCommand(ORG_A).build());
+    intakeService.attachSourceItemToPacket(new AttachSourceItemToPacketCommand(
         ORG_A,
-        orgAPacket.informationPacketId(),
-        orgASource.sourceItemId()));
+        packet.informationPacketId(),
+        sourceItem.sourceItemId()));
 
-    assertThat(service.findSourceItem(ORG_B, orgASource.sourceItemId())).isEmpty();
-    assertThat(service.findInformationPacket(ORG_B, orgAPacket.informationPacketId())).isEmpty();
-    assertThat(service.listSourceItemsForPacket(ORG_B, orgAPacket.informationPacketId())).isEmpty();
+    IntakeExtractionRun run =
+        extractionService().extract(ORG_A, packet.informationPacketId());
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.attachSourceItemToPacket(
-        new AttachSourceItemToPacketCommand(ORG_A, orgAPacket.informationPacketId(),
-            orgBSource.sourceItemId())))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("source item not found in organization");
+    assertThat(extractionPort().findById(ORG_A, run.extractionRunId())).isPresent();
+    assertThat(extractionPort().findById(ORG_B, run.extractionRunId())).isEmpty();
+    assertThat(extractionPort().listByInformationPacket(ORG_A, packet.informationPacketId()))
+        .containsExactly(run);
+    assertThat(extractionPort().listByInformationPacket(ORG_B, packet.informationPacketId()))
+        .isEmpty();
+  }
 
+  @Test
+  void extractionUsesIntakeTablesAndDoesNotWriteCanonicalOrGovernanceTables()
+      throws SQLException {
+    GovernedIntakeService intakeService = intakeService();
+    SourceItem sourceItem = intakeService.registerSourceItem(
+        sourceCommand(ORG_A, "table-boundary").build());
+    InformationPacket packet = intakeService.createInformationPacket(packetCommand(ORG_A).build());
+    intakeService.attachSourceItemToPacket(new AttachSourceItemToPacketCommand(
+        ORG_A,
+        packet.informationPacketId(),
+        sourceItem.sourceItemId()));
+
+    extractionService().extract(ORG_A, packet.informationPacketId());
+
+    assertThat(countRows("intake.source_item", ORG_A)).isGreaterThan(0);
+    assertThat(countRows("intake.information_packet", ORG_A)).isGreaterThan(0);
+    assertThat(countRows("intake.extraction_run", ORG_A)).isGreaterThan(0);
+    assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
+    assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
     assertThat(countRows("governance.claim_ledger_item", ORG_A)).isZero();
     assertThat(countRows("governance.review_event", ORG_A)).isZero();
     assertThat(countRows("workflow.workflow_event", ORG_A)).isZero();
@@ -147,20 +150,26 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
     assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
   }
 
-  private static GovernedIntakeService service() {
+  private static GovernedIntakeService intakeService() {
     return new GovernedIntakeService(
         new JdbcSourceItemPersistencePort(dataSource),
         new JdbcInformationPacketPersistencePort(dataSource));
   }
 
-  private static SourceItemRegistrationCommand.Builder sourceCommand(UUID organizationId) {
-    return sourceCommand(organizationId, "default");
+  private static DeterministicIntakeExtractionService extractionService() {
+    return new DeterministicIntakeExtractionService(
+        new JdbcInformationPacketPersistencePort(dataSource),
+        extractionPort());
+  }
+
+  private static JdbcIntakeExtractionRunPort extractionPort() {
+    return new JdbcIntakeExtractionRunPort(dataSource);
   }
 
   private static SourceItemRegistrationCommand.Builder sourceCommand(
       UUID organizationId,
       String suffix) {
-    String orgPrefix = organizationId.equals(ORG_A) ? "060001" : "060002";
+    String orgPrefix = organizationId.equals(ORG_A) ? "160001" : "160002";
     String value = orgPrefix + "-" + suffix;
     return SourceItemRegistrationCommand.builder()
         .organizationId(organizationId)
@@ -184,11 +193,21 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
         .packetType(InformationPacketType.CANDIDATE)
         .intendedEntityType(IntendedEntityType.CANDIDATE)
         .createdByActorType(ActorRole.CONSULTANT)
-        .processingStatus(InformationPacketStatus.CREATED)
-        .notes(organizationId.equals(ORG_A) ? "candidate packet 060001" : "candidate packet 060002")
+        .processingStatus(InformationPacketStatus.READY_FOR_EXTRACTION)
+        .notes(organizationId.equals(ORG_A) ? "candidate packet 160001" : "candidate packet 160002")
         .metadataJson(organizationId.equals(ORG_A)
-            ? "{\"packet\":\"060001\"}"
-            : "{\"packet\":\"060002\"}");
+            ? "{\"packet\":\"160001\"}"
+            : "{\"packet\":\"160002\"}");
+  }
+
+  private static String fieldValue(
+      IntakeExtractionOutputEnvelope envelope,
+      String fieldName) {
+    return envelope.extractedFields().stream()
+        .filter(field -> field.fieldName().equals(fieldName))
+        .findFirst()
+        .orElseThrow()
+        .fieldValue();
   }
 
   private static void insertOrganization(UUID organizationId) throws SQLException {
@@ -204,8 +223,8 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
             VALUES (?, ?, ?, 'active', 'UTC')
             """)) {
       statement.setObject(1, organizationId);
-      statement.setString(2, "Task 5A Org " + organizationId);
-      statement.setString(3, "Task 5A Org");
+      statement.setString(2, "Task 5B Org " + organizationId);
+      statement.setString(3, "Task 5B Org");
       statement.executeUpdate();
     }
   }
@@ -221,12 +240,6 @@ class GovernedIntakePostgresPersistenceIntegrationTest {
       }
       return versions;
     }
-  }
-
-  private static boolean schemaExists(String schema) throws SQLException {
-    return exists(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = ?)",
-        schema);
   }
 
   private static boolean tableExists(String schema, String table) throws SQLException {

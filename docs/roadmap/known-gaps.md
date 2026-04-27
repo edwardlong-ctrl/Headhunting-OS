@@ -29,17 +29,27 @@
 ## Governed Intake Minimal Slice Incomplete
 
 - Task 5A now provides backend-owned `SourceItem` and `InformationPacket` contracts, persistence ports/adapters, and `intake.source_item`, `intake.information_packet`, and `intake.information_packet_source_item` tables.
+- Task 5B now provides backend-owned `IntakeExtractionRun` and `IntakeExtractionOutputEnvelope` contracts, a deterministic placeholder extractor, a narrow extraction-run persistence port/adapter, and `intake.extraction_run`.
+- Task 5B extraction output is stored as JSONB in `intake.extraction_run.output_json`.
+- Task 5B performs no real AI extraction, no LLM call, no OCR/STT/file conversion, and no semantic parsing.
+- Task 5B extraction output is an intermediate envelope only. It is not canonical fact storage, ClaimLedger, ReviewEvent, CandidateProfile persistence, client-safe projection, or CanonicalWrite output.
+- Task 5B explicitly sets output-envelope guardrail fields such as `real_ai_extraction_performed=false`, `claim_ledger_append_allowed=false`, and `canonical_write_allowed=false`.
+- Task 5B leaves `InformationPacket.processingStatus` updates intentionally deferred to a future governed-intake lifecycle task.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
 - No real AI extraction exists yet.
+- ClaimLedger linkage from the Task 5B extraction envelope remains future Task 5 work.
+- ReviewEvent creation from governed intake remains future Task 5 work.
+- CanonicalWrite boundary integration from governed intake remains future Task 5 work.
 - No ClaimLedger append from intake exists yet.
 - No ReviewEvent creation from intake exists yet.
 - No CanonicalWrite from intake exists yet.
 - No CandidateProfile persistence exists from intake.
 - No API/UI exposure exists for governed intake.
+- No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
 - Before any ClaimLedger linkage from governed intake, a future Task 5 subtask must decide the bridge/migration/deprecation path between the Task 5A `intake.*` tables and the earlier V2 `recruiting.*` skeleton tables.
-- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add extraction output handling, ClaimLedger append, ReviewEvent, CanonicalWrite boundary integration, and required audit/review gates.
+- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add ClaimLedger append, ReviewEvent, CanonicalWrite boundary integration, and required audit/review gates.
 
 ## Client-safe Projection Not Implemented
 

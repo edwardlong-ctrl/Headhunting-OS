@@ -39,7 +39,11 @@ class TruthLayerPostgresMigrationIntegrationTest {
           "ai_task_run"),
       "workflow", List.of("workflow_event"),
       "audit", List.of("audit_log"),
-      "intake", List.of("source_item", "information_packet", "information_packet_source_item"));
+      "intake", List.of(
+          "source_item",
+          "information_packet",
+          "information_packet_source_item",
+          "extraction_run"));
 
   private static final List<IndexRef> CRITICAL_INDEXES = List.of(
       new IndexRef("identity", "organization", "organization_active_legal_name_uidx"),
@@ -52,6 +56,7 @@ class TruthLayerPostgresMigrationIntegrationTest {
           "intake_information_packet_org_type_status_idx"),
       new IndexRef("intake", "information_packet_source_item",
           "intake_packet_source_item_source_idx"),
+      new IndexRef("intake", "extraction_run", "intake_extraction_run_org_packet_created_idx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_idempotency_uidx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_correlation_idx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_causation_idx"));
@@ -60,7 +65,8 @@ class TruthLayerPostgresMigrationIntegrationTest {
       new ConstraintRef("recruiting", "candidate_current_profile_fk"),
       new ConstraintRef("governance", "claim_ledger_item_review_event_fk"),
       new ConstraintRef("intake", "intake_packet_source_item_packet_fk"),
-      new ConstraintRef("intake", "intake_packet_source_item_source_fk"));
+      new ConstraintRef("intake", "intake_packet_source_item_source_fk"),
+      new ConstraintRef("intake", "intake_extraction_run_packet_fk"));
 
   @Test
   void flywayRunsTruthLayerMigrationsAgainstRealPostgres() throws SQLException {
@@ -71,15 +77,15 @@ class TruthLayerPostgresMigrationIntegrationTest {
         .load()
         .migrate();
 
-    assertThat(result.migrationsExecuted).isEqualTo(4);
+    assertThat(result.migrationsExecuted).isEqualTo(5);
 
     try (Connection connection = DriverManager.getConnection(
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
-      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2", "3", "4");
+      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2", "3", "4", "5");
 
       for (String schema : REQUIRED_SCHEMAS) {
         assertThat(schemaExists(connection, schema))
-            .as("schema %s should exist after V1-V4 migrations", schema)
+            .as("schema %s should exist after V1-V5 migrations", schema)
             .isTrue();
       }
 
@@ -87,7 +93,7 @@ class TruthLayerPostgresMigrationIntegrationTest {
         String schema = entry.getKey();
         for (String table : entry.getValue()) {
           assertThat(tableExists(connection, schema, table))
-              .as("table %s.%s should exist after V1-V4 migrations", schema, table)
+              .as("table %s.%s should exist after V1-V5 migrations", schema, table)
               .isTrue();
         }
       }

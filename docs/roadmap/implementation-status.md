@@ -21,6 +21,7 @@
 - Task 4C: added a backend-internal, read-only `WorkflowEvent` audit query/read model skeleton.
 - Task 4D current worktree: adds a backend-internal `WorkflowTransitionAuditService` / `WorkflowTransitionAuditRequest` skeleton for recording requested workflow state-transition audit events with `before_state` and `after_state`.
 - Task 5A current worktree: adds backend-owned `SourceItem` and `InformationPacket` governed-intake contracts, narrow create/attach/read service and persistence ports, JDBC adapters, and a V4 `intake` schema with packet/source link table.
+- Task 5B current worktree: adds backend-owned governed-intake extraction run/output contracts, a deterministic no-real-AI placeholder extractor, a narrow extraction-run persistence port/JDBC adapter, and a V5 `intake.extraction_run` JSONB output-envelope table.
 
 ## Current Test State
 
@@ -30,6 +31,7 @@
 - Task 4C adds focused unit and PostgreSQL/Testcontainers coverage for read-only audit query behavior and boundaries.
 - Task 4D adds focused unit and PostgreSQL/Testcontainers coverage for transition audit request validation, transition-action classification, idempotency/correlation/causation propagation, persistence, read-model visibility, and organization isolation.
 - Task 5A adds focused unit and PostgreSQL/Testcontainers coverage for SourceItem/InformationPacket validation, duplicate attach rejection, organization-scoped lookup/list behavior, V4 migration application, source/packet/link persistence, and non-canonical boundary assertions.
+- Task 5B adds focused unit and PostgreSQL/Testcontainers coverage for deterministic extraction validation, no-source failed run behavior, output-envelope flags, duplicate extraction determinism, organization-scoped persistence/readback, V5 migration application, and the absence of ClaimLedger, ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, and old `recruiting.*` writes.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -59,6 +61,15 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `InformationPacket` stores packet grouping intent, intended entity type/id, creator provenance, processing status, notes, timestamps, and metadata JSON in `intake.information_packet`.
 - `intake.information_packet_source_item` records packet/source grouping and rejects duplicate source attachment for the same organization and packet.
 - Governed-intake lookup and list operations are organization-scoped.
+- `DeterministicIntakeExtractionService` creates governed-intake extraction runs for an `InformationPacket` and its attached `SourceItem` metadata.
+- The Task 5B extractor mode is only `DETERMINISTIC_PLACEHOLDER`; it performs no real AI extraction, no LLM call, no OCR/STT/file conversion, and no semantic parsing of CV/JD/WeChat/email/call-note content.
+- Successful extraction output is an intermediate `IntakeExtractionOutputEnvelope` only. It records packet type, intended entity type, source ids/safe source snapshots, deterministic placeholder fields, findings, and no errors for currently supported placeholder operation.
+- The output envelope explicitly records `real_ai_extraction_performed=false`, `semantic_parsing_performed=false`, `claim_ledger_append_allowed=false`, `canonical_write_allowed=false`, and `needs_future_extraction=true`.
+- `IntakeExtractionRunPort` persists extraction runs/output to `intake.extraction_run`; `output_json` is JSONB and is not normalized into canonical fact tables.
+- Extraction run lookup/list operations are organization-scoped and linked to `intake.information_packet`.
+- If an `InformationPacket` has no attached `SourceItem`, Task 5B persists a deterministic `FAILED` extraction run with no output envelope and the failure reason `information packet has no attached source items`.
+- Duplicate extraction is allowed in Task 5B: each call creates a new extraction run id, while the source snapshot hash and deterministic placeholder output remain stable for the same packet/source metadata.
+- Task 5B does not update `InformationPacket.processingStatus`; packet status transitions remain future governed-intake work.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -68,7 +79,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No CandidateProfile canonical persistence.
 - No raw Candidate/Profile persistence.
 - No real AI extraction from SourceItem or InformationPacket.
-- No deterministic extraction placeholder beyond intake statuses.
+- No semantic extraction from SourceItem or InformationPacket.
 - No ClaimLedger append from governed intake.
 - No ReviewEvent creation from governed intake.
 - No CanonicalWrite call from governed intake.

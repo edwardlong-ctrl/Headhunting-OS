@@ -9,6 +9,13 @@ Governed intake foundation:
 → `InformationPacketPersistencePort`
 → `intake.source_item` / `intake.information_packet` / `intake.information_packet_source_item`
 
+Governed intake extraction placeholder:
+
+`DeterministicIntakeExtractionService`
+→ `InformationPacketPersistencePort`
+→ `IntakeExtractionRunPort`
+→ `intake.extraction_run`
+
 Claim/review/canonical chain:
 
 `ClaimLedgerService`
@@ -51,6 +58,29 @@ Read-only audit side:
 - `intake.information_packet` stores packet type, intended entity type/id, creator provenance, processing status, notes, timestamps, and metadata JSON.
 - `intake.information_packet_source_item` is the Task 5A link table; its primary key rejects duplicate attachment and its composite foreign keys preserve organization isolation.
 - These tables are not client-facing views and are not canonical fact tables.
+
+## DeterministicIntakeExtractionService
+
+- Backend-owned Task 5B service boundary for deterministic governed-intake extraction placeholders.
+- Takes `organization_id` and `information_packet_id`, then loads the `InformationPacket` and attached `SourceItem` records through organization-scoped governed-intake ports.
+- Uses only safe source metadata such as source ids, source type, title, content hash, and external reference.
+- Does not inspect, parse, copy, or expose raw source payloads, raw Candidate/Profile data, `raw_ref`, `storage_ref`, or source metadata JSON contents.
+- Performs no real AI extraction, no LLM call, no OCR/STT/file conversion, and no semantic parsing.
+- Does not infer business facts such as salary, intent, seniority, skills, job fit, consent, identity, or candidate confirmation.
+- Successful output is an `IntakeExtractionOutputEnvelope` intermediate envelope only. It is not canonical fact storage, ClaimLedger, ReviewEvent, CandidateProfile persistence, client-safe projection, or CanonicalWrite output.
+- The output envelope explicitly marks `real_ai_extraction_performed=false`, `semantic_parsing_performed=false`, `claim_ledger_append_allowed=false`, `canonical_write_allowed=false`, and `needs_future_extraction=true`.
+- If a packet has no attached source items, the service persists a `FAILED` extraction run with no output envelope rather than inventing data.
+- Duplicate extraction is allowed for now: each request creates a new run id, while deterministic placeholder content and source snapshot hash remain stable for unchanged packet/source metadata.
+- Does not update `InformationPacket.processingStatus`; governed-intake lifecycle status transitions remain future work.
+- Does not append ClaimLedgerItem, create ReviewEvent, call CanonicalWriteService, append WorkflowEvent, write CandidateProfile, mutate entity state, validate workflow transitions, expose API/controller/UI behavior, or expose output to Client.
+
+## IntakeExtractionRunPort / JdbcIntakeExtractionRunPort
+
+- `IntakeExtractionRunPort` is narrow: save an extraction run/output, find by organization-scoped run id, and list runs for an organization-scoped information packet.
+- `JdbcIntakeExtractionRunPort` persists only to `intake.extraction_run`.
+- `intake.extraction_run` links to `intake.information_packet` through an organization-scoped foreign key.
+- `output_json` is JSONB for the intermediate extraction envelope only; it is not a canonical profile, ClaimLedger item, ReviewEvent, or client-facing projection.
+- The adapter does not write `governance.claim_ledger_item`, `governance.review_event`, `workflow.workflow_event`, `recruiting.candidate`, `recruiting.candidate_profile`, `recruiting.source_item`, or `recruiting.information_packet`.
 
 ## ClaimLedgerService
 
@@ -145,6 +175,9 @@ Read-only audit side:
 
 - Do not treat `GovernedIntakeService` as AI extraction, ClaimLedger append, ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, or raw Candidate exposure.
 - Do not treat `SourceItem` or `InformationPacket` as canonical facts.
+- Do not treat `DeterministicIntakeExtractionService` as real AI extraction, semantic parsing, ClaimLedger append, ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, or raw Candidate exposure.
+- Do not treat `IntakeExtractionOutputEnvelope` or `intake.extraction_run.output_json` as canonical facts, ClaimLedger, ReviewEvent, CandidateProfile, CanonicalWrite output, API DTO, UI state, or client-safe projection.
+- Do not treat Task 5B as the bridge/migration/deprecation decision between `intake.*` and earlier `recruiting.*` source/packet skeleton tables.
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.

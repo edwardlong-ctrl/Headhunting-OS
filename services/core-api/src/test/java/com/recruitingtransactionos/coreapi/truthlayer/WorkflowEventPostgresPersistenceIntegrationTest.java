@@ -352,8 +352,8 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationStillAppliesBeforeWorkflowPersistenceTest() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(4);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(5);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5");
   }
 
   @Test
