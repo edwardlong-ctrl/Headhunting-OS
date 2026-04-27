@@ -16,7 +16,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.AI_EXTRACTED,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -33,14 +33,14 @@ class TruthLayerNegativePolicyTest {
     CanonicalWriteDecision candidateConfirmed = decide(
         inference,
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
     CanonicalWriteDecision externalVerified = decide(
         inference,
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -57,7 +57,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -72,7 +72,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -87,7 +87,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.INTENT, AssertionStrength.WEAK_SIGNAL,
             VerificationStatus.HUMAN_ACKNOWLEDGED, ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -95,7 +95,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.INTENT, AssertionStrength.IMPLIED,
             VerificationStatus.HUMAN_ACKNOWLEDGED, ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         true);
@@ -112,7 +112,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.CONTRADICTION,
             VerificationStatus.HUMAN_ACKNOWLEDGED, ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         false);
@@ -120,7 +120,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.CONFLICTING,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         false,
         false);
@@ -161,7 +161,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT,
             VerificationStatus.CANDIDATE_CONFIRMED, ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T3_HIGH,
+        RiskTier.T3_HIGH_RISK,
         false,
         false,
         false);
@@ -176,7 +176,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT,
             VerificationStatus.HUMAN_ACKNOWLEDGED, ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T4_TRANSACTION_LEGAL,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         false,
         false,
         true);
@@ -210,7 +210,7 @@ class TruthLayerNegativePolicyTest {
             claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.AI_EXTRACTED,
                 ClientShareability.CLIENT_SAFE, false),
             VerificationStatus.HUMAN_ACKNOWLEDGED,
-            RiskTier.T1_LOW,
+            RiskTier.T1_LOW_RISK,
             false,
             false,
             true),
@@ -219,7 +219,7 @@ class TruthLayerNegativePolicyTest {
             claim(ClaimType.FACT, AssertionStrength.EXPLICIT,
                 VerificationStatus.HUMAN_ACKNOWLEDGED, ClientShareability.CLIENT_SAFE, false),
             VerificationStatus.HUMAN_ACKNOWLEDGED,
-            RiskTier.T3_HIGH,
+            RiskTier.T3_HIGH_RISK,
             false,
             false,
             false));
@@ -250,7 +250,7 @@ class TruthLayerNegativePolicyTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             shareability, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         true,
         false,
         false);

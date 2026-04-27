@@ -41,9 +41,11 @@
 ## Workflow Engine Not Implemented
 
 - WorkflowEvent append exists.
-- Workflow action audit exists only at append-boundary level.
+- Workflow action vocabulary and audit policy exist after Task 4A.
+- Workflow action audit still exists only at append-boundary validation level.
 - No state machine.
 - No transition legality validation.
+- No entity-state lookup or mutation is performed by WorkflowEvent policy validation.
 - No SLA/automation workflow engine.
 
 ## API Boundary Not Implemented

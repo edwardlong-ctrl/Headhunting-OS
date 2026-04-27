@@ -176,7 +176,7 @@ class TruthLayerAlignmentTest {
         claim(ClaimType.INFERENCE, AssertionStrength.IMPLIED, VerificationStatus.SYSTEM_INFERENCE,
             ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true));
@@ -194,7 +194,7 @@ class TruthLayerAlignmentTest {
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         false)).type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
@@ -202,7 +202,7 @@ class TruthLayerAlignmentTest {
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true)).reasons()).contains("bulk_approve_cannot_create_candidate_confirmed");
@@ -210,7 +210,7 @@ class TruthLayerAlignmentTest {
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true)).reasons()).contains("bulk_approve_cannot_create_external_verified");
@@ -219,7 +219,7 @@ class TruthLayerAlignmentTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         true,
         false,
         true)).reasons()).contains("internal_only_claim_cannot_be_client_visible");
@@ -228,7 +228,7 @@ class TruthLayerAlignmentTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CONSENT_REQUIRED, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         true,
         false,
         false)).type()).isEqualTo(CanonicalWriteDecisionType.REQUIRE_REVIEW);

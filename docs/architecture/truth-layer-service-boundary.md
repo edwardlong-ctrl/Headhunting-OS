@@ -25,8 +25,11 @@
 ## WorkflowEventService
 
 - Appends audit/workflow events.
+- Validates workflow action vocabulary and audit policy before append.
+- Rejects unknown action codes and policy-unsafe audit requests.
 - Does not validate transitions.
 - Does not mutate entity state.
+- Does not query or update the target entity.
 - Uses `workflow.workflow_event`.
 
 ## CanonicalWriteGate
@@ -53,6 +56,7 @@
 
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
+- Do not treat WorkflowEvent action policy validation as transition legality validation.
 - Do not treat `ReviewEventService` as verification promotion.
 - Do not treat `ClaimLedgerService` as canonical fact storage.
 - Do not treat transaction boundary skeleton as real rollback.

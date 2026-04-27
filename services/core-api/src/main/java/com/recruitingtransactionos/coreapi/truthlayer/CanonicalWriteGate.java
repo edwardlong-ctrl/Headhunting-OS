@@ -45,11 +45,11 @@ public final class CanonicalWriteGate {
       blockReasons.add("bulk_approve_cannot_create_external_verified");
     }
 
-    if (claim.bulkApproved() && request.targetRiskTier() == RiskTier.T4_TRANSACTION_LEGAL) {
+    if (claim.bulkApproved() && request.targetRiskTier() == RiskTier.T4_TRANSACTION_LEGAL_BLOCKING) {
       blockReasons.add("t4_transaction_legal_cannot_use_bulk_approval");
     }
 
-    if (request.targetRiskTier() == RiskTier.T1_LOW
+    if (request.targetRiskTier() == RiskTier.T1_LOW_RISK
         && isVerifiedFactTarget(request.targetVerificationStatus())) {
       blockReasons.add("t1_low_risk_cannot_create_verified_fact");
     }
@@ -79,7 +79,7 @@ public final class CanonicalWriteGate {
       reviewReasons.add("high_risk_write_requires_explicit_review_approval");
     }
 
-    if (request.targetRiskTier() == RiskTier.T1_LOW
+    if (request.targetRiskTier() == RiskTier.T1_LOW_RISK
         && request.targetVerificationStatus() == VerificationStatus.HUMAN_ACKNOWLEDGED) {
       allowReasons.add("low_risk_human_acknowledged_write_allowed");
     } else {
@@ -101,6 +101,6 @@ public final class CanonicalWriteGate {
   }
 
   private static boolean requiresExplicitReview(RiskTier riskTier) {
-    return riskTier == RiskTier.T3_HIGH || riskTier == RiskTier.T4_TRANSACTION_LEGAL;
+    return riskTier == RiskTier.T3_HIGH_RISK || riskTier == RiskTier.T4_TRANSACTION_LEGAL_BLOCKING;
   }
 }

@@ -79,7 +79,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         reviewerId,
         new EntityRef("candidate", candidateId),
         "headline",
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         ReviewDecision.APPROVED,
         false,
         "reviewed candidate headline against CV source span",
@@ -95,7 +95,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
     assertThat(persisted.targetEntityType()).isEqualTo("candidate");
     assertThat(persisted.targetEntityId()).isEqualTo(candidateId);
     assertThat(persisted.fieldPath()).isEqualTo("headline");
-    assertThat(persisted.riskTier()).isEqualTo(RiskTier.T2_MEDIUM.wireValue());
+    assertThat(persisted.riskTier()).isEqualTo(RiskTier.T2_MEDIUM_RISK.wireValue());
     assertThat(persisted.decision()).isEqualTo(ReviewDecision.APPROVED.wireValue());
     assertThat(persisted.bulkFlag()).isFalse();
     assertThat(persisted.durationMs()).isEqualTo(1234);
@@ -118,7 +118,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         organizationId,
         reviewerId,
         candidateId,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         ReviewDecision.APPROVED,
         true,
         "skills.normalized",
@@ -147,7 +147,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         organizationId,
         reviewerId,
         candidateId,
-        RiskTier.T3_HIGH,
+        RiskTier.T3_HIGH_RISK,
         ReviewDecision.ESCALATED,
         false,
         "compensation_expectation",
@@ -157,7 +157,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         organizationId,
         reviewerId,
         candidateId,
-        RiskTier.T4_TRANSACTION_LEGAL,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         ReviewDecision.NEEDS_CONFIRMATION,
         false,
         "fee_terms",
@@ -165,9 +165,9 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         null));
 
     assertThat(findReview(t3.reviewEventId()).riskTier())
-        .isEqualTo(RiskTier.T3_HIGH.wireValue());
+        .isEqualTo(RiskTier.T3_HIGH_RISK.wireValue());
     assertThat(findReview(t4.reviewEventId()).riskTier())
-        .isEqualTo(RiskTier.T4_TRANSACTION_LEGAL.wireValue());
+        .isEqualTo(RiskTier.T4_TRANSACTION_LEGAL_BLOCKING.wireValue());
   }
 
   @Test
@@ -181,14 +181,14 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         organizationId,
         reviewerId,
         candidateId,
-        RiskTier.T4_TRANSACTION_LEGAL,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         ReviewDecision.NEEDS_CONFIRMATION,
         false,
         "offer.start_date",
         "start date cannot be confirmed from weak source",
         null)).reviewEventId());
 
-    assertThat(persisted.riskTier()).isEqualTo(RiskTier.T4_TRANSACTION_LEGAL.wireValue());
+    assertThat(persisted.riskTier()).isEqualTo(RiskTier.T4_TRANSACTION_LEGAL_BLOCKING.wireValue());
     assertThat(persisted.decision()).isEqualTo(ReviewDecision.NEEDS_CONFIRMATION.wireValue());
     assertThat(persisted.decision()).isNotEqualTo(ReviewDecision.NEEDS_CONFIRMATION.name());
   }
@@ -216,7 +216,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         uuid("00000000-0000-0000-0000-000000040402"),
         new EntityRef("candidate", uuid("00000000-0000-0000-0000-000000040403")),
         "",
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         ReviewDecision.APPROVED,
         false,
         "missing field path should be rejected",
@@ -231,7 +231,7 @@ class ReviewEventPostgresPersistenceIntegrationTest {
         uuid("00000000-0000-0000-0000-000000040502"),
         new EntityRef("candidate", uuid("00000000-0000-0000-0000-000000040503")),
         "headline",
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         ReviewDecision.APPROVED,
         false,
         "negative duration should be rejected",

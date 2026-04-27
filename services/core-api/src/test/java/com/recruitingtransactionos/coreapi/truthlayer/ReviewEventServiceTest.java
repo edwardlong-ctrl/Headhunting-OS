@@ -84,7 +84,7 @@ class ReviewEventServiceTest {
         REVIEWER_ID,
         new EntityRef("candidate", CANDIDATE_ID),
         "headline",
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         ReviewDecision.APPROVED,
         bulkApproval,
         "reviewed against source span before accepting",

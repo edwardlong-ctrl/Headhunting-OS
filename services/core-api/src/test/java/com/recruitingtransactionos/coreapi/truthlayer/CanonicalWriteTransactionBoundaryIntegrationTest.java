@@ -82,7 +82,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
     assertThat(countRows("recruiting.candidate", organizationId)).isZero();
     assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
     assertThat(findWorkflowAction(result.workflowEventId().value()))
-        .isEqualTo("canonical_write.boundary_allowed");
+        .isEqualTo("CANONICAL_WRITE_ALLOWED");
   }
 
   @Test
@@ -156,7 +156,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
       UUID reviewEventId) {
     return CanonicalWriteCommand.builder()
         .organizationId(organizationId)
-        .targetEntity(new EntityRef("candidate", candidateId))
+        .targetEntity(new EntityRef("CANDIDATE", candidateId))
         .targetFieldPath("headline")
         .proposedValueRef("claim-value:headline:v1")
         .claimId(new ClaimId(uuid("00000000-0000-0000-0000-000000080999")))
@@ -173,7 +173,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
             false,
             "reviewed source span before canonical boundary"))
         .targetVerificationStatus(VerificationStatus.HUMAN_ACKNOWLEDGED)
-        .targetRiskTier(RiskTier.T1_LOW)
+        .targetRiskTier(RiskTier.T1_LOW_RISK)
         .clientVisible(false)
         .conflictsWithCanonical(false)
         .actor(new ActorRef(actorId, ActorRole.CONSULTANT))
@@ -241,7 +241,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
       review.setObject(2, organizationId);
       review.setObject(3, userId);
       review.setObject(4, candidateId);
-      review.setString(5, RiskTier.T1_LOW.wireValue());
+      review.setString(5, RiskTier.T1_LOW_RISK.wireValue());
       review.executeUpdate();
     }
   }

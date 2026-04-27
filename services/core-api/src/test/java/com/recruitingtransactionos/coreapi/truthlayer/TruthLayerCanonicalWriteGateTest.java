@@ -14,7 +14,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.INTENT, AssertionStrength.WEAK_SIGNAL, VerificationStatus.AI_EXTRACTED,
             ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T3_HIGH,
+        RiskTier.T3_HIGH_RISK,
         false,
         false,
         true));
@@ -29,7 +29,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true));
@@ -44,7 +44,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true));
@@ -59,7 +59,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.CONTRADICTION, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         false,
         true,
         false));
@@ -74,7 +74,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         true,
         false,
         true));
@@ -89,7 +89,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         false));
@@ -98,7 +98,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE, true),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true));
@@ -115,7 +115,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.CANDIDATE_CONFIRMED,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.CANDIDATE_CONFIRMED,
-        RiskTier.T3_HIGH,
+        RiskTier.T3_HIGH_RISK,
         false,
         false,
         false));
@@ -124,7 +124,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.EXTERNAL_VERIFIED,
             ClientShareability.CLIENT_SAFE, false),
         VerificationStatus.EXTERNAL_VERIFIED,
-        RiskTier.T4_TRANSACTION_LEGAL,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         false,
         false,
         false));
@@ -141,7 +141,7 @@ class TruthLayerCanonicalWriteGateTest {
         claim(ClaimType.INFERENCE, AssertionStrength.IMPLIED, VerificationStatus.SYSTEM_INFERENCE,
             ClientShareability.INTERNAL_ONLY, false),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW,
+        RiskTier.T1_LOW_RISK,
         false,
         false,
         true));

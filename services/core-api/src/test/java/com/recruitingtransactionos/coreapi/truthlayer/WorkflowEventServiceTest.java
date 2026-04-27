@@ -65,6 +65,45 @@ class WorkflowEventServiceTest {
   }
 
   @Test
+  void serviceRejectsUnknownActionCodeBeforePortAppend() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+    WorkflowEventService service = new WorkflowEventService(port);
+
+    assertThatThrownBy(() -> service.append(commandWithAction("CANDIDATE_ARBITRARY_AUDIT_RECORD")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("unknown workflow action code");
+    assertThat(port.commands).isEmpty();
+  }
+
+  @Test
+  void serviceDoesNotValidateTransitionLegalityOrMutateEntityState() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+    WorkflowEventService service = new WorkflowEventService(port);
+    WorkflowEventAppendCommand oddButAuditableTransition = new WorkflowEventAppendCommand(
+        ORGANIZATION_ID,
+        "recruiting",
+        new EntityRef("CANDIDATE", CANDIDATE_ID),
+        7,
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
+        new WorkflowStateSnapshot("{\"status\":\"placed\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"unreviewed_surprise_state\"}"),
+        new ActorRef(ACTOR_ID, ActorRole.CONSULTANT),
+        "domain_service",
+        SOURCE_REF_ID,
+        null,
+        null,
+        "capturing audit state only, not approving a transition",
+        "workflow-event-transition-legality-test",
+        CORRELATION_ID,
+        null,
+        Instant.parse("2026-04-28T02:00:00Z"));
+
+    service.append(oddButAuditableTransition);
+
+    assertThat(port.commands).containsExactly(oddButAuditableTransition);
+  }
+
+  @Test
   void serviceDoesNotExposeCanonicalWriteBehavior() {
     assertThat(publicDeclaredMethodNames(WorkflowEventService.class))
         .containsExactly("append");
@@ -81,12 +120,16 @@ class WorkflowEventServiceTest {
   }
 
   private static WorkflowEventAppendCommand validCommand() {
+    return commandWithAction("CANDIDATE_SHORTLISTED");
+  }
+
+  private static WorkflowEventAppendCommand commandWithAction(String action) {
     return new WorkflowEventAppendCommand(
         ORGANIZATION_ID,
         "recruiting",
-        new EntityRef("candidate", CANDIDATE_ID),
+        new EntityRef("CANDIDATE", CANDIDATE_ID),
         7,
-        "candidate.shortlisted",
+        action,
         new WorkflowStateSnapshot("{\"status\":\"consultant_review\"}"),
         new WorkflowStateSnapshot("{\"status\":\"client_review\"}"),
         new ActorRef(ACTOR_ID, ActorRole.CONSULTANT),

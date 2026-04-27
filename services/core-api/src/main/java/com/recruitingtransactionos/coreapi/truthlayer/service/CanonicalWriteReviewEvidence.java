@@ -27,7 +27,7 @@ public record CanonicalWriteReviewEvidence(
     if (!isApproved() || bulkApproval) {
       return false;
     }
-    if (riskTier == RiskTier.T4_TRANSACTION_LEGAL) {
+    if (riskTier == RiskTier.T4_TRANSACTION_LEGAL_BLOCKING) {
       return transactionLegalApproval;
     }
     return true;

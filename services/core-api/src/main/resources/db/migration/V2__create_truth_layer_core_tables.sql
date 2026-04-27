@@ -36,11 +36,11 @@ CREATE TYPE governance.client_shareability AS ENUM (
 );
 
 CREATE TYPE governance.risk_tier AS ENUM (
-  'T0_AUTO_CLEANUP',
-  'T1_LOW',
-  'T2_MEDIUM',
-  'T3_HIGH',
-  'T4_TRANSACTION_LEGAL'
+  'T0_AUTOMATED_CLEANUP',
+  'T1_LOW_RISK',
+  'T2_MEDIUM_RISK',
+  'T3_HIGH_RISK',
+  'T4_TRANSACTION_LEGAL_BLOCKING'
 );
 
 CREATE TYPE governance.actor_role AS ENUM (

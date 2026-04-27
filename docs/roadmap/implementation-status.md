@@ -16,10 +16,11 @@
 - `eac26cd` Implement workflow event append persistence: implemented append persistence for WorkflowEvent records.
 - `9f6e097` Add canonical write transaction boundary: added the CanonicalWriteTransactionBoundary skeleton.
 - `e55069c` Harden truth layer service boundaries: hardened service boundaries and regression coverage through Task 3E.
+- Task 4A current worktree: added stable workflow action/entity/risk/actor/AI involvement vocabulary, a workflow audit policy registry, and append-boundary policy validation for `WorkflowEventService`.
 
 ## Current Test State
 
-- Full Maven backend reached 107 tests, 0 failures/errors, 1 existing skip after Task 3E.
+- Full Maven backend reached 119 tests, 0 failures/errors, 1 existing skip after Task 4A.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -33,6 +34,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `ClaimLedgerService` appends to `governance.claim_ledger_item`.
 - `ReviewEventService` appends to `governance.review_event`.
 - `WorkflowEventService` appends to `workflow.workflow_event`.
+- `WorkflowEventService` validates known workflow action vocabulary and audit policy before append.
+- `WorkflowActionRegistry` defines one policy per stable action code, including allowed entity types, risk tier, before/after-state requirements, reason requirements, and AI-only finalization limits.
 - `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
@@ -44,6 +47,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No raw Candidate/Profile persistence.
 - No workflow engine.
 - No transition validation.
+- No transition legality validation; WorkflowEvent policy validation is audit request validation only.
 - No API layer.
 - No UI integration.
 - No AI model integration.

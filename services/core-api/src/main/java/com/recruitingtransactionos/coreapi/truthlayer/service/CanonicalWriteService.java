@@ -5,6 +5,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteDecisionType
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteGate;
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.ClaimInput;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
@@ -92,7 +93,7 @@ public final class CanonicalWriteService {
         "recruiting",
         command.targetEntity(),
         command.targetEntityVersion(),
-        "canonical_write.boundary_allowed",
+        WorkflowActionCode.CANONICAL_WRITE_ALLOWED.wireValue(),
         new WorkflowStateSnapshot(beforeState(command)),
         new WorkflowStateSnapshot(afterState(command)),
         command.actor(),

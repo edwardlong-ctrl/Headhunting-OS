@@ -104,7 +104,7 @@ class TruthLayerServiceBoundaryRegressionTest {
         .isEqualTo(CanonicalWriteService.CANONICAL_PERSISTENCE_DEFERRED);
     assertThat(workflowPort.commands).hasSize(1);
     assertThat(workflowPort.commands.getFirst().action())
-        .isEqualTo("canonical_write.boundary_allowed");
+        .isEqualTo("CANONICAL_WRITE_ALLOWED");
     assertThat(workflowPort.commands.getFirst().afterState().json())
         .contains(CanonicalWriteService.CANONICAL_PERSISTENCE_DEFERRED);
   }
@@ -127,7 +127,7 @@ class TruthLayerServiceBoundaryRegressionTest {
 
     RecordingWorkflowEventPort reviewWorkflowPort = new RecordingWorkflowEventPort();
     CanonicalWriteResult requireReview = service(reviewWorkflowPort).attempt(commandBuilder()
-        .targetRiskTier(RiskTier.T3_HIGH)
+        .targetRiskTier(RiskTier.T3_HIGH_RISK)
         .targetVerificationStatus(VerificationStatus.CANDIDATE_CONFIRMED)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
@@ -152,7 +152,7 @@ class TruthLayerServiceBoundaryRegressionTest {
 
       CanonicalWriteResult result = service(workflowPort).attempt(commandBuilder()
           .targetVerificationStatus(targetStatus)
-          .targetRiskTier(RiskTier.T2_MEDIUM)
+          .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
           .reviewEvidence(new CanonicalWriteReviewEvidence(
               new ReviewEventId(REVIEW_EVENT_ID),
               ReviewDecision.APPROVED,
@@ -188,7 +188,7 @@ class TruthLayerServiceBoundaryRegressionTest {
 
     RecordingWorkflowEventPort t4WorkflowPort = new RecordingWorkflowEventPort();
     CanonicalWriteResult t4Result = service(t4WorkflowPort).attempt(commandBuilder()
-        .targetRiskTier(RiskTier.T4_TRANSACTION_LEGAL)
+        .targetRiskTier(RiskTier.T4_TRANSACTION_LEGAL_BLOCKING)
         .targetVerificationStatus(VerificationStatus.EXTERNAL_VERIFIED)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
@@ -335,7 +335,7 @@ class TruthLayerServiceBoundaryRegressionTest {
   private static CanonicalWriteCommand.Builder commandBuilder() {
     return CanonicalWriteCommand.builder()
         .organizationId(ORGANIZATION_ID)
-        .targetEntity(new EntityRef("candidate", CANDIDATE_ID))
+        .targetEntity(new EntityRef("CANDIDATE", CANDIDATE_ID))
         .targetFieldPath("headline")
         .proposedValueRef("claim-value:headline:v1")
         .claimId(new ClaimId(CLAIM_ID))
@@ -352,7 +352,7 @@ class TruthLayerServiceBoundaryRegressionTest {
             false,
             "reviewed source span before canonical boundary"))
         .targetVerificationStatus(VerificationStatus.HUMAN_ACKNOWLEDGED)
-        .targetRiskTier(RiskTier.T1_LOW)
+        .targetRiskTier(RiskTier.T1_LOW_RISK)
         .clientVisible(false)
         .conflictsWithCanonical(false)
         .actor(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT))

@@ -85,7 +85,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         organizationId,
         actorId,
         candidateId,
-        "candidate.shortlisted",
+        "CANDIDATE_SHORTLISTED",
         "{\"status\":\"consultant_review\"}",
         "{\"status\":\"client_review\"}",
         ActorRole.CONSULTANT,
@@ -99,10 +99,10 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
     PersistedWorkflowEvent persisted = findWorkflowEvent(result.workflowEventId());
     assertThat(persisted.organizationId()).isEqualTo(organizationId);
     assertThat(persisted.entityNamespace()).isEqualTo("recruiting");
-    assertThat(persisted.entityType()).isEqualTo("candidate");
+    assertThat(persisted.entityType()).isEqualTo("CANDIDATE");
     assertThat(persisted.entityId()).isEqualTo(candidateId);
     assertThat(persisted.entityVersion()).isEqualTo(7);
-    assertThat(persisted.action()).isEqualTo("candidate.shortlisted");
+    assertThat(persisted.action()).isEqualTo("CANDIDATE_SHORTLISTED");
     assertThat(persisted.beforeStatus()).isEqualTo("consultant_review");
     assertThat(persisted.afterStatus()).isEqualTo("client_review");
     assertThat(persisted.actorUserId()).isEqualTo(actorId);
@@ -131,7 +131,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         organizationId,
         actorId,
         candidateId,
-        "candidate.status_audited",
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
         "{\"status\":\"profile_parsed\"}",
         "{\"status\":\"consultant_review\"}",
         ActorRole.CONSULTANT,
@@ -160,7 +160,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         organizationId,
         actorId,
         candidateId,
-        "candidate.arbitrary_audit_record",
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
         "{\"status\":\"placed\"}",
         "{\"status\":\"unreviewed_surprise_state\"}",
         ActorRole.CONSULTANT,
@@ -172,7 +172,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
     PersistedWorkflowEvent persisted = findWorkflowEvent(result.workflowEventId());
     assertThat(persisted.beforeStatus()).isEqualTo("placed");
     assertThat(persisted.afterStatus()).isEqualTo("unreviewed_surprise_state");
-    assertThat(persisted.action()).isEqualTo("candidate.arbitrary_audit_record");
+    assertThat(persisted.action()).isEqualTo("CANDIDATE_CONSULTANT_REVIEW_STARTED");
   }
 
   @Test
@@ -186,7 +186,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         organizationId,
         actorId,
         candidateId,
-        "candidate.ai_assisted_status_noted",
+        "CANDIDATE_PROFILE_PARSED",
         "{\"status\":\"ai_extracted\"}",
         "{\"status\":\"needs_human_review\"}",
         ActorRole.AI,
@@ -199,8 +199,8 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
     assertThat(persisted.actorRole()).isEqualTo(ActorRole.AI.wireValue());
     assertThat(persisted.actorRole()).isNotEqualTo(ActorRole.AI.name());
     assertThat(persisted.entityNamespace()).isEqualTo("recruiting");
-    assertThat(persisted.entityType()).isEqualTo("candidate");
-    assertThat(persisted.action()).isEqualTo("candidate.ai_assisted_status_noted");
+    assertThat(persisted.entityType()).isEqualTo("CANDIDATE");
+    assertThat(persisted.action()).isEqualTo("CANDIDATE_PROFILE_PARSED");
     assertThat(persisted.sourceType()).isEqualTo("domain_service");
     assertThat(persisted.beforeStatus()).isEqualTo("ai_extracted");
     assertThat(persisted.afterStatus()).isEqualTo("needs_human_review");
@@ -229,7 +229,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
     assertThatThrownBy(() -> new WorkflowEventAppendCommand(
         uuid("00000000-0000-0000-0000-000000060401"),
         "recruiting",
-        new EntityRef("candidate", uuid("00000000-0000-0000-0000-000000060402")),
+        new EntityRef("CANDIDATE", uuid("00000000-0000-0000-0000-000000060402")),
         1,
         "",
         new WorkflowStateSnapshot("{\"status\":\"before\"}"),
@@ -280,7 +280,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
     return new WorkflowEventAppendCommand(
         organizationId,
         "recruiting",
-        new EntityRef("candidate", candidateId),
+        new EntityRef("CANDIDATE", candidateId),
         7,
         action,
         new WorkflowStateSnapshot(beforeState),
@@ -423,7 +423,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
       statement.setObject(2, organizationId);
       statement.setObject(3, reviewerId);
       statement.setObject(4, candidateId);
-      statement.setString(5, RiskTier.T2_MEDIUM.wireValue());
+      statement.setString(5, RiskTier.T2_MEDIUM_RISK.wireValue());
       statement.executeUpdate();
     }
   }

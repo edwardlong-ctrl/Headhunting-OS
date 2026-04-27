@@ -55,7 +55,7 @@ class CanonicalWriteServiceTest {
             ClientShareability.CLIENT_SAFE,
             false))
         .targetVerificationStatus(VerificationStatus.EXTERNAL_VERIFIED)
-        .targetRiskTier(RiskTier.T2_MEDIUM)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
         .build());
 
     assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
@@ -68,7 +68,7 @@ class CanonicalWriteServiceTest {
   void requireReviewDecisionDoesNotAppendSuccessWorkflowEvent() {
     RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
     CanonicalWriteResult result = service(workflowPort).attempt(commandBuilder()
-        .targetRiskTier(RiskTier.T3_HIGH)
+        .targetRiskTier(RiskTier.T3_HIGH_RISK)
         .targetVerificationStatus(VerificationStatus.CANDIDATE_CONFIRMED)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
@@ -96,7 +96,7 @@ class CanonicalWriteServiceTest {
         .isEqualTo("not_implemented_no_safe_canonical_write_target_in_task_3d");
     assertThat(workflowPort.commands).hasSize(1);
     WorkflowEventAppendCommand audit = workflowPort.commands.getFirst();
-    assertThat(audit.action()).isEqualTo("canonical_write.boundary_allowed");
+    assertThat(audit.action()).isEqualTo("CANONICAL_WRITE_ALLOWED");
     assertThat(audit.reviewEventId()).isEqualTo(new ReviewEventId(REVIEW_EVENT_ID));
     assertThat(audit.sourceRefId()).isEqualTo(CLAIM_ID);
     assertThat(audit.reason()).isEqualTo("reviewed source span before canonical boundary");
@@ -143,7 +143,7 @@ class CanonicalWriteServiceTest {
   void t4TransactionLegalWithoutStrongApprovalCannotPass() {
     RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
     CanonicalWriteResult result = service(workflowPort).attempt(commandBuilder()
-        .targetRiskTier(RiskTier.T4_TRANSACTION_LEGAL)
+        .targetRiskTier(RiskTier.T4_TRANSACTION_LEGAL_BLOCKING)
         .targetVerificationStatus(VerificationStatus.EXTERNAL_VERIFIED)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
@@ -178,7 +178,7 @@ class CanonicalWriteServiceTest {
         .build());
     CanonicalWriteResult requireReview = service(new RecordingWorkflowEventPort()).attempt(
         commandBuilder()
-            .targetRiskTier(RiskTier.T3_HIGH)
+            .targetRiskTier(RiskTier.T3_HIGH_RISK)
             .targetVerificationStatus(VerificationStatus.CANDIDATE_CONFIRMED)
             .reviewEvidence(new CanonicalWriteReviewEvidence(
                 new ReviewEventId(REVIEW_EVENT_ID),
@@ -220,7 +220,7 @@ class CanonicalWriteServiceTest {
   private static CanonicalWriteCommand.Builder commandBuilder() {
     return CanonicalWriteCommand.builder()
         .organizationId(ORGANIZATION_ID)
-        .targetEntity(new EntityRef("candidate", CANDIDATE_ID))
+        .targetEntity(new EntityRef("CANDIDATE", CANDIDATE_ID))
         .targetFieldPath("headline")
         .proposedValueRef("claim-value:headline:v1")
         .claimId(new ClaimId(CLAIM_ID))
@@ -237,7 +237,7 @@ class CanonicalWriteServiceTest {
             false,
             "reviewed source span before canonical boundary"))
         .targetVerificationStatus(VerificationStatus.HUMAN_ACKNOWLEDGED)
-        .targetRiskTier(RiskTier.T1_LOW)
+        .targetRiskTier(RiskTier.T1_LOW_RISK)
         .clientVisible(false)
         .conflictsWithCanonical(false)
         .actor(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT))

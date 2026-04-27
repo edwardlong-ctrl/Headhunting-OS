@@ -88,7 +88,7 @@ class TruthLayerPersistencePortContractTest {
     assertThat(recordComponentNames(ReviewEventAppendCommand.class))
         .contains("reviewerId", "riskTier", "decision", "bulkApproval", "reason");
     assertThat(command.reviewerId()).isEqualTo(REVIEWER_ID);
-    assertThat(command.riskTier()).isEqualTo(RiskTier.T2_MEDIUM);
+    assertThat(command.riskTier()).isEqualTo(RiskTier.T2_MEDIUM_RISK);
     assertThat(command.decision()).isEqualTo(ReviewDecision.APPROVED);
     assertThat(command.bulkApproval()).isTrue();
     assertThat(command.reason()).isEqualTo("bulk normalized low-risk fields after source-span review");
@@ -249,7 +249,7 @@ class TruthLayerPersistencePortContractTest {
         REVIEWER_ID,
         targetCandidate(),
         "headline",
-        RiskTier.T2_MEDIUM,
+        RiskTier.T2_MEDIUM_RISK,
         ReviewDecision.APPROVED,
         bulkApproval,
         "bulk normalized low-risk fields after source-span review",
@@ -284,7 +284,7 @@ class TruthLayerPersistencePortContractTest {
         "recruiting",
         targetCandidate(),
         7,
-        "candidate.reviewed",
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
         new WorkflowStateSnapshot("{\"status\":\"consultant_review\"}"),
         new WorkflowStateSnapshot("{\"status\":\"available\"}"),
         new ActorRef(WORKFLOW_ACTOR_ID, ActorRole.CONSULTANT),
@@ -300,7 +300,7 @@ class TruthLayerPersistencePortContractTest {
   }
 
   private static EntityRef targetCandidate() {
-    return new EntityRef("candidate", CANDIDATE_ID);
+    return new EntityRef("CANDIDATE", CANDIDATE_ID);
   }
 
   private static String migrationSql() throws IOException {

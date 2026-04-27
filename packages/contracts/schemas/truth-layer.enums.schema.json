@@ -35,11 +35,11 @@
     "risk_tier": {
       "type": "string",
       "enum": [
-        "T0_AUTO_CLEANUP",
-        "T1_LOW",
-        "T2_MEDIUM",
-        "T3_HIGH",
-        "T4_TRANSACTION_LEGAL"
+        "T0_AUTOMATED_CLEANUP",
+        "T1_LOW_RISK",
+        "T2_MEDIUM_RISK",
+        "T3_HIGH_RISK",
+        "T4_TRANSACTION_LEGAL_BLOCKING"
       ]
     },
     "actor_role": {
