@@ -38,14 +38,14 @@ Task 3: Truth Layer Persistence & Domain Services ✅
 - 3E: Service boundary hardening / regression sweep ✅
 - 3F: Roadmap / status / known gaps materialization ⏳
 
+Task 4: WorkflowEvent / Audit Foundation ✅
+
+- 4A: Workflow action vocabulary + audit policy ✅
+- 4B: Idempotency / correlation / causality guardrails ✅
+- 4C: Audit query/read model skeleton ✅
+- 4D: Transition audit skeleton, still not full workflow engine ✅
+
 ## Next Tasks
-
-Task 4: WorkflowEvent / Audit Foundation
-
-- 4A: Workflow action vocabulary + audit policy
-- 4B: Idempotency / correlation / causality guardrails
-- 4C: Audit query/read model skeleton
-- 4D: Transition audit skeleton, still not full workflow engine
 
 Task 5: Governed Intake Minimal Slice
 

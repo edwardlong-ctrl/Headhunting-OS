@@ -44,11 +44,17 @@
 - Workflow action vocabulary and audit policy exist after Task 4A.
 - WorkflowEvent idempotency, correlation, and causation guardrails exist after Task 4B.
 - WorkflowEvent audit query/read model skeleton exists after Task 4C.
+- Workflow transition audit skeleton exists after Task 4D.
+- Task 4D records transition audit events with `before_state` and `after_state` through the existing `WorkflowEvent` append boundary.
+- Task 4D is backend-internal only.
 - Workflow action audit still exists only at append-boundary validation level.
 - No state machine.
 - No transition legality validation.
 - No entity-state lookup or mutation is performed by WorkflowEvent policy validation.
+- No entity-state lookup or mutation is performed by `WorkflowTransitionAuditService`.
 - No SLA/automation workflow engine.
+- Full workflow engine remains future work.
+- Task 5 Governed Intake Minimal Slice remains future work.
 
 ## Workflow Read Model Remaining Gaps
 

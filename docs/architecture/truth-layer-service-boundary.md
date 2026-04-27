@@ -8,6 +8,11 @@
 → `CanonicalWriteService`
 → `WorkflowEventService`
 
+Transition audit side:
+
+`WorkflowTransitionAuditService`
+→ `WorkflowEventService`
+
 Read-only audit side:
 
 `WorkflowAuditQueryService`
@@ -43,6 +48,21 @@ Read-only audit side:
 - Does not expose broad workflow search/list/read-model behavior; append idempotency lookup remains idempotency-key scoped.
 - Task 4C audit read-model behavior is separated into `WorkflowAuditQueryService` and `WorkflowAuditReadPort`.
 - Uses `workflow.workflow_event`.
+
+## WorkflowTransitionAuditService
+
+- Backend-internal service boundary for recording requested workflow state-transition audit events.
+- Validates `WorkflowTransitionAuditRequest` syntax and policy shape before append.
+- Requires organization id, entity namespace/type/id, action code, actor type/id, AI involvement, source type, occurred-at timestamp, `before_state`, and `after_state`.
+- Rejects equal `before_state` and `after_state`.
+- Rejects unknown action codes.
+- Rejects append-only audit actions that are not configured as `WorkflowActionPolicy.stateTransition`.
+- Uses existing `WorkflowActionRegistry` policy validation for reason and T3/T4 human final actor requirements.
+- Maps to the existing `WorkflowEventService.append` boundary so idempotency, correlation, and causation behavior remain unchanged.
+- Does not validate legal `from_state -> to_state` paths.
+- Does not implement a workflow engine or state machine.
+- Does not query, join, update, or mutate Job, Candidate, Shortlist, Consent, Disclosure, Placement, Commission, ClaimLedger, ReviewEvent, or AITaskRun records.
+- Does not expose API/controller/UI behavior.
 
 ## WorkflowAuditQueryService
 
@@ -92,6 +112,8 @@ Read-only audit side:
 
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
+- Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.
+- Do not treat Task 4D transition audit validation as legal `from_state -> to_state` validation.
 - Do not treat WorkflowEvent action policy validation as transition legality validation.
 - Do not treat WorkflowEvent idempotency/correlation/causation guardrails as a workflow engine, SLA engine, automation engine, API, or UI.
 - Do not treat Task 4C audit read model as API, UI, client-safe projection, RBAC/ABAC, dashboard analytics, or workflow engine.

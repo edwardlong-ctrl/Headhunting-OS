@@ -18,7 +18,8 @@
 - `e55069c` Harden truth layer service boundaries: hardened service boundaries and regression coverage through Task 3E.
 - Task 4A: added stable workflow action/entity/risk/actor/AI involvement vocabulary, a workflow audit policy registry, and append-boundary policy validation for `WorkflowEventService`.
 - Task 4B: added `WorkflowEvent` idempotency, correlation, and causation guardrails at the audit append boundary.
-- Task 4C current worktree: adds a backend-internal, read-only `WorkflowEvent` audit query/read model skeleton.
+- Task 4C: added a backend-internal, read-only `WorkflowEvent` audit query/read model skeleton.
+- Task 4D current worktree: adds a backend-internal `WorkflowTransitionAuditService` / `WorkflowTransitionAuditRequest` skeleton for recording requested workflow state-transition audit events with `before_state` and `after_state`.
 
 ## Current Test State
 
@@ -26,6 +27,7 @@
 - Full Maven backend reached 131 tests, 0 failures/errors, 1 existing skip after Task 4B.
 - Task 4B added focused unit and PostgreSQL/Testcontainers coverage for idempotency/correlation/causation behavior.
 - Task 4C adds focused unit and PostgreSQL/Testcontainers coverage for read-only audit query behavior and boundaries.
+- Task 4D adds focused unit and PostgreSQL/Testcontainers coverage for transition audit request validation, transition-action classification, idempotency/correlation/causation propagation, persistence, read-model visibility, and organization isolation.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -46,6 +48,9 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `WorkflowAuditQueryService` provides a backend-internal, read-only audit read-model boundary for `workflow.workflow_event` records.
 - `WorkflowAuditReadPort` supports narrow audit filters by organization, event id, entity, action, actor, correlation, causation, idempotency key, and occurred-at range.
 - `JdbcWorkflowAuditReadPort` reads only from `workflow.workflow_event`; it does not join Candidate, Company, Job, Consent, Disclosure, Placement, or Commission tables.
+- `WorkflowTransitionAuditService` provides a backend-internal transition audit boundary that records requested state-transition audit events through `WorkflowEventService`.
+- `WorkflowTransitionAuditService` requires `before_state` and `after_state`, rejects equal states, rejects unknown action codes, and rejects action policies that are not configured as state transitions.
+- `WorkflowTransitionAuditService` preserves existing `WorkflowEvent` idempotency, correlation, and causation behavior by mapping to the existing append command.
 - `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts, propagating idempotency/correlation/causation identifiers when supplied.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
@@ -59,6 +64,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No SLA/automation workflow engine.
 - No transition validation.
 - No transition legality validation; WorkflowEvent policy validation is audit request validation only.
+- No legal `from_state -> to_state` validation in the Task 4D transition audit skeleton.
+- No target entity lookup or state mutation in `WorkflowTransitionAuditService`.
 - No API layer.
 - No UI integration.
 - No AI model integration.
