@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/role-assignment.schema.json",
+  "title": "RoleAssignment",
+  "type": "object",
+  "$comment": "Server-owned role and scope binding; clients cannot self-assert role or scope.",
+  "properties": {
+    "role_assignment_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "user_account_id": { "type": "string", "format": "uuid" },
+    "role": { "$ref": "truth-layer.enums.schema.json#/$defs/actor_role" },
+    "scope_type": { "type": "string", "minLength": 1 },
+    "scope_id": { "type": "string", "format": "uuid" },
+    "status": { "type": "string", "enum": ["active", "expired", "revoked"] },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "granted_by": { "type": "string", "format": "uuid" },
+    "revoked_by": { "type": "string", "format": "uuid" },
+    "reason": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["role_assignment_id", "organization_id", "user_account_id", "role", "scope_type", "status", "created_at", "version"],
+  "additionalProperties": true
+}

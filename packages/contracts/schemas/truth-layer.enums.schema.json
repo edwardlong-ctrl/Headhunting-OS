@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/truth-layer.enums.schema.json",
+  "title": "TruthLayerEnumCatalog",
+  "type": "object",
+  "$comment": "Shared enum catalog for the Task 2B contracts-first truth-layer skeleton.",
+  "$defs": {
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "ai_extracted",
+        "human_acknowledged",
+        "consultant_attested",
+        "candidate_confirmed",
+        "external_verified",
+        "system_inference",
+        "conflicting",
+        "needs_confirmation",
+        "rejected",
+        "retracted"
+      ]
+    },
+    "claim_type": {
+      "type": "string",
+      "enum": ["fact", "preference", "intent", "risk", "inference", "prediction"]
+    },
+    "assertion_strength": {
+      "type": "string",
+      "enum": ["explicit", "implied", "weak_signal", "contradiction", "unknown"]
+    },
+    "client_shareability": {
+      "type": "string",
+      "enum": ["internal_only", "client_safe", "consent_required", "forbidden"]
+    },
+    "risk_tier": {
+      "type": "string",
+      "enum": [
+        "T0_AUTO_CLEANUP",
+        "T1_LOW",
+        "T2_MEDIUM",
+        "T3_HIGH",
+        "T4_TRANSACTION_LEGAL"
+      ]
+    },
+    "actor_role": {
+      "type": "string",
+      "enum": ["owner", "consultant", "client", "candidate", "admin", "system", "ai"]
+    },
+    "redaction_level": {
+      "type": "string",
+      "enum": [
+        "L0_TEASER",
+        "L1_GENERALIZED",
+        "L2_CLIENT_SAFE",
+        "L3_CONSENTED_DETAIL",
+        "L4_IDENTITY_DISCLOSED"
+      ]
+    }
+  }
+}

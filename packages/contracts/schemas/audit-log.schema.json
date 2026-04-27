@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/audit-log.schema.json",
+  "title": "AuditLog",
+  "type": "object",
+  "$comment": "Immutable security, privacy, and governance audit trail.",
+  "properties": {
+    "audit_log_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "actor_user_id": { "type": "string", "format": "uuid" },
+    "actor_role": { "$ref": "truth-layer.enums.schema.json#/$defs/actor_role" },
+    "action": { "type": "string", "minLength": 1 },
+    "target_entity_type": { "type": "string", "minLength": 1 },
+    "target_entity_id": { "type": "string", "format": "uuid" },
+    "result": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "ip_hash": { "type": "string" },
+    "user_agent_hash": { "type": "string" },
+    "before_state_hash": { "type": "string" },
+    "after_state_hash": { "type": "string" },
+    "reason": { "type": "string" },
+    "workflow_event_id": { "type": "string", "format": "uuid" },
+    "ai_task_run_id": { "type": "string", "format": "uuid" },
+    "sensitivity_level": { "type": "string" },
+    "status": { "type": "string", "enum": ["recorded", "correction_recorded"] }
+  },
+  "required": [
+    "audit_log_id",
+    "organization_id",
+    "actor_user_id",
+    "actor_role",
+    "action",
+    "target_entity_type",
+    "target_entity_id",
+    "result",
+    "occurred_at",
+    "created_at"
+  ],
+  "additionalProperties": true
+}

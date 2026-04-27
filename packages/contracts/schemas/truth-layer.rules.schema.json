@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/truth-layer.rules.schema.json",
+  "title": "TruthLayerRules",
+  "type": "object",
+  "$comment": "Task 2B rule carrier only. AI output must enter ClaimLedgerItem, not canonical Candidate fields directly. Candidate canonical fields must carry verification/status metadata. WorkflowEvent is required for key state transitions. AITaskRun records AI-assisted actions. Raw Candidate must not be exposed to Client-facing contracts. Client-safe DTOs are server-owned and will be implemented later. Consent/disclosure behavior is not implemented in Task 2B.",
+  "properties": {
+    "task": {
+      "const": "2B"
+    },
+    "implemented_behavior": {
+      "const": false
+    }
+  },
+  "required": ["task", "implemented_behavior"],
+  "additionalProperties": false
+}

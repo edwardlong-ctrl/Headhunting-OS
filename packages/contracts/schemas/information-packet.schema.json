@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/information-packet.schema.json",
+  "title": "InformationPacket",
+  "type": "object",
+  "$comment": "Intake batch that groups raw sources and tracks AI/review progress toward canonical records.",
+  "properties": {
+    "information_packet_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "packet_type": { "type": "string", "minLength": 1 },
+    "processing_status": {
+      "type": "string",
+      "enum": ["uploaded", "classifying", "extracting", "reviewing", "approved", "published", "rejected", "superseded"]
+    },
+    "source_item_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "detected_conflicts": { "type": "array", "items": { "type": "object" } },
+    "stale_fields": { "type": "array", "items": { "type": "string" } },
+    "missing_fields": { "type": "array", "items": { "type": "string" } },
+    "suggested_followups": { "type": "array", "items": { "type": "object" } },
+    "published_entity_type": { "type": "string" },
+    "published_entity_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["information_packet_id", "organization_id", "packet_type", "processing_status", "created_at", "version"],
+  "additionalProperties": true
+}

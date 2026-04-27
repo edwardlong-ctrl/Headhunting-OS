@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/organization.schema.json",
+  "title": "Organization",
+  "type": "object",
+  "$comment": "Tenant and business boundary for truth-layer records.",
+  "properties": {
+    "organization_id": { "type": "string", "format": "uuid" },
+    "legal_name": { "type": "string", "minLength": 1 },
+    "display_name": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["active", "suspended", "archived"] },
+    "default_timezone": { "type": "string", "minLength": 1 },
+    "billing_profile_ref": { "type": "string" },
+    "data_region": { "type": "string" },
+    "retention_policy_id": { "type": "string", "format": "uuid" },
+    "risk_policy_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["organization_id", "legal_name", "display_name", "status", "default_timezone", "created_at", "version"],
+  "additionalProperties": true
+}

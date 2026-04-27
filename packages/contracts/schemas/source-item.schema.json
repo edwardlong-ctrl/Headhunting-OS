@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/source-item.schema.json",
+  "title": "SourceItem",
+  "type": "object",
+  "$comment": "Raw source metadata for files, text, notes, emails, forms, feedback, or imported records.",
+  "properties": {
+    "source_item_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "information_packet_id": { "type": "string", "format": "uuid" },
+    "source_type": { "type": "string", "minLength": 1 },
+    "origin_actor_type": { "$ref": "truth-layer.enums.schema.json#/$defs/actor_role" },
+    "status": {
+      "type": "string",
+      "enum": ["uploaded", "classifying", "classified", "parsing", "parsed", "failed", "quarantined", "archived"]
+    },
+    "received_at": { "type": "string", "format": "date-time" },
+    "storage_ref": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "language": { "type": "string" },
+    "external_ref": { "type": "string" },
+    "source_timestamp": { "type": "string", "format": "date-time" },
+    "sensitivity_level": { "type": "string" },
+    "parsed_text_ref": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["source_item_id", "organization_id", "source_type", "origin_actor_type", "status", "received_at", "created_at"],
+  "additionalProperties": true
+}

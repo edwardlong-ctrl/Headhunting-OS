@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/claim-ledger-item.schema.json",
+  "title": "ClaimLedgerItem",
+  "type": "object",
+  "$comment": "AI output must enter ClaimLedgerItem, not canonical Candidate fields directly.",
+  "properties": {
+    "claim_ledger_item_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "entity_type": { "type": "string", "minLength": 1 },
+    "entity_id": { "type": "string", "format": "uuid" },
+    "claim_type": { "$ref": "truth-layer.enums.schema.json#/$defs/claim_type" },
+    "assertion_strength": { "$ref": "truth-layer.enums.schema.json#/$defs/assertion_strength" },
+    "source_span_ref": { "type": "string", "minLength": 1 },
+    "speaker": { "$ref": "truth-layer.enums.schema.json#/$defs/actor_role" },
+    "verification_status": { "$ref": "truth-layer.enums.schema.json#/$defs/verification_status" },
+    "canonical_write_allowed": {
+      "type": "boolean",
+      "default": false,
+      "$comment": "Defaults false so claims cannot silently become canonical facts."
+    },
+    "client_shareability": { "$ref": "truth-layer.enums.schema.json#/$defs/client_shareability" },
+    "target_field_path": { "type": "string" },
+    "source_item_id": { "type": "string", "format": "uuid" },
+    "candidate_evidence_item_id": { "type": "string", "format": "uuid" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "contradicts_claim_id": { "type": "string", "format": "uuid" },
+    "review_event_id": { "type": "string", "format": "uuid" },
+    "ai_task_run_id": { "type": "string", "format": "uuid" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": [
+    "claim_ledger_item_id",
+    "organization_id",
+    "entity_type",
+    "entity_id",
+    "claim_type",
+    "assertion_strength",
+    "source_span_ref",
+    "speaker",
+    "verification_status",
+    "canonical_write_allowed",
+    "client_shareability",
+    "created_at",
+    "version"
+  ],
+  "additionalProperties": true
+}

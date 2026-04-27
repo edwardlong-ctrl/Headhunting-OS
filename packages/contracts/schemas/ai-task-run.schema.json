@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/ai-task-run.schema.json",
+  "title": "AITaskRun",
+  "type": "object",
+  "$comment": "AITaskRun records AI-assisted actions and keeps model/provider observability out of canonical truth.",
+  "properties": {
+    "ai_task_run_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "ai_task_definition_id": { "type": "string", "format": "uuid" },
+    "task_version": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "running", "succeeded", "failed", "blocked_by_gate", "requires_review", "write_back_completed", "cancelled"]
+    },
+    "input_schema_version": { "type": "string", "minLength": 1 },
+    "output_schema_version": { "type": "string", "minLength": 1 },
+    "prompt_version": { "type": "string", "minLength": 1 },
+    "model_provider": { "type": "string", "minLength": 1 },
+    "model_name": { "type": "string", "minLength": 1 },
+    "model_version": { "type": "string" },
+    "tool_calls": { "type": "array", "items": { "type": "object" } },
+    "source_ref_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "target_entity_type": { "type": "string" },
+    "target_entity_id": { "type": "string", "format": "uuid" },
+    "write_back_target": { "type": "string" },
+    "human_review_status": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "error_code": { "type": "string" },
+    "cost_units": { "type": "number", "minimum": 0 },
+    "trace_ref": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": [
+    "ai_task_run_id",
+    "organization_id",
+    "ai_task_definition_id",
+    "task_version",
+    "status",
+    "input_schema_version",
+    "output_schema_version",
+    "prompt_version",
+    "model_provider",
+    "model_name",
+    "human_review_status",
+    "started_at",
+    "created_at",
+    "version"
+  ],
+  "additionalProperties": true
+}

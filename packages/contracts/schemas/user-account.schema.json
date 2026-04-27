@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/user-account.schema.json",
+  "title": "UserAccount",
+  "type": "object",
+  "$comment": "Authenticated human account or controlled system account. Client-submitted role fields are not trusted.",
+  "properties": {
+    "user_account_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "email": { "type": "string", "format": "email" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["invited", "active", "suspended", "deactivated"] },
+    "phone": { "type": "string" },
+    "identity_provider_subject": { "type": "string" },
+    "last_login_at": { "type": "string", "format": "date-time" },
+    "mfa_enabled": { "type": "boolean" },
+    "locale": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["user_account_id", "organization_id", "email", "display_name", "status", "created_at", "version"],
+  "additionalProperties": true
+}

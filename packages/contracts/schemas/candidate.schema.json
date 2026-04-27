@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/candidate.schema.json",
+  "title": "Candidate",
+  "type": "object",
+  "$comment": "Canonical person-level recruiting asset. Raw Candidate must not be exposed to Client-facing contracts before disclosure.",
+  "properties": {
+    "candidate_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "profile_parsed",
+        "consultant_review",
+        "available",
+        "matched_to_job",
+        "outreach",
+        "interested",
+        "consent_pending",
+        "consent_confirmed",
+        "shortlisted",
+        "client_review",
+        "identity_disclosed",
+        "interviewing",
+        "offer_pending",
+        "placed",
+        "rejected",
+        "archived",
+        "do_not_contact",
+        "merged"
+      ]
+    },
+    "current_profile_id": { "type": "string", "format": "uuid" },
+    "privacy_status": { "type": "string" },
+    "owner_consultant_id": { "type": "string", "format": "uuid" },
+    "do_not_contact_reason": { "type": "string" },
+    "merged_into_candidate_id": { "type": "string", "format": "uuid" },
+    "last_activity_at": { "type": "string", "format": "date-time" },
+    "default_industry_pack_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["candidate_id", "organization_id", "status", "privacy_status", "created_at", "version"],
+  "additionalProperties": true
+}

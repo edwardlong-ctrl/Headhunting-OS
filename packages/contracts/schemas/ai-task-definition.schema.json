@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/ai-task-definition.schema.json",
+  "title": "AITaskDefinition",
+  "type": "object",
+  "$comment": "Versioned AI task catalog with schemas, review policy, and write-back target.",
+  "properties": {
+    "ai_task_definition_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "task_key": { "type": "string", "minLength": 1 },
+    "task_version": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["draft", "active", "deprecated", "retired"] },
+    "input_schema_version": { "type": "string", "minLength": 1 },
+    "output_schema_version": { "type": "string", "minLength": 1 },
+    "human_review_policy": { "type": "object" },
+    "description": { "type": "string" },
+    "model_routing_policy": { "type": "object" },
+    "write_back_target": { "type": "string" },
+    "eval_suite_ref": { "type": "string" },
+    "owner_user_id": { "type": "string", "format": "uuid" },
+    "deprecated_at": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": [
+    "ai_task_definition_id",
+    "organization_id",
+    "task_key",
+    "task_version",
+    "status",
+    "input_schema_version",
+    "output_schema_version",
+    "human_review_policy",
+    "created_at",
+    "version"
+  ],
+  "additionalProperties": true
+}

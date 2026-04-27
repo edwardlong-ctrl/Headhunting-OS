@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/candidate-profile.schema.json",
+  "title": "CandidateProfile",
+  "type": "object",
+  "$comment": "Versioned canonical candidate profile snapshot. Candidate canonical fields must carry verification/status metadata and source lineage.",
+  "properties": {
+    "candidate_profile_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "candidate_id": { "type": "string", "format": "uuid" },
+    "profile_version": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["draft", "in_review", "canonical", "superseded", "locked"] },
+    "field_status_map": {
+      "type": "object",
+      "$comment": "Candidate canonical fields must carry verification/status metadata.",
+      "additionalProperties": { "$ref": "truth-layer.enums.schema.json#/$defs/verification_status" }
+    },
+    "headline": { "type": "string" },
+    "location": { "type": "object" },
+    "skills": { "type": "array", "items": { "type": "object" } },
+    "experience_summary": { "type": "string" },
+    "education": { "type": "array", "items": { "type": "object" } },
+    "compensation_expectation": { "type": "object" },
+    "availability": { "type": "object" },
+    "motivation": { "type": "string" },
+    "source_claim_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "$comment": "Canonical profile fields keep lineage to ClaimLedgerItem ids."
+    },
+    "superseded_by_profile_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["candidate_profile_id", "organization_id", "candidate_id", "profile_version", "status", "field_status_map", "created_at", "version"],
+  "additionalProperties": true
+}

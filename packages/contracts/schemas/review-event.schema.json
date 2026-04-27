@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recruiting-transaction-os.local/contracts/review-event.schema.json",
+  "title": "ReviewEvent",
+  "type": "object",
+  "$comment": "Human or system review decision record for claims, fields, redaction, write-back, and gates.",
+  "properties": {
+    "review_event_id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "reviewer_user_id": { "type": "string", "format": "uuid" },
+    "target_entity_type": { "type": "string", "minLength": 1 },
+    "target_entity_id": { "type": "string", "format": "uuid" },
+    "field_path": { "type": "string", "minLength": 1 },
+    "risk_tier": { "$ref": "truth-layer.enums.schema.json#/$defs/risk_tier" },
+    "decision": { "type": "string", "minLength": 1 },
+    "bulk_flag": { "type": "boolean" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "claim_ledger_item_id": { "type": "string", "format": "uuid" },
+    "source_span_ref": { "type": "string" },
+    "reason": { "type": "string" },
+    "sample_audit_status": { "type": "string" },
+    "review_velocity_bucket": { "type": "string" },
+    "previous_value_hash": { "type": "string" },
+    "after_value_hash": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "review_event_id",
+    "organization_id",
+    "reviewer_user_id",
+    "target_entity_type",
+    "target_entity_id",
+    "field_path",
+    "risk_tier",
+    "decision",
+    "bulk_flag",
+    "duration_ms",
+    "created_at"
+  ],
+  "additionalProperties": true
+}
