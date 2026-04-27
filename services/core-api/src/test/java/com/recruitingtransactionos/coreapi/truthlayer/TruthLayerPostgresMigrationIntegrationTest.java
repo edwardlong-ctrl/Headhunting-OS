@@ -46,7 +46,9 @@ class TruthLayerPostgresMigrationIntegrationTest {
       new IndexRef("identity", "role_assignment", "role_assignment_active_scope_uidx"),
       new IndexRef("recruiting", "candidate_profile", "candidate_profile_version_uidx"),
       new IndexRef("governance", "ai_task_definition", "ai_task_definition_key_version_uidx"),
-      new IndexRef("workflow", "workflow_event", "workflow_event_org_idempotency_uidx"));
+      new IndexRef("workflow", "workflow_event", "workflow_event_org_idempotency_uidx"),
+      new IndexRef("workflow", "workflow_event", "workflow_event_org_correlation_idx"),
+      new IndexRef("workflow", "workflow_event", "workflow_event_org_causation_idx"));
 
   private static final List<ConstraintRef> CRITICAL_FOREIGN_KEYS = List.of(
       new ConstraintRef("recruiting", "candidate_current_profile_fk"),
@@ -61,11 +63,11 @@ class TruthLayerPostgresMigrationIntegrationTest {
         .load()
         .migrate();
 
-    assertThat(result.migrationsExecuted).isEqualTo(2);
+    assertThat(result.migrationsExecuted).isEqualTo(3);
 
     try (Connection connection = DriverManager.getConnection(
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
-      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2");
+      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2", "3");
 
       for (String schema : REQUIRED_SCHEMAS) {
         assertThat(schemaExists(connection, schema))
@@ -87,6 +89,13 @@ class TruthLayerPostgresMigrationIntegrationTest {
             .as("index %s.%s on %s should exist", index.schema(), index.indexName(), index.table())
             .isTrue();
       }
+
+      assertThat(columnExists(connection, "workflow", "workflow_event", "idempotency_key"))
+          .isTrue();
+      assertThat(columnExists(connection, "workflow", "workflow_event", "correlation_id"))
+          .isTrue();
+      assertThat(columnExists(connection, "workflow", "workflow_event", "causation_id"))
+          .isTrue();
 
       for (ConstraintRef constraint : CRITICAL_FOREIGN_KEYS) {
         assertThat(foreignKeyExists(connection, constraint))
@@ -132,6 +141,20 @@ class TruthLayerPostgresMigrationIntegrationTest {
         index.schema(),
         index.table(),
         index.indexName());
+  }
+
+  private static boolean columnExists(
+      Connection connection,
+      String schema,
+      String table,
+      String column) throws SQLException {
+    return exists(connection,
+        "SELECT EXISTS ("
+            + "SELECT 1 FROM information_schema.columns "
+            + "WHERE table_schema = ? AND table_name = ? AND column_name = ?)",
+        schema,
+        table,
+        column);
   }
 
   private static boolean foreignKeyExists(Connection connection, ConstraintRef constraint)

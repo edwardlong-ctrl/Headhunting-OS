@@ -16,11 +16,14 @@
 - `eac26cd` Implement workflow event append persistence: implemented append persistence for WorkflowEvent records.
 - `9f6e097` Add canonical write transaction boundary: added the CanonicalWriteTransactionBoundary skeleton.
 - `e55069c` Harden truth layer service boundaries: hardened service boundaries and regression coverage through Task 3E.
-- Task 4A current worktree: added stable workflow action/entity/risk/actor/AI involvement vocabulary, a workflow audit policy registry, and append-boundary policy validation for `WorkflowEventService`.
+- Task 4A: added stable workflow action/entity/risk/actor/AI involvement vocabulary, a workflow audit policy registry, and append-boundary policy validation for `WorkflowEventService`.
+- Task 4B current worktree: adds `WorkflowEvent` idempotency, correlation, and causation guardrails at the audit append boundary.
 
 ## Current Test State
 
 - Full Maven backend reached 119 tests, 0 failures/errors, 1 existing skip after Task 4A.
+- Full Maven backend reached 131 tests, 0 failures/errors, 1 existing skip after Task 4B.
+- Task 4B added focused unit and PostgreSQL/Testcontainers coverage for idempotency/correlation/causation behavior.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -35,8 +38,10 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `ReviewEventService` appends to `governance.review_event`.
 - `WorkflowEventService` appends to `workflow.workflow_event`.
 - `WorkflowEventService` validates known workflow action vocabulary and audit policy before append.
+- `WorkflowEventService` validates idempotency, correlation, and causation identifiers before append.
+- `WorkflowEventService` returns the existing event for duplicate equivalent idempotency-key appends and rejects duplicate different payloads as idempotency conflicts.
 - `WorkflowActionRegistry` defines one policy per stable action code, including allowed entity types, risk tier, before/after-state requirements, reason requirements, and AI-only finalization limits.
-- `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts.
+- `CanonicalWriteService` uses `CanonicalWriteGate` and appends audit `WorkflowEvent` for allowed boundary attempts, propagating idempotency/correlation/causation identifiers when supplied.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -46,6 +51,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No CandidateProfile canonical persistence.
 - No raw Candidate/Profile persistence.
 - No workflow engine.
+- No SLA/automation workflow engine.
 - No transition validation.
 - No transition legality validation; WorkflowEvent policy validation is audit request validation only.
 - No API layer.

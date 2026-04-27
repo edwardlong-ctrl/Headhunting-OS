@@ -18,9 +18,9 @@ public record WorkflowEventAppendCommand(
     AITaskRunId aiTaskRunId,
     ReviewEventId reviewEventId,
     String reason,
-    String idempotencyKey,
-    UUID correlationId,
-    WorkflowEventId previousEventId,
+    WorkflowIdempotencyKey idempotencyKey,
+    WorkflowCorrelationId correlationId,
+    WorkflowCausationId causationId,
     Instant occurredAt) {
 
   public WorkflowEventAppendCommand {
@@ -33,9 +33,6 @@ public record WorkflowEventAppendCommand(
     Objects.requireNonNull(actor, "actor must not be null");
     sourceType = PortContractGuards.requireNonBlank(sourceType, "sourceType");
     reason = PortContractGuards.requireNonBlank(reason, "reason");
-    if (idempotencyKey != null) {
-      idempotencyKey = PortContractGuards.requireNonBlank(idempotencyKey, "idempotencyKey");
-    }
     Objects.requireNonNull(occurredAt, "occurredAt must not be null");
   }
 }

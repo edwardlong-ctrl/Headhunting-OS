@@ -23,8 +23,12 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.SourceSpanRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WriteBackTarget;
 import java.io.IOException;
@@ -38,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -110,12 +115,18 @@ class TruthLayerPersistencePortContractTest {
   @Test
   void workflowEventPortIsAppendOnlyByContract() {
     assertThat(methodNames(WorkflowEventPort.class))
-        .containsExactly("append");
+        .containsExactly("append", "findByIdempotencyKey");
     assertThat(methodNames(WorkflowEventPort.class))
         .noneMatch(name -> normalized(name).contains("delete")
             || normalized(name).contains("update")
             || normalized(name).contains("mutate")
-            || normalized(name).contains("save"));
+            || normalized(name).contains("save")
+            || normalized(name).contains("list")
+            || normalized(name).contains("search")
+            || normalized(name).contains("findbyentity")
+            || normalized(name).contains("findbyactor")
+            || normalized(name).contains("findbycorrelation")
+            || normalized(name).contains("findbycausation"));
   }
 
   @Test
@@ -198,7 +209,9 @@ class TruthLayerPersistencePortContractTest {
         .contains("before_state")
         .contains("after_state")
         .contains("reason text")
-        .contains("ai_task_run_id");
+        .contains("ai_task_run_id")
+        .contains("idempotency_key")
+        .contains("correlation_id");
 
     assertThat(sql)
         .contains("create table governance.ai_task_run")
@@ -293,9 +306,9 @@ class TruthLayerPersistencePortContractTest {
         aiTaskRunId,
         reviewEventId,
         "field-level review completed",
-        "candidate-reviewed-2g-contract",
-        uuid("00000000-0000-0000-0000-000000000201"),
-        null,
+        new WorkflowIdempotencyKey("candidate-reviewed-2g-contract"),
+        new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000000201")),
+        new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000000202")),
         Instant.parse("2026-04-28T01:01:00Z"));
   }
 
@@ -375,6 +388,17 @@ class TruthLayerPersistencePortContractTest {
   private static final class InMemoryWorkflowEventPort implements WorkflowEventPort {
     private final AtomicInteger sequence = new AtomicInteger();
     private final Map<WorkflowEventId, WorkflowEventAppendCommand> commands = new LinkedHashMap<>();
+
+    @Override
+    public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
+        UUID organizationId,
+        WorkflowIdempotencyKey idempotencyKey) {
+      return commands.entrySet().stream()
+          .filter(entry -> entry.getValue().organizationId().equals(organizationId))
+          .filter(entry -> idempotencyKey.equals(entry.getValue().idempotencyKey()))
+          .findFirst()
+          .map(entry -> new WorkflowEventIdempotencyRecord(entry.getKey(), entry.getValue()));
+    }
 
     @Override
     public WorkflowEventAppendResult append(WorkflowEventAppendCommand command) {

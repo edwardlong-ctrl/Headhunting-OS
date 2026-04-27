@@ -11,7 +11,9 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
@@ -29,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -51,6 +54,8 @@ class TruthLayerServiceBoundaryRegressionTest {
       UUID.fromString("00000000-0000-0000-0000-000000090005");
   private static final UUID CORRELATION_ID =
       UUID.fromString("00000000-0000-0000-0000-000000090006");
+  private static final UUID CAUSATION_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000090007");
   private static final Instant OCCURRED_AT = Instant.parse("2026-04-28T04:00:00Z");
 
   @Test
@@ -105,6 +110,12 @@ class TruthLayerServiceBoundaryRegressionTest {
     assertThat(workflowPort.commands).hasSize(1);
     assertThat(workflowPort.commands.getFirst().action())
         .isEqualTo("CANONICAL_WRITE_ALLOWED");
+    assertThat(workflowPort.commands.getFirst().idempotencyKey().value())
+        .isEqualTo("truth-layer-boundary-regression");
+    assertThat(workflowPort.commands.getFirst().correlationId().value())
+        .isEqualTo(CORRELATION_ID);
+    assertThat(workflowPort.commands.getFirst().causationId().value())
+        .isEqualTo(CAUSATION_ID);
     assertThat(workflowPort.commands.getFirst().afterState().json())
         .contains(CanonicalWriteService.CANONICAL_PERSISTENCE_DEFERRED);
   }
@@ -358,6 +369,7 @@ class TruthLayerServiceBoundaryRegressionTest {
         .actor(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT))
         .reason("reviewed source span before canonical boundary")
         .correlationId(CORRELATION_ID)
+        .causationId(CAUSATION_ID)
         .idempotencyKey("truth-layer-boundary-regression")
         .occurredAt(OCCURRED_AT);
   }
@@ -470,6 +482,13 @@ class TruthLayerServiceBoundaryRegressionTest {
     private final List<WorkflowEventAppendCommand> commands = new ArrayList<>();
     private final WorkflowEventAppendResult result = new WorkflowEventAppendResult(
         new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-000000090101")));
+
+    @Override
+    public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
+        UUID organizationId,
+        WorkflowIdempotencyKey idempotencyKey) {
+      return Optional.empty();
+    }
 
     @Override
     public WorkflowEventAppendResult append(WorkflowEventAppendCommand command) {

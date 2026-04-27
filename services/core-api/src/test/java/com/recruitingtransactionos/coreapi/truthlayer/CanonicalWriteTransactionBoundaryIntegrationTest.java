@@ -138,8 +138,8 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   @Test
   void fullFlywayMigrationStillAppliesBeforeCanonicalWriteBoundaryTest()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(2);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(3);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3");
   }
 
   private static CanonicalWriteService service() {
@@ -179,6 +179,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
         .actor(new ActorRef(actorId, ActorRole.CONSULTANT))
         .reason("reviewed source span before canonical boundary")
         .correlationId(uuid("00000000-0000-0000-0000-000000080998"))
+        .causationId(uuid("00000000-0000-0000-0000-000000080997"))
         .idempotencyKey("canonical-write-boundary-" + organizationId)
         .occurredAt(OCCURRED_AT);
   }

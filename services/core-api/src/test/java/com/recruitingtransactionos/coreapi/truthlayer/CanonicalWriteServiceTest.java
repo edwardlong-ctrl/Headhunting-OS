@@ -11,7 +11,9 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
@@ -24,6 +26,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,8 @@ class CanonicalWriteServiceTest {
       UUID.fromString("00000000-0000-0000-0000-000000070005");
   private static final UUID CORRELATION_ID =
       UUID.fromString("00000000-0000-0000-0000-000000070006");
+  private static final UUID CAUSATION_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000070007");
   private static final Instant OCCURRED_AT = Instant.parse("2026-04-28T03:00:00Z");
 
   @Test
@@ -100,6 +105,9 @@ class CanonicalWriteServiceTest {
     assertThat(audit.reviewEventId()).isEqualTo(new ReviewEventId(REVIEW_EVENT_ID));
     assertThat(audit.sourceRefId()).isEqualTo(CLAIM_ID);
     assertThat(audit.reason()).isEqualTo("reviewed source span before canonical boundary");
+    assertThat(audit.idempotencyKey().value()).isEqualTo("canonical-write-boundary-test");
+    assertThat(audit.correlationId().value()).isEqualTo(CORRELATION_ID);
+    assertThat(audit.causationId().value()).isEqualTo(CAUSATION_ID);
   }
 
   @Test
@@ -243,6 +251,7 @@ class CanonicalWriteServiceTest {
         .actor(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT))
         .reason("reviewed source span before canonical boundary")
         .correlationId(CORRELATION_ID)
+        .causationId(CAUSATION_ID)
         .idempotencyKey("canonical-write-boundary-test")
         .occurredAt(OCCURRED_AT);
   }
@@ -276,6 +285,13 @@ class CanonicalWriteServiceTest {
     private final List<WorkflowEventAppendCommand> commands = new ArrayList<>();
     private final WorkflowEventAppendResult result = new WorkflowEventAppendResult(
         new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-000000070101")));
+
+    @Override
+    public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
+        UUID organizationId,
+        WorkflowIdempotencyKey idempotencyKey) {
+      return Optional.empty();
+    }
 
     @Override
     public WorkflowEventAppendResult append(WorkflowEventAppendCommand command) {

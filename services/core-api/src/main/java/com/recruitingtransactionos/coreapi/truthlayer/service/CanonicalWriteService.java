@@ -104,7 +104,7 @@ public final class CanonicalWriteService {
         command.reason(),
         command.idempotencyKey(),
         command.correlationId(),
-        null,
+        command.causationId(),
         command.occurredAt());
   }
 

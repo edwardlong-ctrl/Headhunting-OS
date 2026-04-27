@@ -7,6 +7,9 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -27,8 +30,9 @@ public record CanonicalWriteCommand(
     ActorRef actor,
     AITaskRunId aiTaskRunId,
     String reason,
-    String idempotencyKey,
-    UUID correlationId,
+    WorkflowIdempotencyKey idempotencyKey,
+    WorkflowCorrelationId correlationId,
+    WorkflowCausationId causationId,
     Instant occurredAt) {
 
   public CanonicalWriteCommand {
@@ -44,9 +48,6 @@ public record CanonicalWriteCommand(
     Objects.requireNonNull(targetRiskTier, "targetRiskTier must not be null");
     Objects.requireNonNull(actor, "actor must not be null");
     reason = requireNonBlank(reason, "reason");
-    if (idempotencyKey != null) {
-      idempotencyKey = requireNonBlank(idempotencyKey, "idempotencyKey");
-    }
     Objects.requireNonNull(occurredAt, "occurredAt must not be null");
   }
 
@@ -78,8 +79,9 @@ public record CanonicalWriteCommand(
     private ActorRef actor;
     private AITaskRunId aiTaskRunId;
     private String reason;
-    private String idempotencyKey;
-    private UUID correlationId;
+    private WorkflowIdempotencyKey idempotencyKey;
+    private WorkflowCorrelationId correlationId;
+    private WorkflowCausationId causationId;
     private Instant occurredAt;
 
     private Builder() {
@@ -161,12 +163,38 @@ public record CanonicalWriteCommand(
     }
 
     public Builder idempotencyKey(String idempotencyKey) {
+      this.idempotencyKey = idempotencyKey == null
+          ? null
+          : new WorkflowIdempotencyKey(idempotencyKey);
+      return this;
+    }
+
+    public Builder idempotencyKey(WorkflowIdempotencyKey idempotencyKey) {
       this.idempotencyKey = idempotencyKey;
       return this;
     }
 
     public Builder correlationId(UUID correlationId) {
+      this.correlationId = correlationId == null
+          ? null
+          : new WorkflowCorrelationId(correlationId);
+      return this;
+    }
+
+    public Builder correlationId(WorkflowCorrelationId correlationId) {
       this.correlationId = correlationId;
+      return this;
+    }
+
+    public Builder causationId(UUID causationId) {
+      this.causationId = causationId == null
+          ? null
+          : new WorkflowCausationId(causationId);
+      return this;
+    }
+
+    public Builder causationId(WorkflowCausationId causationId) {
+      this.causationId = causationId;
       return this;
     }
 
@@ -194,6 +222,7 @@ public record CanonicalWriteCommand(
           reason,
           idempotencyKey,
           correlationId,
+          causationId,
           occurredAt);
     }
   }

@@ -18,6 +18,23 @@ final class PortContractGuards {
     return value;
   }
 
+  static String requireNonBlankMaxLength(String value, String name, int maxLength) {
+    String normalized = requireNonBlank(value, name).strip();
+    if (normalized.length() > maxLength) {
+      throw new IllegalArgumentException(name + " must be " + maxLength + " characters or fewer");
+    }
+    return normalized;
+  }
+
+  static UUID requireUuidWireValue(String value, String name, int maxLength) {
+    String normalized = requireNonBlankMaxLength(value, name, maxLength);
+    try {
+      return UUID.fromString(normalized);
+    } catch (IllegalArgumentException exception) {
+      throw new IllegalArgumentException(name + " must be a valid UUID", exception);
+    }
+  }
+
   static Duration requireNonNegative(Duration value, String name) {
     if (value != null && value.isNegative()) {
       throw new IllegalArgumentException(name + " must not be negative");

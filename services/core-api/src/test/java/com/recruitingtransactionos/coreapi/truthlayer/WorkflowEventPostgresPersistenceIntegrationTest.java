@@ -9,10 +9,14 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import java.io.PrintWriter;
@@ -29,6 +33,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -115,7 +120,8 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         .isEqualTo("consultant published anonymous shortlist after review");
     assertThat(persisted.idempotencyKey()).isEqualTo("workflow-event-idempotency-key");
     assertThat(persisted.correlationId()).isEqualTo(correlationId);
-    assertThat(persisted.previousEventId()).isNull();
+    assertThat(persisted.causationId())
+        .isEqualTo(uuid("00000000-0000-0000-0000-000000060008"));
     assertThat(persisted.occurredAt().toInstant()).isEqualTo(OCCURRED_AT);
     assertThat(persisted.createdAt()).isNotNull();
   }
@@ -207,9 +213,104 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
   }
 
   @Test
+  void duplicateEquivalentIdempotencyKeyReturnsExistingWorkflowEventWithoutSecondInsert()
+      throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000060601");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000060602");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000060603");
+    insertOrganizationAndUser(organizationId, actorId);
+    WorkflowEventAppendCommand command = command(
+        organizationId,
+        actorId,
+        candidateId,
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
+        "{\"status\":\"profile_parsed\"}",
+        "{\"status\":\"consultant_review\"}",
+        ActorRole.CONSULTANT,
+        null,
+        null,
+        null,
+        uuid("00000000-0000-0000-0000-000000060604"));
+
+    WorkflowEventAppendResult first = service().append(command);
+    WorkflowEventAppendResult second = service().append(command);
+
+    assertThat(second.workflowEventId()).isEqualTo(first.workflowEventId());
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void duplicateDifferentIdempotencyKeyPayloadIsRejectedAsConflict() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000060701");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000060702");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000060703");
+    insertOrganizationAndUser(organizationId, actorId);
+    WorkflowEventAppendCommand first = command(
+        organizationId,
+        actorId,
+        candidateId,
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
+        "{\"status\":\"profile_parsed\"}",
+        "{\"status\":\"consultant_review\"}",
+        ActorRole.CONSULTANT,
+        null,
+        null,
+        null,
+        uuid("00000000-0000-0000-0000-000000060704"));
+    WorkflowEventAppendCommand different = command(
+        organizationId,
+        actorId,
+        candidateId,
+        "CANDIDATE_MARKED_AVAILABLE",
+        "{\"status\":\"consultant_review\"}",
+        "{\"status\":\"available\"}",
+        ActorRole.CONSULTANT,
+        null,
+        null,
+        null,
+        uuid("00000000-0000-0000-0000-000000060704"));
+
+    service().append(first);
+
+    assertThatThrownBy(() -> service().append(different))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("workflow event idempotency conflict");
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void databaseUniquenessRejectsDuplicateIdempotencyKeyWithinOrganization() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000060801");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000060802");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000060803");
+    insertOrganizationAndUser(organizationId, actorId);
+    JdbcWorkflowEventPort rawPort = new JdbcWorkflowEventPort(dataSource);
+    WorkflowEventAppendCommand command = command(
+        organizationId,
+        actorId,
+        candidateId,
+        "CANDIDATE_CONSULTANT_REVIEW_STARTED",
+        "{\"status\":\"profile_parsed\"}",
+        "{\"status\":\"consultant_review\"}",
+        ActorRole.CONSULTANT,
+        null,
+        null,
+        null,
+        uuid("00000000-0000-0000-0000-000000060804"));
+
+    rawPort.append(command);
+
+    assertThatThrownBy(() -> rawPort.append(command))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Failed to append workflow event");
+  }
+
+  @Test
   void appendIsInsertOnlyByContract() {
-    assertThat(publicDeclaredMethodNames(WorkflowEventPort.class)).containsExactly("append");
-    assertThat(publicDeclaredMethodNames(JdbcWorkflowEventPort.class)).containsExactly("append");
+    assertThat(publicDeclaredMethodNames(WorkflowEventPort.class))
+        .containsExactly("append", "findByIdempotencyKey");
+    assertThat(publicDeclaredMethodNames(JdbcWorkflowEventPort.class))
+        .containsExactly("append", "findByIdempotencyKey");
     assertThat(declaredMethodNames(WorkflowEventPort.class))
         .noneMatch(this::looksLikeMutableWriteShortcut);
     assertThat(declaredMethodNames(JdbcWorkflowEventPort.class))
@@ -251,8 +352,8 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationStillAppliesBeforeWorkflowPersistenceTest() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(2);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(3);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3");
   }
 
   @Test
@@ -291,9 +392,11 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
         aiTaskRunId,
         reviewEventId,
         "consultant published anonymous shortlist after review",
-        "workflow-event-idempotency-key",
-        correlationId,
-        null,
+        new WorkflowIdempotencyKey("workflow-event-idempotency-key"),
+        correlationId == null ? null : new WorkflowCorrelationId(correlationId),
+        correlationId == null
+            ? null
+            : new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000060008")),
         OCCURRED_AT);
   }
 
@@ -451,7 +554,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
               reason,
               idempotency_key,
               correlation_id,
-              previous_event_id,
+              causation_id,
               occurred_at,
               created_at
             FROM workflow.workflow_event
@@ -479,7 +582,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
             resultSet.getString("reason"),
             resultSet.getString("idempotency_key"),
             resultSet.getObject("correlation_id", UUID.class),
-            resultSet.getObject("previous_event_id", UUID.class),
+            resultSet.getObject("causation_id", UUID.class),
             resultSet.getObject("occurred_at", OffsetDateTime.class),
             resultSet.getObject("created_at", OffsetDateTime.class));
       }
@@ -527,10 +630,16 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
   }
 
   private boolean looksLikeMutableWriteShortcut(String methodName) {
-    String normalized = normalized(methodName);
+      String normalized = normalized(methodName);
     return normalized.contains("update")
         || normalized.contains("delete")
         || normalized.contains("upsert")
+        || normalized.contains("list")
+        || normalized.contains("search")
+        || normalized.contains("findbyentity")
+        || normalized.contains("findbyactor")
+        || normalized.contains("findbycorrelation")
+        || normalized.contains("findbycausation")
         || normalized.contains("savecanonical")
         || normalized.contains("savecandidateprofile")
         || normalized.contains("confirmfact")
@@ -638,7 +747,7 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
       String reason,
       String idempotencyKey,
       UUID correlationId,
-      UUID previousEventId,
+      UUID causationId,
       OffsetDateTime occurredAt,
       OffsetDateTime createdAt) {
   }
@@ -648,6 +757,13 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
 
     private RecordingWorkflowEventPort() {
       this(new java.util.ArrayList<>());
+    }
+
+    @Override
+    public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
+        UUID organizationId,
+        WorkflowIdempotencyKey idempotencyKey) {
+      return Optional.empty();
     }
 
     @Override
