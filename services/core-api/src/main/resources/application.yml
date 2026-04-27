@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: recruiting-transaction-core-api
+  flyway:
+    enabled: ${CORE_API_FLYWAY_ENABLED:false}
+    locations: classpath:db/migration
+
+server:
+  port: ${CORE_API_PORT:8080}

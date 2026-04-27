@@ -1,1 +1,23 @@
 .DS_Store
+
+# Dependencies
+node_modules/
+.npm-cache/
+
+# Frontend build output
+dist/
+coverage/
+
+# Java build output
+target/
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+
+# IDE state
+.idea/
+.vscode/

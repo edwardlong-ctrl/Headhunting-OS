@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rto-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-recruiting_os}
+      POSTGRES_USER: ${POSTGRES_USER:-recruiting_os}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recruiting_os_local_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - rto-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-recruiting_os} -d ${POSTGRES_DB:-recruiting_os}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rto-postgres-data:

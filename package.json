@@ -1,0 +1,24 @@
+{
+  "name": "ai-headhunting-transaction-os",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/contracts",
+    "packages/design-system",
+    "packages/test-fixtures"
+  ],
+  "scripts": {
+    "build": "npm run build:web",
+    "build:core-api": "mvn -f services/core-api/pom.xml clean verify",
+    "build:web": "npm --workspace @rto/web run build",
+    "ci:intended": "npm run typecheck:web && npm run build:web && mvn -f services/core-api/pom.xml clean verify",
+    "dev:web": "npm --workspace @rto/web run dev",
+    "test:core-api": "mvn -f services/core-api/pom.xml test",
+    "typecheck:web": "npm --workspace @rto/web run typecheck"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  }
+}
