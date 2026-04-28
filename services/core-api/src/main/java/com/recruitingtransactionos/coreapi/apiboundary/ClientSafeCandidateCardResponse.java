@@ -27,25 +27,26 @@ public record ClientSafeCandidateCardResponse(
     redactionLevel =
         ApiBoundaryContractRules.requireAnonymousClientSafeRedactionLevel(redactionLevel);
     generalizedHeadline =
-        ApiBoundaryContractRules.requireNonBlank(
+        ApiBoundaryContractRules.requireApiSafeExternalText(
             generalizedHeadline, "generalizedHeadline");
     generalizedRoleFamily =
-        ApiBoundaryContractRules.requireNonBlank(
+        ApiBoundaryContractRules.requireApiSafeExternalText(
             generalizedRoleFamily, "generalizedRoleFamily");
     generalizedSeniorityBand =
-        ApiBoundaryContractRules.requireNonBlank(
+        ApiBoundaryContractRules.requireApiSafeExternalText(
             generalizedSeniorityBand, "generalizedSeniorityBand");
     generalizedLocationRegion =
-        ApiBoundaryContractRules.requireNonBlank(
+        ApiBoundaryContractRules.requireApiSafeExternalText(
             generalizedLocationRegion, "generalizedLocationRegion");
-    safeSummary = ApiBoundaryContractRules.requireNonBlank(safeSummary, "safeSummary");
+    safeSummary = ApiBoundaryContractRules.requireApiSafeExternalText(safeSummary, "safeSummary");
     safeSkillSummary =
-        ApiBoundaryContractRules.requireNonBlank(safeSkillSummary, "safeSkillSummary");
+        ApiBoundaryContractRules.requireApiSafeExternalText(
+            safeSkillSummary, "safeSkillSummary");
     safeEvidenceSummaries =
-        ApiBoundaryContractRules.copyNonBlankList(
+        ApiBoundaryContractRules.copyApiSafeExternalTextList(
             safeEvidenceSummaries, "safeEvidenceSummaries");
     safeMatchNarratives =
-        ApiBoundaryContractRules.copyNonBlankList(
+        ApiBoundaryContractRules.copyApiSafeExternalTextList(
             safeMatchNarratives, "safeMatchNarratives");
   }
 }
