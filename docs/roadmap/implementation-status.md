@@ -25,6 +25,7 @@
 - Task 5C current worktree: adds a backend-owned `IntakeClaimLedgerBridgeService` skeleton that reads `intake.extraction_run` output envelopes, validates governed-intake lineage through `intake.information_packet`, and appends only explicitly bridge-eligible operational claim candidates through `ClaimLedgerService`.
 - Task 5D current worktree: adds a backend-owned `IntakeReviewBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` rows by organization-scoped claim id and appends human review evidence only through `ReviewEventService`.
 - Task 5E current worktree: adds a backend-owned `IntakeCanonicalWriteBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` plus matching `ReviewEvent` evidence by organization scope and submits only a boundary attempt through `CanonicalWriteService`.
+- Task 5F current worktree: adds end-to-end PostgreSQL/Testcontainers regression coverage and documentation closure for the governed-intake minimal slice from `intake.source_item` / `intake.information_packet` through deterministic placeholder extraction, ClaimLedger claim append, ReviewEvent evidence append, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate decision, and no canonical persistence.
 
 ## Current Test State
 
@@ -38,6 +39,7 @@
 - Task 5C adds focused unit and PostgreSQL/Testcontainers coverage for bridge request validation, missing/wrong-organization/failed/missing-output extraction rejection, default placeholder no-claim behavior, explicit operational bridge-eligible fixture append, duplicate source-reference replay, organization isolation, V6 migration/index application, and absence of ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, raw Candidate/Profile, and old `recruiting.*` use.
 - Task 5D adds focused unit and PostgreSQL/Testcontainers coverage for review bridge request validation, missing/wrong-organization claim blocking, governed-intake-only claim policy, ReviewEvent append through `ReviewEventService`, claim lineage persistence, deterministic duplicate review handling, materially different review evidence, T3/T4 human reviewer enforcement, ClaimLedger immutability, and absence of CanonicalWrite, CandidateProfile, raw Candidate/Profile, workflow, API/UI, and old `recruiting.*` use.
 - Task 5E adds focused unit and PostgreSQL/Testcontainers coverage for canonical-write bridge request validation, missing/wrong-organization ClaimLedger and ReviewEvent rejection, ReviewEvent-to-ClaimLedger lineage validation, governed-intake-only policy, CanonicalWriteService invocation, mandatory CanonicalWriteGate behavior, gate-blocked governed-intake claims, allowed boundary audit with `canonicalPersistencePerformed=false`, WorkflowEvent idempotency for repeated allowed attempts, ClaimLedger and ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile writes, no business target entity queries, no API/UI, and no old `recruiting.*` source/packet use.
+- Task 5F adds a focused end-to-end PostgreSQL/Testcontainers regression proving the safe chain: SourceItem / InformationPacket in `intake.*`, deterministic placeholder output envelope, default placeholder no-claim behavior, bridge-eligible operational fixture to ClaimLedgerItem claim, ReviewEvent evidence-not-promotion, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate block/allow behavior, `canonicalPersistencePerformed=false`, wrong-organization isolation, ClaimLedger/ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile persistence, no blocked-attempt audit ledger, and no old `recruiting.*` source/packet use.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -98,6 +100,15 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - Allowed boundary attempts, where a test fixture uses governed-intake lineage with gate-allowable claim metadata, append only the existing `CanonicalWriteService` WorkflowEvent audit and still report `canonicalPersistencePerformed=false`.
 - Repeated identical allowed bridge attempts use deterministic CanonicalWriteService/WorkflowEvent idempotency; blocked gate attempts remain deterministic in result but do not append an audit row because the existing `CanonicalWriteService` only appends on allowed boundary audits.
 - For Task 5E, `intake.*` lineage remains the governed-intake source lineage. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
+- Task 5F regression-covers the complete Task 5 safe chain:
+  `SourceItem` / `InformationPacket`
+  -> deterministic extraction output envelope
+  -> `ClaimLedgerItem` claim
+  -> `ReviewEvent` evidence
+  -> `CanonicalWriteService` boundary attempt
+  -> `CanonicalWriteGate` decision
+  -> no canonical persistence.
+- Task 5F confirms default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence and does not promote facts, low-authority governed-intake claims are gate-blocked, allowed fixtures audit only with `canonicalPersistencePerformed=false`, blocked attempts still have no separate audit ledger, and `intake.*` remains the governed-intake operational lineage while earlier `recruiting.*` source/packet skeleton cleanup remains deferred.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -124,4 +135,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain only. CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, and recruiting.* source/packet cleanup remain future work.

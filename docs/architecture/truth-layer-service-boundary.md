@@ -61,6 +61,23 @@ Read-only audit side:
 → `WorkflowAuditReadPort`
 → `workflow.workflow_event`
 
+Task 5F regression closure covers the governed-intake minimal slice as a safe
+backend-only chain:
+
+`SourceItem` / `InformationPacket`
+→ deterministic extraction output envelope
+→ `ClaimLedgerItem` claim
+→ `ReviewEvent` evidence
+→ `CanonicalWriteService` boundary attempt
+→ `CanonicalWriteGate` decision
+→ no canonical persistence
+
+This closure does not add real AI, CandidateProfile persistence, raw
+Candidate/Profile persistence, API/UI exposure, client-safe projection,
+Consent/Disclosure behavior, RBAC/ABAC, workflow engine behavior, transition
+legality validation, or cleanup/deprecation of earlier V2 `recruiting.*`
+source/packet skeleton tables.
+
 ## GovernedIntakeService
 
 - Backend-owned service boundary for Task 5A SourceItem + InformationPacket persistence.
@@ -175,6 +192,7 @@ Read-only audit side:
 - Uses a deterministic CanonicalWrite idempotency key derived from claim id, review event id, target entity, target field path, and a hash-only proposed value reference.
 - Repeated identical allowed bridge attempts return the existing WorkflowEvent audit through existing `WorkflowEventService` idempotency.
 - Gate-blocked bridge attempts append no new audit row under the current `CanonicalWriteService` design; this is a documented limitation rather than a separate blocked-attempt ledger.
+- Task 5F regression-covers both the default low-authority blocked path and an allowed fixture path. The allowed path appends only the existing `CanonicalWriteService` WorkflowEvent audit and still reports `canonicalPersistencePerformed=false`.
 - Current Task 5C governed-intake claims are low-authority `inference`, `weak_signal`, `ai_extracted`, and `internal_only`; the existing `CanonicalWriteGate` blocks them rather than promoting them to fact.
 - ReviewEvent is treated as review evidence only. It does not automatically make a claim a fact.
 - Bulk review remains evidence only and cannot create `candidate_confirmed` or `external_verified` outcomes through the existing gate.

@@ -26,7 +26,7 @@
 - No prompt/model/schema version tracking yet.
 - No `write_back_target` enforcement beyond current boundary concepts.
 
-## Governed Intake Minimal Slice Incomplete
+## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 
 - Task 5A now provides backend-owned `SourceItem` and `InformationPacket` contracts, persistence ports/adapters, and `intake.source_item`, `intake.information_packet`, and `intake.information_packet_source_item` tables.
 - Task 5B now provides backend-owned `IntakeExtractionRun` and `IntakeExtractionOutputEnvelope` contracts, a deterministic placeholder extractor, a narrow extraction-run persistence port/adapter, and `intake.extraction_run`.
@@ -53,6 +53,8 @@
 - Task 5E does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not write CandidateProfile, does not write raw Candidate/Profile persistence, does not query business target entities, and does not implement API/UI exposure.
 - Task 5E adds no new migration, table, index, or API-facing view. It relies on existing `governance.claim_ledger_item`, `governance.review_event`, and `workflow.workflow_event` audit/idempotency behavior.
 - Task 5E duplicate behavior is deterministic for allowed boundary audits through existing WorkflowEvent idempotency. Gate-blocked attempts append no audit row under the current CanonicalWriteService design, so there is no DB-enforced blocked-attempt ledger yet.
+- Task 5F now regression-covers the full safe minimal chain from `SourceItem` / `InformationPacket` through deterministic extraction output envelope, ClaimLedgerItem claim, ReviewEvent evidence, CanonicalWriteService boundary attempt, CanonicalWriteGate decision, and no canonical persistence.
+- Task 5F verifies default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate is mandatory, allowed boundary fixtures still report `canonicalPersistencePerformed=false`, and blocked canonical attempts still have no separate persisted audit ledger.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
@@ -65,7 +67,7 @@
 - No CandidateProfile persistence exists from intake.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CandidateProfile persistence and downstream privacy/access surfaces.
+- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain only. CandidateProfile persistence begins in Task 6+ and downstream privacy/access surfaces remain future work.
 
 ## Client-safe Projection Not Implemented
 
@@ -95,7 +97,7 @@
 - No entity-state lookup or mutation is performed by `WorkflowTransitionAuditService`.
 - No SLA/automation workflow engine.
 - Full workflow engine remains future work.
-- Task 5A SourceItem + InformationPacket persistence exists, but the broader Governed Intake workflow remains future work.
+- Task 5 governed-intake minimal slice exists, but the broader Governed Intake workflow engine remains future work.
 
 ## Workflow Read Model Remaining Gaps
 

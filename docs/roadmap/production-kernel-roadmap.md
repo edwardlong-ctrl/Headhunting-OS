@@ -45,17 +45,19 @@ Task 4: WorkflowEvent / Audit Foundation ✅
 - 4C: Audit query/read model skeleton ✅
 - 4D: Transition audit skeleton, still not full workflow engine ✅
 
+Task 5: Governed Intake Minimal Slice ✅
+
+- 5A: SourceItem / InformationPacket governed-intake operational tables ✅
+- 5B: deterministic extraction placeholder output envelope ✅
+- 5C: ClaimLedgerItem claim bridge from governed-intake lineage ✅
+- 5D: ReviewEvent evidence bridge from governed-intake ClaimLedgerItem ✅
+- 5E: CanonicalWriteService boundary bridge with mandatory gate ✅
+- 5F: end-to-end regression and documentation closure ✅
+
+Task 5 is a safe minimal slice only: no real AI, no canonical persistence, no
+CandidateProfile persistence, no API/UI, and no client exposure.
+
 ## Next Tasks
-
-Task 5: Governed Intake Minimal Slice
-
-- SourceItem
-- InformationPacket
-- deterministic extraction placeholder
-- ClaimLedger append
-- ReviewEvent
-- CanonicalWrite boundary
-- no real AI yet
 
 Task 6: Candidate Canonical Profile
 
