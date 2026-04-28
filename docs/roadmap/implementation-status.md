@@ -27,6 +27,7 @@
 - Task 5E current worktree: adds a backend-owned `IntakeCanonicalWriteBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` plus matching `ReviewEvent` evidence by organization scope and submits only a boundary attempt through `CanonicalWriteService`.
 - Task 5F current worktree: adds end-to-end PostgreSQL/Testcontainers regression coverage and documentation closure for the governed-intake minimal slice from `intake.source_item` / `intake.information_packet` through deterministic placeholder extraction, ClaimLedger claim append, ReviewEvent evidence append, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate decision, and no canonical persistence.
 - Task 6A current worktree: adds backend-owned `candidateprofile` domain contracts for the CandidateProfile aggregate concept, field path vocabulary, field status vocabulary, source lineage references, conflict metadata, staleness metadata, profile version semantics, and pure status policy helpers only.
+- Task 6B current worktree: adds backend-internal CandidateProfile persistence skeleton with a narrow `CandidateProfilePersistencePort`, `CandidateProfileService`, `JdbcCandidateProfilePersistencePort`, explicit create/read/field-upsert methods, and reuse of the existing `recruiting.candidate_profile` table.
 
 ## Current Test State
 
@@ -42,6 +43,7 @@
 - Task 5E adds focused unit and PostgreSQL/Testcontainers coverage for canonical-write bridge request validation, missing/wrong-organization ClaimLedger and ReviewEvent rejection, ReviewEvent-to-ClaimLedger lineage validation, governed-intake-only policy, CanonicalWriteService invocation, mandatory CanonicalWriteGate behavior, gate-blocked governed-intake claims, allowed boundary audit with `canonicalPersistencePerformed=false`, WorkflowEvent idempotency for repeated allowed attempts, ClaimLedger and ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile writes, no business target entity queries, no API/UI, and no old `recruiting.*` source/packet use.
 - Task 5F adds a focused end-to-end PostgreSQL/Testcontainers regression proving the safe chain: SourceItem / InformationPacket in `intake.*`, deterministic placeholder output envelope, default placeholder no-claim behavior, bridge-eligible operational fixture to ClaimLedgerItem claim, ReviewEvent evidence-not-promotion, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate block/allow behavior, `canonicalPersistencePerformed=false`, wrong-organization isolation, ClaimLedger/ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile persistence, no blocked-attempt audit ledger, and no old `recruiting.*` source/packet use.
 - Task 6A adds focused unit coverage for CandidateProfile required identifiers, profile version, field path/status/value/lineage validation, stable canonical field paths, required v2.1 status vocabulary, bulk approval capped at `HUMAN_ACKNOWLEDGED`, status policy fact/readiness blockers, source lineage references to ClaimLedgerItem / ReviewEvent / SourceItem / InformationPacket / IntakeExtractionRun / WorkflowEvent / source spans, conflict/staleness metadata, and absence of CandidateProfile persistence/API/UI/canonical-write calls.
+- Task 6B adds focused unit and PostgreSQL/Testcontainers coverage for CandidateProfile create request validation, field upsert validation, bulk-approval limits, HUMAN_ACKNOWLEDGED and SYSTEM_INFERENCE non-verified persistence, candidate/external verification lineage requirements, Flyway reuse of the existing V2 `recruiting.candidate_profile` table, organization-scoped profile/candidate lookup, field path/value/status/lineage/conflict/staleness readback, and absence of ClaimLedger/ReviewEvent/CanonicalWrite/governed-intake/API/UI wiring.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -117,19 +119,23 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `CandidateProfileFieldStatusPolicy` is pure metadata only. It marks bulk approval as `HUMAN_ACKNOWLEDGED`, treats only `CANDIDATE_CONFIRMED` and `EXTERNAL_VERIFIED` as verified fact eligible, blocks `SYSTEM_INFERENCE` and `CONFLICTING` from client-visible fact statements, and treats `NEEDS_CONFIRMATION` as not transaction-ready.
 - Task 6A lineage contracts can carry ids or refs for ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, WorkflowEvent, source spans, and external evidence. These references support auditability but are not proof by themselves and do not query or join upstream tables.
 - Task 6A conflict and staleness metadata are representational only. They do not resolve conflicts, detect stale fields, mutate profiles, or trigger workflow.
-- Canonical persistence is explicitly deferred.
+- Task 6B adds explicit backend-internal CandidateProfile persistence calls only through `CandidateProfileService` and `CandidateProfilePersistencePort`.
+- `JdbcCandidateProfilePersistencePort` reuses `recruiting.candidate_profile`; it stores field status wire values in `field_status_map`, field values/lineage/conflict/staleness documents in `metadata.candidate_profile_fields`, and source claim id summaries in `source_claim_ids`.
+- CandidateProfile persistence lookups are organization-scoped by profile id or candidate id, and create requires the candidate row to belong to the same organization.
+- Task 6B does not add a migration, new table, API/controller/DTO/UI, client-safe projection, RBAC/ABAC, Consent/Disclosure, AI wiring, governed-intake bridge write, or CanonicalWriteService write.
+- Canonical write flow from ClaimLedger/ReviewEvent/GovernedIntake to CandidateProfile remains explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
 
 ## Current Non-capabilities
 
-- No CandidateProfile canonical persistence; Task 6A defines contracts and vocabulary only.
-- No CandidateProfile table writes to `recruiting.candidate_profile`.
+- No automatic CandidateProfile canonical persistence from governed intake or `CanonicalWriteService`.
+- CandidateProfile table writes to `recruiting.candidate_profile` exist only through backend-internal explicit `CandidateProfileService` / `JdbcCandidateProfilePersistencePort` calls.
 - No raw Candidate writes to `recruiting.candidate`.
-- No CandidateProfile repository or JDBC adapter.
+- No generic CandidateProfile repository/search/list surface beyond the narrow Task 6B port methods.
 - No CandidateProfile API/controller/DTO/UI.
 - No CandidateProfile client-safe projection or redaction.
-- No raw Candidate/Profile persistence.
+- No raw Candidate/Profile exposure to Client.
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
 - No business-fact ClaimLedger append from default governed-intake placeholder output.
@@ -148,5 +154,5 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain only. CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, and recruiting.* source/packet cleanup remain future work.
-- Task 6B or later must implement CandidateProfile persistence only after the transaction boundary hardening plan is clear; `CanonicalWriteTransactionBoundary` still has no real JDBC rollback coordination.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain only. CandidateProfile persistence is now backend-internal only; downstream privacy/access surfaces, governed-intake write wiring, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, and recruiting.* source/packet cleanup remain future work.
+- Task 6C/6D or later must define the real canonical write flow; `CanonicalWriteTransactionBoundary` still has no real JDBC rollback coordination.

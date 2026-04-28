@@ -303,12 +303,13 @@ class CandidateProfileContractTest {
   }
 
   @Test
-  void candidateProfilePackageDoesNotIntroducePersistenceApiControllerOrUi() throws IOException {
+  void candidateProfilePackageKeepsPersistenceBackendInternalAndNoApiControllerOrUi()
+      throws IOException {
     List<Path> candidateProfileFiles = candidateProfileProductionFiles();
 
     assertThat(candidateProfileFiles)
         .extracting(path -> path.getFileName().toString())
-        .noneMatch(fileName -> fileName.startsWith("Jdbc"))
+        .contains("JdbcCandidateProfilePersistencePort.java")
         .noneMatch(fileName -> fileName.endsWith("Repository.java"))
         .noneMatch(fileName -> fileName.endsWith("Controller.java"))
         .noneMatch(fileName -> fileName.contains("ClientSafeCandidateCard"));
@@ -321,13 +322,14 @@ class CandidateProfileContractTest {
           .doesNotContain("@RestController")
           .doesNotContain("@Controller")
           .doesNotContain("@RequestMapping")
-          .doesNotContain("INSERT INTO recruiting.candidate")
-          .doesNotContain("INSERT INTO recruiting.candidate_profile");
+          .doesNotContain("org.springframework.web")
+          .doesNotContain("ClientSafeCandidateCard");
     }
   }
 
   @Test
-  void productionCodeDoesNotIntroduceCandidateProfileOrRawCandidateWrites() throws IOException {
+  void productionCodeOnlyWritesCandidateProfileInsideCandidateProfileAdapter()
+      throws IOException {
     Pattern writePattern = Pattern.compile(
         "(INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\s+recruiting\\."
             + "(candidate|candidate_profile)\\b",
@@ -336,7 +338,13 @@ class CandidateProfileContractTest {
     for (Path file : productionJavaFiles()) {
       Matcher matcher = writePattern.matcher(Files.readString(file));
       while (matcher.find()) {
-        matches.add(projectRelative(file) + " contains " + matcher.group());
+        String relativePath = projectRelative(file);
+        if (relativePath.endsWith(
+            "candidateprofile/persistence/JdbcCandidateProfilePersistencePort.java")
+            && matcher.group(2).equals("candidate_profile")) {
+          continue;
+        }
+        matches.add(relativePath + " contains " + matcher.group());
       }
     }
 

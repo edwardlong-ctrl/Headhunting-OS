@@ -61,11 +61,13 @@ Read-only audit side:
 → `WorkflowAuditReadPort`
 → `workflow.workflow_event`
 
-CandidateProfile contract vocabulary side:
+CandidateProfile backend-internal persistence side:
 
 `CandidateProfile` / `CandidateProfileField`
-→ field status, field path, lineage, conflict, and staleness metadata only
-→ no repository, no service write boundary, no API/UI, no table writes
+→ `CandidateProfileService`
+→ `CandidateProfilePersistencePort`
+→ `JdbcCandidateProfilePersistencePort`
+→ `recruiting.candidate_profile`
 
 Task 5F regression closure covers the governed-intake minimal slice as a safe
 backend-only chain:
@@ -84,11 +86,14 @@ Consent/Disclosure behavior, RBAC/ABAC, workflow engine behavior, transition
 legality validation, or cleanup/deprecation of earlier V2 `recruiting.*`
 source/packet skeleton tables.
 
-Task 6A adds the CandidateProfile canonical contract vocabulary only. It does
-not add CandidateProfile persistence, raw Candidate/Profile persistence,
-CanonicalWriteService calls, API/UI exposure, client-safe projection,
-Consent/Disclosure behavior, RBAC/ABAC, real AI extraction, workflow engine
-behavior, transition legality validation, or transaction boundary hardening.
+Task 6A adds the CandidateProfile canonical contract vocabulary. Task 6B adds
+backend-internal CandidateProfile persistence skeletons only. Task 6B does not
+wire governed intake into CandidateProfile, does not call `CanonicalWriteService`,
+does not bypass `CanonicalWriteGate`, does not add API/UI exposure, does not
+create client-safe projection, does not implement Consent/Disclosure behavior,
+does not implement RBAC/ABAC, does not wire real AI extraction, does not add
+workflow engine behavior, does not add transition legality validation, and does
+not harden transaction rollback coordination.
 
 ## GovernedIntakeService
 
@@ -245,9 +250,27 @@ behavior, transition legality validation, or transaction boundary hardening.
 - Bulk approve maps to `HUMAN_ACKNOWLEDGED` at most and cannot produce `CANDIDATE_CONFIRMED` or `EXTERNAL_VERIFIED`.
 - Lineage references can name ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, WorkflowEvent, source spans, and external evidence. These references support auditability but are not proof by themselves.
 - Conflict and staleness metadata only describe conflict/stale state. They do not implement conflict resolution, stale detection, profile mutation, workflow transitions, or fact promotion.
-- Does not add a CandidateProfile repository, JDBC adapter, REST/API/controller/DTO, UI surface, client-safe projection, redaction behavior, RBAC/ABAC, Consent/Disclosure, AI model wiring, real AI extraction, or workflow engine.
-- Does not write `recruiting.candidate_profile`, does not write `recruiting.candidate`, and does not change existing V2 migration tables/indexes.
-- CandidateProfile persistence remains future work and must wait until the transaction boundary hardening plan is clear.
+- Task 6B adds persistence as a separate backend-internal service/port/adapter layer; the domain contracts remain independent of JDBC, Spring Data, API, UI, CanonicalWrite, governed-intake bridge, and client-safe projection concerns.
+
+## CandidateProfile Persistence
+
+- Backend-internal Task 6B persistence skeleton for explicit CandidateProfile create/read/field-upsert operations.
+- `CandidateProfileService` validates create/upsert requests and builds `CandidateProfile` / `CandidateProfileField` domain objects before delegating to the port.
+- `CandidateProfilePersistencePort` is narrow: create profile, find by organization-scoped profile id, find latest profile by organization-scoped candidate id, upsert one field, and list fields for one organization-scoped profile.
+- `JdbcCandidateProfilePersistencePort` uses plain JDBC/DataSource and reuses the existing V2 `recruiting.candidate_profile` table.
+- No new migration, table, index, client-facing view, API DTO table, or competing CandidateProfile table was added in Task 6B.
+- `field_status_map` stores field path to status wire value.
+- `metadata.candidate_profile_fields` stores field value JSON, lineage, conflict metadata, staleness metadata, review timestamps, actor/profile-version confirmation references, source claim id, source review event id, source workflow event id, and notes.
+- `source_claim_ids` stores a summary of field source ClaimLedgerItem ids where a field carries them.
+- Create requires a matching `recruiting.candidate` row in the same organization before inserting a profile row; the adapter does not insert or update raw `recruiting.candidate`.
+- Profile id and candidate id lookups are organization-scoped.
+- `HUMAN_ACKNOWLEDGED` and `SYSTEM_INFERENCE` can be persisted as non-verified statuses, but they remain not verified fact and are not client fact eligible.
+- `CANDIDATE_CONFIRMED` still requires candidate actor/profile-version semantics; `EXTERNAL_VERIFIED` still requires external evidence lineage.
+- Bulk approval remains capped below `CANDIDATE_CONFIRMED` and `EXTERNAL_VERIFIED`.
+- This service does not evaluate ClaimLedgerItem or ReviewEvent, does not promote claims, does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not call `CanonicalWriteGate`, and does not call `CanonicalWriteService`.
+- This service is not a REST/API/controller/DTO/UI surface and is not reachable from Client.
+- This service does not expose raw Candidate/Profile to Client, does not implement ClientSafeCandidateCard, does not implement client-safe projection/redaction, does not implement RBAC/ABAC, and does not implement Consent/Disclosure.
+- This service does not wire AI models, perform real AI extraction, parse CV/JD/WeChat/email/call-note content, implement workflow engine behavior, or validate transition legality.
 
 ## ClaimLedgerService
 
@@ -332,7 +355,7 @@ behavior, transition legality validation, or transaction boundary hardening.
 - Allowed boundary propagates idempotency/correlation/causation identifiers when the command supplies them.
 - Canonical persistence is explicitly deferred.
 - Does not write CandidateProfile.
-- Task 6A does not change this behavior and does not call `CanonicalWriteService` from CandidateProfile contracts.
+- Task 6B does not change this behavior and does not call `CanonicalWriteService` from CandidateProfile persistence.
 
 ## Transaction Boundary
 
@@ -349,6 +372,7 @@ behavior, transition legality validation, or transaction boundary hardening.
 - Do not treat `IntakeReviewBridgeService` as CanonicalWrite, CandidateProfile persistence, ClaimLedger verification mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeCanonicalWriteBridgeService` as CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat Task 6A CandidateProfile contracts as CandidateProfile persistence, canonical writes, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or transaction boundary hardening.
+- Do not treat Task 6B CandidateProfile persistence as governed-intake automatic writes, `CanonicalWriteService` writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, real canonical write flow, raw Candidate writes, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or real JDBC rollback coordination.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
