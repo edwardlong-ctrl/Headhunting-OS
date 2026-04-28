@@ -5,6 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
 import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
@@ -22,6 +27,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CandidateProfileCanonicalWriteTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
@@ -192,6 +198,163 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   }
 
   @Test
+  void allowedCandidateProfileTargetPersistsFieldAndAuditInOneTransaction()
+      throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080601");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080602");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080603");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080604");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+    insertCandidate(organizationId, candidateId);
+    CandidateProfile profile = candidateProfileService().createCandidateProfile(
+        new CreateCandidateProfileRequest(
+            organizationId,
+            new CandidateId(candidateId),
+            new CandidateProfileVersion(1),
+            java.util.List.of()));
+
+    CanonicalWriteResult result = serviceWithCandidateProfile().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .idempotencyKey("candidate-profile-write-" + organizationId)
+        .candidateProfileWriteTarget(candidateProfileWriteTarget(
+            profile.candidateProfileId(),
+            "Jane Candidate"))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(result.workflowEventAppended()).isTrue();
+    assertThat(result.workflowEventId()).isNotNull();
+    assertThat(result.canonicalPersistencePerformed()).isTrue();
+    assertThat(result.canonicalPersistenceStatus()).isEqualTo("candidate_profile_field_persisted");
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isEqualTo(1);
+    CandidateProfileField field = candidateProfileService()
+        .listCandidateProfileFields(organizationId, profile.candidateProfileId())
+        .getFirst();
+    assertThat(field.fieldPath()).isEqualTo(CandidateProfileFieldPath.IDENTITY_FULL_NAME);
+    assertThat(field.value()).isEqualTo(CandidateProfileFieldValue.ofString("Jane Candidate"));
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
+    assertThat(field.sourceClaimId()).isEqualTo(new ClaimId(
+        uuid("00000000-0000-0000-0000-000000080999")));
+    assertThat(field.sourceReviewEventId()).isEqualTo(new ReviewEventId(reviewEventId));
+    assertThat(field.sourceWorkflowEventId()).isEqualTo(result.workflowEventId());
+    assertThat(findWorkflowAction(result.workflowEventId().value()))
+        .isEqualTo("CANONICAL_WRITE_ALLOWED");
+  }
+
+  @Test
+  void profileWriteFailureRollsBackAllowedWorkflowAudit() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080701");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080702");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080703");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080704");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    assertThatThrownBy(() -> serviceWithCandidateProfile().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .idempotencyKey("candidate-profile-rollback-" + organizationId)
+        .candidateProfileWriteTarget(candidateProfileWriteTarget(
+            new CandidateProfileId(uuid("00000000-0000-0000-0000-000000080799")),
+            "Jane Candidate"))
+        .build()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("candidate profile not found in organization");
+
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+  }
+
+  @Test
+  void workflowAuditFailureDoesNotWriteCandidateProfileField() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080801");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080802");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080803");
+    UUID missingReviewEventId = uuid("00000000-0000-0000-0000-000000080804");
+    insertOrganization(organizationId);
+    insertUser(organizationId, actorId);
+    insertCandidate(organizationId, candidateId);
+    CandidateProfile profile = candidateProfileService().createCandidateProfile(
+        new CreateCandidateProfileRequest(
+            organizationId,
+            new CandidateId(candidateId),
+            new CandidateProfileVersion(1),
+            java.util.List.of()));
+
+    assertThatThrownBy(() -> serviceWithCandidateProfile().attempt(commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        missingReviewEventId)
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .idempotencyKey("candidate-profile-audit-fails-" + organizationId)
+        .candidateProfileWriteTarget(candidateProfileWriteTarget(
+            profile.candidateProfileId(),
+            "Jane Candidate"))
+        .build()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("workflow event");
+
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(candidateProfileService()
+        .listCandidateProfileFields(organizationId, profile.candidateProfileId()))
+        .isEmpty();
+  }
+
+  @Test
+  void repeatedAllowedCandidateProfileWriteIsIdempotentForAuditAndField() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080901");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080902");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080903");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080904");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+    insertCandidate(organizationId, candidateId);
+    CandidateProfile profile = candidateProfileService().createCandidateProfile(
+        new CreateCandidateProfileRequest(
+            organizationId,
+            new CandidateId(candidateId),
+            new CandidateProfileVersion(1),
+            java.util.List.of()));
+    CanonicalWriteCommand command = commandBuilder(
+        organizationId,
+        actorId,
+        candidateId,
+        reviewEventId)
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .idempotencyKey("candidate-profile-idempotent-" + organizationId)
+        .candidateProfileWriteTarget(candidateProfileWriteTarget(
+            profile.candidateProfileId(),
+            "Jane Candidate"))
+        .build();
+
+    CanonicalWriteResult first = serviceWithCandidateProfile().attempt(command);
+    CanonicalWriteResult second = serviceWithCandidateProfile().attempt(command);
+
+    assertThat(first.canonicalPersistencePerformed()).isTrue();
+    assertThat(second.canonicalPersistencePerformed()).isTrue();
+    assertThat(second.workflowEventId()).isEqualTo(first.workflowEventId());
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+    assertThat(candidateProfileService()
+        .listCandidateProfileFields(organizationId, profile.candidateProfileId()))
+        .hasSize(1);
+  }
+
+  @Test
   void candidateProfileServiceStillWorksIndependently() throws SQLException {
     UUID organizationId = uuid("00000000-0000-0000-0000-000000080501");
     UUID candidateId = uuid("00000000-0000-0000-0000-000000080503");
@@ -224,6 +387,14 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
         boundary());
   }
 
+  private static CanonicalWriteService serviceWithCandidateProfile() {
+    return new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        workflowEventService(),
+        boundary(),
+        candidateProfileService());
+  }
+
   private static WorkflowEventService workflowEventService() {
     return new WorkflowEventService(new JdbcWorkflowEventPort(dataSource));
   }
@@ -235,6 +406,16 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
 
   private static CandidateProfileService candidateProfileService() {
     return new CandidateProfileService(new JdbcCandidateProfilePersistencePort(dataSource));
+  }
+
+  private static CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget(
+      CandidateProfileId profileId,
+      String value) {
+    return new CandidateProfileCanonicalWriteTarget(
+        profileId,
+        CandidateProfileFieldPath.IDENTITY_FULL_NAME,
+        CandidateProfileFieldValue.ofString(value),
+        CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
   }
 
   private static WorkflowEventAppendCommand workflowCommand(
@@ -377,6 +558,26 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
       statement.setObject(1, organizationId);
       statement.setString(2, "Task 6C Profile Org " + organizationId);
       statement.setString(3, "Task 6C Profile Org");
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertUser(UUID organizationId, UUID userId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO identity.user_account (
+              user_account_id,
+              organization_id,
+              email,
+              display_name,
+              status
+            )
+            VALUES (?, ?, ?, ?, 'active')
+            """)) {
+      statement.setObject(1, userId);
+      statement.setObject(2, organizationId);
+      statement.setString(3, "canonical-boundary-" + userId + "@example.test");
+      statement.setString(4, "Task 6D Reviewer");
       statement.executeUpdate();
     }
   }

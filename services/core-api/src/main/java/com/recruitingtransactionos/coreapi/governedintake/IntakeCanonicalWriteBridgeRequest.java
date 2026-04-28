@@ -1,5 +1,6 @@
 package com.recruitingtransactionos.coreapi.governedintake;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
 import com.recruitingtransactionos.coreapi.truthlayer.VerificationStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
@@ -15,6 +16,7 @@ public record IntakeCanonicalWriteBridgeRequest(
     ReviewEventId reviewEventId,
     ActorRole requestedByActorType,
     UUID requestedByActorId,
+    CandidateProfileId candidateProfileId,
     String targetEntityType,
     UUID targetEntityId,
     String targetFieldPath,
@@ -62,6 +64,7 @@ public record IntakeCanonicalWriteBridgeRequest(
     private ReviewEventId reviewEventId;
     private ActorRole requestedByActorType;
     private UUID requestedByActorId;
+    private CandidateProfileId candidateProfileId;
     private String targetEntityType;
     private UUID targetEntityId;
     private String targetFieldPath;
@@ -102,6 +105,11 @@ public record IntakeCanonicalWriteBridgeRequest(
 
     public Builder requestedByActorId(UUID requestedByActorId) {
       this.requestedByActorId = requestedByActorId;
+      return this;
+    }
+
+    public Builder candidateProfileId(CandidateProfileId candidateProfileId) {
+      this.candidateProfileId = candidateProfileId;
       return this;
     }
 
@@ -182,6 +190,7 @@ public record IntakeCanonicalWriteBridgeRequest(
           reviewEventId,
           requestedByActorType,
           requestedByActorId,
+          candidateProfileId,
           targetEntityType,
           targetEntityId,
           targetFieldPath,

@@ -3,6 +3,16 @@ package com.recruitingtransactionos.coreapi.governedintake;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
+import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerSourceReferenceLookupPort;
@@ -33,6 +43,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewDecision;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
@@ -58,6 +69,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -100,6 +112,8 @@ class GovernedIntakeEndToEndRegressionTest {
       throws SQLException {
     assertThat(migrateResult.migrationsExecuted).isEqualTo(6);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6");
+    int candidateRowsBefore = countRows("recruiting.candidate", ORG_A);
+    int candidateProfileRowsBefore = countRows("recruiting.candidate_profile", ORG_A);
 
     GovernedIntakeService intakeService = intakeService();
     SourceItem cv = intakeService.registerSourceItem(sourceCommand(ORG_A, "minimal-cv").build());
@@ -217,6 +231,7 @@ class GovernedIntakeEndToEndRegressionTest {
         claimId,
         reviewResult.reviewEventId(),
         TARGET_CANDIDATE_A,
+        null,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T2_MEDIUM_RISK,
         "attempt governed-intake claim against mandatory canonical write gate");
@@ -246,29 +261,35 @@ class GovernedIntakeEndToEndRegressionTest {
     assertThat(countRows("intake.information_packet_source_item", ORG_A))
         .isGreaterThanOrEqualTo(2);
     assertThat(countRows("intake.extraction_run", ORG_A)).isGreaterThanOrEqualTo(2);
-    assertThat(countRows("recruiting.candidate", ORG_A)).isZero();
-    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
+    assertThat(countRows("recruiting.candidate", ORG_A)).isEqualTo(candidateRowsBefore);
+    assertThat(countRows("recruiting.candidate_profile", ORG_A))
+        .isEqualTo(candidateProfileRowsBefore);
     assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
     assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
   }
 
   @Test
-  void allowedFixtureBoundaryAuditsOnlyAndRemainsIdempotent() throws SQLException {
+  void allowedFixtureWritesMinimalCandidateProfileFieldAndRemainsIdempotent()
+      throws SQLException {
     ClaimId claimId = insertAllowedGovernedClaim("allowed-e2e");
     ReviewEventId reviewEventId = appendReviewEvent(
         claimId,
-        RiskTier.T1_LOW_RISK,
-        "approved low-risk governed-intake fixture for boundary audit");
+        RiskTier.T2_MEDIUM_RISK,
+        "approved governed-intake fixture for minimal profile write");
     PersistedClaim claimBeforeCanonical = findClaim(claimId);
     PersistedReviewEvent reviewBeforeCanonical = findReview(reviewEventId);
+    CandidateProfile profile = createCandidateProfile(
+        deterministicUuid("allowed-e2e-candidate"),
+        1);
     IntakeCanonicalWriteBridgeRequest request = canonicalRequest(
         ORG_A,
         claimId,
         reviewEventId,
-        deterministicUuid("allowed-e2e-target"),
-        VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW_RISK,
-        "low-risk allowed fixture still performs no canonical persistence");
+        profile.candidateId().value(),
+        profile.candidateProfileId(),
+        VerificationStatus.CONSULTANT_ATTESTED,
+        RiskTier.T2_MEDIUM_RISK,
+        "allowed fixture writes one minimal candidate profile field");
 
     IntakeCanonicalWriteBridgeResult first = canonicalBridgeService().bridge(request);
     IntakeCanonicalWriteBridgeResult second = canonicalBridgeService().bridge(request);
@@ -276,11 +297,12 @@ class GovernedIntakeEndToEndRegressionTest {
     assertThat(first.status()).isEqualTo(IntakeCanonicalWriteBridgeStatus.GATE_ALLOWED_AUDITED);
     assertThat(first.gateDecision()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
     assertThat(first.workflowEventId()).isNotNull();
-    assertThat(first.canonicalPersistencePerformed()).isFalse();
+    assertThat(first.canonicalPersistencePerformed()).isTrue();
     assertThat(first.canonicalPersistenceStatus())
-        .isEqualTo(CanonicalWriteService.CANONICAL_PERSISTENCE_DEFERRED);
+        .isEqualTo(CanonicalWriteService.CANDIDATE_PROFILE_FIELD_PERSISTED);
     assertThat(second.workflowEventId()).isEqualTo(first.workflowEventId());
     assertThat(countWorkflowEventsForClaim(claimId)).isEqualTo(1);
+    assertThat(second.canonicalPersistencePerformed()).isTrue();
 
     PersistedWorkflowEvent workflowEvent = findWorkflowEvent(first.workflowEventId().value());
     assertThat(workflowEvent.action()).isEqualTo(WorkflowActionCode.CANONICAL_WRITE_ALLOWED.wireValue());
@@ -293,8 +315,19 @@ class GovernedIntakeEndToEndRegressionTest {
 
     assertThat(findClaim(claimId)).isEqualTo(claimBeforeCanonical);
     assertThat(findReview(reviewEventId)).isEqualTo(reviewBeforeCanonical);
-    assertThat(countRows("recruiting.candidate", ORG_A)).isZero();
-    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
+    CandidateProfileField field = candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        profile.candidateProfileId()).getFirst();
+    assertThat(field.fieldPath()).isEqualTo(CandidateProfileFieldPath.IDENTITY_FULL_NAME);
+    assertThat(field.value()).isEqualTo(CandidateProfileFieldValue.ofString(
+        "hash-only requested headline fixture"));
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
+    assertThat(field.sourceClaimId()).isEqualTo(claimId);
+    assertThat(field.sourceReviewEventId()).isEqualTo(reviewEventId);
+    assertThat(field.sourceWorkflowEventId()).isEqualTo(first.workflowEventId());
+    assertThat(candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        profile.candidateProfileId())).hasSize(1);
     assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
     assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
   }
@@ -347,6 +380,7 @@ class GovernedIntakeEndToEndRegressionTest {
             claimId,
             reviewEventId,
             deterministicUuid("wrong-org-target"),
+            null,
             VerificationStatus.HUMAN_ACKNOWLEDGED,
             RiskTier.T2_MEDIUM_RISK,
             "wrong organization must not attempt canonical write"));
@@ -536,7 +570,23 @@ class GovernedIntakeEndToEndRegressionTest {
         new CanonicalWriteService(
             new CanonicalWriteGate(),
             new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
-            CanonicalWriteTransactionBoundary.immediate()));
+            new SpringCanonicalWriteTransactionBoundary(
+                new DataSourceTransactionManager(dataSource)),
+            candidateProfileService()));
+  }
+
+  private static CandidateProfileService candidateProfileService() {
+    return new CandidateProfileService(new JdbcCandidateProfilePersistencePort(dataSource));
+  }
+
+  private static CandidateProfile createCandidateProfile(UUID candidateId, int profileVersion)
+      throws SQLException {
+    insertCandidate(ORG_A, candidateId);
+    return candidateProfileService().createCandidateProfile(new CreateCandidateProfileRequest(
+        ORG_A,
+        new CandidateId(candidateId),
+        new CandidateProfileVersion(profileVersion),
+        List.of()));
   }
 
   private static JdbcIntakeExtractionRunPort extractionPort() {
@@ -592,6 +642,7 @@ class GovernedIntakeEndToEndRegressionTest {
       ClaimId claimId,
       ReviewEventId reviewEventId,
       UUID targetEntityId,
+      com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId candidateProfileId,
       VerificationStatus targetVerificationStatus,
       RiskTier riskTier,
       String reason) {
@@ -601,9 +652,12 @@ class GovernedIntakeEndToEndRegressionTest {
         .reviewEventId(reviewEventId)
         .requestedByActorType(ActorRole.CONSULTANT)
         .requestedByActorId(organizationId.equals(ORG_A) ? REVIEWER_A : REVIEWER_B)
+        .candidateProfileId(candidateProfileId)
         .targetEntityType("CANDIDATE")
         .targetEntityId(targetEntityId)
-        .targetFieldPath("headline")
+        .targetFieldPath(candidateProfileId == null
+            ? "headline"
+            : CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
         .requestedCanonicalValue("hash-only requested headline fixture")
         .targetVerificationStatus(targetVerificationStatus)
         .riskTier(riskTier)
@@ -889,6 +943,23 @@ class GovernedIntakeEndToEndRegressionTest {
       reviewer.setString(3, "reviewer-" + reviewerId + "@example.test");
       reviewer.setString(4, "Task 5F Reviewer");
       reviewer.executeUpdate();
+    }
+  }
+
+  private static void insertCandidate(UUID organizationId, UUID candidateId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO recruiting.candidate (
+              candidate_id,
+              organization_id,
+              status,
+              privacy_status
+            )
+            VALUES (?, ?, 'new', 'internal_only')
+            """)) {
+      statement.setObject(1, candidateId);
+      statement.setObject(2, organizationId);
+      statement.executeUpdate();
     }
   }
 

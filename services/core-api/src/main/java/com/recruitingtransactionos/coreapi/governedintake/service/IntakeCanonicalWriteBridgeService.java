@@ -1,5 +1,8 @@
 package com.recruitingtransactionos.coreapi.governedintake.service;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgePolicy;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgeRequest;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgeResult;
@@ -12,6 +15,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteDecisionType
 import com.recruitingtransactionos.coreapi.truthlayer.ClaimInput;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CandidateProfileCanonicalWriteTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
@@ -133,6 +137,7 @@ public final class IntakeCanonicalWriteBridgeService {
         .targetEntity(new EntityRef(request.targetEntityType(), request.targetEntityId()))
         .targetFieldPath(request.targetFieldPath())
         .proposedValueRef(proposedValueRef(request))
+        .candidateProfileWriteTarget(candidateProfileWriteTarget(request))
         .claimId(request.claimLedgerItemId())
         .claim(new ClaimInput(
             claim.claimType(),
@@ -157,6 +162,34 @@ public final class IntakeCanonicalWriteBridgeService {
         .causationId(request.causationId())
         .occurredAt(request.occurredAt())
         .build();
+  }
+
+  private static CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget(
+      IntakeCanonicalWriteBridgeRequest request) {
+    if (request.candidateProfileId() == null) {
+      return null;
+    }
+    return new CandidateProfileCanonicalWriteTarget(
+        request.candidateProfileId(),
+        CandidateProfileFieldPath.of(request.targetFieldPath()),
+        CandidateProfileFieldValue.ofString(request.requestedCanonicalValue()),
+        candidateProfileFieldStatus(request.targetVerificationStatus()));
+  }
+
+  private static CandidateProfileFieldStatus candidateProfileFieldStatus(
+      com.recruitingtransactionos.coreapi.truthlayer.VerificationStatus status) {
+    return switch (status) {
+      case AI_EXTRACTED -> CandidateProfileFieldStatus.AI_EXTRACTED;
+      case HUMAN_ACKNOWLEDGED -> CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED;
+      case CONSULTANT_ATTESTED -> CandidateProfileFieldStatus.CONSULTANT_ATTESTED;
+      case CANDIDATE_CONFIRMED -> CandidateProfileFieldStatus.CANDIDATE_CONFIRMED;
+      case EXTERNAL_VERIFIED -> CandidateProfileFieldStatus.EXTERNAL_VERIFIED;
+      case SYSTEM_INFERENCE -> CandidateProfileFieldStatus.SYSTEM_INFERENCE;
+      case CONFLICTING -> CandidateProfileFieldStatus.CONFLICTING;
+      case NEEDS_CONFIRMATION -> CandidateProfileFieldStatus.NEEDS_CONFIRMATION;
+      case REJECTED, RETRACTED -> throw new IllegalArgumentException(
+          "unsupported candidate profile field status: " + status.wireValue());
+    };
   }
 
   private static String proposedValueRef(IntakeCanonicalWriteBridgeRequest request) {

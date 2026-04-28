@@ -20,6 +20,7 @@ public record CanonicalWriteCommand(
     Integer targetEntityVersion,
     String targetFieldPath,
     String proposedValueRef,
+    CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget,
     ClaimId claimId,
     ClaimInput claim,
     CanonicalWriteReviewEvidence reviewEvidence,
@@ -69,6 +70,7 @@ public record CanonicalWriteCommand(
     private Integer targetEntityVersion;
     private String targetFieldPath;
     private String proposedValueRef;
+    private CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget;
     private ClaimId claimId;
     private ClaimInput claim;
     private CanonicalWriteReviewEvidence reviewEvidence;
@@ -109,6 +111,12 @@ public record CanonicalWriteCommand(
 
     public Builder proposedValueRef(String proposedValueRef) {
       this.proposedValueRef = proposedValueRef;
+      return this;
+    }
+
+    public Builder candidateProfileWriteTarget(
+        CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget) {
+      this.candidateProfileWriteTarget = candidateProfileWriteTarget;
       return this;
     }
 
@@ -210,6 +218,7 @@ public record CanonicalWriteCommand(
           targetEntityVersion,
           targetFieldPath,
           proposedValueRef,
+          candidateProfileWriteTarget,
           claimId,
           claim,
           reviewEvidence,

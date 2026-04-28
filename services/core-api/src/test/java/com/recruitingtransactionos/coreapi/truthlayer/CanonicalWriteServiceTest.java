@@ -1,7 +1,17 @@
 package com.recruitingtransactionos.coreapi.truthlayer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
+import com.recruitingtransactionos.coreapi.candidateprofile.port.CandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
@@ -14,6 +24,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CandidateProfileCanonicalWriteTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
@@ -47,12 +58,15 @@ class CanonicalWriteServiceTest {
       UUID.fromString("00000000-0000-0000-0000-000000070006");
   private static final UUID CAUSATION_ID =
       UUID.fromString("00000000-0000-0000-0000-000000070007");
+  private static final CandidateProfileId PROFILE_ID = new CandidateProfileId(
+      UUID.fromString("00000000-0000-0000-0000-000000070008"));
   private static final Instant OCCURRED_AT = Instant.parse("2026-04-28T03:00:00Z");
 
   @Test
-  void blockedGateDecisionDoesNotAppendWorkflowEvent() {
+  void blockedGateDecisionDoesNotAppendWorkflowEventOrCandidateProfileField() {
     RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
-    CanonicalWriteResult result = service(workflowPort).attempt(commandBuilder()
+    RecordingCandidateProfilePort profilePort = new RecordingCandidateProfilePort();
+    CanonicalWriteResult result = service(workflowPort, profilePort).attempt(commandBuilder()
         .claim(new ClaimInput(
             ClaimType.FACT,
             AssertionStrength.EXPLICIT,
@@ -61,11 +75,37 @@ class CanonicalWriteServiceTest {
             false))
         .targetVerificationStatus(VerificationStatus.EXTERNAL_VERIFIED)
         .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .candidateProfileWriteTarget(candidateProfileWriteTarget())
         .build());
 
     assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
     assertThat(result.workflowEventAppended()).isFalse();
     assertThat(result.workflowEventId()).isNull();
+    assertThat(result.canonicalPersistencePerformed()).isFalse();
+    assertThat(workflowPort.commands).isEmpty();
+    assertThat(profilePort.upsertedFields).isEmpty();
+  }
+
+  @Test
+  void blockedGateDecisionDoesNotStartTransactionBoundary() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingTransactionBoundary transactionBoundary = new RecordingTransactionBoundary();
+    CanonicalWriteService service = new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        new WorkflowEventService(workflowPort),
+        transactionBoundary);
+
+    CanonicalWriteResult result = service.attempt(commandBuilder()
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(transactionBoundary.invocations).isZero();
     assertThat(workflowPort.commands).isEmpty();
   }
 
@@ -108,6 +148,54 @@ class CanonicalWriteServiceTest {
     assertThat(audit.idempotencyKey().value()).isEqualTo("canonical-write-boundary-test");
     assertThat(audit.correlationId().value()).isEqualTo(CORRELATION_ID);
     assertThat(audit.causationId().value()).isEqualTo(CAUSATION_ID);
+  }
+
+  @Test
+  void allowedCandidateProfileTargetWritesFieldAfterAuditAndReportsPersistence() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCandidateProfilePort profilePort = new RecordingCandidateProfilePort();
+
+    CanonicalWriteResult result = service(workflowPort, profilePort).attempt(commandBuilder()
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .candidateProfileWriteTarget(candidateProfileWriteTarget())
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(result.workflowEventAppended()).isTrue();
+    assertThat(result.workflowEventId()).isEqualTo(workflowPort.result.workflowEventId());
+    assertThat(result.canonicalPersistencePerformed()).isTrue();
+    assertThat(result.canonicalPersistenceStatus()).isEqualTo("candidate_profile_field_persisted");
+    assertThat(workflowPort.commands).hasSize(1);
+    assertThat(profilePort.upsertedFields).hasSize(1);
+    CandidateProfileField field = profilePort.upsertedFields.getFirst();
+    assertThat(field.fieldPath()).isEqualTo(CandidateProfileFieldPath.IDENTITY_FULL_NAME);
+    assertThat(field.value()).isEqualTo(CandidateProfileFieldValue.ofString("Jane Candidate"));
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
+    assertThat(field.sourceClaimId()).isEqualTo(new ClaimId(CLAIM_ID));
+    assertThat(field.sourceReviewEventId()).isEqualTo(new ReviewEventId(REVIEW_EVENT_ID));
+    assertThat(field.sourceWorkflowEventId()).isEqualTo(workflowPort.result.workflowEventId());
+    assertThat(field.confirmedByActorId()).isEqualTo(ACTOR_ID);
+  }
+
+  @Test
+  void allowedCandidateProfileTargetDoesNotReportPersistenceWhenFieldWriteFails() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCandidateProfilePort profilePort = new RecordingCandidateProfilePort();
+    profilePort.failOnUpsert = true;
+
+    assertThatThrownBy(() -> service(workflowPort, profilePort).attempt(commandBuilder()
+        .targetVerificationStatus(VerificationStatus.CONSULTANT_ATTESTED)
+        .targetRiskTier(RiskTier.T2_MEDIUM_RISK)
+        .targetFieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
+        .candidateProfileWriteTarget(candidateProfileWriteTarget())
+        .build()))
+        .isInstanceOf(DeliberateProfileWriteFailure.class)
+        .hasMessage("candidate profile write failed after audit");
+
+    assertThat(workflowPort.commands).hasSize(1);
+    assertThat(profilePort.upsertedFields).isEmpty();
   }
 
   @Test
@@ -225,6 +313,16 @@ class CanonicalWriteServiceTest {
         CanonicalWriteTransactionBoundary.immediate());
   }
 
+  private static CanonicalWriteService service(
+      WorkflowEventPort workflowPort,
+      RecordingCandidateProfilePort profilePort) {
+    return new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        new WorkflowEventService(workflowPort),
+        CanonicalWriteTransactionBoundary.immediate(),
+        new CandidateProfileService(profilePort));
+  }
+
   private static CanonicalWriteCommand.Builder commandBuilder() {
     return CanonicalWriteCommand.builder()
         .organizationId(ORGANIZATION_ID)
@@ -254,6 +352,14 @@ class CanonicalWriteServiceTest {
         .causationId(CAUSATION_ID)
         .idempotencyKey("canonical-write-boundary-test")
         .occurredAt(OCCURRED_AT);
+  }
+
+  private static CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget() {
+    return new CandidateProfileCanonicalWriteTarget(
+        PROFILE_ID,
+        CandidateProfileFieldPath.IDENTITY_FULL_NAME,
+        CandidateProfileFieldValue.ofString("Jane Candidate"),
+        CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
   }
 
   private boolean looksLikeCandidatePersistenceSurface(String methodName) {
@@ -314,6 +420,56 @@ class CanonicalWriteServiceTest {
       } catch (Exception exception) {
         throw new IllegalStateException("unexpected checked test failure", exception);
       }
+    }
+  }
+
+  private static final class RecordingCandidateProfilePort
+      implements CandidateProfilePersistencePort {
+    private final List<CandidateProfileField> upsertedFields = new ArrayList<>();
+    private boolean failOnUpsert;
+
+    @Override
+    public CandidateProfile createCandidateProfile(CandidateProfile candidateProfile) {
+      throw new UnsupportedOperationException("not used by canonical write service test");
+    }
+
+    @Override
+    public Optional<CandidateProfile> findCandidateProfileByIdAndOrganizationId(
+        UUID organizationId,
+        CandidateProfileId candidateProfileId) {
+      return Optional.empty();
+    }
+
+    @Override
+    public Optional<CandidateProfile> findCandidateProfileByCandidateIdAndOrganizationId(
+        UUID organizationId,
+        CandidateId candidateId) {
+      return Optional.empty();
+    }
+
+    @Override
+    public CandidateProfileField upsertCandidateProfileField(
+        UUID organizationId,
+        CandidateProfileId candidateProfileId,
+        CandidateProfileField field) {
+      if (failOnUpsert) {
+        throw new DeliberateProfileWriteFailure("candidate profile write failed after audit");
+      }
+      upsertedFields.add(field);
+      return field;
+    }
+
+    @Override
+    public List<CandidateProfileField> listCandidateProfileFields(
+        UUID organizationId,
+        CandidateProfileId candidateProfileId) {
+      return List.copyOf(upsertedFields);
+    }
+  }
+
+  private static final class DeliberateProfileWriteFailure extends RuntimeException {
+    private DeliberateProfileWriteFailure(String message) {
+      super(message);
     }
   }
 }

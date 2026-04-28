@@ -1,5 +1,11 @@
 package com.recruitingtransactionos.coreapi.truthlayer.service;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldLineage;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldSourceReference;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.UpsertCandidateProfileFieldRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteDecision;
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteDecisionType;
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteGate;
@@ -16,28 +22,36 @@ public final class CanonicalWriteService {
 
   public static final String CANONICAL_PERSISTENCE_DEFERRED =
       "not_implemented_no_safe_canonical_write_target_in_task_3d";
+  public static final String CANDIDATE_PROFILE_FIELD_PERSISTED =
+      "candidate_profile_field_persisted";
 
   private final CanonicalWriteGate gate;
   private final WorkflowEventService workflowEventService;
   private final CanonicalWriteTransactionBoundary transactionBoundary;
+  private final CandidateProfileService candidateProfileService;
 
   public CanonicalWriteService(
       CanonicalWriteGate gate,
       WorkflowEventService workflowEventService,
       CanonicalWriteTransactionBoundary transactionBoundary) {
+    this(gate, workflowEventService, transactionBoundary, null);
+  }
+
+  public CanonicalWriteService(
+      CanonicalWriteGate gate,
+      WorkflowEventService workflowEventService,
+      CanonicalWriteTransactionBoundary transactionBoundary,
+      CandidateProfileService candidateProfileService) {
     this.gate = Objects.requireNonNull(gate, "gate must not be null");
     this.workflowEventService = Objects.requireNonNull(workflowEventService,
         "workflowEventService must not be null");
     this.transactionBoundary = Objects.requireNonNull(transactionBoundary,
         "transactionBoundary must not be null");
+    this.candidateProfileService = candidateProfileService;
   }
 
   public CanonicalWriteResult attempt(CanonicalWriteCommand command) {
     Objects.requireNonNull(command, "command must not be null");
-    return transactionBoundary.run(() -> attemptWithinBoundary(command));
-  }
-
-  private CanonicalWriteResult attemptWithinBoundary(CanonicalWriteCommand command) {
     CanonicalWriteDecision decision = gate.decide(new CanonicalWriteRequest(
         claimWithReviewBulkFlag(command),
         command.targetVerificationStatus(),
@@ -56,13 +70,90 @@ public final class CanonicalWriteService {
           List.of("review_event_must_approve_canonical_boundary")));
     }
 
+    return transactionBoundary.run(() -> allowedAttemptWithinBoundary(command, decision));
+  }
+
+  private CanonicalWriteResult allowedAttemptWithinBoundary(
+      CanonicalWriteCommand command,
+      CanonicalWriteDecision decision) {
     WorkflowEventAppendResult auditResult = workflowEventService.append(auditCommand(command));
+    if (command.candidateProfileWriteTarget() != null) {
+      if (candidateProfileService == null) {
+        throw new IllegalStateException(
+            "candidateProfileService is required for candidate profile canonical writes");
+      }
+      candidateProfileService.upsertCandidateProfileField(profileFieldRequest(
+          command,
+          auditResult));
+      return new CanonicalWriteResult(
+          decision,
+          true,
+          auditResult.workflowEventId(),
+          true,
+          CANDIDATE_PROFILE_FIELD_PERSISTED);
+    }
     return new CanonicalWriteResult(
         decision,
         true,
         auditResult.workflowEventId(),
         false,
         CANONICAL_PERSISTENCE_DEFERRED);
+  }
+
+  private static UpsertCandidateProfileFieldRequest profileFieldRequest(
+      CanonicalWriteCommand command,
+      WorkflowEventAppendResult auditResult) {
+    CandidateProfileCanonicalWriteTarget target = command.candidateProfileWriteTarget();
+    return UpsertCandidateProfileFieldRequest.builder()
+        .organizationId(command.organizationId())
+        .candidateProfileId(target.candidateProfileId())
+        .fieldPath(target.fieldPath())
+        .value(target.value())
+        .fieldStatus(target.fieldStatus())
+        .lineage(lineage(command, auditResult))
+        .lastReviewedAt(command.occurredAt())
+        .confirmedByActorId(command.actor().userId())
+        .confirmedAgainstProfileVersion(confirmedProfileVersion(command, target.fieldStatus()))
+        .sourceClaimId(command.claimId())
+        .sourceReviewEventId(command.reviewEvidence().reviewEventId())
+        .sourceWorkflowEventId(auditResult.workflowEventId())
+        .notes("minimal canonical CandidateProfile field write through CanonicalWriteService")
+        .bulkApproval(command.reviewEvidence().bulkApproval())
+        .build();
+  }
+
+  private static CandidateProfileFieldLineage lineage(
+      CanonicalWriteCommand command,
+      WorkflowEventAppendResult auditResult) {
+    return new CandidateProfileFieldLineage(
+        List.of(
+            CandidateProfileFieldSourceReference.claimLedgerItem(
+                command.claimId(),
+                command.occurredAt()),
+            CandidateProfileFieldSourceReference.reviewEvent(
+                command.reviewEvidence().reviewEventId(),
+                command.occurredAt()),
+            CandidateProfileFieldSourceReference.workflowEvent(
+                auditResult.workflowEventId(),
+                command.occurredAt()),
+            CandidateProfileFieldSourceReference.sourceSpan(
+                command.proposedValueRef(),
+                "canonical_write_requested_value_ref",
+                command.occurredAt())),
+        "canonical-write-service",
+        command.occurredAt());
+  }
+
+  private static CandidateProfileVersion confirmedProfileVersion(
+      CanonicalWriteCommand command,
+      CandidateProfileFieldStatus fieldStatus) {
+    if (fieldStatus != CandidateProfileFieldStatus.CANDIDATE_CONFIRMED) {
+      return null;
+    }
+    if (command.targetEntityVersion() == null) {
+      return null;
+    }
+    return new CandidateProfileVersion(command.targetEntityVersion());
   }
 
   private static CanonicalWriteResult stopped(CanonicalWriteDecision decision) {
@@ -115,17 +206,31 @@ public final class CanonicalWriteService {
         + "\"targetFieldPath\":\"" + json(command.targetFieldPath()) + "\","
         + "\"proposedValueRef\":\"" + json(command.proposedValueRef()) + "\","
         + "\"claimId\":\"" + command.claimId().value() + "\","
-        + "\"reviewEventId\":\"" + command.reviewEvidence().reviewEventId().value() + "\""
+        + "\"reviewEventId\":\"" + command.reviewEvidence().reviewEventId().value() + "\","
+        + "\"candidateProfileId\":\"" + candidateProfileId(command) + "\""
         + "}";
   }
 
   private static String afterState(CanonicalWriteCommand command) {
+    boolean willWriteProfile = command.candidateProfileWriteTarget() != null;
     return "{"
         + "\"boundary\":\"canonical_write\","
-        + "\"status\":\"allowed_audit_appended\","
+        + "\"status\":\""
+        + (willWriteProfile ? "allowed_candidate_profile_field_persisted"
+            : "allowed_audit_appended")
+        + "\","
         + "\"targetFieldPath\":\"" + json(command.targetFieldPath()) + "\","
-        + "\"canonicalPersistence\":\"" + CANONICAL_PERSISTENCE_DEFERRED + "\""
+        + "\"canonicalPersistence\":\""
+        + (willWriteProfile ? CANDIDATE_PROFILE_FIELD_PERSISTED : CANONICAL_PERSISTENCE_DEFERRED)
+        + "\""
         + "}";
+  }
+
+  private static String candidateProfileId(CanonicalWriteCommand command) {
+    if (command.candidateProfileWriteTarget() == null) {
+      return "";
+    }
+    return command.candidateProfileWriteTarget().candidateProfileId().value().toString();
   }
 
   private static String json(String value) {

@@ -74,9 +74,9 @@ class TruthLayerServiceBoundaryRegressionTest {
   }
 
   @Test
-  void canonicalWriteServiceExposesOnlyGateFirstAttemptBoundary() {
+  void canonicalWriteServiceExposesOnlyAttemptBoundary() {
     assertThat(publicDeclaredMethodNames(CanonicalWriteService.class)).containsExactly("attempt");
-    assertThat(allDeclaredMethodNames(CanonicalWriteService.class))
+    assertThat(publicDeclaredMethodNames(CanonicalWriteService.class))
         .noneMatch(TruthLayerServiceBoundaryRegressionTest::looksLikeCandidatePersistenceApi);
   }
 

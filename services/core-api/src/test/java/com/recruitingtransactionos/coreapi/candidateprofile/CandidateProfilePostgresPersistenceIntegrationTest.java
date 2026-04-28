@@ -219,19 +219,19 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
   }
 
   @Test
-  void candidateProfilePersistenceIsNotGovernedIntakeOrCanonicalWriteWiring()
+  void candidateProfilePersistenceIsOnlyReachedThroughServiceBoundary()
       throws IOException {
     assertThat(sourceFile("src/main/java/com/recruitingtransactionos/coreapi/truthlayer/service/"
         + "CanonicalWriteService.java"))
         .doesNotContain("CandidateProfilePersistencePort")
         .doesNotContain("JdbcCandidateProfilePersistencePort")
-        .doesNotContain("candidateprofile");
+        .doesNotContain("INSERT INTO recruiting.candidate_profile")
+        .doesNotContain("UPDATE recruiting.candidate_profile");
 
     assertThat(sourceFile("src/main/java/com/recruitingtransactionos/coreapi/governedintake/service/"
         + "IntakeCanonicalWriteBridgeService.java"))
         .doesNotContain("CandidateProfilePersistencePort")
         .doesNotContain("JdbcCandidateProfilePersistencePort")
-        .doesNotContain("candidateprofile")
         .doesNotContain("INSERT INTO recruiting.candidate_profile")
         .doesNotContain("UPDATE recruiting.candidate_profile");
 

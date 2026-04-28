@@ -2,6 +2,16 @@ package com.recruitingtransactionos.coreapi.governedintake;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
+import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerSourceReferenceLookupPort;
@@ -30,6 +40,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewDecision;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
@@ -51,6 +62,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -108,12 +120,15 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         "reviewed governed-intake claim before canonical boundary");
     PersistedClaim claimBefore = findClaim(claimId);
     PersistedReviewEvent reviewBefore = findReview(reviewEventId);
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000220055");
+    CandidateProfile profile = createCandidateProfile(candidateId, 1);
 
     IntakeCanonicalWriteBridgeResult result = canonicalBridgeService().bridge(canonicalRequest(
         ORG_A,
         claimId,
         reviewEventId,
-        TARGET_CANDIDATE_A,
+        candidateId,
+        profile.candidateProfileId(),
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T2_MEDIUM_RISK,
         "attempt governed-intake claim against canonical write gate"));
@@ -125,8 +140,9 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         .contains("ai_extracted_claim_cannot_be_canonical_fact");
     assertThat(result.canonicalPersistencePerformed()).isFalse();
     assertThat(countWorkflowEventsForClaim(claimId)).isZero();
-    assertThat(countRows("recruiting.candidate", ORG_A)).isZero();
-    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
+    assertThat(candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        profile.candidateProfileId())).isEmpty();
     assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
     assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
     assertThat(findClaim(claimId)).isEqualTo(claimBefore);
@@ -134,30 +150,33 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
   }
 
   @Test
-  void allowedBoundaryAppendsWorkflowAuditButStillDoesNotPersistCandidateProfile()
+  void allowedBoundaryWritesMinimalCandidateProfileField()
       throws SQLException {
     ClaimId claimId = insertAllowedGovernedClaim("allowed-boundary");
     ReviewEventId reviewEventId = appendReviewEvent(
         claimId,
         false,
-        RiskTier.T1_LOW_RISK,
-        "approved low-risk governed-intake claim for boundary audit");
+        RiskTier.T2_MEDIUM_RISK,
+        "approved governed-intake claim for minimal profile write");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000220105");
+    CandidateProfile profile = createCandidateProfile(candidateId, 2);
 
     IntakeCanonicalWriteBridgeResult result = canonicalBridgeService().bridge(canonicalRequest(
         ORG_A,
         claimId,
         reviewEventId,
-        uuid("00000000-0000-0000-0000-000000220105"),
-        VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW_RISK,
-        "low-risk canonical boundary audit only"));
+        candidateId,
+        profile.candidateProfileId(),
+        VerificationStatus.CONSULTANT_ATTESTED,
+        RiskTier.T2_MEDIUM_RISK,
+        "governed-intake allowed minimal profile write"));
 
     assertThat(result.status()).isEqualTo(IntakeCanonicalWriteBridgeStatus.GATE_ALLOWED_AUDITED);
     assertThat(result.gateDecision()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
     assertThat(result.workflowEventId()).isNotNull();
-    assertThat(result.canonicalPersistencePerformed()).isFalse();
+    assertThat(result.canonicalPersistencePerformed()).isTrue();
     assertThat(result.canonicalPersistenceStatus())
-        .isEqualTo("not_implemented_no_safe_canonical_write_target_in_task_3d");
+        .isEqualTo(CanonicalWriteService.CANDIDATE_PROFILE_FIELD_PERSISTED);
     PersistedWorkflowEvent workflowEvent = findWorkflowEvent(result.workflowEventId().value());
     assertThat(workflowEvent.action()).isEqualTo("CANONICAL_WRITE_ALLOWED");
     assertThat(workflowEvent.sourceRefId()).isEqualTo(claimId.value());
@@ -166,8 +185,16 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         .contains("intake-canonical-write-bridge")
         .contains(claimId.value().toString())
         .contains(reviewEventId.value().toString());
-    assertThat(countRows("recruiting.candidate", ORG_A)).isZero();
-    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
+    CandidateProfileField field = candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        profile.candidateProfileId()).getFirst();
+    assertThat(field.fieldPath()).isEqualTo(CandidateProfileFieldPath.IDENTITY_FULL_NAME);
+    assertThat(field.value()).isEqualTo(CandidateProfileFieldValue.ofString(
+        "hash-only requested headline fixture"));
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.CONSULTANT_ATTESTED);
+    assertThat(field.sourceClaimId()).isEqualTo(claimId);
+    assertThat(field.sourceReviewEventId()).isEqualTo(reviewEventId);
+    assertThat(field.sourceWorkflowEventId()).isEqualTo(result.workflowEventId());
   }
 
   @Test
@@ -176,16 +203,19 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
     ReviewEventId reviewEventId = appendReviewEvent(
         claimId,
         false,
-        RiskTier.T1_LOW_RISK,
-        "approved low-risk duplicate boundary audit");
+        RiskTier.T2_MEDIUM_RISK,
+        "approved duplicate minimal profile write");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000220205");
+    CandidateProfile profile = createCandidateProfile(candidateId, 3);
     IntakeCanonicalWriteBridgeRequest request = canonicalRequest(
         ORG_A,
         claimId,
         reviewEventId,
-        uuid("00000000-0000-0000-0000-000000220205"),
-        VerificationStatus.HUMAN_ACKNOWLEDGED,
-        RiskTier.T1_LOW_RISK,
-        "duplicate canonical boundary audit should be deterministic");
+        candidateId,
+        profile.candidateProfileId(),
+        VerificationStatus.CONSULTANT_ATTESTED,
+        RiskTier.T2_MEDIUM_RISK,
+        "duplicate minimal profile write should be deterministic");
 
     IntakeCanonicalWriteBridgeResult first = canonicalBridgeService().bridge(request);
     IntakeCanonicalWriteBridgeResult second = canonicalBridgeService().bridge(request);
@@ -194,6 +224,9 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
     assertThat(second.status()).isEqualTo(IntakeCanonicalWriteBridgeStatus.GATE_ALLOWED_AUDITED);
     assertThat(second.workflowEventId()).isEqualTo(first.workflowEventId());
     assertThat(countWorkflowEventsForClaim(claimId)).isEqualTo(1);
+    assertThat(candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        profile.candidateProfileId())).hasSize(1);
   }
 
   @Test
@@ -210,6 +243,7 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         claimId,
         reviewEventId,
         uuid("00000000-0000-0000-0000-000000220305"),
+        null,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T2_MEDIUM_RISK,
         "wrong org canonical write attempt must fail"));
@@ -229,12 +263,14 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         true,
         RiskTier.T1_LOW_RISK,
         "bulk review remains evidence only");
+    int profileRowsBefore = countRows("recruiting.candidate_profile", ORG_A);
 
     IntakeCanonicalWriteBridgeResult result = canonicalBridgeService().bridge(canonicalRequest(
         ORG_A,
         claimId,
         reviewEventId,
         uuid("00000000-0000-0000-0000-000000220405"),
+        null,
         VerificationStatus.EXTERNAL_VERIFIED,
         RiskTier.T1_LOW_RISK,
         "bulk review must not create external verified fact"));
@@ -242,7 +278,7 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
     assertThat(result.status()).isEqualTo(IntakeCanonicalWriteBridgeStatus.GATE_BLOCKED);
     assertThat(result.blockedReason()).contains("bulk_approve_cannot_create_external_verified");
     assertThat(countWorkflowEventsForClaim(claimId)).isZero();
-    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isZero();
+    assertThat(countRows("recruiting.candidate_profile", ORG_A)).isEqualTo(profileRowsBefore);
   }
 
   private static ClaimId appendGovernedIntakeClaim(String suffix) {
@@ -379,6 +415,7 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
       ClaimId claimId,
       ReviewEventId reviewEventId,
       UUID targetEntityId,
+      com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId candidateProfileId,
       VerificationStatus targetVerificationStatus,
       RiskTier riskTier,
       String reason) {
@@ -388,9 +425,12 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         .reviewEventId(reviewEventId)
         .requestedByActorType(ActorRole.CONSULTANT)
         .requestedByActorId(organizationId.equals(ORG_A) ? REVIEWER_A : REVIEWER_B)
+        .candidateProfileId(candidateProfileId)
         .targetEntityType("CANDIDATE")
         .targetEntityId(targetEntityId)
-        .targetFieldPath("headline")
+        .targetFieldPath(candidateProfileId == null
+            ? "headline"
+            : CandidateProfileFieldPath.IDENTITY_FULL_NAME.value())
         .requestedCanonicalValue("hash-only requested headline fixture")
         .targetVerificationStatus(targetVerificationStatus)
         .riskTier(riskTier)
@@ -412,7 +452,23 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
         new CanonicalWriteService(
             new CanonicalWriteGate(),
             new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
-            CanonicalWriteTransactionBoundary.immediate()));
+            new SpringCanonicalWriteTransactionBoundary(
+                new DataSourceTransactionManager(dataSource)),
+            candidateProfileService()));
+  }
+
+  private static CandidateProfileService candidateProfileService() {
+    return new CandidateProfileService(new JdbcCandidateProfilePersistencePort(dataSource));
+  }
+
+  private static CandidateProfile createCandidateProfile(UUID candidateId, int profileVersion)
+      throws SQLException {
+    insertCandidate(ORG_A, candidateId);
+    return candidateProfileService().createCandidateProfile(new CreateCandidateProfileRequest(
+        ORG_A,
+        new CandidateId(candidateId),
+        new CandidateProfileVersion(profileVersion),
+        List.of()));
   }
 
   private static IntakeReviewBridgeService reviewBridgeService() {
@@ -677,6 +733,23 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
       reviewer.setString(3, "canonical-reviewer-" + reviewerId + "@example.test");
       reviewer.setString(4, "Task 5E Reviewer");
       reviewer.executeUpdate();
+    }
+  }
+
+  private static void insertCandidate(UUID organizationId, UUID candidateId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO recruiting.candidate (
+              candidate_id,
+              organization_id,
+              status,
+              privacy_status
+            )
+            VALUES (?, ?, 'new', 'internal_only')
+            """)) {
+      statement.setObject(1, candidateId);
+      statement.setObject(2, organizationId);
+      statement.executeUpdate();
     }
   }
 

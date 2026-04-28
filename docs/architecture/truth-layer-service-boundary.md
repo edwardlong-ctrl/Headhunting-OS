@@ -41,6 +41,7 @@ Governed intake CanonicalWrite boundary bridge:
 → `CanonicalWriteService`
 → `CanonicalWriteGate`
 → `WorkflowEventService` when the existing boundary is allowed/audited
+→ `CandidateProfileService` only when an explicit CandidateProfile target is supplied and the gate allows
 
 Claim/review/canonical chain:
 
@@ -49,6 +50,7 @@ Claim/review/canonical chain:
 → `CanonicalWriteGate`
 → `CanonicalWriteService`
 → `WorkflowEventService`
+→ optional minimal `CandidateProfileService` field upsert
 
 Transition audit side:
 
@@ -95,6 +97,15 @@ bypass `CanonicalWriteGate`, add API/UI exposure, create client-safe projection,
 implement Consent/Disclosure behavior, implement RBAC/ABAC, wire real AI
 extraction, add workflow engine behavior, add transition legality validation, or
 implement the real canonical write flow.
+
+Task 6D adds the first minimal allowed canonical CandidateProfile field write.
+The path is governed-intake ClaimLedgerItem plus ReviewEvent evidence to
+`IntakeCanonicalWriteBridgeService`, then `CanonicalWriteService`,
+`CanonicalWriteGate`, `CanonicalWriteTransactionBoundary`, allowed WorkflowEvent
+audit, and exactly one explicit CandidateProfile field upsert through
+`CandidateProfileService`. `canonicalPersistencePerformed=true` now means that
+minimal field persistence succeeded. ClaimLedgerItem remains claim input, and
+ReviewEvent remains review evidence rather than fact promotion.
 
 ## GovernedIntakeService
 
@@ -197,25 +208,26 @@ implement the real canonical write flow.
 
 ## IntakeCanonicalWriteBridgeService
 
-- Backend-owned Task 5E service boundary for bridging governed-intake-origin ClaimLedger claims plus ReviewEvent evidence into the existing CanonicalWriteService boundary attempt.
-- Requires an organization-scoped `IntakeCanonicalWriteBridgeRequest` with `organization_id`, `claim_ledger_item_id`, `review_event_id`, requesting actor, target entity reference, target field path, target verification status, risk tier, reason, occurred-at time, and the governed-intake-only bridge policy.
+- Backend-owned Task 5E/6D service boundary for bridging governed-intake-origin ClaimLedger claims plus ReviewEvent evidence into the existing CanonicalWriteService boundary attempt.
+- Requires an organization-scoped `IntakeCanonicalWriteBridgeRequest` with `organization_id`, `claim_ledger_item_id`, `review_event_id`, requesting actor, target entity reference, target field path, target verification status, risk tier, reason, occurred-at time, optional CandidateProfile id, and the governed-intake-only bridge policy.
 - Loads the claim through `ClaimLedgerItemCanonicalWriteLookupPort` by exact organization and claim id.
 - Loads the review evidence through `ReviewEventCanonicalWriteLookupPort` by exact organization and review event id.
 - Validates the ReviewEvent belongs to the same ClaimLedgerItem and that the ReviewEvent target entity and field path match the ClaimLedgerItem reviewed target.
 - Current policy is governed-intake-only because Task 5C/5D source lineage is reliable in `source_span_ref`.
 - Requires Task 5C ClaimLedger lineage markers: `information_packet` target entity, `intake.bridge_eligible.*` target field path, and `intake.extraction_run`, `intake.information_packet`, and `intake.source_item` source-span markers.
 - Requires Task 5D ReviewEvent lineage markers: `intake.review_bridge` and the reviewed `claim_ledger_item_id` in `source_span_ref`.
-- Maps claim type, assertion strength, verification status, client shareability, review decision, bulk flag, review reason, requested target verification status, target risk tier, target entity, target field path, actor, reason, idempotency key, correlation id, causation id, and occurred-at into `CanonicalWriteCommand`.
+- Maps claim type, assertion strength, verification status, client shareability, review decision, bulk flag, review reason, requested target verification status, target risk tier, target entity, target field path, actor, reason, idempotency key, correlation id, causation id, occurred-at, and optional explicit CandidateProfile write target into `CanonicalWriteCommand`.
 - Calls `CanonicalWriteService` only. It does not call lower-level persistence to write canonical records.
 - Uses a deterministic CanonicalWrite idempotency key derived from claim id, review event id, target entity, target field path, and a hash-only proposed value reference.
 - Repeated identical allowed bridge attempts return the existing WorkflowEvent audit through existing `WorkflowEventService` idempotency.
 - Gate-blocked bridge attempts append no new audit row under the current `CanonicalWriteService` design; this is a documented limitation rather than a separate blocked-attempt ledger.
-- Task 5F regression-covers both the default low-authority blocked path and an allowed fixture path. The allowed path appends only the existing `CanonicalWriteService` WorkflowEvent audit and still reports `canonicalPersistencePerformed=false`.
+- Task 5F regression-covers both the default low-authority blocked path and an allowed audit-only fixture path. Task 6D adds coverage where an allowed fixture with an explicit CandidateProfile target writes one field and reports `canonicalPersistencePerformed=true` only after that field upsert succeeds.
 - Current Task 5C governed-intake claims are low-authority `inference`, `weak_signal`, `ai_extracted`, and `internal_only`; the existing `CanonicalWriteGate` blocks them rather than promoting them to fact.
 - ReviewEvent is treated as review evidence only. It does not automatically make a claim a fact.
 - Bulk review remains evidence only and cannot create `candidate_confirmed` or `external_verified` outcomes through the existing gate.
-- Allowed boundary attempts, when a governed-intake-lineage fixture uses gate-allowable claim metadata, append only the existing `CanonicalWriteService` WorkflowEvent audit and still report `canonicalPersistencePerformed=false`.
-- Does not mutate ClaimLedger verification status, set `claim_ledger_item.review_event_id`, mutate ReviewEvent, write CandidateProfile, write raw Candidate/Profile persistence, query business target entities, mutate entity state, implement a workflow engine, validate transition legality, expose API/controller/UI behavior, expose output to Client, wire AI models, implement Consent/Disclosure, or implement RBAC/ABAC.
+- Allowed boundary attempts without an explicit CandidateProfile target remain audit-only and report `canonicalPersistencePerformed=false`.
+- Allowed boundary attempts with an explicit CandidateProfile target let `CanonicalWriteService` perform the minimal field write through `CandidateProfileService`; the bridge itself does not write CandidateProfile.
+- Does not mutate ClaimLedger verification status, set `claim_ledger_item.review_event_id`, mutate ReviewEvent, write raw Candidate/Profile persistence, query business target entities, mutate entity state, implement a workflow engine, validate transition legality, expose API/controller/UI behavior, expose output to Client, wire AI models, implement Consent/Disclosure, or implement RBAC/ABAC.
 - Does not read or write earlier V2 `recruiting.source_item` or `recruiting.information_packet` skeleton tables.
 
 ## ClaimLedgerItemCanonicalWriteLookupPort / JdbcClaimLedgerItemCanonicalWriteLookupPort
@@ -270,6 +282,7 @@ implement the real canonical write flow.
 - `CANDIDATE_CONFIRMED` still requires candidate actor/profile-version semantics; `EXTERNAL_VERIFIED` still requires external evidence lineage.
 - Bulk approval remains capped below `CANDIDATE_CONFIRMED` and `EXTERNAL_VERIFIED`.
 - This service does not evaluate ClaimLedgerItem or ReviewEvent, does not promote claims, does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not call `CanonicalWriteGate`, and does not call `CanonicalWriteService`.
+- Task 6D reaches this service only from `CanonicalWriteService` after the gate allows an explicit CandidateProfile field target.
 - This service is not a REST/API/controller/DTO/UI surface and is not reachable from Client.
 - This service does not expose raw Candidate/Profile to Client, does not implement ClientSafeCandidateCard, does not implement client-safe projection/redaction, does not implement RBAC/ABAC, and does not implement Consent/Disclosure.
 - This service does not wire AI models, perform real AI extraction, parse CV/JD/WeChat/email/call-note content, implement workflow engine behavior, or validate transition legality.
@@ -352,13 +365,15 @@ implement the real canonical write flow.
 
 - Gate-first boundary.
 - Requires claim snapshot and review evidence.
-- Runs the existing boundary attempt inside `CanonicalWriteTransactionBoundary`.
+- Runs the allowed audit and optional minimal CandidateProfile field write inside `CanonicalWriteTransactionBoundary`.
 - Does not bypass `CanonicalWriteGate`.
-- Allowed boundary appends a `WorkflowEvent`.
+- Allowed boundary appends a `WorkflowEvent` audit before the optional CandidateProfile field write.
 - Allowed boundary propagates idempotency/correlation/causation identifiers when the command supplies them.
-- Canonical persistence is explicitly deferred.
-- Does not write CandidateProfile.
-- Task 6B/6C do not change this behavior and do not call `CanonicalWriteService` from CandidateProfile persistence.
+- If the command has no CandidateProfile target, canonical persistence remains deferred and `canonicalPersistencePerformed=false`.
+- If the command has an explicit `CandidateProfileCanonicalWriteTarget`, the service writes exactly that one requested CandidateProfile field through `CandidateProfileService` after the gate allows and returns `canonicalPersistencePerformed=true` only after the upsert succeeds.
+- Gate-blocked and review-blocked attempts do not call `CandidateProfileService`.
+- The profile field lineage carries ClaimLedgerItem id, ReviewEvent id, WorkflowEvent id, and the requested value reference when available.
+- The service does not mutate ClaimLedgerItem, mutate ReviewEvent, infer fields from arbitrary claim text, create raw Candidate/Profile records, or expose API/UI behavior.
 
 ## Transaction Boundary
 
@@ -369,8 +384,8 @@ implement the real canonical write flow.
 - Runtime callback failures propagate and roll back participating JDBC writes.
 - Checked callback failures are explicitly wrapped in `CanonicalWriteTransactionException` and roll back participating JDBC writes.
 - The boundary contains no gate, ClaimLedger, ReviewEvent, WorkflowEvent, CandidateProfile, API, UI, AI, or workflow-engine business logic.
-- Rollback behavior is tested against PostgreSQL/Testcontainers by appending a `WorkflowEvent` inside the boundary and throwing after the append.
-- This transaction boundary still does not implement the real canonical write flow and does not write CandidateProfile.
+- Rollback behavior is tested against PostgreSQL/Testcontainers for WorkflowEvent-only rollback and for Task 6D audit/profile coordination.
+- Task 6D uses the boundary to coordinate the allowed WorkflowEvent audit and minimal CandidateProfile field upsert; the boundary itself still does not decide or write business facts.
 
 ## Forbidden Current Misreadings
 
@@ -380,14 +395,15 @@ implement the real canonical write flow.
 - Do not treat `IntakeExtractionOutputEnvelope` or `intake.extraction_run.output_json` as canonical facts, ClaimLedger, ReviewEvent, CandidateProfile, CanonicalWrite output, API DTO, UI state, or client-safe projection.
 - Do not treat `IntakeClaimLedgerBridgeService` as ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeReviewBridgeService` as CanonicalWrite, CandidateProfile persistence, ClaimLedger verification mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
-- Do not treat `IntakeCanonicalWriteBridgeService` as CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
+- Do not treat `IntakeCanonicalWriteBridgeService` as lower-level CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat Task 6A CandidateProfile contracts as CandidateProfile persistence, canonical writes, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or transaction boundary hardening.
 - Do not treat Task 6B CandidateProfile persistence as governed-intake automatic writes, `CanonicalWriteService` writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, real canonical write flow, raw Candidate writes, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, or transition legality validation.
 - Do not treat Task 6C transaction hardening as governed-intake automatic writes, `CanonicalWriteService` CandidateProfile writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, ReviewEvent mutation, ClaimLedger verification mutation, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, AI model wiring, real AI extraction, workflow engine, or transition legality validation.
+- Do not treat Task 6D as full CandidateProfile implementation, broad profile update API, client-safe projection, raw Candidate/Profile exposure, RBAC/ABAC, Consent/Disclosure, AI model wiring, real AI extraction, workflow engine, transition legality validation, or cleanup/deprecation/migration of earlier `recruiting.*` source/packet tables.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
-- Do not treat `CanonicalWriteService` as CandidateProfile persistence.
+- Do not treat `CanonicalWriteService` as a broad CandidateProfile implementation; Task 6D only allows the one explicit minimal field write after the gate allows.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.
 - Do not treat Task 4D transition audit validation as legal `from_state -> to_state` validation.
@@ -396,6 +412,6 @@ implement the real canonical write flow.
 - Do not treat Task 4C audit read model as API, UI, client-safe projection, RBAC/ABAC, dashboard analytics, or workflow engine.
 - Do not treat `ReviewEventService` as verification promotion.
 - Do not treat `ClaimLedgerService` as canonical fact storage.
-- Do not treat the real transaction boundary as the real canonical write flow.
+- Do not treat the real transaction boundary itself as the real canonical write flow.
 - Do not expose raw Candidate to Client.
 - Do not treat Task 4C as ConsentRecord, DisclosureRecord, RBAC/ABAC, Client-safe projection, AI model wiring, or CandidateProfile canonical persistence.

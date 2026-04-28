@@ -1,26 +1,30 @@
 # Known Gaps
 
-## Canonical Persistence Deferred
+## Canonical Persistence Minimal Path Exists; Full Profile Deferred
 
-- `CanonicalWriteService` is a gate/audit boundary, not a profile writer.
-- `canonicalPersistencePerformed=false` is intentional.
-- `recruiting.candidate` and `recruiting.candidate_profile` exist in V2, but Task 3D intentionally did not implement CandidateProfile writes.
+- Task 6D adds the first real but minimal canonical CandidateProfile field write path.
+- The write path exists only through `CanonicalWriteService` after `CanonicalWriteGate` allows the request.
+- `CanonicalWriteTransactionBoundary` wraps the allowed WorkflowEvent audit and CandidateProfile field write.
+- `canonicalPersistencePerformed=true` now means the minimal CandidateProfile field upsert succeeded.
+- `canonicalPersistencePerformed=false` remains expected for gate-blocked, review-blocked, and audit-only attempts with no explicit CandidateProfile target.
+- `recruiting.candidate` and `recruiting.candidate_profile` exist in V2; Task 6D writes only one explicit CandidateProfile field through the backend service boundary and does not write raw Candidate records.
 - Task 6A defines CandidateProfile domain contracts and field vocabulary.
-- Task 6B implements a backend-internal CandidateProfile persistence skeleton, but it is not connected to governed intake or `CanonicalWriteService`.
-- Task 6C hardens the canonical write transaction boundary, but `CanonicalWriteService` still does not write CandidateProfile.
-- Task 6D or later must define the real canonical write flow from gated claims/review evidence into CandidateProfile.
+- Task 6B implements backend-internal CandidateProfile persistence.
+- Task 6C hardens the canonical write transaction boundary.
+- Full CandidateProfile behavior, broad field families, API/UI exposure, client-safe projection, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
 
-## Transaction Boundary Hardened; Canonical Flow Still Deferred
+## Transaction Boundary Hardened; Full Canonical Flow Still Deferred
 
 - Task 6C replaces the no-op/skeleton transaction boundary with `SpringCanonicalWriteTransactionBoundary`.
 - The boundary uses Spring `PlatformTransactionManager` and `TransactionTemplate` for real Spring/JDBC transaction coordination.
 - Successful callback commit and failing callback rollback behavior are covered by focused unit and PostgreSQL/Testcontainers integration tests.
 - Runtime callback failures propagate and roll back participating JDBC writes.
 - Checked callback failures are explicitly wrapped in `CanonicalWriteTransactionException` and roll back participating JDBC writes.
-- This is transaction coordination only. It is not the real canonical write flow and does not write CandidateProfile.
-- `CanonicalWriteGate` remains mandatory before any canonical write flow can be added.
+- Task 6D uses this boundary for the first minimal allowed CandidateProfile field write.
+- This is still not a generic canonical write engine and does not implement full CandidateProfile.
+- `CanonicalWriteGate` remains mandatory and must not be bypassed.
 
-## CandidateProfile Persistence Skeleton Exists; Promotion Deferred
+## CandidateProfile Persistence Minimal Write Exists; Full Promotion Deferred
 
 - Task 6A adds pure backend-owned CandidateProfile contract vocabulary.
 - Task 6B adds a backend-internal `CandidateProfileService`, `CandidateProfilePersistencePort`, and `JdbcCandidateProfilePersistencePort`.
@@ -34,10 +38,12 @@
 - `CONFLICTING` must block overwrite/client-visible verified fact statements in later tasks.
 - `NEEDS_CONFIRMATION` must block shortlist/consent/disclosure readiness in later tasks.
 - Source lineage references support auditability only; ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, and WorkflowEvent references are not proof by themselves.
-- ClaimLedger/ReviewEvent/GovernedIntake remain upstream evidence/claims and still do not directly write CandidateProfile.
-- `CanonicalWriteService` remains gate/audit only and still reports `canonicalPersistencePerformed=false`.
-- Task 6C does not implement automatic ClaimLedgerItem-to-CandidateProfile promotion, does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
-- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, real AI extraction, governed-intake bridge write, or CanonicalWriteService write exists after Task 6C.
+- ClaimLedgerItem remains claim input, not fact by itself.
+- ReviewEvent remains review evidence, not fact promotion by itself.
+- Task 6D allows governed-intake ClaimLedgerItem plus ReviewEvent evidence to flow to one explicit CandidateProfile field only after `CanonicalWriteGate` allows it and `CanonicalWriteService` runs the transaction boundary.
+- Low-authority governed-intake placeholder claims remain blocked by the existing gate and do not write CandidateProfile.
+- Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
+- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6D.
 
 ## Consent / Disclosure Not Implemented
 
@@ -76,25 +82,27 @@
 - Task 5E now provides a backend-owned governed-intake ClaimLedgerItem-plus-ReviewEvent to CanonicalWrite boundary integration skeleton.
 - Task 5E reads only exact organization-scoped `ClaimLedgerItem` and `ReviewEvent` rows through narrow lookup ports, validates that the ReviewEvent belongs to the ClaimLedgerItem, requires Task 5C/5D governed-intake `intake.*` lineage, and calls only `CanonicalWriteService`.
 - Task 5E keeps `CanonicalWriteGate` mandatory and does not bypass it. Current Task 5C low-authority governed-intake claims remain blocked by the existing gate rather than promoted to fact.
-- Task 5E allowed boundary attempts, where gate-allowable governed-intake-lineage fixtures are used, append only the existing `WorkflowEvent` audit from `CanonicalWriteService` and still report `canonicalPersistencePerformed=false`.
-- Task 5E does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not write CandidateProfile, does not write raw Candidate/Profile persistence, does not query business target entities, and does not implement API/UI exposure.
+- Task 5E allowed boundary attempts, where gate-allowable governed-intake-lineage fixtures are used, append only the existing `WorkflowEvent` audit from `CanonicalWriteService` and report `canonicalPersistencePerformed=false` unless a later explicit CandidateProfile target is supplied.
+- Task 6D extends that bridge with an optional explicit CandidateProfile target that is passed to `CanonicalWriteService`; the bridge still does not call lower-level CandidateProfile persistence directly.
+- Task 5E/6D do not mutate ClaimLedger verification status, do not mutate ReviewEvent, do not write raw Candidate/Profile persistence, do not query business target entities, and do not implement API/UI exposure.
 - Task 5E adds no new migration, table, index, or API-facing view. It relies on existing `governance.claim_ledger_item`, `governance.review_event`, and `workflow.workflow_event` audit/idempotency behavior.
 - Task 5E duplicate behavior is deterministic for allowed boundary audits through existing WorkflowEvent idempotency. Gate-blocked attempts append no audit row under the current CanonicalWriteService design, so there is no DB-enforced blocked-attempt ledger yet.
 - Task 5F now regression-covers the full safe minimal chain from `SourceItem` / `InformationPacket` through deterministic extraction output envelope, ClaimLedgerItem claim, ReviewEvent evidence, CanonicalWriteService boundary attempt, CanonicalWriteGate decision, and no canonical persistence.
 - Task 5F verifies default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate is mandatory, allowed boundary fixtures still report `canonicalPersistencePerformed=false`, and blocked canonical attempts still have no separate persisted audit ledger.
+- Task 6D adds the first minimal allowed canonical write beyond Task 5F: allowed governed-intake fixtures with an explicit existing CandidateProfile target write one field, while default low-authority placeholder claims remain blocked and non-persistent.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
 - For the Task 5C, Task 5D, and Task 5E bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
 - No real AI extraction exists yet.
-- Real canonical persistence from governed intake remains future Task 6D or later work.
+- Full canonical persistence from governed intake remains future work beyond the Task 6D minimal single-field path.
 - No default-placeholder business ClaimLedger append from intake exists.
-- Governed intake CanonicalWrite boundary attempts exist only as a Task 5E gate/audit skeleton.
-- No CandidateProfile persistence exists from intake; Task 6B backend-internal persistence and Task 6C transaction hardening do not change that.
+- Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
+- No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain only. CandidateProfile persistence exists as a backend-internal Task 6B skeleton, while governed-intake write wiring and downstream privacy/access surfaces remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6D adds one gated CandidateProfile field write; downstream privacy/access surfaces, full profile behavior, and `recruiting.*` source/packet cleanup remain future work.
 
 ## Client-safe Projection Not Implemented
 
@@ -152,5 +160,5 @@
 - No Consent/Disclosure behavior exists.
 - No RBAC/ABAC implementation exists.
 - No Client-safe projection or redaction behavior exists.
-- No governed-intake or CanonicalWriteService-driven CandidateProfile canonical write flow exists.
+- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write.
 - Blocked canonical attempts still have no separate persisted audit ledger.

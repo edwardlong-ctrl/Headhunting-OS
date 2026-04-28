@@ -492,7 +492,9 @@ class IntakeCanonicalWriteBridgeServiceTest {
 
   private boolean looksLikeForbiddenBoundaryOrBusinessEntityQuery(String name) {
     String normalized = normalized(name);
-    return normalized.contains("candidateprofile")
+    return normalized.contains("candidateprofilepersistence")
+        || normalized.contains("jdbccandidateprofile")
+        || normalized.contains("candidateprofileservice")
         || normalized.contains("rawcandidate")
         || normalized.contains("candidatequery")
         || normalized.contains("companyquery")

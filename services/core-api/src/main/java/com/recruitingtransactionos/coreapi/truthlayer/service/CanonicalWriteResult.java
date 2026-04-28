@@ -17,10 +17,6 @@ public record CanonicalWriteResult(
       Objects.requireNonNull(workflowEventId,
           "workflowEventId must not be null when workflowEventAppended is true");
     }
-    if (canonicalPersistencePerformed) {
-      throw new IllegalArgumentException(
-          "Task 3D must not perform canonical CandidateProfile persistence");
-    }
     canonicalPersistenceStatus = requireNonBlank(
         canonicalPersistenceStatus,
         "canonicalPersistenceStatus");
