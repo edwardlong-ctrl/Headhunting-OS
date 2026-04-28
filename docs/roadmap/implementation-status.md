@@ -24,6 +24,7 @@
 - Task 5B current worktree: adds backend-owned governed-intake extraction run/output contracts, a deterministic no-real-AI placeholder extractor, a narrow extraction-run persistence port/JDBC adapter, and a V5 `intake.extraction_run` JSONB output-envelope table.
 - Task 5C current worktree: adds a backend-owned `IntakeClaimLedgerBridgeService` skeleton that reads `intake.extraction_run` output envelopes, validates governed-intake lineage through `intake.information_packet`, and appends only explicitly bridge-eligible operational claim candidates through `ClaimLedgerService`.
 - Task 5D current worktree: adds a backend-owned `IntakeReviewBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` rows by organization-scoped claim id and appends human review evidence only through `ReviewEventService`.
+- Task 5E current worktree: adds a backend-owned `IntakeCanonicalWriteBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` plus matching `ReviewEvent` evidence by organization scope and submits only a boundary attempt through `CanonicalWriteService`.
 
 ## Current Test State
 
@@ -36,6 +37,7 @@
 - Task 5B adds focused unit and PostgreSQL/Testcontainers coverage for deterministic extraction validation, no-source failed run behavior, output-envelope flags, duplicate extraction determinism, organization-scoped persistence/readback, V5 migration application, and the absence of ClaimLedger, ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, and old `recruiting.*` writes.
 - Task 5C adds focused unit and PostgreSQL/Testcontainers coverage for bridge request validation, missing/wrong-organization/failed/missing-output extraction rejection, default placeholder no-claim behavior, explicit operational bridge-eligible fixture append, duplicate source-reference replay, organization isolation, V6 migration/index application, and absence of ReviewEvent, WorkflowEvent, CanonicalWrite, CandidateProfile, raw Candidate/Profile, and old `recruiting.*` use.
 - Task 5D adds focused unit and PostgreSQL/Testcontainers coverage for review bridge request validation, missing/wrong-organization claim blocking, governed-intake-only claim policy, ReviewEvent append through `ReviewEventService`, claim lineage persistence, deterministic duplicate review handling, materially different review evidence, T3/T4 human reviewer enforcement, ClaimLedger immutability, and absence of CanonicalWrite, CandidateProfile, raw Candidate/Profile, workflow, API/UI, and old `recruiting.*` use.
+- Task 5E adds focused unit and PostgreSQL/Testcontainers coverage for canonical-write bridge request validation, missing/wrong-organization ClaimLedger and ReviewEvent rejection, ReviewEvent-to-ClaimLedger lineage validation, governed-intake-only policy, CanonicalWriteService invocation, mandatory CanonicalWriteGate behavior, gate-blocked governed-intake claims, allowed boundary audit with `canonicalPersistencePerformed=false`, WorkflowEvent idempotency for repeated allowed attempts, ClaimLedger and ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile writes, no business target entity queries, no API/UI, and no old `recruiting.*` source/packet use.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -89,6 +91,13 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - T3/T4 review bridge requests require a non-AI/non-system reviewer and a reason.
 - ReviewEvent append does not mutate ClaimLedger verification status and does not call CanonicalWrite.
 - For Task 5D, `intake.*` lineage remains the governed-intake source lineage. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
+- `IntakeCanonicalWriteBridgeService` provides the Task 5E governed-intake ClaimLedgerItem-plus-ReviewEvent to CanonicalWrite boundary integration skeleton.
+- The canonical-write bridge reads `governance.claim_ledger_item` and `governance.review_event` by exact organization-scoped ids through narrow lookup ports, validates that the ReviewEvent belongs to the same ClaimLedgerItem, and requires Task 5C/5D governed-intake `intake.*` lineage markers.
+- The canonical-write bridge maps claim metadata and review evidence into `CanonicalWriteCommand` and calls `CanonicalWriteService` only; it does not write CandidateProfile, raw Candidate/Profile, ClaimLedger updates, ReviewEvent updates, workflow transitions, or business target entity state.
+- `CanonicalWriteGate` remains mandatory and is not bypassed. Current Task 5C governed-intake claims remain low-authority `inference` / `ai_extracted` / `weak_signal` / `internal_only` claims and are blocked by the existing gate rather than promoted to fact.
+- Allowed boundary attempts, where a test fixture uses governed-intake lineage with gate-allowable claim metadata, append only the existing `CanonicalWriteService` WorkflowEvent audit and still report `canonicalPersistencePerformed=false`.
+- Repeated identical allowed bridge attempts use deterministic CanonicalWriteService/WorkflowEvent idempotency; blocked gate attempts remain deterministic in result but do not append an audit row because the existing `CanonicalWriteService` only appends on allowed boundary audits.
+- For Task 5E, `intake.*` lineage remains the governed-intake source lineage. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by this bridge.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
@@ -100,7 +109,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
 - No business-fact ClaimLedger append from default governed-intake placeholder output.
-- No CanonicalWrite call from governed intake.
+- Governed intake can now submit a ClaimLedgerItem plus ReviewEvent evidence to the CanonicalWriteService boundary through Task 5E, but this remains gate/audit only and does not persist canonical profile data.
 - No CandidateProfile persistence from governed intake.
 - No workflow engine.
 - No SLA/automation workflow engine.
@@ -115,4 +124,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CanonicalWrite boundary integration, CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.
+- Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, and real AI extraction.

@@ -33,6 +33,15 @@ Governed intake ReviewEvent bridge:
 → `ReviewEventService`
 → `governance.review_event`
 
+Governed intake CanonicalWrite boundary bridge:
+
+`IntakeCanonicalWriteBridgeService`
+→ `ClaimLedgerItemCanonicalWriteLookupPort`
+→ `ReviewEventCanonicalWriteLookupPort`
+→ `CanonicalWriteService`
+→ `CanonicalWriteGate`
+→ `WorkflowEventService` when the existing boundary is allowed/audited
+
 Claim/review/canonical chain:
 
 `ClaimLedgerService`
@@ -151,6 +160,42 @@ Read-only audit side:
 - Reads only `governance.review_event`.
 - Does not provide generic review history search, dashboard analytics, API exposure, candidate/company/job joins, business target entity lookup, or client-safe projection.
 
+## IntakeCanonicalWriteBridgeService
+
+- Backend-owned Task 5E service boundary for bridging governed-intake-origin ClaimLedger claims plus ReviewEvent evidence into the existing CanonicalWriteService boundary attempt.
+- Requires an organization-scoped `IntakeCanonicalWriteBridgeRequest` with `organization_id`, `claim_ledger_item_id`, `review_event_id`, requesting actor, target entity reference, target field path, target verification status, risk tier, reason, occurred-at time, and the governed-intake-only bridge policy.
+- Loads the claim through `ClaimLedgerItemCanonicalWriteLookupPort` by exact organization and claim id.
+- Loads the review evidence through `ReviewEventCanonicalWriteLookupPort` by exact organization and review event id.
+- Validates the ReviewEvent belongs to the same ClaimLedgerItem and that the ReviewEvent target entity and field path match the ClaimLedgerItem reviewed target.
+- Current policy is governed-intake-only because Task 5C/5D source lineage is reliable in `source_span_ref`.
+- Requires Task 5C ClaimLedger lineage markers: `information_packet` target entity, `intake.bridge_eligible.*` target field path, and `intake.extraction_run`, `intake.information_packet`, and `intake.source_item` source-span markers.
+- Requires Task 5D ReviewEvent lineage markers: `intake.review_bridge` and the reviewed `claim_ledger_item_id` in `source_span_ref`.
+- Maps claim type, assertion strength, verification status, client shareability, review decision, bulk flag, review reason, requested target verification status, target risk tier, target entity, target field path, actor, reason, idempotency key, correlation id, causation id, and occurred-at into `CanonicalWriteCommand`.
+- Calls `CanonicalWriteService` only. It does not call lower-level persistence to write canonical records.
+- Uses a deterministic CanonicalWrite idempotency key derived from claim id, review event id, target entity, target field path, and a hash-only proposed value reference.
+- Repeated identical allowed bridge attempts return the existing WorkflowEvent audit through existing `WorkflowEventService` idempotency.
+- Gate-blocked bridge attempts append no new audit row under the current `CanonicalWriteService` design; this is a documented limitation rather than a separate blocked-attempt ledger.
+- Current Task 5C governed-intake claims are low-authority `inference`, `weak_signal`, `ai_extracted`, and `internal_only`; the existing `CanonicalWriteGate` blocks them rather than promoting them to fact.
+- ReviewEvent is treated as review evidence only. It does not automatically make a claim a fact.
+- Bulk review remains evidence only and cannot create `candidate_confirmed` or `external_verified` outcomes through the existing gate.
+- Allowed boundary attempts, when a governed-intake-lineage fixture uses gate-allowable claim metadata, append only the existing `CanonicalWriteService` WorkflowEvent audit and still report `canonicalPersistencePerformed=false`.
+- Does not mutate ClaimLedger verification status, set `claim_ledger_item.review_event_id`, mutate ReviewEvent, write CandidateProfile, write raw Candidate/Profile persistence, query business target entities, mutate entity state, implement a workflow engine, validate transition legality, expose API/controller/UI behavior, expose output to Client, wire AI models, implement Consent/Disclosure, or implement RBAC/ABAC.
+- Does not read or write earlier V2 `recruiting.source_item` or `recruiting.information_packet` skeleton tables.
+
+## ClaimLedgerItemCanonicalWriteLookupPort / JdbcClaimLedgerItemCanonicalWriteLookupPort
+
+- Narrow read-only lookup used only for Task 5E canonical write bridge claim loading by exact organization and claim id.
+- Reads only `governance.claim_ledger_item`.
+- Returns the minimal claim snapshot needed to create a `CanonicalWriteCommand`: target entity, target field path, claim type, assertion strength, verification status, client shareability, `canonical_write_allowed`, optional claim value text, and source-span lineage.
+- Does not provide generic ClaimLedger search, dashboard analytics, API exposure, canonical read models, candidate/company/job joins, business target entity lookup, or client-safe projection.
+
+## ReviewEventCanonicalWriteLookupPort / JdbcReviewEventCanonicalWriteLookupPort
+
+- Narrow read-only lookup used only for Task 5E canonical write bridge review loading by exact organization and review event id.
+- Reads only `governance.review_event`.
+- Returns the minimal review snapshot needed to create `CanonicalWriteReviewEvidence`: target entity, target field path, ClaimLedgerItem id, source-span lineage, decision, risk tier, bulk flag, reviewer id, and reason.
+- Does not provide generic review history search, dashboard analytics, API exposure, candidate/company/job joins, business target entity lookup, or client-safe projection.
+
 ## ClaimLedgerService
 
 - Appends claims.
@@ -248,8 +293,10 @@ Read-only audit side:
 - Do not treat `IntakeExtractionOutputEnvelope` or `intake.extraction_run.output_json` as canonical facts, ClaimLedger, ReviewEvent, CandidateProfile, CanonicalWrite output, API DTO, UI state, or client-safe projection.
 - Do not treat `IntakeClaimLedgerBridgeService` as ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeReviewBridgeService` as CanonicalWrite, CandidateProfile persistence, ClaimLedger verification mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
+- Do not treat `IntakeCanonicalWriteBridgeService` as CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
+- Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat `CanonicalWriteService` as CandidateProfile persistence.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.

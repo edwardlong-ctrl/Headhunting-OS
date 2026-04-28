@@ -46,19 +46,26 @@
 - Task 5D ReviewEvent append is review evidence, not fact promotion. It does not mutate ClaimLedger verification status, does not call CanonicalWrite, and does not write CandidateProfile.
 - Task 5D stores claim lineage in `governance.review_event.claim_ledger_item_id` and deterministic `source_span_ref` values. It added no new migration or table.
 - Task 5D duplicate behavior is deterministic: identical bridge requests return the existing review event id; materially different review evidence is allowed as a new review event.
+- Task 5E now provides a backend-owned governed-intake ClaimLedgerItem-plus-ReviewEvent to CanonicalWrite boundary integration skeleton.
+- Task 5E reads only exact organization-scoped `ClaimLedgerItem` and `ReviewEvent` rows through narrow lookup ports, validates that the ReviewEvent belongs to the ClaimLedgerItem, requires Task 5C/5D governed-intake `intake.*` lineage, and calls only `CanonicalWriteService`.
+- Task 5E keeps `CanonicalWriteGate` mandatory and does not bypass it. Current Task 5C low-authority governed-intake claims remain blocked by the existing gate rather than promoted to fact.
+- Task 5E allowed boundary attempts, where gate-allowable governed-intake-lineage fixtures are used, append only the existing `WorkflowEvent` audit from `CanonicalWriteService` and still report `canonicalPersistencePerformed=false`.
+- Task 5E does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not write CandidateProfile, does not write raw Candidate/Profile persistence, does not query business target entities, and does not implement API/UI exposure.
+- Task 5E adds no new migration, table, index, or API-facing view. It relies on existing `governance.claim_ledger_item`, `governance.review_event`, and `workflow.workflow_event` audit/idempotency behavior.
+- Task 5E duplicate behavior is deterministic for allowed boundary audits through existing WorkflowEvent idempotency. Gate-blocked attempts append no audit row under the current CanonicalWriteService design, so there is no DB-enforced blocked-attempt ledger yet.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
-- For the Task 5C and Task 5D bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
+- For the Task 5C, Task 5D, and Task 5E bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
 - No real AI extraction exists yet.
-- CanonicalWrite boundary integration from governed intake remains future Task 5 work.
+- Real canonical persistence from governed intake remains future Task 6+ work.
 - No default-placeholder business ClaimLedger append from intake exists.
-- No CanonicalWrite from intake exists yet.
+- Governed intake CanonicalWrite boundary attempts exist only as a Task 5E gate/audit skeleton.
 - No CandidateProfile persistence exists from intake.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CanonicalWrite boundary integration, CandidateProfile persistence, and downstream privacy/access surfaces.
+- Full Task 5 Governed Intake Minimal Slice remains incomplete until later subtasks add CandidateProfile persistence and downstream privacy/access surfaces.
 
 ## Client-safe Projection Not Implemented
 
