@@ -1,6 +1,6 @@
 # Known Gaps
 
-## Task 11A MatchReport Scoring Contract Exists; Matching Engine Deferred
+## Task 11B MatchReport Generation Placeholder Exists; Matching Engine Deferred
 
 - Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.
 - `MatchReport` uses opaque `match_report_`, `job_ref_`, and `match_subject_` references rather than raw Candidate or CandidateProfile objects.
@@ -16,7 +16,11 @@
 - `MatchReport` is not a canonical fact and is not a client-safe API response.
 - Task 11A tests prove no raw Candidate/Profile, SourceItem/InformationPacket, ClaimLedger/ReviewEvent/WorkflowEvent/AITaskRun internals, raw source text, PII, consultant-private notes, API/controller/UI, persistence, AI/model call, canonical fact write, CandidateProfile mutation, or governance-event write is added by the matching package.
 - Task 11A does not implement real AI matching, real candidate scoring, model calls, prompt execution, model routing, queue/worker behavior, API/controller, frontend/UI, database migration, persistence, client-facing match report delivery, Consent/Disclosure/Unlock, commercial/placement behavior, canonical facts, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, or WorkflowEvent append.
-- Task 11B remains: MatchReport generation service / evidence coverage / provenance weighting placeholder.
+- Task 11B adds a deterministic backend-only MatchReport generation service that assembles `MatchReport` from safe opaque refs, safe requested scores, safe evidence coverage/provenance inputs, policy metadata, and generated-at/version metadata.
+- Task 11B evidence coverage remains a placeholder: it tracks required dimensions, covered/missing dimensions, weak-signal-only dimensions, independent evidence counts, high-trust independent evidence counts, and bounded coverage/confidence impact without reading raw source text or creating claims/reviews/workflow events.
+- Task 11B provenance weighting remains a placeholder: it distinguishes external verified, candidate confirmed, consultant attested, human acknowledged, AI extracted, system inference, weak signal, and unknown provenance categories; unknown provenance fails closed for generation; AI/system/weak signals can lower confidence or trigger score caps but do not create facts.
+- Task 11B applies the existing `ScoreCapPolicy` before returning a report and preserves the cap decision/safe reason on the final `MatchReport`.
+- Task 11B is complete only for deterministic backend-only generation from safe scoring inputs. It does not implement real AI matching, real scoring, model calls, prompt execution, model routing, persistence, API/controller/UI, client-facing delivery, canonical fact writes, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, or WorkflowEvent append.
 - Task 11C remains: matching/evidence regression and docs closure.
 - Task 11 is not complete.
 - Broader gaps remain: no real AI matching, no real industry ontology calibration, no model routing, no prompt execution, no matching persistence, no client-facing match report delivery, and no matching API/controller/UI.
