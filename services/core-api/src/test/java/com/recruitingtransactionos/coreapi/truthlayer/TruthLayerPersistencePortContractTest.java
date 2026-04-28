@@ -8,6 +8,8 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
@@ -282,8 +284,8 @@ class TruthLayerPersistencePortContractTest {
         "prompt.claim-ledger-builder.v1",
         new ModelRef("placeholder-provider", "placeholder-model", "placeholder-model-version"),
         AITaskRunStatus.SUCCEEDED,
-        "review_required",
-        new WriteBackTarget("claim_ledger"),
+        AITaskHumanReviewStatus.REQUIRED.wireValue(),
+        new WriteBackTarget(AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL.wireValue()),
         new ActorRef(WORKFLOW_ACTOR_ID, ActorRole.AI),
         new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000000203")),
         new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000000204")),

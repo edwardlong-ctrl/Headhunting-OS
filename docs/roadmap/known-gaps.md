@@ -75,19 +75,23 @@
 - No identity disclosure behavior exists.
 - Known alignment skip for consent/disclosure gap remains intentional until Task 12 or earlier dedicated workstream.
 
-## Task 10A AITaskRun Metadata Persistence Exists; AI Execution Deferred
+## Task 10A/10B AITaskRun Metadata Governance Exists; AI Execution Deferred
 
 - Task 10A adds minimal AITaskRun metadata auditability only.
 - `AITaskRunStatus` is now an explicit small vocabulary: `CREATED`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `CANCELLED`.
 - AITaskRun append commands validate task version, input schema version, output schema version, prompt version, model provider/name, completion ordering, and safe single-line failure reasons for failed runs.
 - `JdbcAITaskRunPort` can append and read back AITaskRun metadata, preserving task/model/prompt/schema versions, requested-by, correlation, causation, target entity reference, source references, optional write-back target metadata, timing, failure reason, and created timestamp.
 - V7 adds AITaskRun governance metadata columns and hardens the status/completion/failure-reason database constraints.
-- Task 10A does not call real AI/model services.
-- Task 10A does not implement model routing, prompt execution, AI task queue/worker, retries, or async execution.
-- Task 10A does not implement write-back behavior or write-back target enforcement.
-- Task 10A does not write canonical facts, mutate CandidateProfile, append ClaimLedgerItem, append ReviewEvent, or append WorkflowEvent.
-- Task 10A does not add API/controller/UI.
-- Remaining Task 10 gaps: 10B write-back target + human review status policy; 10C governance regression/docs closure.
+- Task 10B adds explicit `AITaskWriteBackTarget` vocabulary: `NONE`, `NO_WRITE_BACK`, `CLAIM_LEDGER_PROPOSAL`, `REVIEW_QUEUE`, `HUMAN_REVIEW_REQUIRED`, `CANONICAL_CANDIDATE_PROFILE`, `CLIENT_SAFE_PROJECTION`, `JOB_PROFILE`, `COMPANY_PROFILE`, `CONSENT_DISCLOSURE`, `WORKFLOW_ACTION`, and `COMMERCIAL_OR_PLACEMENT`.
+- Task 10B adds explicit `AITaskHumanReviewStatus` vocabulary: `NOT_REQUIRED`, `REQUIRED`, `PENDING`, `APPROVED`, `REJECTED`, `NEEDS_REVISION`, and `EXPIRED`.
+- Task 10B adds `AITaskGovernancePolicy` / `AITaskGovernanceDecision` for deterministic metadata validation with safe reason codes, safe explanations, human-review-required, canonical-gate-required, and future consent/disclosure/unlock gate flags.
+- Task 10B validates AITaskRun write-back target and human-review status metadata before append; it reuses existing `write_back_target` and `human_review_status` persistence fields and adds no migration.
+- Task 10B does not call real AI/model services.
+- Task 10B does not implement model routing, prompt execution, AI task queue/worker, retries, or async execution.
+- Task 10B does not implement actual write-back execution.
+- Task 10B does not write canonical facts, mutate CandidateProfile, append ClaimLedgerItem, append ReviewEvent, or append WorkflowEvent.
+- Task 10B does not add API/controller/UI.
+- Remaining Task 10 gap: 10C governance regression/docs closure.
 - Broader AI gaps remain: no real AI model wiring, no model routing, no prompt execution, no AI task queue/worker, and no AI governance API/UI.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred

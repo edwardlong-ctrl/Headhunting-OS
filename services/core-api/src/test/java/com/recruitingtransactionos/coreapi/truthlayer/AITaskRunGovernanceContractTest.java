@@ -5,14 +5,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcAITaskRunPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendResult;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ModelRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -22,6 +28,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -65,6 +72,19 @@ class AITaskRunGovernanceContractTest {
     assertThat(command.causationId())
         .isEqualTo(new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000100005")));
     assertThat(command.targetEntity()).isEqualTo(new EntityRef("CANDIDATE", CANDIDATE_ID));
+  }
+
+  @Test
+  void validRunCanCarryExplicitWriteBackAndHumanReviewMetadataWithoutExecutingWriteBack() {
+    AITaskRunAppendCommand command = commandWithGovernanceMetadata(
+        AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
+        AITaskHumanReviewStatus.REQUIRED,
+        ActorRole.AI);
+
+    assertThat(command.humanReviewStatus()).isEqualTo("required");
+    assertThat(command.writeBackTarget())
+        .isEqualTo(new WriteBackTarget("claim_ledger_proposal"));
+    assertThat(command.requestedBy()).isEqualTo(new ActorRef(REQUESTED_BY_ID, ActorRole.AI));
   }
 
   @Test
@@ -208,7 +228,22 @@ class AITaskRunGovernanceContractTest {
   }
 
   @Test
-  void task10ADoesNotAddAiModelCallsOrApiControllerOrUi() throws IOException {
+  void serviceRejectsDeniedGovernanceMetadataBeforePersistenceAppend() {
+    RecordingAITaskRunPort port = new RecordingAITaskRunPort();
+    AITaskRunService service = new AITaskRunService(port);
+    AITaskRunAppendCommand command = commandWithGovernanceMetadata(
+        AITaskWriteBackTarget.CANONICAL_CANDIDATE_PROFILE,
+        AITaskHumanReviewStatus.APPROVED,
+        ActorRole.AI);
+
+    assertThatThrownBy(() -> service.append(command))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("ai_or_system_cannot_self_approve_ai_output");
+    assertThat(port.appendCalls).isZero();
+  }
+
+  @Test
+  void task10BDoesNotAddAiModelCallsWriteBackExecutionApiControllerOrUi() throws IOException {
     assertThat(sourceTree()).doesNotContain(
         "ChatClient",
         "OpenAI",
@@ -220,12 +255,13 @@ class AITaskRunGovernanceContractTest {
     try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
       assertThat(paths.filter(Files::isRegularFile)
           .filter(path -> path.getFileName().toString().endsWith(".java"))
-          .filter(path -> normalized(path.getFileName().toString()).contains("aitaskrun"))
+          .filter(path -> normalized(path.getFileName().toString()).contains("aitask")
+              || normalized(path.getFileName().toString()).contains("aigovernance"))
           .map(path -> path.getFileName().toString())
           .filter(name -> normalized(name).contains("controller")
               || normalized(name).contains("api"))
           .toList())
-          .as("Task 10A must not add AITaskRun API/controller classes")
+          .as("Task 10B must not add AI governance API/controller classes")
           .isEmpty();
     }
 
@@ -236,10 +272,21 @@ class AITaskRunGovernanceContractTest {
             .filter(name -> normalized(name).contains("aitaskrun")
                 || normalized(name).contains("aigovernance"))
             .toList())
-            .as("Task 10A must not add frontend/UI files")
+            .as("Task 10B must not add frontend/UI files")
             .isEmpty();
       }
     }
+
+    assertThat(aiTaskGovernanceSource()).doesNotContain(
+        "CanonicalWriteService",
+        "CandidateProfileService",
+        "ClaimLedgerService",
+        "ReviewEventService",
+        "WorkflowEventService",
+        "upsertCandidateProfileField",
+        "new ClaimLedgerAppendCommand",
+        "new ReviewEventAppendCommand",
+        "new WorkflowEventAppendCommand");
   }
 
   private static AITaskRunAppendCommand succeededCommand() {
@@ -264,11 +311,50 @@ class AITaskRunGovernanceContractTest {
         null);
   }
 
+  private static AITaskRunAppendCommand commandWithGovernanceMetadata(
+      AITaskWriteBackTarget target,
+      AITaskHumanReviewStatus reviewStatus,
+      ActorRole requestedByRole) {
+    return new AITaskRunAppendCommand(
+        ORGANIZATION_ID,
+        "candidate-profile-extraction",
+        "candidate-profile-extraction.v1",
+        "candidate-profile-input.v1",
+        "candidate-profile-output.v1",
+        "prompt.candidate-profile-extraction.v1",
+        new ModelRef("metadata-only", "no-model-call", "v0"),
+        AITaskRunStatus.SUCCEEDED,
+        reviewStatus.wireValue(),
+        new WriteBackTarget(target.wireValue()),
+        new ActorRef(REQUESTED_BY_ID, requestedByRole),
+        new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000100004")),
+        new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000100005")),
+        new EntityRef("CANDIDATE", CANDIDATE_ID),
+        List.of(uuid("00000000-0000-0000-0000-000000100006")),
+        STARTED_AT,
+        STARTED_AT.plusSeconds(8),
+        null);
+  }
+
   private static String sourceTree() throws IOException {
     try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
       StringBuilder source = new StringBuilder();
       for (Path path : paths.filter(Files::isRegularFile)
           .filter(path -> path.getFileName().toString().endsWith(".java"))
+          .toList()) {
+        source.append(Files.readString(path)).append('\n');
+      }
+      return source.toString();
+    }
+  }
+
+  private static String aiTaskGovernanceSource() throws IOException {
+    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
+      StringBuilder source = new StringBuilder();
+      for (Path path : paths.filter(Files::isRegularFile)
+          .filter(path -> path.getFileName().toString().endsWith(".java"))
+          .filter(path -> normalized(path.getFileName().toString()).contains("aitask")
+              || normalized(path.getFileName().toString()).contains("aigovernance"))
           .toList()) {
         source.append(Files.readString(path)).append('\n');
       }
@@ -311,5 +397,22 @@ class AITaskRunGovernanceContractTest {
 
   private static UUID uuid(String value) {
     return UUID.fromString(value);
+  }
+
+  private static final class RecordingAITaskRunPort implements AITaskRunPort {
+
+    private int appendCalls;
+
+    @Override
+    public AITaskRunAppendResult append(AITaskRunAppendCommand command) {
+      appendCalls++;
+      return new AITaskRunAppendResult(new AITaskRunId(
+          uuid("00000000-0000-0000-0000-000000100099")));
+    }
+
+    @Override
+    public Optional<AITaskRunRecord> findById(UUID organizationId, AITaskRunId aiTaskRunId) {
+      return Optional.empty();
+    }
   }
 }

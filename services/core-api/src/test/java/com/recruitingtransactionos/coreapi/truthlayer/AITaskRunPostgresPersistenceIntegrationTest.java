@@ -8,6 +8,8 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendResult
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
@@ -78,7 +80,8 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         candidateId,
         List.of(sourceRefId),
         AITaskRunStatus.SUCCEEDED,
-        new WriteBackTarget("future_candidate_profile_review_target"),
+        new WriteBackTarget(AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL.wireValue()),
+        AITaskHumanReviewStatus.REQUIRED,
         STARTED_AT.plusSeconds(12),
         null);
 
@@ -104,7 +107,8 @@ class AITaskRunPostgresPersistenceIntegrationTest {
     assertThat(persisted.targetEntity()).isEqualTo(new EntityRef("CANDIDATE", candidateId));
     assertThat(persisted.sourceReferenceIds()).containsExactly(sourceRefId);
     assertThat(persisted.writeBackTarget())
-        .isEqualTo(new WriteBackTarget("future_candidate_profile_review_target"));
+        .isEqualTo(new WriteBackTarget("claim_ledger_proposal"));
+    assertThat(persisted.humanReviewStatus()).isEqualTo("required");
     assertThat(persisted.startedAt()).isEqualTo(STARTED_AT);
     assertThat(persisted.completedAt()).isEqualTo(STARTED_AT.plusSeconds(12));
     assertThat(persisted.failureReason()).isNull();
@@ -125,6 +129,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         List.of(),
         AITaskRunStatus.FAILED,
         null,
+        AITaskHumanReviewStatus.NOT_REQUIRED,
         STARTED_AT.plusSeconds(3),
         "provider_timeout_without_output"));
 
@@ -157,6 +162,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         List.of(),
         AITaskRunStatus.CREATED,
         null,
+        AITaskHumanReviewStatus.NOT_REQUIRED,
         null,
         null));
 
@@ -193,6 +199,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
       List<UUID> sourceReferenceIds,
       AITaskRunStatus status,
       WriteBackTarget writeBackTarget,
+      AITaskHumanReviewStatus humanReviewStatus,
       Instant completedAt,
       String failureReason) {
     return new AITaskRunAppendCommand(
@@ -204,7 +211,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         "prompt.candidate-profile-extraction.v1",
         new ModelRef("metadata-only", "no-model-call", "v0"),
         status,
-        "not_required",
+        humanReviewStatus.wireValue(),
         writeBackTarget,
         new ActorRef(requestedBy, ActorRole.CONSULTANT),
         new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000110005")),
