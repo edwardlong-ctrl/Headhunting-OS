@@ -6,6 +6,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendComman
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
@@ -132,7 +133,7 @@ class TruthLayerPersistencePortContractTest {
   @Test
   void aiTaskRunPortDoesNotWriteCanonicalFacts() {
     assertThat(methodNames(AITaskRunPort.class))
-        .containsExactly("append");
+        .containsExactly("append", "findById");
     assertThat(methodNames(AITaskRunPort.class))
         .noneMatch(this::looksLikeCanonicalWriteShortcut);
   }
@@ -283,10 +284,14 @@ class TruthLayerPersistencePortContractTest {
         AITaskRunStatus.SUCCEEDED,
         "review_required",
         new WriteBackTarget("claim_ledger"),
+        new ActorRef(WORKFLOW_ACTOR_ID, ActorRole.AI),
+        new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000000203")),
+        new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000000204")),
         targetCandidate(),
         List.of(SOURCE_ITEM_ID),
         Instant.parse("2026-04-28T01:00:00Z"),
-        Instant.parse("2026-04-28T01:00:05Z"));
+        Instant.parse("2026-04-28T01:00:05Z"),
+        null);
   }
 
   private static WorkflowEventAppendCommand workflowCommand(
@@ -423,6 +428,35 @@ class TruthLayerPersistencePortContractTest {
           + String.format("%02d", sequence.incrementAndGet())));
       commands.put(id, command);
       return new AITaskRunAppendResult(id);
+    }
+
+    @Override
+    public Optional<AITaskRunRecord> findById(UUID organizationId, AITaskRunId aiTaskRunId) {
+      AITaskRunAppendCommand command = commands.get(aiTaskRunId);
+      if (command == null || !command.organizationId().equals(organizationId)) {
+        return Optional.empty();
+      }
+      return Optional.of(new AITaskRunRecord(
+          aiTaskRunId,
+          command.organizationId(),
+          command.taskName(),
+          command.taskVersion(),
+          command.inputSchemaVersion(),
+          command.outputSchemaVersion(),
+          command.promptVersion(),
+          command.model(),
+          command.status(),
+          command.humanReviewStatus(),
+          command.writeBackTarget(),
+          command.requestedBy(),
+          command.correlationId(),
+          command.causationId(),
+          command.targetEntity(),
+          command.sourceReferenceIds(),
+          command.startedAt(),
+          command.completedAt(),
+          command.failureReason(),
+          command.startedAt()));
     }
 
     private AITaskRunAppendCommand readBack(AITaskRunId aiTaskRunId) {

@@ -244,8 +244,8 @@ class ReviewEventPostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationStillAppliesBeforeReviewPersistenceTest() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(6);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(7);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7");
   }
 
   @Test

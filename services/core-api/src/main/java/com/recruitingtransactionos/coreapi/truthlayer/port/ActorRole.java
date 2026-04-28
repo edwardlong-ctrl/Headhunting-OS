@@ -18,4 +18,13 @@ public enum ActorRole {
   public String wireValue() {
     return wireValue;
   }
+
+  public static ActorRole fromWireValue(String wireValue) {
+    for (ActorRole role : values()) {
+      if (role.wireValue.equals(wireValue)) {
+        return role;
+      }
+    }
+    throw new IllegalArgumentException("unknown actor role: " + wireValue);
+  }
 }

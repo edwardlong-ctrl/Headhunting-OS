@@ -75,12 +75,20 @@
 - No identity disclosure behavior exists.
 - Known alignment skip for consent/disclosure gap remains intentional until Task 12 or earlier dedicated workstream.
 
-## AITaskRun / AI Governance Not Implemented
+## Task 10A AITaskRun Metadata Persistence Exists; AI Execution Deferred
 
-- No real AI model wiring.
-- No AITaskRun persistence implementation yet.
-- No prompt/model/schema version tracking yet.
-- No `write_back_target` enforcement beyond current boundary concepts.
+- Task 10A adds minimal AITaskRun metadata auditability only.
+- `AITaskRunStatus` is now an explicit small vocabulary: `CREATED`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `CANCELLED`.
+- AITaskRun append commands validate task version, input schema version, output schema version, prompt version, model provider/name, completion ordering, and safe single-line failure reasons for failed runs.
+- `JdbcAITaskRunPort` can append and read back AITaskRun metadata, preserving task/model/prompt/schema versions, requested-by, correlation, causation, target entity reference, source references, optional write-back target metadata, timing, failure reason, and created timestamp.
+- V7 adds AITaskRun governance metadata columns and hardens the status/completion/failure-reason database constraints.
+- Task 10A does not call real AI/model services.
+- Task 10A does not implement model routing, prompt execution, AI task queue/worker, retries, or async execution.
+- Task 10A does not implement write-back behavior or write-back target enforcement.
+- Task 10A does not write canonical facts, mutate CandidateProfile, append ClaimLedgerItem, append ReviewEvent, or append WorkflowEvent.
+- Task 10A does not add API/controller/UI.
+- Remaining Task 10 gaps: 10B write-back target + human review status policy; 10C governance regression/docs closure.
+- Broader AI gaps remain: no real AI model wiring, no model routing, no prompt execution, no AI task queue/worker, and no AI governance API/UI.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 

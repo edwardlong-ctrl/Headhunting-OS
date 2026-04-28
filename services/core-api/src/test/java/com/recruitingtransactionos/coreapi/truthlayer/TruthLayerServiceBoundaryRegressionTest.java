@@ -284,6 +284,8 @@ class TruthLayerServiceBoundaryRegressionTest {
 
     assertThat(insertedTables)
         .containsExactly(
+            "governance.ai_task_definition",
+            "governance.ai_task_run",
             "governance.claim_ledger_item",
             "governance.review_event",
             "workflow.workflow_event");

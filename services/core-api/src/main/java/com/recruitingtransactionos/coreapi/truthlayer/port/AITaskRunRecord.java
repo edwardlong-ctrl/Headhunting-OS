@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-public record AITaskRunAppendCommand(
+public record AITaskRunRecord(
+    AITaskRunId aiTaskRunId,
     UUID organizationId,
     String taskName,
     String taskVersion,
@@ -23,14 +24,18 @@ public record AITaskRunAppendCommand(
     List<UUID> sourceReferenceIds,
     Instant startedAt,
     Instant completedAt,
-    String failureReason) {
+    String failureReason,
+    Instant createdAt) {
 
-  public AITaskRunAppendCommand {
+  public AITaskRunRecord {
+    Objects.requireNonNull(aiTaskRunId, "aiTaskRunId must not be null");
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     taskName = PortContractGuards.requireNonBlank(taskName, "taskName");
     taskVersion = PortContractGuards.requireNonBlank(taskVersion, "taskVersion");
-    inputSchemaVersion = PortContractGuards.requireNonBlank(inputSchemaVersion, "inputSchemaVersion");
-    outputSchemaVersion = PortContractGuards.requireNonBlank(outputSchemaVersion, "outputSchemaVersion");
+    inputSchemaVersion = PortContractGuards.requireNonBlank(inputSchemaVersion,
+        "inputSchemaVersion");
+    outputSchemaVersion = PortContractGuards.requireNonBlank(outputSchemaVersion,
+        "outputSchemaVersion");
     promptVersion = PortContractGuards.requireNonBlank(promptVersion, "promptVersion");
     Objects.requireNonNull(model, "model must not be null");
     Objects.requireNonNull(status, "status must not be null");
@@ -45,5 +50,6 @@ public record AITaskRunAppendCommand(
       throw new IllegalArgumentException("completedAt must not be before startedAt");
     }
     failureReason = PortContractGuards.safeFailureReason(failureReason, status);
+    Objects.requireNonNull(createdAt, "createdAt must not be null");
   }
 }

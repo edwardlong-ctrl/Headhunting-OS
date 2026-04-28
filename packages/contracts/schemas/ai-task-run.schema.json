@@ -11,7 +11,7 @@
     "task_version": { "type": "string", "minLength": 1 },
     "status": {
       "type": "string",
-      "enum": ["queued", "running", "succeeded", "failed", "blocked_by_gate", "requires_review", "write_back_completed", "cancelled"]
+      "enum": ["created", "running", "succeeded", "failed", "cancelled"]
     },
     "input_schema_version": { "type": "string", "minLength": 1 },
     "output_schema_version": { "type": "string", "minLength": 1 },
@@ -25,8 +25,17 @@
     "target_entity_id": { "type": "string", "format": "uuid" },
     "write_back_target": { "type": "string" },
     "human_review_status": { "type": "string", "minLength": 1 },
+    "requested_by_user_id": { "type": "string", "format": "uuid" },
+    "requested_by_role": { "type": "string", "enum": ["owner", "consultant", "client", "candidate", "admin", "system", "ai"] },
+    "correlation_id": { "type": "string", "format": "uuid" },
+    "causation_id": { "type": "string", "format": "uuid" },
     "started_at": { "type": "string", "format": "date-time" },
     "completed_at": { "type": "string", "format": "date-time" },
+    "failure_reason": {
+      "type": "string",
+      "maxLength": 512,
+      "$comment": "Safe single-line failure reason only. Do not store stack traces, provider secrets, prompts, or raw model output."
+    },
     "error_code": { "type": "string" },
     "cost_units": { "type": "number", "minimum": 0 },
     "trace_ref": { "type": "string" },

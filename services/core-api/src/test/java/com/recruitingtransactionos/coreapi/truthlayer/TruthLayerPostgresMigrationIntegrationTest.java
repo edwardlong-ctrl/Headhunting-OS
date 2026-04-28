@@ -78,15 +78,15 @@ class TruthLayerPostgresMigrationIntegrationTest {
         .load()
         .migrate();
 
-    assertThat(result.migrationsExecuted).isEqualTo(6);
+    assertThat(result.migrationsExecuted).isEqualTo(7);
 
     try (Connection connection = DriverManager.getConnection(
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
-      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2", "3", "4", "5", "6");
+      assertThat(appliedMigrationVersions(connection)).containsExactly("1", "2", "3", "4", "5", "6", "7");
 
       for (String schema : REQUIRED_SCHEMAS) {
         assertThat(schemaExists(connection, schema))
-            .as("schema %s should exist after V1-V6 migrations", schema)
+            .as("schema %s should exist after V1-V7 migrations", schema)
             .isTrue();
       }
 
@@ -94,7 +94,7 @@ class TruthLayerPostgresMigrationIntegrationTest {
         String schema = entry.getKey();
         for (String table : entry.getValue()) {
           assertThat(tableExists(connection, schema, table))
-              .as("table %s.%s should exist after V1-V6 migrations", schema, table)
+              .as("table %s.%s should exist after V1-V7 migrations", schema, table)
               .isTrue();
         }
       }

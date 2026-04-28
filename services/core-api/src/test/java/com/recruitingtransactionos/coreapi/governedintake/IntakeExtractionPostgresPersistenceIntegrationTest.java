@@ -60,8 +60,8 @@ class IntakeExtractionPostgresPersistenceIntegrationTest {
 
   @Test
   void flywayMigrationCreatesExtractionRunTableAndIndexes() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(6);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(7);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7");
     assertThat(tableExists("intake", "extraction_run")).isTrue();
     assertThat(indexExists("intake", "extraction_run",
         "intake_extraction_run_org_packet_created_idx")).isTrue();

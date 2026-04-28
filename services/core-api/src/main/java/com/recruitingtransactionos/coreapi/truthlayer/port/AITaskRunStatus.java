@@ -1,13 +1,10 @@
 package com.recruitingtransactionos.coreapi.truthlayer.port;
 
 public enum AITaskRunStatus {
-  QUEUED("queued"),
+  CREATED("created"),
   RUNNING("running"),
   SUCCEEDED("succeeded"),
   FAILED("failed"),
-  BLOCKED_BY_GATE("blocked_by_gate"),
-  REQUIRES_REVIEW("requires_review"),
-  WRITE_BACK_COMPLETED("write_back_completed"),
   CANCELLED("cancelled");
 
   private final String wireValue;
@@ -18,5 +15,14 @@ public enum AITaskRunStatus {
 
   public String wireValue() {
     return wireValue;
+  }
+
+  public static AITaskRunStatus fromWireValue(String wireValue) {
+    for (AITaskRunStatus status : values()) {
+      if (status.wireValue.equals(wireValue)) {
+        return status;
+      }
+    }
+    throw new IllegalArgumentException("unknown AI task run status: " + wireValue);
   }
 }

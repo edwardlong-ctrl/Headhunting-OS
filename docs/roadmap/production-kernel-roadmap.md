@@ -144,9 +144,24 @@ frontend/UI, no Consent/Disclosure/Unlock, no identity disclosure workflow, no
 broad API surface, and no production auth context. The temporary header-based
 context remains non-production and fail-closed.
 
+Task 10: AI Governance Kernel ⏳
+
+- 10A: AITaskRun contract / persistence / model-prompt-schema version fields ✅
+- 10B: write-back target + human review status policy ⏳
+- 10C: governance regression/docs closure ⏳
+
+Task 10A adds minimal metadata auditability only: explicit AITaskRun status
+vocabulary, task/model/prompt/schema version validation, safe failure reason
+validation, requested-by/correlation/causation metadata, V7 database constraint
+hardening, and append/readback PostgreSQL persistence. Task 10 is not complete:
+there is still no real AI model call, model routing, prompt execution, AI task
+queue/worker, write-back behavior, write-back enforcement, API/controller, or UI.
+
 ## Next Tasks
 
-Task 10A: AITaskRun / AI Governance Skeleton
+Task 10B: write-back target + human review status policy
+
+Task 10C: governance regression/docs closure
 
 Task 11: Matching / Evidence Skeleton
 
