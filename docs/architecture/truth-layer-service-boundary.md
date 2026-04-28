@@ -107,6 +107,22 @@ audit, and exactly one explicit CandidateProfile field upsert through
 minimal field persistence succeeded. ClaimLedgerItem remains claim input, and
 ReviewEvent remains review evidence rather than fact promotion.
 
+Task 6F closes the Candidate Canonical Profile minimal slice with regression
+coverage and documentation. The covered path is:
+
+`ClaimLedgerItem + ReviewEvent`
+→ `CanonicalWriteGate`
+→ `CanonicalWriteTransactionBoundary`
+→ `WorkflowEvent` audit + one explicit `CandidateProfile` field write
+→ lineage/source-span and CandidateProfile metadata preservation
+
+Task 6F does not add a Client-safe projection, REST/API/controller/DTO/UI,
+RBAC/ABAC, Consent/Disclosure, real AI extraction, semantic parsing, stale
+detection engine, conflict resolution workflow, broad CandidateProfile update
+API, full CandidateProfile engine, raw Candidate/Profile Client exposure, or a
+separate blocked canonical-attempt audit ledger. Gate-blocked attempts still do
+not append the allowed-write WorkflowEvent audit and do not write CandidateProfile.
+
 ## GovernedIntakeService
 
 - Backend-owned service boundary for Task 5A SourceItem + InformationPacket persistence.

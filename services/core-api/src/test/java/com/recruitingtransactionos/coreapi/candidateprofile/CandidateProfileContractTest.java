@@ -188,6 +188,30 @@ class CandidateProfileContractTest {
   }
 
   @Test
+  void fieldStatusPolicyRegressionKeepsNonFactStatesOutOfVerifiedClientAndTransactionUse() {
+    assertThat(CandidateProfileFieldStatusPolicy.isVerifiedFactEligible(
+        CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED)).isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.isVerifiedFactEligible(
+        CandidateProfileFieldStatus.SYSTEM_INFERENCE)).isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.isClientFactEligible(
+        CandidateProfileFieldStatus.CONFLICTING)).isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.blocksClientVisibleFactStatement(
+        CandidateProfileFieldStatus.CONFLICTING)).isTrue();
+    assertThat(CandidateProfileFieldStatusPolicy.isTransactionReadyEligible(
+        CandidateProfileFieldStatus.NEEDS_CONFIRMATION)).isFalse();
+
+    assertThat(CandidateProfileFieldStatus.CANDIDATE_CONFIRMED)
+        .isNotEqualTo(CandidateProfileFieldStatus.EXTERNAL_VERIFIED);
+    assertThat(CandidateProfileFieldStatus.CONSULTANT_ATTESTED)
+        .isNotEqualTo(CandidateProfileFieldStatus.CANDIDATE_CONFIRMED);
+    assertThat(CandidateProfileFieldStatusPolicy.bulkApprovalResult())
+        .isEqualTo(CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED)
+        .isNotIn(
+            CandidateProfileFieldStatus.CANDIDATE_CONFIRMED,
+            CandidateProfileFieldStatus.EXTERNAL_VERIFIED);
+  }
+
+  @Test
   void conflictingAndNeedsConfirmationStatusesBlockLaterFactAndTransactionReadiness() {
     assertThat(CandidateProfileFieldStatusPolicy.isClientFactEligible(
         CandidateProfileFieldStatus.CONFLICTING)).isFalse();
@@ -461,6 +485,9 @@ class CandidateProfileContractTest {
       assertThat(source)
           .doesNotContain("CanonicalWriteService")
           .doesNotContain("CanonicalWriteGate")
+          .doesNotContain("StaleDetection")
+          .doesNotContain("StalenessDetector")
+          .doesNotContain("ConflictResolutionWorkflow")
           .doesNotContain("@RestController")
           .doesNotContain("@Controller")
           .doesNotContain("@RequestMapping")

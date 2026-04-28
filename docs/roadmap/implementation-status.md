@@ -31,6 +31,7 @@
 - Task 6C current worktree: hardens `CanonicalWriteTransactionBoundary` from a no-op skeleton into a Spring `PlatformTransactionManager` / `TransactionTemplate` boundary with real JDBC transaction coordination and rollback coverage, while keeping `CanonicalWriteService` gate/audit-only.
 - Task 6D current worktree: adds the first minimal governed-intake allowed canonical CandidateProfile field write path from ClaimLedgerItem plus ReviewEvent evidence through `IntakeCanonicalWriteBridgeService`, mandatory `CanonicalWriteGate`, `CanonicalWriteTransactionBoundary`, WorkflowEvent audit, and one explicit CandidateProfile field upsert.
 - Task 6E current worktree: hardens CandidateProfile lineage, stale, and conflict metadata validation and persistence without adding API/UI exposure, client-safe projection, conflict resolution, stale detection, or a broad CandidateProfile engine.
+- Task 6F current worktree: closes Task 6 with regression coverage and documentation for the safe CandidateProfile path: governed-intake ClaimLedgerItem plus ReviewEvent evidence -> mandatory CanonicalWriteGate -> CanonicalWriteTransactionBoundary -> WorkflowEvent audit plus one explicit CandidateProfile field write -> lineage/source-span and CandidateProfile metadata preservation, with no client/API/UI/projection exposure.
 
 ## Current Test State
 
@@ -50,6 +51,7 @@
 - Task 6C adds focused unit coverage for successful transaction callback commit/result preservation, runtime rollback propagation, checked-exception rollback wrapping, and no business logic inside the transaction boundary. It also adds PostgreSQL/Testcontainers coverage proving WorkflowEvent append commit, WorkflowEvent append rollback, CanonicalWriteService allowed audit behavior with `canonicalPersistencePerformed=false`, blocked-path behavior, no CandidateProfile write from CanonicalWriteService, and independent CandidateProfileService persistence.
 - Task 6D adds focused unit and PostgreSQL/Testcontainers coverage proving gate-blocked governed-intake attempts do not write CandidateProfile, allowed fixtures write exactly one explicit CandidateProfile field with field status and ClaimLedgerItem/ReviewEvent/WorkflowEvent lineage, `canonicalPersistencePerformed=true` only after field persistence succeeds, WorkflowEvent audit and CandidateProfile field upsert share the Spring transaction boundary, rollback prevents partial audit/profile writes, repeated identical attempts remain idempotent, low-authority placeholder claims remain blocked, and ClaimLedgerItem/ReviewEvent rows remain unchanged.
 - Task 6E adds focused unit and PostgreSQL/Testcontainers coverage for full CandidateProfile field lineage readback, blank lineage ref rejection, stale metadata reason/time-range validation, source-backed conflict metadata validation for `CONFLICTING` fields, conflict severity/resolution vocabulary, non-fact status invariants, organization-scoped metadata visibility, and governed-intake source-span preservation in the minimal allowed canonical write path.
+- Task 6F adds regression closure proving status policy invariants, metadata boundary behavior, governed-intake allowed-write lineage/source-span preservation, organization isolation, gate-blocked no-write behavior, ClaimLedgerItem/ReviewEvent immutability, no API/UI/client projection, and rollback of the allowed WorkflowEvent audit when the CandidateProfile field write fails.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -142,6 +144,13 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - Task 6E allows stale metadata to coexist with non-`STALE` statuses as historical/audit metadata, but validates stale reason and impossible timestamp ranges. It does not implement a stale detection engine or background refresh workflow.
 - Task 6E requires `CONFLICTING` fields to carry source-backed conflict metadata for the same field. Conflict metadata does not resolve conflicts, overwrite canonical values, or start reviewer decision flow.
 - Task 6E aligns `CanonicalWriteService` so the minimal allowed CandidateProfile field lineage preserves the governed-intake claim source-span reference when available, while `CandidateProfileCanonicalWriteTarget` remains a single-field target with field path, value, status, and profile id only.
+- Task 6F regression-covers the current completed CandidateProfile path:
+  `ClaimLedgerItem + ReviewEvent`
+  -> `CanonicalWriteGate`
+  -> `CanonicalWriteTransactionBoundary`
+  -> `WorkflowEvent` audit + minimal `CandidateProfile` field write
+  -> lineage/source-span and CandidateProfile metadata preserved.
+- Task 6F confirms ClaimLedgerItem remains claim input, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate remains mandatory, gate-blocked attempts still write no CandidateProfile field, and a separate persisted blocked-attempt audit ledger remains future work.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
 
 ## Current Non-capabilities
@@ -171,5 +180,5 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6D adds the first minimal gated CandidateProfile write, and Task 6E hardens its metadata persistence. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

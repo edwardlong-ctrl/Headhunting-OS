@@ -7,8 +7,10 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldSourceType;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
 import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
@@ -325,11 +327,75 @@ class GovernedIntakeEndToEndRegressionTest {
     assertThat(field.sourceClaimId()).isEqualTo(claimId);
     assertThat(field.sourceReviewEventId()).isEqualTo(reviewEventId);
     assertThat(field.sourceWorkflowEventId()).isEqualTo(first.workflowEventId());
+    assertThat(field.lineage().sourceReferences())
+        .extracting(reference -> reference.sourceType())
+        .containsExactly(
+            CandidateProfileFieldSourceType.CLAIM_LEDGER_ITEM,
+            CandidateProfileFieldSourceType.REVIEW_EVENT,
+            CandidateProfileFieldSourceType.WORKFLOW_EVENT,
+            CandidateProfileFieldSourceType.SOURCE_SPAN);
+    assertThat(field.lineage().sourceReferences())
+        .extracting(reference -> reference.sourceId())
+        .contains(
+            claimId.value().toString(),
+            reviewEventId.value().toString(),
+            first.workflowEventId().value().toString());
+    assertThat(field.lineage().sourceReferences().stream()
+        .filter(reference -> reference.sourceType() == CandidateProfileFieldSourceType.SOURCE_SPAN)
+        .map(reference -> reference.sourceId())
+        .findFirst()
+        .orElseThrow())
+        .contains("intake.extraction_run:")
+        .contains("intake.information_packet:")
+        .contains("intake.source_item:");
     assertThat(candidateProfileService().listCandidateProfileFields(
         ORG_A,
         profile.candidateProfileId())).hasSize(1);
+    assertThat(candidateProfileService().findCandidateProfileByIdAndOrganizationId(
+        ORG_B,
+        profile.candidateProfileId())).isEmpty();
+    assertThat(candidateProfileService().listCandidateProfileFields(
+        ORG_B,
+        profile.candidateProfileId())).isEmpty();
     assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
     assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
+  }
+
+  @Test
+  void failingCandidateProfileWriteRollsBackWorkflowAuditFromGovernedIntake()
+      throws SQLException {
+    ClaimId claimId = insertAllowedGovernedClaim("rollback-e2e");
+    ReviewEventId reviewEventId = appendReviewEvent(
+        claimId,
+        RiskTier.T2_MEDIUM_RISK,
+        "approved governed-intake fixture before induced profile write failure");
+    PersistedClaim claimBeforeCanonical = findClaim(claimId);
+    PersistedReviewEvent reviewBeforeCanonical = findReview(reviewEventId);
+    CandidateProfile existingProfile = createCandidateProfile(
+        deterministicUuid("rollback-e2e-candidate"),
+        2);
+    CandidateProfileId missingProfileId = new CandidateProfileId(
+        deterministicUuid("rollback-e2e-missing-profile"));
+    IntakeCanonicalWriteBridgeRequest request = canonicalRequest(
+        ORG_A,
+        claimId,
+        reviewEventId,
+        existingProfile.candidateId().value(),
+        missingProfileId,
+        VerificationStatus.CONSULTANT_ATTESTED,
+        RiskTier.T2_MEDIUM_RISK,
+        "induce candidate profile write failure after allowed canonical audit");
+
+    assertThatThrownBy(() -> canonicalBridgeService().bridge(request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("candidate profile not found in organization");
+
+    assertThat(countWorkflowEventsForClaim(claimId)).isZero();
+    assertThat(candidateProfileService().listCandidateProfileFields(
+        ORG_A,
+        existingProfile.candidateProfileId())).isEmpty();
+    assertThat(findClaim(claimId)).isEqualTo(claimBeforeCanonical);
+    assertThat(findReview(reviewEventId)).isEqualTo(reviewBeforeCanonical);
   }
 
   @Test

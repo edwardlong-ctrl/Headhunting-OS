@@ -57,14 +57,25 @@ Task 5: Governed Intake Minimal Slice ✅
 Task 5 is a safe minimal slice only: no real AI, no canonical persistence, no
 CandidateProfile persistence, no API/UI, and no client exposure.
 
+Task 6: Candidate Canonical Profile ✅
+
+- 6A: CandidateProfile contracts and field status vocabulary ✅
+- 6B: backend-internal CandidateProfile persistence skeleton ✅
+- 6C: real CanonicalWriteTransactionBoundary rollback behavior ✅
+- 6D: first gated minimal CandidateProfile field write path ✅
+- 6E: lineage / stale / conflict metadata persistence hardening ✅
+- 6F: CandidateProfile regression and documentation closure ✅
+
+Task 6 is a safe minimal backend slice only: governed-intake ClaimLedgerItem
+plus ReviewEvent evidence can reach CanonicalWriteGate, run through the
+transaction boundary, append WorkflowEvent audit, and write exactly one explicit
+CandidateProfile field when the gate allows. Lineage, source-span, stale, and
+conflict metadata are regression-covered for the backend-internal profile
+surface. There is still no Client-safe projection, no REST/API/controller/DTO/UI,
+no RBAC/ABAC, no Consent/Disclosure, no real AI extraction, no stale detection
+engine, no conflict resolution workflow, and no full CandidateProfile engine.
+
 ## Next Tasks
-
-Task 6: Candidate Canonical Profile
-
-- profile field status
-- source lineage
-- stale/conflict metadata
-- real canonical profile persistence only after transaction boundary is hardened
 
 Task 7: Client-safe Projection & Privacy Boundary
 

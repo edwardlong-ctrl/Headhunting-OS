@@ -173,6 +173,10 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
     assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED);
     assertThat(CandidateProfileFieldStatusPolicy.isVerifiedFactEligible(field.fieldStatus()))
         .isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.isClientFactEligible(field.fieldStatus()))
+        .isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.isTransactionReadyEligible(field.fieldStatus()))
+        .isFalse();
     assertThat(field.lineage().sourceReferences())
         .extracting(CandidateProfileFieldSourceReference::sourceType)
         .containsExactly(CandidateProfileFieldSourceType.SOURCE_SPAN);
@@ -180,6 +184,7 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
     assertThat(field.conflict().hasMultipleSourceBackedValues()).isTrue();
     assertThat(field.staleness()).isNotNull();
     assertThat(field.staleness().stale()).isTrue();
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED);
     assertThat(field.sourceClaimId()).isNotNull();
     assertThat(field.sourceReviewEventId()).isNotNull();
     assertThat(rawFieldStatusMap(profile.candidateProfileId()))
@@ -230,6 +235,12 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
         .getFirst();
 
     assertThat(reloaded).isEqualTo(field);
+    assertThat(reloaded.value()).isEqualTo(CandidateProfileFieldValue.ofString(
+        "55000 RMB monthly"));
+    assertThat(CandidateProfileFieldStatusPolicy.isVerifiedFactEligible(reloaded.fieldStatus()))
+        .isFalse();
+    assertThat(CandidateProfileFieldStatusPolicy.blocksClientVisibleFactStatement(
+        reloaded.fieldStatus())).isTrue();
     assertThat(reloaded.lineage().sourceReferences())
         .extracting(CandidateProfileFieldSourceReference::sourceType)
         .containsExactly(
@@ -258,6 +269,11 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
     assertThat(reloaded.conflict().severity()).isEqualTo(CandidateProfileFieldConflictSeverity.BLOCKING);
     assertThat(reloaded.conflict().resolutionStatus())
         .isEqualTo(CandidateProfileFieldConflictResolutionStatus.NEEDS_REVIEW);
+    assertThat(reloaded.conflict().conflictingValues())
+        .extracting(CandidateProfileFieldConflictValue::value)
+        .containsExactly(
+            CandidateProfileFieldValue.ofString("45000 RMB monthly"),
+            CandidateProfileFieldValue.ofString("55000 RMB monthly"));
     assertThat(service().listCandidateProfileFields(ORG_B, profile.candidateProfileId()))
         .isEmpty();
 

@@ -4,6 +4,7 @@
 
 - Task 6D adds the first real but minimal canonical CandidateProfile field write path.
 - Task 6E hardens CandidateProfile lineage, stale, and conflict metadata persistence for that field-write surface.
+- Task 6F regression-covers and documents the completed minimal Task 6 path.
 - The write path exists only through `CanonicalWriteService` after `CanonicalWriteGate` allows the request.
 - `CanonicalWriteTransactionBoundary` wraps the allowed WorkflowEvent audit and CandidateProfile field write.
 - `canonicalPersistencePerformed=true` now means the minimal CandidateProfile field upsert succeeded.
@@ -12,6 +13,7 @@
 - Task 6A defines CandidateProfile domain contracts and field vocabulary.
 - Task 6B implements backend-internal CandidateProfile persistence.
 - Task 6C hardens the canonical write transaction boundary.
+- Task 6F proves the current safe chain from ClaimLedgerItem + ReviewEvent evidence to gated transaction-boundary audit/profile write, plus gate-blocked no-write behavior, rollback no-partial-write behavior, wrong-organization isolation, and no client/API/UI/projection exposure.
 - Full CandidateProfile behavior, broad field families, conflict resolution, stale detection, API/UI exposure, client-safe projection, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
 
 ## Transaction Boundary Hardened; Full Canonical Flow Still Deferred
@@ -43,12 +45,13 @@
 - Task 6E preserves lineage for auditability and uncertainty only; lineage does not resolve proof, create facts, trigger profile writes, or mutate source records.
 - Task 6E preserves stale metadata and validates stale reason/time-range consistency, but it does not implement stale detection or background refresh.
 - Task 6E preserves conflict metadata and requires source-backed conflict evidence for `CONFLICTING`, but it does not resolve conflicts, overwrite canonical value automatically, or implement reviewer decision flow.
+- Task 6F adds regression closure that lineage is persisted/read back without becoming proof by itself, stale metadata persists without a stale detection engine, and conflict metadata persists without automatic conflict resolution or canonical value overwrite.
 - ClaimLedgerItem remains claim input, not fact by itself.
 - ReviewEvent remains review evidence, not fact promotion by itself.
 - Task 6D allows governed-intake ClaimLedgerItem plus ReviewEvent evidence to flow to one explicit CandidateProfile field only after `CanonicalWriteGate` allows it and `CanonicalWriteService` runs the transaction boundary.
 - Low-authority governed-intake placeholder claims remain blocked by the existing gate and do not write CandidateProfile.
 - Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
-- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6E.
+- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6F.
 
 ## Consent / Disclosure Not Implemented
 
@@ -108,7 +111,7 @@
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6D adds one gated CandidateProfile field write and Task 6E hardens that field's metadata persistence; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
 ## Client-safe Projection Not Implemented
 
