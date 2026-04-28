@@ -30,6 +30,7 @@
 - Task 6B current worktree: adds backend-internal CandidateProfile persistence skeleton with a narrow `CandidateProfilePersistencePort`, `CandidateProfileService`, `JdbcCandidateProfilePersistencePort`, explicit create/read/field-upsert methods, and reuse of the existing `recruiting.candidate_profile` table.
 - Task 6C current worktree: hardens `CanonicalWriteTransactionBoundary` from a no-op skeleton into a Spring `PlatformTransactionManager` / `TransactionTemplate` boundary with real JDBC transaction coordination and rollback coverage, while keeping `CanonicalWriteService` gate/audit-only.
 - Task 6D current worktree: adds the first minimal governed-intake allowed canonical CandidateProfile field write path from ClaimLedgerItem plus ReviewEvent evidence through `IntakeCanonicalWriteBridgeService`, mandatory `CanonicalWriteGate`, `CanonicalWriteTransactionBoundary`, WorkflowEvent audit, and one explicit CandidateProfile field upsert.
+- Task 6E current worktree: hardens CandidateProfile lineage, stale, and conflict metadata validation and persistence without adding API/UI exposure, client-safe projection, conflict resolution, stale detection, or a broad CandidateProfile engine.
 
 ## Current Test State
 
@@ -48,6 +49,7 @@
 - Task 6B adds focused unit and PostgreSQL/Testcontainers coverage for CandidateProfile create request validation, field upsert validation, bulk-approval limits, HUMAN_ACKNOWLEDGED and SYSTEM_INFERENCE non-verified persistence, candidate/external verification lineage requirements, Flyway reuse of the existing V2 `recruiting.candidate_profile` table, organization-scoped profile/candidate lookup, field path/value/status/lineage/conflict/staleness readback, and absence of ClaimLedger/ReviewEvent/CanonicalWrite/governed-intake/API/UI wiring.
 - Task 6C adds focused unit coverage for successful transaction callback commit/result preservation, runtime rollback propagation, checked-exception rollback wrapping, and no business logic inside the transaction boundary. It also adds PostgreSQL/Testcontainers coverage proving WorkflowEvent append commit, WorkflowEvent append rollback, CanonicalWriteService allowed audit behavior with `canonicalPersistencePerformed=false`, blocked-path behavior, no CandidateProfile write from CanonicalWriteService, and independent CandidateProfileService persistence.
 - Task 6D adds focused unit and PostgreSQL/Testcontainers coverage proving gate-blocked governed-intake attempts do not write CandidateProfile, allowed fixtures write exactly one explicit CandidateProfile field with field status and ClaimLedgerItem/ReviewEvent/WorkflowEvent lineage, `canonicalPersistencePerformed=true` only after field persistence succeeds, WorkflowEvent audit and CandidateProfile field upsert share the Spring transaction boundary, rollback prevents partial audit/profile writes, repeated identical attempts remain idempotent, low-authority placeholder claims remain blocked, and ClaimLedgerItem/ReviewEvent rows remain unchanged.
+- Task 6E adds focused unit and PostgreSQL/Testcontainers coverage for full CandidateProfile field lineage readback, blank lineage ref rejection, stale metadata reason/time-range validation, source-backed conflict metadata validation for `CONFLICTING` fields, conflict severity/resolution vocabulary, non-fact status invariants, organization-scoped metadata visibility, and governed-intake source-span preservation in the minimal allowed canonical write path.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -135,6 +137,11 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - Task 6C adds real transaction coordination only.
 - Task 6D adds the first real but minimal canonical CandidateProfile field write: governed-intake ClaimLedgerItem remains claim input, ReviewEvent remains review evidence, `CanonicalWriteGate` must allow the request, and `CanonicalWriteService` persists one explicit CandidateProfile field through `CandidateProfileService` inside the same transaction as the allowed WorkflowEvent audit.
 - Task 6D does not infer fields from arbitrary claim text, does not treat placeholder metadata as business facts, does not mutate ClaimLedger verification status, and does not mutate ReviewEvent.
+- Task 6E keeps CandidateProfile field metadata in the existing `metadata.candidate_profile_fields` JSONB shape and preserves lineage, stale, and conflict metadata for auditability and uncertainty preservation.
+- Task 6E lineage can preserve ClaimLedgerItem, ReviewEvent, WorkflowEvent, SourceItem, InformationPacket, IntakeExtractionRun, source span, and external evidence references. Lineage is not proof by itself and does not query or mutate upstream records.
+- Task 6E allows stale metadata to coexist with non-`STALE` statuses as historical/audit metadata, but validates stale reason and impossible timestamp ranges. It does not implement a stale detection engine or background refresh workflow.
+- Task 6E requires `CONFLICTING` fields to carry source-backed conflict metadata for the same field. Conflict metadata does not resolve conflicts, overwrite canonical values, or start reviewer decision flow.
+- Task 6E aligns `CanonicalWriteService` so the minimal allowed CandidateProfile field lineage preserves the governed-intake claim source-span reference when available, while `CandidateProfileCanonicalWriteTarget` remains a single-field target with field path, value, status, and profile id only.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
 
 ## Current Non-capabilities
@@ -164,5 +171,5 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Client-safe projection.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6D adds the first minimal gated CandidateProfile write, while downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6D adds the first minimal gated CandidateProfile write, and Task 6E hardens its metadata persistence. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

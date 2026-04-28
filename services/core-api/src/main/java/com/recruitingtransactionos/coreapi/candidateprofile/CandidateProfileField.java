@@ -31,7 +31,13 @@ public record CandidateProfileField(
       throw new IllegalArgumentException("lineage must contain at least one source reference");
     }
     notes = CandidateProfileGuards.optionalNonBlank(notes, "notes");
-    requireStatusInvariants(fieldStatus, lineage, confirmedByActorId, confirmedAgainstProfileVersion);
+    requireStatusInvariants(
+        fieldPath,
+        fieldStatus,
+        lineage,
+        conflict,
+        confirmedByActorId,
+        confirmedAgainstProfileVersion);
   }
 
   public static Builder builder() {
@@ -39,10 +45,20 @@ public record CandidateProfileField(
   }
 
   private static void requireStatusInvariants(
+      CandidateProfileFieldPath fieldPath,
       CandidateProfileFieldStatus fieldStatus,
       CandidateProfileFieldLineage lineage,
+      CandidateProfileFieldConflict conflict,
       UUID confirmedByActorId,
       CandidateProfileVersion confirmedAgainstProfileVersion) {
+    if (fieldStatus == CandidateProfileFieldStatus.CONFLICTING
+        && (conflict == null || !conflict.hasMultipleSourceBackedValues())) {
+      throw new IllegalArgumentException(
+          "conflicting field requires source-backed conflict metadata");
+    }
+    if (conflict != null && !conflict.fieldPath().equals(fieldPath)) {
+      throw new IllegalArgumentException("conflict fieldPath must match fieldPath");
+    }
     if (fieldStatus == CandidateProfileFieldStatus.CANDIDATE_CONFIRMED
         && (confirmedByActorId == null || confirmedAgainstProfileVersion == null)) {
       throw new IllegalArgumentException(

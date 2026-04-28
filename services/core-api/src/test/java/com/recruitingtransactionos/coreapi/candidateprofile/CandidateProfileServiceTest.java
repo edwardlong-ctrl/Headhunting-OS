@@ -7,7 +7,12 @@ import com.recruitingtransactionos.coreapi.candidateprofile.port.CandidateProfil
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.UpsertCandidateProfileFieldRequest;
+import com.recruitingtransactionos.coreapi.governedintake.InformationPacketId;
+import com.recruitingtransactionos.coreapi.governedintake.IntakeExtractionRunId;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -188,6 +193,61 @@ class CandidateProfileServiceTest {
     }
   }
 
+  @Test
+  void upsertAcceptsFullLineageStaleAndConflictMetadataWhenValid() {
+    RecordingCandidateProfilePort port = new RecordingCandidateProfilePort();
+    CandidateProfileService service = new CandidateProfileService(port);
+    ClaimId claimId = new ClaimId(UUID.fromString("00000000-0000-0000-0000-000000280111"));
+    ReviewEventId reviewEventId = new ReviewEventId(
+        UUID.fromString("00000000-0000-0000-0000-000000280112"));
+    WorkflowEventId workflowEventId = new WorkflowEventId(
+        UUID.fromString("00000000-0000-0000-0000-000000280113"));
+
+    CandidateProfileField field = service.upsertCandidateProfileField(fieldRequestBuilder()
+        .fieldPath(CandidateProfileFieldPath.COMPENSATION_EXPECTED_SALARY)
+        .value(CandidateProfileFieldValue.ofString("55000 RMB monthly"))
+        .fieldStatus(CandidateProfileFieldStatus.CONFLICTING)
+        .lineage(fullLineage(claimId, reviewEventId, workflowEventId))
+        .conflict(conflict(CandidateProfileFieldPath.COMPENSATION_EXPECTED_SALARY))
+        .staleness(staleness())
+        .sourceClaimId(claimId)
+        .sourceReviewEventId(reviewEventId)
+        .sourceWorkflowEventId(workflowEventId)
+        .build());
+
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.CONFLICTING);
+    assertThat(field.lineage().sourceReferences())
+        .extracting(CandidateProfileFieldSourceReference::sourceType)
+        .contains(
+            CandidateProfileFieldSourceType.CLAIM_LEDGER_ITEM,
+            CandidateProfileFieldSourceType.REVIEW_EVENT,
+            CandidateProfileFieldSourceType.WORKFLOW_EVENT,
+            CandidateProfileFieldSourceType.SOURCE_ITEM,
+            CandidateProfileFieldSourceType.INFORMATION_PACKET,
+            CandidateProfileFieldSourceType.INTAKE_EXTRACTION_RUN,
+            CandidateProfileFieldSourceType.SOURCE_SPAN,
+            CandidateProfileFieldSourceType.EXTERNAL_EVIDENCE);
+    assertThat(field.conflict().severity()).isEqualTo(CandidateProfileFieldConflictSeverity.HIGH);
+    assertThat(field.conflict().resolutionStatus())
+        .isEqualTo(CandidateProfileFieldConflictResolutionStatus.UNRESOLVED);
+    assertThat(field.staleness().stale()).isTrue();
+    assertThat(port.upsertedFields()).containsExactly(field);
+  }
+
+  @Test
+  void upsertRejectsInvalidMetadataBeforePersistencePortIsCalled() {
+    RecordingCandidateProfilePort port = new RecordingCandidateProfilePort();
+    CandidateProfileService service = new CandidateProfileService(port);
+
+    assertThatThrownBy(() -> service.upsertCandidateProfileField(fieldRequestBuilder()
+        .fieldStatus(CandidateProfileFieldStatus.CONFLICTING)
+        .conflict(null)
+        .build()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("conflicting field requires source-backed conflict metadata");
+    assertThat(port.upsertedFields()).isEmpty();
+  }
+
   private static UpsertCandidateProfileFieldRequest.Builder fieldRequestBuilder() {
     return UpsertCandidateProfileFieldRequest.builder()
         .organizationId(ORGANIZATION_ID)
@@ -219,6 +279,68 @@ class CandidateProfileServiceTest {
             "external_evidence",
             NOW)),
         "external-test-lineage",
+        NOW);
+  }
+
+  private static CandidateProfileFieldLineage fullLineage(
+      ClaimId claimId,
+      ReviewEventId reviewEventId,
+      WorkflowEventId workflowEventId) {
+    return new CandidateProfileFieldLineage(
+        List.of(
+            CandidateProfileFieldSourceReference.claimLedgerItem(claimId, NOW),
+            CandidateProfileFieldSourceReference.reviewEvent(reviewEventId, NOW),
+            CandidateProfileFieldSourceReference.workflowEvent(workflowEventId, NOW),
+            CandidateProfileFieldSourceReference.sourceItem(
+                new SourceItemId(UUID.fromString("00000000-0000-0000-0000-000000280114")),
+                NOW),
+            CandidateProfileFieldSourceReference.informationPacket(
+                new InformationPacketId(UUID.fromString("00000000-0000-0000-0000-000000280115")),
+                NOW),
+            CandidateProfileFieldSourceReference.intakeExtractionRun(
+                new IntakeExtractionRunId(UUID.fromString("00000000-0000-0000-0000-000000280116")),
+                NOW),
+            CandidateProfileFieldSourceReference.sourceSpan(
+                "span:service-test:compensation.expected_salary",
+                "consultant_call",
+                NOW),
+            CandidateProfileFieldSourceReference.externalEvidence(
+                "external-reference:market-comp:280117",
+                "external_evidence",
+                NOW)),
+        "service-test-full-lineage",
+        NOW);
+  }
+
+  private static CandidateProfileFieldConflict conflict(CandidateProfileFieldPath fieldPath) {
+    return new CandidateProfileFieldConflict(
+        fieldPath,
+        List.of(
+            new CandidateProfileFieldConflictValue(
+                CandidateProfileFieldValue.ofString("45000 RMB monthly"),
+                List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                    "span:service-test:conflict-a",
+                    "resume",
+                    NOW))),
+            new CandidateProfileFieldConflictValue(
+                CandidateProfileFieldValue.ofString("55000 RMB monthly"),
+                List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                    "span:service-test:conflict-b",
+                    "consultant_call",
+                    NOW)))),
+        CandidateProfileFieldConflictSeverity.HIGH,
+        CandidateProfileFieldConflictResolutionStatus.UNRESOLVED,
+        NOW,
+        "service test conflict metadata");
+  }
+
+  private static CandidateProfileFieldStaleness staleness() {
+    return new CandidateProfileFieldStaleness(
+        true,
+        "compensation data must be reconfirmed before client-visible use",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2026-02-01T00:00:00Z"),
+        Instant.parse("2026-05-05T00:00:00Z"),
         NOW);
   }
 

@@ -6,6 +6,8 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldPath;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldSourceReference;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldSourceType;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
@@ -195,6 +197,21 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
     assertThat(field.sourceClaimId()).isEqualTo(claimId);
     assertThat(field.sourceReviewEventId()).isEqualTo(reviewEventId);
     assertThat(field.sourceWorkflowEventId()).isEqualTo(result.workflowEventId());
+    assertThat(field.lineage().sourceReferences())
+        .extracting(CandidateProfileFieldSourceReference::sourceType)
+        .contains(
+            CandidateProfileFieldSourceType.CLAIM_LEDGER_ITEM,
+            CandidateProfileFieldSourceType.REVIEW_EVENT,
+            CandidateProfileFieldSourceType.WORKFLOW_EVENT,
+            CandidateProfileFieldSourceType.SOURCE_SPAN);
+    assertThat(field.lineage().sourceReferences().stream()
+        .filter(reference -> reference.sourceType() == CandidateProfileFieldSourceType.SOURCE_SPAN)
+        .map(CandidateProfileFieldSourceReference::sourceId)
+        .findFirst()
+        .orElseThrow())
+        .contains("intake.extraction_run:")
+        .contains("intake.information_packet:")
+        .contains("intake.source_item:");
   }
 
   @Test

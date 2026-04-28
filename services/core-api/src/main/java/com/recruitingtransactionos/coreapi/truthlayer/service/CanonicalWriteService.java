@@ -125,6 +125,12 @@ public final class CanonicalWriteService {
   private static CandidateProfileFieldLineage lineage(
       CanonicalWriteCommand command,
       WorkflowEventAppendResult auditResult) {
+    String sourceSpanRef = command.sourceSpanRef() == null
+        ? command.proposedValueRef()
+        : command.sourceSpanRef();
+    String sourceSpanTrust = command.sourceSpanRef() == null
+        ? "canonical_write_requested_value_ref"
+        : "claim_source_span_ref";
     return new CandidateProfileFieldLineage(
         List.of(
             CandidateProfileFieldSourceReference.claimLedgerItem(
@@ -137,8 +143,8 @@ public final class CanonicalWriteService {
                 auditResult.workflowEventId(),
                 command.occurredAt()),
             CandidateProfileFieldSourceReference.sourceSpan(
-                command.proposedValueRef(),
-                "canonical_write_requested_value_ref",
+                sourceSpanRef,
+                sourceSpanTrust,
                 command.occurredAt())),
         "canonical-write-service",
         command.occurredAt());

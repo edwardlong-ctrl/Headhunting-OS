@@ -263,6 +263,7 @@ ReviewEvent remains review evidence rather than fact promotion.
 - Bulk approve maps to `HUMAN_ACKNOWLEDGED` at most and cannot produce `CANDIDATE_CONFIRMED` or `EXTERNAL_VERIFIED`.
 - Lineage references can name ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, WorkflowEvent, source spans, and external evidence. These references support auditability but are not proof by themselves.
 - Conflict and staleness metadata only describe conflict/stale state. They do not implement conflict resolution, stale detection, profile mutation, workflow transitions, or fact promotion.
+- Task 6E hardens metadata validation: blank lineage references are rejected, stale metadata must be internally consistent, and `CONFLICTING` fields require source-backed conflict metadata. This preserves uncertainty semantics without promoting claims to facts.
 - Task 6B adds persistence as a separate backend-internal service/port/adapter layer; the domain contracts remain independent of JDBC, Spring Data, API, UI, CanonicalWrite, governed-intake bridge, and client-safe projection concerns.
 
 ## CandidateProfile Persistence
@@ -272,9 +273,10 @@ ReviewEvent remains review evidence rather than fact promotion.
 - `CandidateProfilePersistencePort` is narrow: create profile, find by organization-scoped profile id, find latest profile by organization-scoped candidate id, upsert one field, and list fields for one organization-scoped profile.
 - `JdbcCandidateProfilePersistencePort` uses plain JDBC/DataSource and reuses the existing V2 `recruiting.candidate_profile` table.
 - `JdbcCandidateProfilePersistencePort` participates in Spring-managed transactions through transaction-aware JDBC connection handling.
-- No new migration, table, index, client-facing view, API DTO table, or competing CandidateProfile table was added in Task 6B.
+- No new migration, table, index, client-facing view, API DTO table, or competing CandidateProfile table was added in Task 6B or Task 6E.
 - `field_status_map` stores field path to status wire value.
 - `metadata.candidate_profile_fields` stores field value JSON, lineage, conflict metadata, staleness metadata, review timestamps, actor/profile-version confirmation references, source claim id, source review event id, source workflow event id, and notes.
+- Task 6E confirms this JSONB metadata preserves ClaimLedgerItem, ReviewEvent, WorkflowEvent, SourceItem, InformationPacket, IntakeExtractionRun, source-span, external-evidence, stale, and conflict metadata across write/read without changing the shape into a new table or client-facing view.
 - `source_claim_ids` stores a summary of field source ClaimLedgerItem ids where a field carries them.
 - Create requires a matching `recruiting.candidate` row in the same organization before inserting a profile row; the adapter does not insert or update raw `recruiting.candidate`.
 - Profile id and candidate id lookups are organization-scoped.
@@ -283,6 +285,7 @@ ReviewEvent remains review evidence rather than fact promotion.
 - Bulk approval remains capped below `CANDIDATE_CONFIRMED` and `EXTERNAL_VERIFIED`.
 - This service does not evaluate ClaimLedgerItem or ReviewEvent, does not promote claims, does not mutate ClaimLedger verification status, does not mutate ReviewEvent, does not call `CanonicalWriteGate`, and does not call `CanonicalWriteService`.
 - Task 6D reaches this service only from `CanonicalWriteService` after the gate allows an explicit CandidateProfile field target.
+- Task 6E does not make metadata self-executing: lineage is not proof by itself, stale metadata does not run stale detection, and conflict metadata does not resolve conflicts or overwrite canonical values.
 - This service is not a REST/API/controller/DTO/UI surface and is not reachable from Client.
 - This service does not expose raw Candidate/Profile to Client, does not implement ClientSafeCandidateCard, does not implement client-safe projection/redaction, does not implement RBAC/ABAC, and does not implement Consent/Disclosure.
 - This service does not wire AI models, perform real AI extraction, parse CV/JD/WeChat/email/call-note content, implement workflow engine behavior, or validate transition legality.
@@ -372,7 +375,8 @@ ReviewEvent remains review evidence rather than fact promotion.
 - If the command has no CandidateProfile target, canonical persistence remains deferred and `canonicalPersistencePerformed=false`.
 - If the command has an explicit `CandidateProfileCanonicalWriteTarget`, the service writes exactly that one requested CandidateProfile field through `CandidateProfileService` after the gate allows and returns `canonicalPersistencePerformed=true` only after the upsert succeeds.
 - Gate-blocked and review-blocked attempts do not call `CandidateProfileService`.
-- The profile field lineage carries ClaimLedgerItem id, ReviewEvent id, WorkflowEvent id, and the requested value reference when available.
+- The profile field lineage carries ClaimLedgerItem id, ReviewEvent id, WorkflowEvent id, and the source-span reference when available; Task 6E aligns the governed-intake bridge so the original governed-intake source-span lineage is preserved.
+- `CandidateProfileCanonicalWriteTarget` remains narrow: profile id, field path, value, and status only. It is not a broad mapping engine or multi-field update API.
 - The service does not mutate ClaimLedgerItem, mutate ReviewEvent, infer fields from arbitrary claim text, create raw Candidate/Profile records, or expose API/UI behavior.
 
 ## Transaction Boundary
@@ -400,10 +404,11 @@ ReviewEvent remains review evidence rather than fact promotion.
 - Do not treat Task 6B CandidateProfile persistence as governed-intake automatic writes, `CanonicalWriteService` writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, real canonical write flow, raw Candidate writes, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, or transition legality validation.
 - Do not treat Task 6C transaction hardening as governed-intake automatic writes, `CanonicalWriteService` CandidateProfile writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, ReviewEvent mutation, ClaimLedger verification mutation, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, AI model wiring, real AI extraction, workflow engine, or transition legality validation.
 - Do not treat Task 6D as full CandidateProfile implementation, broad profile update API, client-safe projection, raw Candidate/Profile exposure, RBAC/ABAC, Consent/Disclosure, AI model wiring, real AI extraction, workflow engine, transition legality validation, or cleanup/deprecation/migration of earlier `recruiting.*` source/packet tables.
+- Do not treat Task 6E as ClientSafeCandidateCard, client-safe projection/redaction, CandidateProfile API/controller/DTO/UI, RBAC/ABAC, Consent/Disclosure, real AI extraction, semantic parsing, stale detection engine, conflict resolution workflow, full CandidateProfile engine, broad profile update API, `CanonicalWriteGate` bypass, ClaimLedger verification mutation, ReviewEvent mutation, or fact promotion.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
-- Do not treat `CanonicalWriteService` as a broad CandidateProfile implementation; Task 6D only allows the one explicit minimal field write after the gate allows.
+- Do not treat `CanonicalWriteService` as a broad CandidateProfile implementation; Task 6D only allows the one explicit minimal field write after the gate allows, and Task 6E only hardens metadata persistence for that path.
 - Do not treat `WorkflowEventService` as workflow engine.
 - Do not treat `WorkflowTransitionAuditService` as a workflow engine, state machine, SLA engine, automation engine, entity mutator, entity repository, API, or UI.
 - Do not treat Task 4D transition audit validation as legal `from_state -> to_state` validation.

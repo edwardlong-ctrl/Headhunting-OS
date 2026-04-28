@@ -20,6 +20,7 @@ public record CanonicalWriteCommand(
     Integer targetEntityVersion,
     String targetFieldPath,
     String proposedValueRef,
+    String sourceSpanRef,
     CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget,
     ClaimId claimId,
     ClaimInput claim,
@@ -41,6 +42,7 @@ public record CanonicalWriteCommand(
     Objects.requireNonNull(targetEntity, "targetEntity must not be null");
     targetFieldPath = requireNonBlank(targetFieldPath, "targetFieldPath");
     proposedValueRef = requireNonBlank(proposedValueRef, "proposedValueRef");
+    sourceSpanRef = optionalNonBlank(sourceSpanRef, "sourceSpanRef");
     Objects.requireNonNull(claimId, "claimId must not be null");
     Objects.requireNonNull(claim, "claim must not be null");
     Objects.requireNonNull(reviewEvidence, "reviewEvidence must not be null");
@@ -64,12 +66,23 @@ public record CanonicalWriteCommand(
     return value;
   }
 
+  private static String optionalNonBlank(String value, String name) {
+    if (value == null) {
+      return null;
+    }
+    if (value.isBlank()) {
+      throw new IllegalArgumentException(name + " must not be blank");
+    }
+    return value.strip();
+  }
+
   public static final class Builder {
     private UUID organizationId;
     private EntityRef targetEntity;
     private Integer targetEntityVersion;
     private String targetFieldPath;
     private String proposedValueRef;
+    private String sourceSpanRef;
     private CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget;
     private ClaimId claimId;
     private ClaimInput claim;
@@ -111,6 +124,11 @@ public record CanonicalWriteCommand(
 
     public Builder proposedValueRef(String proposedValueRef) {
       this.proposedValueRef = proposedValueRef;
+      return this;
+    }
+
+    public Builder sourceSpanRef(String sourceSpanRef) {
+      this.sourceSpanRef = sourceSpanRef;
       return this;
     }
 
@@ -218,6 +236,7 @@ public record CanonicalWriteCommand(
           targetEntityVersion,
           targetFieldPath,
           proposedValueRef,
+          sourceSpanRef,
           candidateProfileWriteTarget,
           claimId,
           claim,

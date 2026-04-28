@@ -137,6 +137,7 @@ public final class IntakeCanonicalWriteBridgeService {
         .targetEntity(new EntityRef(request.targetEntityType(), request.targetEntityId()))
         .targetFieldPath(request.targetFieldPath())
         .proposedValueRef(proposedValueRef(request))
+        .sourceSpanRef(claim.sourceSpanReference().value())
         .candidateProfileWriteTarget(candidateProfileWriteTarget(request))
         .claimId(request.claimLedgerItemId())
         .claim(new ClaimInput(

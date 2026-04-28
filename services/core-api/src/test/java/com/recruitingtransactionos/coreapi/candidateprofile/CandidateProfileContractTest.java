@@ -262,6 +262,68 @@ class CandidateProfileContractTest {
   }
 
   @Test
+  void lineageRejectsBlankRefsIfPresent() {
+    assertThatThrownBy(() -> CandidateProfileFieldSourceReference.sourceSpan(
+        " ",
+        "resume_span",
+        NOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("sourceId must not be blank");
+
+    assertThatThrownBy(() -> CandidateProfileFieldSourceReference.externalEvidence(
+        "external-background-check:270001",
+        " ",
+        NOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("sourceTrust must not be blank");
+  }
+
+  @Test
+  void lineageCanRepresentClaimReviewWorkflowSourcePacketExtractionSpanAndExternalEvidenceRefs() {
+    CandidateProfileFieldLineage lineage = lineage(
+        CandidateProfileFieldSourceReference.claimLedgerItem(
+            new ClaimId(UUID.fromString("00000000-0000-0000-0000-000000270121")),
+            NOW),
+        CandidateProfileFieldSourceReference.reviewEvent(
+            new ReviewEventId(UUID.fromString("00000000-0000-0000-0000-000000270122")),
+            NOW),
+        CandidateProfileFieldSourceReference.workflowEvent(
+            new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-000000270123")),
+            NOW),
+        CandidateProfileFieldSourceReference.sourceItem(
+            new SourceItemId(UUID.fromString("00000000-0000-0000-0000-000000270124")),
+            NOW),
+        CandidateProfileFieldSourceReference.informationPacket(
+            new InformationPacketId(UUID.fromString("00000000-0000-0000-0000-000000270125")),
+            NOW),
+        CandidateProfileFieldSourceReference.intakeExtractionRun(
+            new IntakeExtractionRunId(UUID.fromString("00000000-0000-0000-0000-000000270126")),
+            NOW),
+        CandidateProfileFieldSourceReference.sourceSpan(
+            "span:call-note:intent:open-to-opportunities",
+            "consultant_call",
+            NOW),
+        CandidateProfileFieldSourceReference.externalEvidence(
+            "external-reference:certificate:270127",
+            "external_evidence",
+            NOW));
+
+    assertThat(lineage.sourceReferences())
+        .extracting(CandidateProfileFieldSourceReference::sourceType)
+        .containsExactly(
+            CandidateProfileFieldSourceType.CLAIM_LEDGER_ITEM,
+            CandidateProfileFieldSourceType.REVIEW_EVENT,
+            CandidateProfileFieldSourceType.WORKFLOW_EVENT,
+            CandidateProfileFieldSourceType.SOURCE_ITEM,
+            CandidateProfileFieldSourceType.INFORMATION_PACKET,
+            CandidateProfileFieldSourceType.INTAKE_EXTRACTION_RUN,
+            CandidateProfileFieldSourceType.SOURCE_SPAN,
+            CandidateProfileFieldSourceType.EXTERNAL_EVIDENCE);
+    assertThat(lineage.provenanceLabel()).isEqualTo("contract-test-lineage");
+    assertThat(lineage.createdAt()).isEqualTo(NOW);
+  }
+
+  @Test
   void conflictMetadataRepresentsMultipleSourceBackedValues() {
     CandidateProfileFieldConflict conflict = new CandidateProfileFieldConflict(
         CandidateProfileFieldPath.COMPENSATION_EXPECTED_SALARY,
@@ -287,6 +349,36 @@ class CandidateProfileContractTest {
   }
 
   @Test
+  void conflictingStatusRequiresSourceBackedConflictMetadataForSameField() {
+    assertThatThrownBy(() -> fieldBuilder()
+        .fieldStatus(CandidateProfileFieldStatus.CONFLICTING)
+        .conflict(null)
+        .build())
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("conflicting field requires source-backed conflict metadata");
+
+    CandidateProfileFieldConflict otherFieldConflict = conflict(
+        CandidateProfileFieldPath.COMPENSATION_EXPECTED_SALARY);
+    assertThatThrownBy(() -> fieldBuilder()
+        .fieldPath(CandidateProfileFieldPath.IDENTITY_FULL_NAME)
+        .fieldStatus(CandidateProfileFieldStatus.CONFLICTING)
+        .conflict(otherFieldConflict)
+        .build())
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("conflict fieldPath must match fieldPath");
+  }
+
+  @Test
+  void conflictMetadataPreservesSeverityAndResolutionStatusVocabulary() {
+    assertThat(CandidateProfileFieldConflictSeverity.HIGH.wireValue()).isEqualTo("high");
+    assertThat(CandidateProfileFieldConflictSeverity.BLOCKING.wireValue()).isEqualTo("blocking");
+    assertThat(CandidateProfileFieldConflictResolutionStatus.UNRESOLVED.wireValue())
+        .isEqualTo("unresolved");
+    assertThat(CandidateProfileFieldConflictResolutionStatus.NEEDS_REVIEW.wireValue())
+        .isEqualTo("needs_review");
+  }
+
+  @Test
   void stalenessMetadataRepresentsReasonAndReviewTiming() {
     CandidateProfileFieldStaleness staleness = new CandidateProfileFieldStaleness(
         true,
@@ -300,6 +392,56 @@ class CandidateProfileContractTest {
     assertThat(staleness.staleReason()).contains("older than current search cycle");
     assertThat(staleness.reviewBy()).isEqualTo(Instant.parse("2026-05-05T00:00:00Z"));
     assertThat(staleness.detectedAt()).isEqualTo(NOW);
+  }
+
+  @Test
+  void staleMetadataRejectsReasonlessStaleFlagAndImpossibleTimeRanges() {
+    assertThatThrownBy(() -> new CandidateProfileFieldStaleness(
+        true,
+        " ",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2026-01-02T00:00:00Z"),
+        Instant.parse("2026-02-01T00:00:00Z"),
+        NOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("staleReason must not be blank");
+
+    assertThatThrownBy(() -> new CandidateProfileFieldStaleness(
+        true,
+        "confirmation timestamp precedes the observed source timestamp",
+        Instant.parse("2026-02-01T00:00:00Z"),
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2026-03-01T00:00:00Z"),
+        NOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("lastConfirmedAt must not be before observedAt");
+
+    assertThatThrownBy(() -> new CandidateProfileFieldStaleness(
+        true,
+        "review deadline is already before stale detection",
+        Instant.parse("2025-12-01T00:00:00Z"),
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2026-04-01T00:00:00Z"),
+        NOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("reviewBy must not be before detectedAt");
+  }
+
+  @Test
+  void nonStaleStatusCanCarryStaleMetadataAsHistoricalAuditNote() {
+    CandidateProfileField field = fieldBuilder()
+        .fieldStatus(CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED)
+        .staleness(new CandidateProfileFieldStaleness(
+            true,
+            "salary source was stale before the consultant acknowledged the field",
+            Instant.parse("2025-12-01T00:00:00Z"),
+            Instant.parse("2026-01-01T00:00:00Z"),
+            Instant.parse("2026-05-05T00:00:00Z"),
+            NOW))
+        .build();
+
+    assertThat(field.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.HUMAN_ACKNOWLEDGED);
+    assertThat(field.staleness().stale()).isTrue();
   }
 
   @Test
@@ -384,6 +526,28 @@ class CandidateProfileContractTest {
   private static CandidateProfileFieldLineage lineage(
       CandidateProfileFieldSourceReference... references) {
     return new CandidateProfileFieldLineage(List.of(references), "contract-test-lineage", NOW);
+  }
+
+  private static CandidateProfileFieldConflict conflict(CandidateProfileFieldPath fieldPath) {
+    return new CandidateProfileFieldConflict(
+        fieldPath,
+        List.of(
+            new CandidateProfileFieldConflictValue(
+                CandidateProfileFieldValue.ofString("45000 RMB monthly"),
+                List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                    "span:contract-test:conflict-a",
+                    "resume",
+                    NOW))),
+            new CandidateProfileFieldConflictValue(
+                CandidateProfileFieldValue.ofString("55000 RMB monthly"),
+                List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                    "span:contract-test:conflict-b",
+                    "consultant_call",
+                    NOW)))),
+        CandidateProfileFieldConflictSeverity.HIGH,
+        CandidateProfileFieldConflictResolutionStatus.UNRESOLVED,
+        NOW,
+        "conflict metadata for contract tests");
   }
 
   private static List<Path> candidateProfileProductionFiles() throws IOException {

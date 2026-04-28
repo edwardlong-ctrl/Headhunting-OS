@@ -6,8 +6,12 @@ import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCand
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.UpsertCandidateProfileFieldRequest;
+import com.recruitingtransactionos.coreapi.governedintake.InformationPacketId;
+import com.recruitingtransactionos.coreapi.governedintake.IntakeExtractionRunId;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -191,6 +195,89 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
   }
 
   @Test
+  void upsertFieldPersistsAndReadsBackFullLineageStaleAndConflictMetadata()
+      throws SQLException {
+    CandidateId candidateId = new CandidateId(uuid("00000000-0000-0000-0000-000000290206"));
+    insertCandidate(ORG_A, candidateId);
+    ClaimId claimId = new ClaimId(uuid("00000000-0000-0000-0000-000000290111"));
+    ReviewEventId reviewEventId = new ReviewEventId(
+        uuid("00000000-0000-0000-0000-000000290112"));
+    WorkflowEventId workflowEventId = new WorkflowEventId(
+        uuid("00000000-0000-0000-0000-000000290113"));
+    UUID sourceItemId = uuid("00000000-0000-0000-0000-000000290114");
+    UUID packetId = uuid("00000000-0000-0000-0000-000000290115");
+    UUID extractionRunId = uuid("00000000-0000-0000-0000-000000290116");
+
+    CandidateProfile profile = service().createCandidateProfile(new CreateCandidateProfileRequest(
+        ORG_A,
+        candidateId,
+        new CandidateProfileVersion(6),
+        List.of()));
+    CandidateProfileField field = service().upsertCandidateProfileField(
+        fullMetadataFieldRequest(
+            profile.candidateProfileId(),
+            claimId,
+            reviewEventId,
+            workflowEventId,
+            sourceItemId,
+            packetId,
+            extractionRunId));
+
+    CandidateProfileField reloaded = service()
+        .findCandidateProfileByIdAndOrganizationId(ORG_A, profile.candidateProfileId())
+        .orElseThrow()
+        .fields()
+        .getFirst();
+
+    assertThat(reloaded).isEqualTo(field);
+    assertThat(reloaded.lineage().sourceReferences())
+        .extracting(CandidateProfileFieldSourceReference::sourceType)
+        .containsExactly(
+            CandidateProfileFieldSourceType.CLAIM_LEDGER_ITEM,
+            CandidateProfileFieldSourceType.REVIEW_EVENT,
+            CandidateProfileFieldSourceType.WORKFLOW_EVENT,
+            CandidateProfileFieldSourceType.SOURCE_ITEM,
+            CandidateProfileFieldSourceType.INFORMATION_PACKET,
+            CandidateProfileFieldSourceType.INTAKE_EXTRACTION_RUN,
+            CandidateProfileFieldSourceType.SOURCE_SPAN,
+            CandidateProfileFieldSourceType.EXTERNAL_EVIDENCE);
+    assertThat(reloaded.lineage().sourceReferences())
+        .extracting(CandidateProfileFieldSourceReference::sourceId)
+        .contains(
+            claimId.value().toString(),
+            reviewEventId.value().toString(),
+            workflowEventId.value().toString(),
+            sourceItemId.toString(),
+            packetId.toString(),
+            extractionRunId.toString(),
+            "span:postgres-test:full-lineage:compensation.expected_salary",
+            "external-reference:salary-benchmark:290117");
+    assertThat(reloaded.staleness().stale()).isTrue();
+    assertThat(reloaded.staleness().staleReason())
+        .isEqualTo("salary data must be refreshed before client-visible use");
+    assertThat(reloaded.conflict().severity()).isEqualTo(CandidateProfileFieldConflictSeverity.BLOCKING);
+    assertThat(reloaded.conflict().resolutionStatus())
+        .isEqualTo(CandidateProfileFieldConflictResolutionStatus.NEEDS_REVIEW);
+    assertThat(service().listCandidateProfileFields(ORG_B, profile.candidateProfileId()))
+        .isEmpty();
+
+    String metadata = rawMetadata(profile.candidateProfileId());
+    assertThat(metadata)
+        .contains("candidate_profile_fields")
+        .contains(claimId.value().toString())
+        .contains(reviewEventId.value().toString())
+        .contains(workflowEventId.value().toString())
+        .contains(sourceItemId.toString())
+        .contains(packetId.toString())
+        .contains(extractionRunId.toString())
+        .contains("span:postgres-test:full-lineage:compensation.expected_salary")
+        .contains("external-reference:salary-benchmark:290117")
+        .contains("salary data must be refreshed before client-visible use");
+    assertThat(rawSourceClaimIds(profile.candidateProfileId()))
+        .containsExactly(claimId.value());
+  }
+
+  @Test
   void systemInferencePersistsOnlyAsNonVerifiedInternalFieldStatus() {
     CandidateId candidateId = new CandidateId(uuid("00000000-0000-0000-0000-000000290205"));
     try {
@@ -281,6 +368,78 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
         .sourceClaimId(new ClaimId(uuid("00000000-0000-0000-0000-000000290101")))
         .sourceReviewEventId(new ReviewEventId(uuid("00000000-0000-0000-0000-000000290102")))
         .notes("persisted by CandidateProfile persistence skeleton")
+        .build();
+  }
+
+  private static UpsertCandidateProfileFieldRequest fullMetadataFieldRequest(
+      CandidateProfileId profileId,
+      ClaimId claimId,
+      ReviewEventId reviewEventId,
+      WorkflowEventId workflowEventId,
+      UUID sourceItemId,
+      UUID packetId,
+      UUID extractionRunId) {
+    CandidateProfileFieldPath fieldPath = CandidateProfileFieldPath.COMPENSATION_EXPECTED_SALARY;
+    return UpsertCandidateProfileFieldRequest.builder()
+        .organizationId(ORG_A)
+        .candidateProfileId(profileId)
+        .fieldPath(fieldPath)
+        .value(CandidateProfileFieldValue.ofString("55000 RMB monthly"))
+        .fieldStatus(CandidateProfileFieldStatus.CONFLICTING)
+        .lineage(new CandidateProfileFieldLineage(
+            List.of(
+                CandidateProfileFieldSourceReference.claimLedgerItem(claimId, NOW),
+                CandidateProfileFieldSourceReference.reviewEvent(reviewEventId, NOW),
+                CandidateProfileFieldSourceReference.workflowEvent(workflowEventId, NOW),
+                CandidateProfileFieldSourceReference.sourceItem(new SourceItemId(sourceItemId), NOW),
+                CandidateProfileFieldSourceReference.informationPacket(
+                    new InformationPacketId(packetId),
+                    NOW),
+                CandidateProfileFieldSourceReference.intakeExtractionRun(
+                    new IntakeExtractionRunId(extractionRunId),
+                    NOW),
+                CandidateProfileFieldSourceReference.sourceSpan(
+                    "span:postgres-test:full-lineage:compensation.expected_salary",
+                    "consultant_call",
+                    NOW),
+                CandidateProfileFieldSourceReference.externalEvidence(
+                    "external-reference:salary-benchmark:290117",
+                    "external_evidence",
+                    NOW)),
+            "postgres-test-full-lineage",
+            NOW))
+        .conflict(new CandidateProfileFieldConflict(
+            fieldPath,
+            List.of(
+                new CandidateProfileFieldConflictValue(
+                    CandidateProfileFieldValue.ofString("45000 RMB monthly"),
+                    List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                        "span:postgres-test:full-conflict-a",
+                        "resume",
+                        NOW))),
+                new CandidateProfileFieldConflictValue(
+                    CandidateProfileFieldValue.ofString("55000 RMB monthly"),
+                    List.of(CandidateProfileFieldSourceReference.sourceSpan(
+                        "span:postgres-test:full-conflict-b",
+                        "consultant_call",
+                        NOW)))),
+            CandidateProfileFieldConflictSeverity.BLOCKING,
+            CandidateProfileFieldConflictResolutionStatus.NEEDS_REVIEW,
+            NOW,
+            "salary conflict must remain unresolved"))
+        .staleness(new CandidateProfileFieldStaleness(
+            true,
+            "salary data must be refreshed before client-visible use",
+            NOW.minusSeconds(86400 * 90L),
+            NOW.minusSeconds(86400),
+            NOW.plusSeconds(86400 * 7L),
+            NOW))
+        .lastReviewedAt(NOW)
+        .confirmedByActorId(ACTOR_A)
+        .sourceClaimId(claimId)
+        .sourceReviewEventId(reviewEventId)
+        .sourceWorkflowEventId(workflowEventId)
+        .notes("full metadata persistence test")
         .build();
   }
 

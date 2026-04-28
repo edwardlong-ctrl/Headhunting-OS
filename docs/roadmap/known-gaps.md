@@ -1,8 +1,9 @@
 # Known Gaps
 
-## Canonical Persistence Minimal Path Exists; Full Profile Deferred
+## Canonical Persistence Minimal Path Exists; Metadata Hardened; Full Profile Deferred
 
 - Task 6D adds the first real but minimal canonical CandidateProfile field write path.
+- Task 6E hardens CandidateProfile lineage, stale, and conflict metadata persistence for that field-write surface.
 - The write path exists only through `CanonicalWriteService` after `CanonicalWriteGate` allows the request.
 - `CanonicalWriteTransactionBoundary` wraps the allowed WorkflowEvent audit and CandidateProfile field write.
 - `canonicalPersistencePerformed=true` now means the minimal CandidateProfile field upsert succeeded.
@@ -11,7 +12,7 @@
 - Task 6A defines CandidateProfile domain contracts and field vocabulary.
 - Task 6B implements backend-internal CandidateProfile persistence.
 - Task 6C hardens the canonical write transaction boundary.
-- Full CandidateProfile behavior, broad field families, API/UI exposure, client-safe projection, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
+- Full CandidateProfile behavior, broad field families, conflict resolution, stale detection, API/UI exposure, client-safe projection, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
 
 ## Transaction Boundary Hardened; Full Canonical Flow Still Deferred
 
@@ -30,6 +31,7 @@
 - Task 6B adds a backend-internal `CandidateProfileService`, `CandidateProfilePersistencePort`, and `JdbcCandidateProfilePersistencePort`.
 - Task 6B reuses the existing V2 `recruiting.candidate_profile` table and adds no new migration, table, index, client-facing view, API DTO table, or competing profile table.
 - Task 6B stores field status wire values in `field_status_map`, field values/lineage/conflict/staleness documents in `metadata.candidate_profile_fields`, and source claim id summaries in `source_claim_ids`.
+- Task 6E keeps that existing JSONB metadata shape and hardens read/write preservation for ClaimLedgerItem, ReviewEvent, WorkflowEvent, SourceItem, InformationPacket, IntakeExtractionRun, source-span, external-evidence, stale, and conflict metadata.
 - Task 6B create/read/upsert operations are organization-scoped and require the candidate row to belong to the same organization before a profile row can be created.
 - The contract covers `CandidateProfile`, `CandidateProfileId`, `CandidateId`, `CandidateProfileVersion`, `CandidateProfileField`, `CandidateProfileFieldPath`, `CandidateProfileFieldStatus`, source lineage references, conflict metadata, and staleness metadata.
 - Field statuses now include `AI_EXTRACTED`, `HUMAN_ACKNOWLEDGED`, `CONSULTANT_ATTESTED`, `CANDIDATE_CONFIRMED`, `EXTERNAL_VERIFIED`, `SYSTEM_INFERENCE`, `CONFLICTING`, `NEEDS_CONFIRMATION`, `STALE`, `UNVERIFIED`, and `LIKELY_CURRENT`.
@@ -38,12 +40,15 @@
 - `CONFLICTING` must block overwrite/client-visible verified fact statements in later tasks.
 - `NEEDS_CONFIRMATION` must block shortlist/consent/disclosure readiness in later tasks.
 - Source lineage references support auditability only; ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, and WorkflowEvent references are not proof by themselves.
+- Task 6E preserves lineage for auditability and uncertainty only; lineage does not resolve proof, create facts, trigger profile writes, or mutate source records.
+- Task 6E preserves stale metadata and validates stale reason/time-range consistency, but it does not implement stale detection or background refresh.
+- Task 6E preserves conflict metadata and requires source-backed conflict evidence for `CONFLICTING`, but it does not resolve conflicts, overwrite canonical value automatically, or implement reviewer decision flow.
 - ClaimLedgerItem remains claim input, not fact by itself.
 - ReviewEvent remains review evidence, not fact promotion by itself.
 - Task 6D allows governed-intake ClaimLedgerItem plus ReviewEvent evidence to flow to one explicit CandidateProfile field only after `CanonicalWriteGate` allows it and `CanonicalWriteService` runs the transaction boundary.
 - Low-authority governed-intake placeholder claims remain blocked by the existing gate and do not write CandidateProfile.
 - Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
-- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6D.
+- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6E.
 
 ## Consent / Disclosure Not Implemented
 
@@ -90,19 +95,20 @@
 - Task 5F now regression-covers the full safe minimal chain from `SourceItem` / `InformationPacket` through deterministic extraction output envelope, ClaimLedgerItem claim, ReviewEvent evidence, CanonicalWriteService boundary attempt, CanonicalWriteGate decision, and no canonical persistence.
 - Task 5F verifies default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate is mandatory, allowed boundary fixtures still report `canonicalPersistencePerformed=false`, and blocked canonical attempts still have no separate persisted audit ledger.
 - Task 6D adds the first minimal allowed canonical write beyond Task 5F: allowed governed-intake fixtures with an explicit existing CandidateProfile target write one field, while default low-authority placeholder claims remain blocked and non-persistent.
+- Task 6E keeps that write single-field and gated, while preserving claim, review, workflow, and governed-intake source-span lineage in CandidateProfile field metadata.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
 - `SourceItem` and `InformationPacket` are intake/provenance records, not canonical facts.
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
 - For the Task 5C, Task 5D, and Task 5E bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
 - No real AI extraction exists yet.
-- Full canonical persistence from governed intake remains future work beyond the Task 6D minimal single-field path.
+- Full canonical persistence from governed intake remains future work beyond the Task 6D/6E minimal single-field path.
 - No default-placeholder business ClaimLedger append from intake exists.
 - Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
-- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6D adds one gated CandidateProfile field write; downstream privacy/access surfaces, full profile behavior, and `recruiting.*` source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6D adds one gated CandidateProfile field write and Task 6E hardens that field's metadata persistence; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
 ## Client-safe Projection Not Implemented
 
@@ -160,5 +166,5 @@
 - No Consent/Disclosure behavior exists.
 - No RBAC/ABAC implementation exists.
 - No Client-safe projection or redaction behavior exists.
-- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write.
+- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.
