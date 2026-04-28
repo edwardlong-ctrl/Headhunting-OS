@@ -94,22 +94,27 @@ re-identification placeholder. There is still no REST/API/controller/DTO/UI,
 RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real
 redaction pipeline, automatic text rewriting, or identity disclosure behavior.
 
-## Next Tasks
-
-Task 8: Identity / RBAC / ABAC Kernel
+Task 8: Identity / RBAC / ABAC Kernel ✅
 
 - 8A: role/resource/action/field-policy contracts + evaluator skeleton ✅
 - 8B: service-level permission enforcement on minimal sensitive backend boundaries ✅
-- 8C: five-portal boundary negative tests/docs closure
+- 8C: five-portal boundary negative tests/docs closure ✅
 
 Task 8A is complete only for backend contracts and deterministic evaluator
 skeleton scope. Task 8B adds a backend-only fail-closed `PermissionEnforcer`,
 requires explicit `AccessRequest` context for client-safe projection, and adds a
-minimal raw Candidate/Profile service guard. Task 8 still adds no
-API/controller/UI, auth/login/session, Consent/Disclosure/Unlock, or
-identity-disclosure behavior. Task 8 remains open until 8C is complete.
+minimal raw Candidate/Profile service guard. Task 8C adds five-portal boundary
+negative regression tests for Owner, unified Consultant, Client, Candidate,
+Admin, System, and AI assistant. Task 8 is complete only for the current backend
+kernel scope: role/resource/action/field policy contracts, deterministic
+`PermissionEvaluator`, fail-closed `PermissionEnforcer`, sensitive backend guard
+slice, and five-portal boundary negative tests. Task 8 still adds no
+API/controller/UI, auth/login/session, Spring Security, Consent/Disclosure/Unlock,
+identity-disclosure behavior, or complete product-wide RBAC/ABAC enforcement.
 
-Task 9: API Boundary & Contract Tests
+## Next Tasks
+
+Task 9A: API Boundary & Contract Tests / no raw Candidate or CandidateProfile exposure
 
 Task 10: AITaskRun / AI Governance Skeleton
 

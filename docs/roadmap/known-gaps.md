@@ -139,7 +139,7 @@
 - No real redaction implementation exists yet.
 - Real re-identification risk scoring does not exist yet.
 
-## Task 8A / 8B Identity Access Contracts and Minimal Service Enforcement Exist
+## Task 8 Identity Access Kernel Exists for Current Backend Scope
 
 - Task 8A adds backend-only role vocabulary for Owner, unified Consultant, Client, Candidate, Admin, System, and AI assistant.
 - Task 8A adds explicit resource/action vocabulary and field-classification policy contracts for deny-by-default evaluation.
@@ -154,11 +154,16 @@
 - Task 8B updates `ClientSafeCandidateProjectionService` so projection requires an explicit `AccessRequest` before a `ClientSafeCandidateCard` can be returned.
 - Task 8B adds a minimal `CandidateProfileAccessService` facade/guard for raw Candidate/Profile reads and sensitive candidate actions before any raw CandidateProfile service delegation.
 - Task 8B proves Client raw Candidate/Profile access, PII/raw-source/consultant-private field access, L4 anonymous projection, high-risk re-identification projection, Client disclose/unlock attempts, and AI/Admin/System role-alone bypass attempts are denied at backend service boundaries.
-- Task 8C five-portal boundary negative tests/docs closure is not implemented.
-- Task 8 remains open until Task 8C is complete.
+- Task 8C adds five-portal boundary negative regression coverage for Owner, unified Consultant, Client, Candidate, Admin, System, and AI assistant.
+- Task 8C proves deny-by-default and no role-based gate bypass across raw Candidate/Profile reads, unsafe field classifications, sensitive actions, identity-disclosed/L4 anonymous access, canonical-write-like requests, disclosure/unlock requests, unknown vocabulary, and guarded service facades.
+- Task 8C proves `ClientSafeCandidateCard` remains the only Client-readable candidate-facing output at this layer, while raw Candidate and raw CandidateProfile remain denied to Client.
+- Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, `PermissionEnforcer` exists, a sensitive backend guard slice exists, and five-portal boundary negative tests exist.
 - No real auth/login/session system exists.
+- No Spring Security exists.
+- No API/controller/UI exists for this access layer.
 - No Consent/Disclosure/Unlock behavior exists.
 - No identity-disclosed Client access behavior exists.
+- No complete product-wide RBAC/ABAC enforcement exists beyond the Task 8B/8C backend guard surfaces and regression tests.
 
 ## Workflow Engine Not Implemented
 
@@ -202,7 +207,7 @@
 - No API/controller/UI integration exists for governed intake.
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure behavior exists.
-- No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B minimal projection/raw CandidateProfile guard surfaces.
+- No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
 - No Client-safe projection API/UI or redaction behavior exists.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.

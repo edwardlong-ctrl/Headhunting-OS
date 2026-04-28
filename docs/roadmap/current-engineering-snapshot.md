@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 8B worktree: `210ae49a8d426d878590796fb5c9cf9521fe34a6`
-- latest merged commit before Task 8B: Add access control contract skeleton
-- Task 8B focused worktree validation: 27 focused permission/projection boundary tests, 0 failures, 0 errors
-- merge status: Task 8B current worktree; do not self-reference the final commit here
+- main HEAD before Task 8C worktree: `494c5ec709dbad37ff1e8926e373c1337e2a3855`
+- latest merged commit before Task 8C: Enforce access checks on sensitive service boundaries
+- Task 8C focused worktree validation: five-portal boundary regression test class, 10 tests, 0 failures, 0 errors
+- merge status: Task 8C current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -25,6 +25,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 7: Client-safe Projection & Privacy Boundary ✅ for current backend kernel scope
 - Task 8A: Identity / RBAC / ABAC contract and evaluator skeleton ✅
 - Task 8B: Service-level permission enforcement on minimal sensitive backend boundaries ✅
+- Task 8C: Five-portal boundary negative tests/docs closure ✅
+- Task 8: Identity / RBAC / ABAC Kernel ✅ for current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -47,18 +49,21 @@ This file contains mutable short-term engineering state. Update it after future 
 - `PermissionEnforcer` / `AccessDeniedException` now provide a reusable backend-only fail-closed service guard that preserves `AccessDecision` reason codes and safe explanations.
 - `ClientSafeCandidateProjectionService` now requires an explicit `AccessRequest` before projecting a `ClientSafeCandidateCard`.
 - `CandidateProfileAccessService` now provides a minimal access-checked backend facade/guard for raw Candidate/Profile reads and sensitive candidate actions before delegating to profile service methods.
+- Task 8C regression coverage now proves five-portal and automation-role deny-by-default behavior across Owner, Consultant, Client, Candidate, Admin, System, and AI assistant; client-safe card remains the only Client-readable candidate-facing output at this layer; raw Candidate/CandidateProfile, unsafe fields, identity-disclosed/L4 anonymous access, sensitive actions, role-alone canonical-write/disclosure bypasses, and unknown vocabulary remain denied.
 
 ## Current Known Gaps
 
 - Task 7 is complete only for the current backend kernel scope.
 - Task 8A is complete only for backend contract/evaluator-skeleton scope.
 - Task 8B is complete only for minimal backend service-level enforcement on client-safe projection and raw Candidate/Profile guard surfaces.
-- Task 8C five-portal boundary negative tests/docs closure is not implemented.
+- Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, fail-closed `PermissionEnforcer` exists, sensitive backend guard slice exists, and five-portal boundary negative tests exist.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No API/controller/UI yet.
 - No real auth/login/session system yet.
+- No Spring Security yet.
 - No Consent/Disclosure/Unlock implementation yet.
 - No identity-disclosed Client access behavior yet.
+- No complete product-wide RBAC/ABAC enforcement yet.
 - No real redaction pipeline or automatic text rewriting yet.
 - No real AI extraction/model wiring yet.
 - No workflow engine or transition legality validation yet.
@@ -78,7 +83,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 8C: Five-portal boundary negative tests/docs closure
+Task 9A: API boundary contract tests / no raw Candidate or CandidateProfile exposure
 
 ## Future Prompt Strategy
 
