@@ -75,7 +75,7 @@
 - No identity disclosure behavior exists.
 - Known alignment skip for consent/disclosure gap remains intentional until Task 12 or earlier dedicated workstream.
 
-## Task 10A/10B AITaskRun Metadata Governance Exists; AI Execution Deferred
+## Task 10 AITaskRun Metadata Governance Exists; AI Execution Deferred
 
 - Task 10A adds minimal AITaskRun metadata auditability only.
 - `AITaskRunStatus` is now an explicit small vocabulary: `CREATED`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `CANCELLED`.
@@ -86,13 +86,13 @@
 - Task 10B adds explicit `AITaskHumanReviewStatus` vocabulary: `NOT_REQUIRED`, `REQUIRED`, `PENDING`, `APPROVED`, `REJECTED`, `NEEDS_REVISION`, and `EXPIRED`.
 - Task 10B adds `AITaskGovernancePolicy` / `AITaskGovernanceDecision` for deterministic metadata validation with safe reason codes, safe explanations, human-review-required, canonical-gate-required, and future consent/disclosure/unlock gate flags.
 - Task 10B validates AITaskRun write-back target and human-review status metadata before append; it reuses existing `write_back_target` and `human_review_status` persistence fields and adds no migration.
-- Task 10B does not call real AI/model services.
-- Task 10B does not implement model routing, prompt execution, AI task queue/worker, retries, or async execution.
-- Task 10B does not implement actual write-back execution.
-- Task 10B does not write canonical facts, mutate CandidateProfile, append ClaimLedgerItem, append ReviewEvent, or append WorkflowEvent.
-- Task 10B does not add API/controller/UI.
-- Remaining Task 10 gap: 10C governance regression/docs closure.
-- Broader AI gaps remain: no real AI model wiring, no model routing, no prompt execution, no AI task queue/worker, and no AI governance API/UI.
+- Task 10C adds regression/docs closure for the current backend kernel scope.
+- Task 10C proves AITaskRun persistence stores model/prompt/schema/task version metadata, safe status metadata, write-back target metadata, and human-review metadata only.
+- Task 10C proves AITaskRun persistence does not call real AI/model services, execute prompts, route models, enqueue workers, perform retries or async execution, execute write-back, invoke `CanonicalWriteService`, write canonical facts, mutate CandidateProfile, append ClaimLedgerItem, append ReviewEvent, or append WorkflowEvent.
+- Task 10C proves the write-back/review policy remains deterministic and fail-closed: unknown target/status deny by default, `NONE` / `NO_WRITE_BACK` remains metadata-only, claim-ledger proposal does not become fact, canonical targets require approved human review and canonical gate metadata, AI/System self-approval is denied, client-safe projection requires client-safe boundary semantics, and consent/disclosure/unlock, workflow-action, and commercial/placement targets remain blocked or future-gated.
+- Task 10C strengthens `packages/contracts/schemas/ai-task-run.schema.json` so write-back target and human-review status vocabularies are explicit metadata-only schema vocabulary, not executable write-back or approval behavior.
+- Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract exists, AITaskRun metadata persistence exists, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back, and no canonical mutation.
+- Broader AI gaps remain: no real AI model wiring, no model routing, no prompt execution, no AI task queue/worker, no retries/async execution, no actual write-back execution, no AI governance API/UI, no automatic human review workflow, and no canonical write execution from AI governance.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 

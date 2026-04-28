@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 10B worktree: `25ddd848d8927089d734bd64ab7096a887e011b8`
-- latest merged commit before Task 10B: Add AI task run governance persistence
-- Task 10B worktree validation: focused AI write-back policy/AITaskRun metadata suite, 38 tests, 0 failures/errors; full backend Maven suite, 442 tests, 0 failures/errors, 1 existing skip
-- merge status: Task 10B current worktree; do not self-reference the final commit here
+- main HEAD before Task 10C worktree: `a17b83c87e56ee8d7eb716d3bdabf7864b43f6ed`
+- latest merged commit before Task 10C: Add AI task write-back review policy
+- Task 10C worktree validation: focused AI governance regression suite, 37 tests, 0 failures/errors; full backend Maven suite, 451 tests, 0 failures/errors, 1 existing skip
+- merge status: Task 10C current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -33,6 +33,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 9: API Boundary ✅ for current backend kernel scope
 - Task 10A: AITaskRun / AI Governance Skeleton ✅
 - Task 10B: Write-back target + human review status policy ✅
+- Task 10C: AI governance regression/docs closure ✅
+- Task 10: AI Governance Kernel ✅ for current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -63,6 +65,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 9C closes the current backend API boundary scope with regression tests proving anonymous-card-only request paths, raw id rejection, fail-closed temporary access context, missing/unsupported context denial, sanitized denied/not-found/internal-error envelopes, successful DTO/envelope-only responses, no raw domain/governance type exposure in controller/facade/port/mapper surfaces, no broad/raw/disclosure/unlock/consent endpoint surface, and stricter API-visible text sanitization for DTO/error text.
 - Task 10A adds minimal AITaskRun metadata auditability: explicit `CREATED/RUNNING/SUCCEEDED/FAILED/CANCELLED` status vocabulary, task/model/prompt/schema version validation, safe failure reason validation, requested-by/correlation/causation metadata, and append/readback PostgreSQL persistence through `AITaskRunService` / `JdbcAITaskRunPort`.
 - Task 10B adds explicit AI write-back target and human-review status vocabulary plus deterministic `AITaskGovernancePolicy` decisions for metadata validation. It accepts no-write-back and claim-ledger proposal metadata, requires approved human review plus CanonicalWriteGate for canonical targets, requires client-safe boundary semantics for client-visible projection targets, and blocks consent/disclosure/unlock, workflow-action, and commercial/placement targets in this kernel.
+- Task 10C closes the current AI governance backend kernel scope with regression coverage proving AITaskRun persistence stores model/prompt/schema/task version metadata, safe status metadata, write-back target metadata, and human-review metadata only; it does not call AI/model services, execute prompts, route models, queue workers, retry/async work, execute write-back, invoke `CanonicalWriteService`, write canonical facts, mutate CandidateProfile, or append ClaimLedgerItem/ReviewEvent/WorkflowEvent rows.
+- Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract and persistence exist, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back execution, and no canonical mutation.
 
 ## Current Known Gaps
 
@@ -75,7 +79,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 9 is complete only for the current backend kernel scope: API-safe DTO/envelope contracts, one client-safe candidate-card controller boundary, fail-closed temporary access context, sanitized API error/denial responses, and API leakage regression tests.
 - Task 10A is complete only for AITaskRun governance metadata contract and append/readback persistence.
 - Task 10B is complete only for write-back target vocabulary, human-review status vocabulary, metadata-only policy decisions, and AITaskRun metadata validation.
-- Task 10 is not complete. Remaining scope is Task 10C governance regression/docs closure.
+- Task 10C is complete only for AI governance regression/docs closure.
+- Task 10 is complete only for the current backend kernel scope.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the Task 9 client-safe candidate-card read endpoint exists.
 - No real auth/login/session system yet.
@@ -85,7 +90,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - No complete product-wide RBAC/ABAC enforcement yet.
 - No real redaction pipeline or automatic text rewriting yet.
 - No real AI extraction/model wiring yet.
-- No model routing, prompt execution, AI task queue/worker, actual write-back execution, or AI governance API/UI yet.
+- No model routing, prompt execution, AI task queue/worker, actual write-back execution, automatic human review workflow, canonical write execution from AI governance, or AI governance API/UI yet.
 - No workflow engine or transition legality validation yet.
 - No stale detection engine.
 - No conflict resolution workflow.
@@ -103,7 +108,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 10C: AI governance regression/docs closure
+Task 11A: Matching / Evidence Skeleton
 
 ## Future Prompt Strategy
 

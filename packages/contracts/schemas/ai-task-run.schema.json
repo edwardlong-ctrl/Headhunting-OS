@@ -23,8 +23,37 @@
     "source_ref_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
     "target_entity_type": { "type": "string" },
     "target_entity_id": { "type": "string", "format": "uuid" },
-    "write_back_target": { "type": "string" },
-    "human_review_status": { "type": "string", "minLength": 1 },
+    "write_back_target": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_write_back",
+        "claim_ledger_proposal",
+        "review_queue",
+        "human_review_required",
+        "canonical_candidate_profile",
+        "client_safe_projection",
+        "job_profile",
+        "company_profile",
+        "consent_disclosure",
+        "workflow_action",
+        "commercial_or_placement"
+      ],
+      "$comment": "Governance metadata only. This field does not execute write-back behavior or canonical writes."
+    },
+    "human_review_status": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required",
+        "pending",
+        "approved",
+        "rejected",
+        "needs_revision",
+        "expired"
+      ],
+      "$comment": "Governance metadata only. This field records review state and does not execute approval or write-back behavior."
+    },
     "requested_by_user_id": { "type": "string", "format": "uuid" },
     "requested_by_role": { "type": "string", "enum": ["owner", "consultant", "client", "candidate", "admin", "system", "ai"] },
     "correlation_id": { "type": "string", "format": "uuid" },

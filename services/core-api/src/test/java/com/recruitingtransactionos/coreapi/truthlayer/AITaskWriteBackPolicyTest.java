@@ -84,6 +84,22 @@ class AITaskWriteBackPolicyTest {
   }
 
   @Test
+  void noneWriteBackTargetIsAlsoMetadataOnly() {
+    AITaskGovernanceDecision decision = policy.decide(request(
+        AITaskWriteBackTarget.NONE,
+        AITaskHumanReviewStatus.NOT_REQUIRED,
+        null,
+        false,
+        false));
+
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("no_write_back_metadata_only");
+    assertThat(decision.humanReviewRequired()).isFalse();
+    assertThat(decision.canonicalGateRequired()).isFalse();
+    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+  }
+
+  @Test
   void claimLedgerProposalTargetDoesNotBecomeFactOrCanonicalWrite() {
     AITaskGovernanceDecision decision = policy.decide(request(
         AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
@@ -184,6 +200,21 @@ class AITaskWriteBackPolicyTest {
   }
 
   @Test
+  void workflowActionTargetRequiresFutureGateNotImplementedHere() {
+    AITaskGovernanceDecision decision = policy.decide(request(
+        AITaskWriteBackTarget.WORKFLOW_ACTION,
+        AITaskHumanReviewStatus.APPROVED,
+        HUMAN_REVIEWER,
+        false,
+        false));
+
+    assertDenied(decision, "future_workflow_action_gate_required");
+    assertThat(decision.humanReviewRequired()).isTrue();
+    assertThat(decision.canonicalGateRequired()).isFalse();
+    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+  }
+
+  @Test
   void commercialOrPlacementTargetIsBlockedInThisKernel() {
     AITaskGovernanceDecision decision = policy.decide(request(
         AITaskWriteBackTarget.COMMERCIAL_OR_PLACEMENT,
@@ -259,6 +290,33 @@ class AITaskWriteBackPolicyTest {
         .doesNotContain("provider.Secret")
         .doesNotContain("\n")
         .doesNotContain("\tat ");
+  }
+
+  @Test
+  void policyIsDeterministicAndFailsClosedForUnknownOrMissingMetadata() {
+    AITaskGovernanceRequest unknownTarget = new AITaskGovernanceRequest(
+        "execute_canonical_write_now",
+        AITaskHumanReviewStatus.APPROVED.wireValue(),
+        HUMAN_REVIEWER,
+        true,
+        false);
+    AITaskGovernanceRequest unknownStatus = new AITaskGovernanceRequest(
+        AITaskWriteBackTarget.NO_WRITE_BACK.wireValue(),
+        "approved_by_model_router",
+        HUMAN_REVIEWER,
+        false,
+        false);
+    AITaskGovernanceRequest missingRequest = null;
+
+    AITaskGovernanceDecision targetDecision = policy.decide(unknownTarget);
+    AITaskGovernanceDecision targetDecisionAgain = policy.decide(unknownTarget);
+    AITaskGovernanceDecision statusDecision = policy.decide(unknownStatus);
+    AITaskGovernanceDecision missingDecision = policy.decide(missingRequest);
+
+    assertThat(targetDecision).isEqualTo(targetDecisionAgain);
+    assertDenied(targetDecision, "unknown_write_back_target_denied");
+    assertDenied(statusDecision, "unknown_human_review_status_denied");
+    assertDenied(missingDecision, "ai_task_governance_request_required");
   }
 
   private static AITaskGovernanceRequest request(

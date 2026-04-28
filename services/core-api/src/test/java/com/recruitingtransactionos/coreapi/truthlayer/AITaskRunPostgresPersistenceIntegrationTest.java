@@ -176,6 +176,41 @@ class AITaskRunPostgresPersistenceIntegrationTest {
   }
 
   @Test
+  void appendCanonicalTargetMetadataDoesNotExecuteWriteBackOrCreateGovernanceSideEffects()
+      throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000110301");
+    UUID requestedBy = uuid("00000000-0000-0000-0000-000000110302");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000110303");
+    insertOrganizationAndUser(organizationId, requestedBy);
+
+    AITaskRunAppendResult result = service().append(command(
+        organizationId,
+        requestedBy,
+        candidateId,
+        List.of(uuid("00000000-0000-0000-0000-000000110304")),
+        AITaskRunStatus.SUCCEEDED,
+        new WriteBackTarget(AITaskWriteBackTarget.CANONICAL_CANDIDATE_PROFILE.wireValue()),
+        AITaskHumanReviewStatus.APPROVED,
+        STARTED_AT.plusSeconds(20),
+        null));
+
+    AITaskRunRecord persisted = service().findById(organizationId, result.aiTaskRunId())
+        .orElseThrow();
+    assertThat(persisted.writeBackTarget())
+        .isEqualTo(new WriteBackTarget("canonical_candidate_profile"));
+    assertThat(persisted.humanReviewStatus()).isEqualTo("approved");
+    assertThat(persisted.model()).isEqualTo(new ModelRef("metadata-only", "no-model-call", "v0"));
+
+    assertThat(countRows("governance.ai_task_run", organizationId)).isEqualTo(1);
+    assertThat(countRows("governance.claim_ledger_item", organizationId)).isZero();
+    assertThat(countRows("governance.review_event", organizationId)).isZero();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+    assertThat(countRows("audit.audit_log", organizationId)).isZero();
+  }
+
+  @Test
   void migrationAddsOnlyAuditMetadataColumnsAndKeepsAiGovernanceApiOutOfScope()
       throws SQLException {
     assertThat(migrateResult.migrationsExecuted).isEqualTo(7);
