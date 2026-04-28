@@ -5,12 +5,29 @@
 - `CanonicalWriteService` is a gate/audit boundary, not a profile writer.
 - `canonicalPersistencePerformed=false` is intentional.
 - `recruiting.candidate` and `recruiting.candidate_profile` exist in V2, but Task 3D intentionally did not implement CandidateProfile writes.
+- Task 6A now defines CandidateProfile domain contracts and field vocabulary, but still does not implement CandidateProfile persistence.
+- `CanonicalWriteService` still does not write CandidateProfile, and Task 6A does not call `CanonicalWriteService`.
+- Task 6B or later must implement CandidateProfile persistence only after the transaction boundary hardening plan is clear.
 
 ## Transaction Boundary Skeleton
 
 - `CanonicalWriteTransactionBoundary` is currently a skeleton/abstraction.
 - It does not provide real JDBC rollback coordination.
 - Do not rely on it for multi-table atomicity yet.
+- This remains true after Task 6A; no canonical profile write should rely on this boundary until it is hardened.
+
+## CandidateProfile Contract Exists; Writes Deferred
+
+- Task 6A adds pure backend-owned CandidateProfile contract vocabulary only.
+- The contract covers `CandidateProfile`, `CandidateProfileId`, `CandidateId`, `CandidateProfileVersion`, `CandidateProfileField`, `CandidateProfileFieldPath`, `CandidateProfileFieldStatus`, source lineage references, conflict metadata, and staleness metadata.
+- Field statuses now include `AI_EXTRACTED`, `HUMAN_ACKNOWLEDGED`, `CONSULTANT_ATTESTED`, `CANDIDATE_CONFIRMED`, `EXTERNAL_VERIFIED`, `SYSTEM_INFERENCE`, `CONFLICTING`, `NEEDS_CONFIRMATION`, `STALE`, `UNVERIFIED`, and `LIKELY_CURRENT`.
+- Bulk approve remains capped at `HUMAN_ACKNOWLEDGED`; it must not produce `CANDIDATE_CONFIRMED` or `EXTERNAL_VERIFIED`.
+- `SYSTEM_INFERENCE` remains forbidden as fact and internal hint only.
+- `CONFLICTING` must block overwrite/client-visible verified fact statements in later tasks.
+- `NEEDS_CONFIRMATION` must block shortlist/consent/disclosure readiness in later tasks.
+- Source lineage references support auditability only; ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, and WorkflowEvent references are not proof by themselves.
+- ClaimLedger/ReviewEvent/GovernedIntake remain upstream evidence/claims and do not directly write CandidateProfile.
+- No CandidateProfile repository, JDBC adapter, REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6A.
 
 ## Consent / Disclosure Not Implemented
 
@@ -64,7 +81,7 @@
 - Real canonical persistence from governed intake remains future Task 6+ work.
 - No default-placeholder business ClaimLedger append from intake exists.
 - Governed intake CanonicalWrite boundary attempts exist only as a Task 5E gate/audit skeleton.
-- No CandidateProfile persistence exists from intake.
+- No CandidateProfile persistence exists from intake; Task 6A contracts do not change that.
 - No API/UI exposure exists for governed intake.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain only. CandidateProfile persistence begins in Task 6+ and downstream privacy/access surfaces remain future work.
@@ -121,6 +138,7 @@
 - No UI integration exists for WorkflowEvent audit guardrails.
 - No real AI model wiring exists for workflow actions.
 - No API/controller/UI integration exists for governed intake.
+- No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure behavior exists.
 - No RBAC/ABAC implementation exists.
 - No Client-safe projection or redaction behavior exists.

@@ -26,6 +26,7 @@
 - Task 5D current worktree: adds a backend-owned `IntakeReviewBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` rows by organization-scoped claim id and appends human review evidence only through `ReviewEventService`.
 - Task 5E current worktree: adds a backend-owned `IntakeCanonicalWriteBridgeService` skeleton that reads governed-intake-origin `ClaimLedgerItem` plus matching `ReviewEvent` evidence by organization scope and submits only a boundary attempt through `CanonicalWriteService`.
 - Task 5F current worktree: adds end-to-end PostgreSQL/Testcontainers regression coverage and documentation closure for the governed-intake minimal slice from `intake.source_item` / `intake.information_packet` through deterministic placeholder extraction, ClaimLedger claim append, ReviewEvent evidence append, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate decision, and no canonical persistence.
+- Task 6A current worktree: adds backend-owned `candidateprofile` domain contracts for the CandidateProfile aggregate concept, field path vocabulary, field status vocabulary, source lineage references, conflict metadata, staleness metadata, profile version semantics, and pure status policy helpers only.
 
 ## Current Test State
 
@@ -40,6 +41,7 @@
 - Task 5D adds focused unit and PostgreSQL/Testcontainers coverage for review bridge request validation, missing/wrong-organization claim blocking, governed-intake-only claim policy, ReviewEvent append through `ReviewEventService`, claim lineage persistence, deterministic duplicate review handling, materially different review evidence, T3/T4 human reviewer enforcement, ClaimLedger immutability, and absence of CanonicalWrite, CandidateProfile, raw Candidate/Profile, workflow, API/UI, and old `recruiting.*` use.
 - Task 5E adds focused unit and PostgreSQL/Testcontainers coverage for canonical-write bridge request validation, missing/wrong-organization ClaimLedger and ReviewEvent rejection, ReviewEvent-to-ClaimLedger lineage validation, governed-intake-only policy, CanonicalWriteService invocation, mandatory CanonicalWriteGate behavior, gate-blocked governed-intake claims, allowed boundary audit with `canonicalPersistencePerformed=false`, WorkflowEvent idempotency for repeated allowed attempts, ClaimLedger and ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile writes, no business target entity queries, no API/UI, and no old `recruiting.*` source/packet use.
 - Task 5F adds a focused end-to-end PostgreSQL/Testcontainers regression proving the safe chain: SourceItem / InformationPacket in `intake.*`, deterministic placeholder output envelope, default placeholder no-claim behavior, bridge-eligible operational fixture to ClaimLedgerItem claim, ReviewEvent evidence-not-promotion, CanonicalWriteService boundary attempt, mandatory CanonicalWriteGate block/allow behavior, `canonicalPersistencePerformed=false`, wrong-organization isolation, ClaimLedger/ReviewEvent immutability, no CandidateProfile/raw Candidate/Profile persistence, no blocked-attempt audit ledger, and no old `recruiting.*` source/packet use.
+- Task 6A adds focused unit coverage for CandidateProfile required identifiers, profile version, field path/status/value/lineage validation, stable canonical field paths, required v2.1 status vocabulary, bulk approval capped at `HUMAN_ACKNOWLEDGED`, status policy fact/readiness blockers, source lineage references to ClaimLedgerItem / ReviewEvent / SourceItem / InformationPacket / IntakeExtractionRun / WorkflowEvent / source spans, conflict/staleness metadata, and absence of CandidateProfile persistence/API/UI/canonical-write calls.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -109,13 +111,24 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
   -> `CanonicalWriteGate` decision
   -> no canonical persistence.
 - Task 5F confirms default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence and does not promote facts, low-authority governed-intake claims are gate-blocked, allowed fixtures audit only with `canonicalPersistencePerformed=false`, blocked attempts still have no separate audit ledger, and `intake.*` remains the governed-intake operational lineage while earlier `recruiting.*` source/packet skeleton cleanup remains deferred.
+- Task 6A defines the first `CandidateProfile` canonical contract vocabulary as pure backend domain objects only.
+- Task 6A CandidateProfile fields use stable `CandidateProfileFieldPath` values such as `identity.full_name`, `contact.email`, `location.current_location`, `compensation.expected_salary`, `experience.work_history`, `skills.primary_skills`, `intent.interest_level`, and `consent.latest_profile_version`.
+- Task 6A CandidateProfile field status vocabulary includes `AI_EXTRACTED`, `HUMAN_ACKNOWLEDGED`, `CONSULTANT_ATTESTED`, `CANDIDATE_CONFIRMED`, `EXTERNAL_VERIFIED`, `SYSTEM_INFERENCE`, `CONFLICTING`, `NEEDS_CONFIRMATION`, `STALE`, `UNVERIFIED`, and `LIKELY_CURRENT`.
+- `CandidateProfileFieldStatusPolicy` is pure metadata only. It marks bulk approval as `HUMAN_ACKNOWLEDGED`, treats only `CANDIDATE_CONFIRMED` and `EXTERNAL_VERIFIED` as verified fact eligible, blocks `SYSTEM_INFERENCE` and `CONFLICTING` from client-visible fact statements, and treats `NEEDS_CONFIRMATION` as not transaction-ready.
+- Task 6A lineage contracts can carry ids or refs for ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, WorkflowEvent, source spans, and external evidence. These references support auditability but are not proof by themselves and do not query or join upstream tables.
+- Task 6A conflict and staleness metadata are representational only. They do not resolve conflicts, detect stale fields, mutate profiles, or trigger workflow.
 - Canonical persistence is explicitly deferred.
 - `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
 - No endpoint/API/UI/AI wiring exists for this flow yet.
 
 ## Current Non-capabilities
 
-- No CandidateProfile canonical persistence.
+- No CandidateProfile canonical persistence; Task 6A defines contracts and vocabulary only.
+- No CandidateProfile table writes to `recruiting.candidate_profile`.
+- No raw Candidate writes to `recruiting.candidate`.
+- No CandidateProfile repository or JDBC adapter.
+- No CandidateProfile API/controller/DTO/UI.
+- No CandidateProfile client-safe projection or redaction.
 - No raw Candidate/Profile persistence.
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
@@ -136,3 +149,4 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
 - Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain only. CandidateProfile persistence, downstream privacy/access surfaces, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection, and recruiting.* source/packet cleanup remain future work.
+- Task 6B or later must implement CandidateProfile persistence only after the transaction boundary hardening plan is clear; `CanonicalWriteTransactionBoundary` still has no real JDBC rollback coordination.

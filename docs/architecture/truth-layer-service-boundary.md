@@ -61,6 +61,12 @@ Read-only audit side:
 → `WorkflowAuditReadPort`
 → `workflow.workflow_event`
 
+CandidateProfile contract vocabulary side:
+
+`CandidateProfile` / `CandidateProfileField`
+→ field status, field path, lineage, conflict, and staleness metadata only
+→ no repository, no service write boundary, no API/UI, no table writes
+
 Task 5F regression closure covers the governed-intake minimal slice as a safe
 backend-only chain:
 
@@ -77,6 +83,12 @@ Candidate/Profile persistence, API/UI exposure, client-safe projection,
 Consent/Disclosure behavior, RBAC/ABAC, workflow engine behavior, transition
 legality validation, or cleanup/deprecation of earlier V2 `recruiting.*`
 source/packet skeleton tables.
+
+Task 6A adds the CandidateProfile canonical contract vocabulary only. It does
+not add CandidateProfile persistence, raw Candidate/Profile persistence,
+CanonicalWriteService calls, API/UI exposure, client-safe projection,
+Consent/Disclosure behavior, RBAC/ABAC, real AI extraction, workflow engine
+behavior, transition legality validation, or transaction boundary hardening.
 
 ## GovernedIntakeService
 
@@ -214,6 +226,29 @@ source/packet skeleton tables.
 - Returns the minimal review snapshot needed to create `CanonicalWriteReviewEvidence`: target entity, target field path, ClaimLedgerItem id, source-span lineage, decision, risk tier, bulk flag, reviewer id, and reason.
 - Does not provide generic review history search, dashboard analytics, API exposure, candidate/company/job joins, business target entity lookup, or client-safe projection.
 
+## CandidateProfile Domain Contracts
+
+- Backend-owned Task 6A contract/vocabulary package for the CandidateProfile aggregate concept.
+- Defines immutable domain records/value objects for `CandidateProfile`, `CandidateProfileId`, `CandidateId`, `CandidateProfileVersion`, `CandidateProfileField`, `CandidateProfileFieldPath`, `CandidateProfileFieldValue`, `CandidateProfileFieldLineage`, `CandidateProfileFieldSourceReference`, `CandidateProfileFieldConflict`, and `CandidateProfileFieldStaleness`.
+- Defines stable canonical field paths such as `identity.full_name`, `identity.preferred_name`, `contact.email`, `contact.phone`, `location.current_location`, `location.preferred_locations`, `compensation.current_salary`, `compensation.expected_salary`, `availability.notice_period`, `availability.available_from`, `experience.current_company`, `experience.current_title`, `experience.years_of_experience`, `experience.work_history`, `skills.primary_skills`, `skills.secondary_skills`, `education.highest_degree`, `education.schools`, `intent.open_to_opportunities`, `intent.interest_level`, `consent.latest_profile_version`, and `metadata.notes`.
+- Defines field status vocabulary: `AI_EXTRACTED`, `HUMAN_ACKNOWLEDGED`, `CONSULTANT_ATTESTED`, `CANDIDATE_CONFIRMED`, `EXTERNAL_VERIFIED`, `SYSTEM_INFERENCE`, `CONFLICTING`, `NEEDS_CONFIRMATION`, `STALE`, `UNVERIFIED`, and `LIKELY_CURRENT`.
+- `AI_EXTRACTED` means AI extracted from source; it remains not fact and not verified client-safe statement.
+- `HUMAN_ACKNOWLEDGED` means a consultant saw or temporarily accepted a field, possibly by bulk approval; it is not verified.
+- `CONSULTANT_ATTESTED` is distinct from `CANDIDATE_CONFIRMED`; it represents consultant responsibility and must keep an actor reference.
+- `CANDIDATE_CONFIRMED` is distinct from `EXTERNAL_VERIFIED`; it requires candidate actor/profile version semantics.
+- `EXTERNAL_VERIFIED` requires external evidence lineage.
+- `SYSTEM_INFERENCE` is forbidden as fact and remains an internal hint.
+- `CONFLICTING` blocks client-visible verified fact statements and later canonical overwrite.
+- `NEEDS_CONFIRMATION` is not transaction-ready and must block shortlist/consent/disclosure readiness in later tasks.
+- `STALE`, `UNVERIFIED`, and `LIKELY_CURRENT` are representational status vocabulary only; later gates must decide whether and how they can be used.
+- `CandidateProfileFieldStatusPolicy` is pure metadata only. It does not call `CanonicalWriteGate`, does not call `CanonicalWriteService`, does not write canonical state, and does not create client-safe projections.
+- Bulk approve maps to `HUMAN_ACKNOWLEDGED` at most and cannot produce `CANDIDATE_CONFIRMED` or `EXTERNAL_VERIFIED`.
+- Lineage references can name ClaimLedgerItem, ReviewEvent, SourceItem, InformationPacket, IntakeExtractionRun, WorkflowEvent, source spans, and external evidence. These references support auditability but are not proof by themselves.
+- Conflict and staleness metadata only describe conflict/stale state. They do not implement conflict resolution, stale detection, profile mutation, workflow transitions, or fact promotion.
+- Does not add a CandidateProfile repository, JDBC adapter, REST/API/controller/DTO, UI surface, client-safe projection, redaction behavior, RBAC/ABAC, Consent/Disclosure, AI model wiring, real AI extraction, or workflow engine.
+- Does not write `recruiting.candidate_profile`, does not write `recruiting.candidate`, and does not change existing V2 migration tables/indexes.
+- CandidateProfile persistence remains future work and must wait until the transaction boundary hardening plan is clear.
+
 ## ClaimLedgerService
 
 - Appends claims.
@@ -297,6 +332,7 @@ source/packet skeleton tables.
 - Allowed boundary propagates idempotency/correlation/causation identifiers when the command supplies them.
 - Canonical persistence is explicitly deferred.
 - Does not write CandidateProfile.
+- Task 6A does not change this behavior and does not call `CanonicalWriteService` from CandidateProfile contracts.
 
 ## Transaction Boundary
 
@@ -312,6 +348,7 @@ source/packet skeleton tables.
 - Do not treat `IntakeClaimLedgerBridgeService` as ReviewEvent creation, CanonicalWrite, CandidateProfile persistence, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeReviewBridgeService` as CanonicalWrite, CandidateProfile persistence, ClaimLedger verification mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeCanonicalWriteBridgeService` as CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
+- Do not treat Task 6A CandidateProfile contracts as CandidateProfile persistence, canonical writes, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or transaction boundary hardening.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
