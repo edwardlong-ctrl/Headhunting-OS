@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 7C worktree: `8e212fb3c5068ea0117bb26be16e47b49ef037fe`
-- latest merged commit before Task 7C: Add client-safe projection read model
-- Task 7C worktree validation: 349 tests, 0 failures, 0 errors, 1 skipped
-- merge status: Task 7C pending review/merge; do not self-reference the final commit here
+- main HEAD before Task 8A worktree: `beda2652ff540af12754ee4a7764aa2831e37dd3`
+- latest merged commit before Task 8A: Add client-safe reidentification regression coverage
+- Task 8A worktree validation: 360 tests, 0 failures, 0 errors, 1 existing skip
+- merge status: Task 8A current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -23,6 +23,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 7B: Client-safe projection service / read-model boundary ✅
 - Task 7C: Re-identification placeholder / Task 7 regression closure ✅
 - Task 7: Client-safe Projection & Privacy Boundary ✅ for current backend kernel scope
+- Task 8A: Identity / RBAC / ABAC contract and evaluator skeleton ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -40,14 +41,20 @@ This file contains mutable short-term engineering state. Update it after future 
 - The minimal projection boundary validates selected client-visible fields through `ClientVisibleCandidateFieldPolicy`, rejects L4, and blocks exact raw sensitive value carryover into safe output text.
 - A deterministic backend-only `ReidentificationRiskAssessmentService` placeholder now records obvious re-identification risk categories and returns allow/generalize/review/block decisions.
 - Task 7 regression coverage now proves the client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative cases, and re-identification placeholder.
+- `identityaccess` now defines backend-only role, resource, action, field-classification, relationship-scope, access-request, and access-decision contracts.
+- `PermissionEvaluator` / `FieldAccessPolicy` now provide a deterministic no-database, no-Spring-Security evaluator skeleton that is deny-by-default, denies Client raw Candidate/CandidateProfile and unsafe fields, allows Client only to read `CLIENT_SAFE_CANDIDATE_CARD` at `CLIENT_SAFE` / `GENERALIZED` levels, and allows Candidate self-scoped safe profile reads only with explicit `SELF` scope.
 
 ## Current Known Gaps
 
 - Task 7 is complete only for the current backend kernel scope.
+- Task 8A is complete only for backend contract/evaluator-skeleton scope.
+- Task 8B service-level permission enforcement is not implemented.
+- Task 8C five-portal boundary negative tests/docs closure is not implemented.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No API/controller/UI yet.
-- No RBAC/ABAC yet.
+- No real auth/login/session system yet.
 - No Consent/Disclosure/Unlock implementation yet.
+- No identity-disclosed Client access behavior yet.
 - No real redaction pipeline or automatic text rewriting yet.
 - No real AI extraction/model wiring yet.
 - No workflow engine or transition legality validation yet.
@@ -67,7 +74,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 8A: Identity / RBAC / ABAC kernel foundation
+Task 8B: Service-level permission enforcement
 
 ## Future Prompt Strategy
 

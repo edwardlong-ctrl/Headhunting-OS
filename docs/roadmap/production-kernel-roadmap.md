@@ -98,7 +98,14 @@ redaction pipeline, automatic text rewriting, or identity disclosure behavior.
 
 Task 8: Identity / RBAC / ABAC Kernel
 
-- 8A: Identity / RBAC / ABAC kernel foundation
+- 8A: role/resource/action/field-policy contracts + evaluator skeleton ✅
+- 8B: service-level permission enforcement
+- 8C: five-portal boundary negative tests/docs closure
+
+Task 8A is complete only for backend contracts and deterministic evaluator
+skeleton scope. It adds no service enforcement, no API/controller/UI, no
+auth/login/session, no Consent/Disclosure/Unlock, and no identity-disclosure
+behavior. Task 8 remains open until 8B and 8C are complete.
 
 Task 9: API Boundary & Contract Tests
 

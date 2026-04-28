@@ -139,10 +139,22 @@
 - No real redaction implementation exists yet.
 - Real re-identification risk scoring does not exist yet.
 
-## Identity / RBAC / ABAC Not Implemented
+## Task 8A Identity / Access-control Contracts Exist; Enforcement Deferred
 
-- Five portal route shells exist, but backend role/permission enforcement is not production-ready.
-- Field-level access control remains future work.
+- Task 8A adds backend-only role vocabulary for Owner, unified Consultant, Client, Candidate, Admin, System, and AI assistant.
+- Task 8A adds explicit resource/action vocabulary and field-classification policy contracts for deny-by-default evaluation.
+- Task 8A adds `AccessRequest`, `AccessDecision`, relationship-scope, `FieldAccessPolicy`, and `PermissionEvaluator` skeletons.
+- The evaluator is deterministic and has no database, external service, Spring Security, API/controller, login/session, or real-user dependency.
+- Client raw `Candidate` and raw `CandidateProfile` reads remain denied.
+- Client unsafe field classifications remain denied, including PII, raw source, consultant-private, internal audit, and consent/disclosure records.
+- Client can read only `CLIENT_SAFE_CANDIDATE_CARD` at `CLIENT_SAFE` / `GENERALIZED` field levels in this skeleton.
+- Candidate profile reads require explicit `SELF` relationship scope and are limited to safe/generalized field levels in this skeleton.
+- Admin, System, and AI assistant roles do not bypass canonical-write or disclosure gates by role alone.
+- Task 8B service-level permission enforcement is not implemented.
+- Task 8C five-portal boundary negative tests/docs closure is not implemented.
+- No real auth/login/session system exists.
+- No Consent/Disclosure/Unlock behavior exists.
+- No identity-disclosed Client access behavior exists.
 
 ## Workflow Engine Not Implemented
 
@@ -186,7 +198,7 @@
 - No API/controller/UI integration exists for governed intake.
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure behavior exists.
-- No RBAC/ABAC implementation exists.
+- No service-level RBAC/ABAC enforcement exists beyond the Task 8A contract/evaluator skeleton.
 - No Client-safe projection API/UI or redaction behavior exists.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.
