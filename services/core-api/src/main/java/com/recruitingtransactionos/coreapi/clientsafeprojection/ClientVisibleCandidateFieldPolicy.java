@@ -56,6 +56,10 @@ public final class ClientVisibleCandidateFieldPolicy {
           forbidden(
               "personal_website_url",
               ForbiddenClientCandidateFieldCategory.IDENTITY_REVEALING_URL),
+          forbidden("profile_url", ForbiddenClientCandidateFieldCategory.IDENTITY_REVEALING_URL),
+          forbidden(
+              "contact.profile_url",
+              ForbiddenClientCandidateFieldCategory.IDENTITY_REVEALING_URL),
           forbidden("resume_url", ForbiddenClientCandidateFieldCategory.RAW_DOCUMENT),
           forbidden("raw_document_url", ForbiddenClientCandidateFieldCategory.RAW_DOCUMENT),
           forbidden("raw_candidate_id", ForbiddenClientCandidateFieldCategory.RAW_BACKEND_IDENTIFIER),
@@ -96,8 +100,14 @@ public final class ClientVisibleCandidateFieldPolicy {
           forbidden(
               "disclosure_internal_audit_records",
               ForbiddenClientCandidateFieldCategory.INTERNAL_AUDIT_RECORD),
+          forbidden("exact_location", ForbiddenClientCandidateFieldCategory.EXACT_LOCATION),
+          forbidden("address", ForbiddenClientCandidateFieldCategory.EXACT_LOCATION),
+          forbidden("location.address", ForbiddenClientCandidateFieldCategory.EXACT_LOCATION),
           forbidden(
               "exact_current_employer",
+              ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
+          forbidden(
+              "experience.exact_current_employer",
               ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
           forbidden(
               "experience.current_employer",
@@ -107,6 +117,15 @@ public final class ClientVisibleCandidateFieldPolicy {
               ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
           forbidden(
               "uniquely_identifying_project_details",
+              ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
+          forbidden(
+              "exact_project_product_chip_code_name",
+              ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
+          forbidden(
+              "project.chip_code_name",
+              ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
+          forbidden(
+              "project.product_code_name",
               ForbiddenClientCandidateFieldCategory.EMPLOYER_OR_PROJECT_IDENTIFIER),
           forbidden(
               "chip_product_code_name",
@@ -125,7 +144,22 @@ public final class ClientVisibleCandidateFieldPolicy {
               ForbiddenClientCandidateFieldCategory.PUBLIC_IDENTIFIER_BEFORE_CONSENT),
           forbidden(
               "rare_title_exact_year_exact_company",
-              ForbiddenClientCandidateFieldCategory.PRECISE_RARE_COMBINATION));
+              ForbiddenClientCandidateFieldCategory.PRECISE_RARE_COMBINATION),
+          forbidden(
+              "exact_company_rare_title_exact_year",
+              ForbiddenClientCandidateFieldCategory.PRECISE_RARE_COMBINATION),
+          forbidden(
+              "small_team_unique_ownership_claim",
+              ForbiddenClientCandidateFieldCategory.SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM),
+          forbidden(
+              "unique_ownership_claim",
+              ForbiddenClientCandidateFieldCategory.SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM),
+          forbidden(
+              "overly_specific_achievement_number",
+              ForbiddenClientCandidateFieldCategory.IDENTIFYING_ACHIEVEMENT_NUMBER),
+          forbidden(
+              "achievement.exact_number",
+              ForbiddenClientCandidateFieldCategory.IDENTIFYING_ACHIEVEMENT_NUMBER));
 
   private ClientVisibleCandidateFieldPolicy() {
   }

@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD: `70606e7855b1433ef9b862e0eb0b768130f0cc5b`
-- latest commit: Add client-safe projection privacy contracts
-- validation: 336 tests, 0 failures, 0 errors, 1 skipped
-- main status: clean
+- main HEAD before Task 7C worktree: `8e212fb3c5068ea0117bb26be16e47b49ef037fe`
+- latest merged commit before Task 7C: Add client-safe projection read model
+- Task 7C worktree validation: 349 tests, 0 failures, 0 errors, 1 skipped
+- merge status: Task 7C pending review/merge; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -21,6 +21,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 6: Candidate Canonical Profile minimal slice ✅
 - Task 7A: Client-safe projection contract / policy / vocabulary ✅
 - Task 7B: Client-safe projection service / read-model boundary ✅
+- Task 7C: Re-identification placeholder / Task 7 regression closure ✅
+- Task 7: Client-safe Projection & Privacy Boundary ✅ for current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -36,12 +38,13 @@ This file contains mutable short-term engineering state. Update it after future 
 - `RedactionLevel` now defines L0-L4 vocabulary, with L4 separated from anonymous client-safe card exposure.
 - `ClientSafeCandidateProjectionService` now projects an internal candidate/profile-like snapshot into `ClientSafeCandidateCard` only.
 - The minimal projection boundary validates selected client-visible fields through `ClientVisibleCandidateFieldPolicy`, rejects L4, and blocks exact raw sensitive value carryover into safe output text.
+- A deterministic backend-only `ReidentificationRiskAssessmentService` placeholder now records obvious re-identification risk categories and returns allow/generalize/review/block decisions.
+- Task 7 regression coverage now proves the client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative cases, and re-identification placeholder.
 
 ## Current Known Gaps
 
-- Task 7 Client-safe Projection & Privacy Boundary is still in progress; Task 7A and Task 7B are complete.
-- Task 7C still needs the re-identification placeholder and Task 7 end-to-end regression/docs closure.
-- No real re-identification risk scorer yet.
+- Task 7 is complete only for the current backend kernel scope.
+- No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No API/controller/UI yet.
 - No RBAC/ABAC yet.
 - No Consent/Disclosure/Unlock implementation yet.
@@ -64,7 +67,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 7C: re-identification placeholder plus Task 7 end-to-end regression/docs closure
+Task 8A: Identity / RBAC / ABAC kernel foundation
 
 ## Future Prompt Strategy
 

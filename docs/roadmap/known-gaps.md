@@ -1,6 +1,6 @@
 # Known Gaps
 
-## Client-safe Projection Contract and Minimal Read Model Exist; Full Privacy Pipeline Deferred
+## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
 - Task 7A adds a backend-only `ClientSafeCandidateCard` contract using opaque anonymous/card identifiers, generalized profile fields, safe summary fields, safe evidence summary placeholders, and safe match narrative placeholders.
 - Task 7A adds `ClientVisibleCandidateFieldPolicy` as an explicit deny-by-default forbidden-field policy for client-visible candidate fields.
@@ -9,7 +9,11 @@
 - Raw Candidate, CandidateProfile, SourceItem, InformationPacket, ClaimLedgerItem, ReviewEvent, WorkflowEvent, raw source text, raw document URLs, direct identity fields, consultant internal notes, and raw backend identifiers are not exposed through the Task 7A card contract.
 - Task 7B adds a backend-only `ClientSafeCandidateProjectionService` and internal candidate/profile-like snapshot that return `ClientSafeCandidateCard` only.
 - Task 7B validates selected client-visible field paths through `ClientVisibleCandidateFieldPolicy`, denies forbidden and unknown field selections, rejects L4 anonymous projection, and blocks exact raw sensitive value carryover into safe output text.
-- No API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real redaction pipeline, automatic text rewriting, database migration, or AI/model wiring exists from Task 7B.
+- Task 7C adds a deterministic backend-only re-identification placeholder with feature, level, decision, assessment, and service objects.
+- Task 7C covers required unsafe categories: exact company + rare title + exact year, exact current employer, exact project/product/chip code name, public identifier before consent, exact location/address, direct contact/profile URL, small-team unique ownership claim, and overly specific identifying achievement number.
+- Task 7C high-risk or L4 assessments cannot be treated as safe anonymous client output.
+- Task 7 is complete only for the current backend kernel scope: client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative tests, and re-identification placeholder.
+- No API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real redaction pipeline, automatic text rewriting, database migration, AI/model wiring, or real identity disclosure behavior exists from Task 7C.
 
 ## Canonical Persistence Minimal Path Exists; Metadata Hardened; Full Profile Deferred
 
@@ -124,15 +128,16 @@
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection API/UI, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
-## Minimal Client-safe Projection Service Exists; Full Privacy Boundary Still Deferred
+## Minimal Client-safe Projection Service Exists; Product Privacy Pipeline Still Deferred
 
 - Raw Candidate must never be exposed to Client.
 - `ClientSafeCandidateCard` exists as a backend contract after Task 7A.
 - L0-L4 redaction vocabulary exists as policy vocabulary after Task 7A.
 - Task 7B adds a minimal backend projection service/read model that returns only `ClientSafeCandidateCard`.
 - Task 7B does not add client-facing serialization, API, controller, UI, RBAC/ABAC, Consent, Disclosure, Unlock, identity disclosure, database migration, or AI/model wiring.
+- Task 7C adds only a deterministic placeholder for re-identification assessment; it does not perform real scoring.
 - No real redaction implementation exists yet.
-- Re-identification risk scorer does not exist yet.
+- Real re-identification risk scoring does not exist yet.
 
 ## Identity / RBAC / ABAC Not Implemented
 

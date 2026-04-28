@@ -16,7 +16,9 @@ public enum ForbiddenClientCandidateFieldCategory {
   INTERNAL_AUDIT_RECORD("internal_audit_record"),
   EMPLOYER_OR_PROJECT_IDENTIFIER("employer_or_project_identifier"),
   PUBLIC_IDENTIFIER_BEFORE_CONSENT("public_identifier_before_consent"),
-  PRECISE_RARE_COMBINATION("precise_rare_combination");
+  PRECISE_RARE_COMBINATION("precise_rare_combination"),
+  SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM("small_team_unique_ownership_claim"),
+  IDENTIFYING_ACHIEVEMENT_NUMBER("identifying_achievement_number");
 
   private final String wireValue;
 

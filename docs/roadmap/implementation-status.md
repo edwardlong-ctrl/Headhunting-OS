@@ -34,6 +34,7 @@
 - Task 6F current worktree: closes Task 6 with regression coverage and documentation for the safe CandidateProfile path: governed-intake ClaimLedgerItem plus ReviewEvent evidence -> mandatory CanonicalWriteGate -> CanonicalWriteTransactionBoundary -> WorkflowEvent audit plus one explicit CandidateProfile field write -> lineage/source-span and CandidateProfile metadata preservation, with no client/API/UI/projection exposure.
 - Task 7A current worktree: adds backend-only client-safe projection contracts, forbidden-field policy, L0-L4 redaction vocabulary, and privacy-boundary unit tests without adding projection service/read model/API/UI/RBAC/Consent/Disclosure/Unlock behavior.
 - Task 7B current worktree: adds a backend-only `ClientSafeCandidateProjectionService` and internal candidate/profile-like snapshot that project to `ClientSafeCandidateCard` only, enforce the Task 7A field policy, reject L4, and block exact raw sensitive value carryover without adding API/UI/RBAC/Consent/Disclosure/Unlock behavior.
+- Task 7C current worktree: adds a backend-only deterministic `ReidentificationRiskAssessmentService` placeholder, risk feature/level/decision vocabulary, high-risk projection guard integration, and Task 7 regression/docs closure without adding API/UI/RBAC/ABAC/Consent/Disclosure/Unlock, real scoring, real redaction, or identity disclosure behavior.
 
 ## Current Test State
 
@@ -56,7 +57,9 @@
 - Task 6F adds regression closure proving status policy invariants, metadata boundary behavior, governed-intake allowed-write lineage/source-span preservation, organization isolation, gate-blocked no-write behavior, ClaimLedgerItem/ReviewEvent immutability, no API/UI/client projection, and rollback of the allowed WorkflowEvent audit when the CandidateProfile field write fails.
 - Task 7A adds focused unit coverage proving anonymous-only `ClientSafeCandidateCard` construction, absence of raw Candidate/CandidateProfile/upstream evidence types from card components, recognition of forbidden identity/contact/raw/internal/rare identifier fields, deny-by-default unknown field behavior, explicit safe allowlist behavior, L0-L4 ordering/semantics, and rejection of L4 as normal anonymous client-safe card exposure.
 - Task 7B adds focused unit coverage proving projection output omits raw candidate/profile ids, full name, email, phone, LinkedIn URL, exact employer, exact project/product/chip names, raw source text, consultant internal notes, raw CandidateProfile/evidence type names, unknown and forbidden field selections, L4 anonymous projection attempts, exact raw sensitive carryover, and raw internal entity types in public projection output signatures.
+- Task 7C adds focused unit coverage proving required unsafe re-identification categories, deterministic allow/generalize/review/block decisions, L4 as never anonymous client-safe, high-risk assessment blocking projection approval, low-risk assessment accompanying a `ClientSafeCandidateCard`, no external AI/model/Spring/persistence wiring, and no raw internal entity types in public client-safe output types.
 - Full Maven backend reached 342 tests, 0 failures/errors, 1 existing skip after Task 7B.
+- Full Maven backend reached 349 tests, 0 failures/errors, 1 existing skip after Task 7C.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -171,6 +174,10 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - The projection service validates selected client-visible field paths through `ClientVisibleCandidateFieldPolicy` and denies forbidden or unknown selections.
 - The projection service rejects `L4_IDENTITY_DISCLOSED` because identity disclosure is not implemented.
 - The projection service blocks exact raw candidate/profile id, identity/contact, exact employer/project/product/chip, raw source text, and consultant note value carryover into safe output fields.
+- `ReidentificationRiskAssessmentService` exists as a deterministic backend-only placeholder, not a real scorer.
+- `ReidentificationRiskFeature` covers exact company + rare title + exact year, exact current employer, exact project/product/chip code name, public identifier before consent, exact location/address, direct contact/profile URL, small-team unique ownership claim, and overly specific identifying achievement number.
+- The placeholder aggregates feature recommendations into allow/generalize/review/block decisions and treats `L4_IDENTITY_DISCLOSED` as high-risk/blocking for anonymous client output.
+- `ClientSafeCandidateProjectionService` can require a supplied low-risk re-identification assessment before projection; supplied high-risk assessments block anonymous client projection.
 
 ## Current Non-capabilities
 
@@ -198,6 +205,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No Consent/Disclosure implementation.
 - No Client-safe projection API/UI.
 - No RBAC/ABAC implementation.
+- No real re-identification scorer beyond the deterministic Task 7C placeholder.
+- No real redaction/rewriting pipeline.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7A closes contract/policy/vocabulary for client-safe projection, and Task 7B closes the minimal backend projection service/read-model boundary. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7 is complete for the current backend kernel scope: contract/policy/vocabulary, minimal projection service/read-model boundary, raw exposure negative tests, and deterministic re-identification placeholder. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, real re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

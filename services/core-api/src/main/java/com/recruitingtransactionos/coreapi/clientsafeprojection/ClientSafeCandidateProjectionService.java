@@ -29,6 +29,28 @@ public final class ClientSafeCandidateProjectionService {
         snapshot.safeMatchNarratives());
   }
 
+  public ClientSafeCandidateCard project(
+      InternalCandidateProjectionSnapshot snapshot,
+      ReidentificationRiskAssessment reidentificationRiskAssessment) {
+    Objects.requireNonNull(snapshot, "snapshot must not be null");
+    Objects.requireNonNull(
+        reidentificationRiskAssessment,
+        "reidentificationRiskAssessment must not be null");
+    if (!snapshot.cardId().equals(reidentificationRiskAssessment.cardId())) {
+      throw new IllegalArgumentException(
+          "re-identification assessment card id must match projection snapshot");
+    }
+    if (snapshot.redactionLevel() != reidentificationRiskAssessment.redactionLevel()) {
+      throw new IllegalArgumentException(
+          "re-identification assessment redaction level must match projection snapshot");
+    }
+    if (!reidentificationRiskAssessment.isSafeAnonymousClientOutput()) {
+      throw new IllegalArgumentException(
+          "re-identification assessment blocks anonymous client projection");
+    }
+    return project(snapshot);
+  }
+
   private static void rejectUnsafeFieldSelections(InternalCandidateProjectionSnapshot snapshot) {
     for (String fieldPath : snapshot.selectedClientVisibleFieldPaths()) {
       ClientVisibleCandidateFieldPolicy.Decision decision =

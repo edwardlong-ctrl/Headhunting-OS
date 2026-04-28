@@ -97,14 +97,22 @@ class ClientSafeProjectionContractTest {
             "negotiation_notes",
             "consent_internal_audit_records",
             "disclosure_internal_audit_records",
+            "exact_location",
+            "address",
             "exact_current_employer",
+            "experience.exact_current_employer",
             "uniquely_identifying_project_name",
+            "exact_project_product_chip_code_name",
+            "project.chip_code_name",
             "chip_product_code_name",
             "patent_identifier",
             "paper_identifier",
             "public_talk_identifier",
             "open_source_identifier",
-            "rare_title_exact_year_exact_company");
+            "profile_url",
+            "rare_title_exact_year_exact_company",
+            "small_team_unique_ownership_claim",
+            "overly_specific_achievement_number");
   }
 
   @Test
@@ -194,6 +202,27 @@ class ClientSafeProjectionContractTest {
   }
 
   @Test
+  void reidentificationFeatureVocabularyCoversRequiredUnsafeFeatureCategories() {
+    assertThat(ReidentificationRiskFeature.values())
+        .contains(
+            ReidentificationRiskFeature.EXACT_COMPANY_RARE_TITLE_EXACT_YEAR,
+            ReidentificationRiskFeature.EXACT_CURRENT_EMPLOYER,
+            ReidentificationRiskFeature.EXACT_PROJECT_PRODUCT_CHIP_CODE_NAME,
+            ReidentificationRiskFeature.PUBLIC_IDENTIFIER_BEFORE_CONSENT,
+            ReidentificationRiskFeature.EXACT_LOCATION_OR_ADDRESS,
+            ReidentificationRiskFeature.DIRECT_CONTACT_OR_PROFILE_URL,
+            ReidentificationRiskFeature.SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM,
+            ReidentificationRiskFeature.OVERLY_SPECIFIC_IDENTIFYING_ACHIEVEMENT_NUMBER);
+
+    assertThat(ReidentificationRiskDecision.values())
+        .contains(
+            ReidentificationRiskDecision.ALLOW,
+            ReidentificationRiskDecision.GENERALIZE,
+            ReidentificationRiskDecision.REVIEW,
+            ReidentificationRiskDecision.BLOCK);
+  }
+
+  @Test
   void l4IdentityDisclosedCannotBeUsedAsNormalClientSafeCardExposure() {
     assertThatThrownBy(() -> new ClientSafeCandidateCard(
         AnonymousCandidateCardId.of("card_20260428_0002"),
@@ -221,7 +250,12 @@ class ClientSafeProjectionContractTest {
         .extracting(path -> path.getFileName().toString())
         .contains(
             "ClientSafeCandidateProjectionService.java",
-            "InternalCandidateProjectionSnapshot.java")
+            "InternalCandidateProjectionSnapshot.java",
+            "ReidentificationRiskAssessment.java",
+            "ReidentificationRiskAssessmentService.java",
+            "ReidentificationRiskDecision.java",
+            "ReidentificationRiskFeature.java",
+            "ReidentificationRiskLevel.java")
         .noneMatch(fileName -> fileName.endsWith("Controller.java"))
         .noneMatch(fileName -> fileName.endsWith("Repository.java"))
         .noneMatch(fileName -> fileName.endsWith("Port.java"))
@@ -238,9 +272,44 @@ class ClientSafeProjectionContractTest {
           .doesNotContain("org.springframework")
           .doesNotContain("javax.sql.DataSource")
           .doesNotContain("JdbcTemplate")
+          .doesNotContain("RestTemplate")
+          .doesNotContain("WebClient")
+          .doesNotContain("ChatClient")
+          .doesNotContain("OpenAI")
+          .doesNotContain("ModelClient")
+          .doesNotContain("AiClient")
           .doesNotContain("new ConsentRecord")
           .doesNotContain("new DisclosureRecord")
           .doesNotContain("UnlockService");
+    }
+  }
+
+  @Test
+  void publicClientSafeOutputTypesDoNotContainRawInternalEntityTypes() {
+    Set<Class<?>> forbiddenTypes = Set.of(
+        CandidateId.class,
+        CandidateProfile.class,
+        CandidateProfileId.class,
+        SourceItem.class,
+        InformationPacket.class,
+        ClaimId.class,
+        ReviewEventId.class,
+        WorkflowEventId.class);
+    Set<Class<?>> publicOutputTypes = Set.of(
+        ClientSafeCandidateCard.class,
+        ReidentificationRiskAssessment.class);
+
+    for (Class<?> outputType : publicOutputTypes) {
+      assertThat(outputType.getRecordComponents())
+          .as(outputType.getSimpleName())
+          .extracting(RecordComponent::getType)
+          .doesNotContainAnyElementsOf(forbiddenTypes);
+      assertThat(outputType.getRecordComponents())
+          .as(outputType.getSimpleName())
+          .extracting(RecordComponent::getName)
+          .noneMatch(name -> name.contains("rawCandidate"))
+          .noneMatch(name -> name.contains("rawSource"))
+          .noneMatch(name -> name.contains("consultantInternal"));
     }
   }
 

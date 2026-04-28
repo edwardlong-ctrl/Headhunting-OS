@@ -75,29 +75,30 @@ surface. There is still no Client-safe projection, no REST/API/controller/DTO/UI
 no RBAC/ABAC, no Consent/Disclosure, no real AI extraction, no stale detection
 engine, no conflict resolution workflow, and no full CandidateProfile engine.
 
-Task 7: Client-safe Projection & Privacy Boundary ⏳
+Task 7: Client-safe Projection & Privacy Boundary ✅
 
 - 7A: ClientSafeCandidateCard contract + forbidden-field policy + L0-L4 vocabulary ✅
 - 7B: client-safe projection service/read-model skeleton without API/UI exposure ✅
+- 7C: re-identification placeholder plus Task 7 regression/docs closure ✅
 
 Task 7A is a safe contract/policy/test slice only: it defines an anonymous
 client-safe card, an explicit deny-by-default forbidden-field policy, and L0-L4
 privacy vocabulary. Task 7B adds the minimal backend projection boundary from
 an internal candidate/profile-like snapshot to `ClientSafeCandidateCard` only,
 with field-policy enforcement, L4 rejection, and exact raw sensitive value
-carryover blocking. Task 7 is still not complete: there is still no
-REST/API/controller/DTO/UI, RBAC/ABAC, Consent/Disclosure/Unlock,
-re-identification scorer, real redaction pipeline, automatic text rewriting,
-identity disclosure behavior, or end-to-end Task 7 regression closure.
+carryover blocking. Task 7C adds a deterministic backend-only re-identification
+placeholder and regression closure. Task 7 is complete only for the current
+backend kernel scope: client-safe contract, forbidden-field policy, L0-L4
+vocabulary, projection/read-model boundary, raw exposure negative tests, and
+re-identification placeholder. There is still no REST/API/controller/DTO/UI,
+RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real
+redaction pipeline, automatic text rewriting, or identity disclosure behavior.
 
 ## Next Tasks
 
-Task 7: Client-safe Projection & Privacy Boundary
-
-- 7C: re-identification placeholder plus Task 7 end-to-end regression/docs closure
-- raw Candidate never exposed to Client
-
 Task 8: Identity / RBAC / ABAC Kernel
+
+- 8A: Identity / RBAC / ABAC kernel foundation
 
 Task 9: API Boundary & Contract Tests
 

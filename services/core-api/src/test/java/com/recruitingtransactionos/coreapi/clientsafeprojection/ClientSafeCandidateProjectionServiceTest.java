@@ -130,13 +130,14 @@ class ClientSafeCandidateProjectionServiceTest {
         ReviewEventId.class,
         WorkflowEventId.class);
 
-    Method projectMethod = ClientSafeCandidateProjectionService.class.getMethod(
-        "project",
-        InternalCandidateProjectionSnapshot.class);
-
-    assertThat(projectMethod.getReturnType()).isEqualTo(ClientSafeCandidateCard.class);
-    assertThat(projectMethod.getReturnType()).isNotIn(forbiddenRawTypes);
-    assertThat(projectMethod.getParameterTypes()).doesNotContainAnyElementsOf(forbiddenRawTypes);
+    for (Method projectMethod : ClientSafeCandidateProjectionService.class.getMethods()) {
+      if (!projectMethod.getName().equals("project")) {
+        continue;
+      }
+      assertThat(projectMethod.getReturnType()).isEqualTo(ClientSafeCandidateCard.class);
+      assertThat(projectMethod.getReturnType()).isNotIn(forbiddenRawTypes);
+      assertThat(projectMethod.getParameterTypes()).doesNotContainAnyElementsOf(forbiddenRawTypes);
+    }
     assertThat(ClientSafeCandidateCard.class.getRecordComponents())
         .extracting(RecordComponent::getType)
         .doesNotContainAnyElementsOf(forbiddenRawTypes);
