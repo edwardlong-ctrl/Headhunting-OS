@@ -3,25 +3,36 @@ package com.recruitingtransactionos.coreapi.truthlayer.service;
 import java.util.Objects;
 
 /**
- * Canonical write transaction boundary skeleton for the Task 3D/3E service seam.
+ * Canonical write transaction boundary for the service-owned canonical write seam.
  *
- * <p>This abstraction only marks where a future transaction-owned canonical write may run. The
- * default implementation executes work immediately and does not provide JDBC rollback coordination.
+ * <p>The boundary is intentionally scoped to canonical-write service orchestration. It coordinates
+ * future multi-step canonical writes and future canonical writes from a governed boundary without
+ * putting gate, profile, workflow, or persistence business logic in the boundary itself.
  */
 @FunctionalInterface
 public interface CanonicalWriteTransactionBoundary {
 
-  CanonicalWriteResult run(Work work);
+  <T> T run(Work<T> work);
 
   static CanonicalWriteTransactionBoundary immediate() {
-    return work -> {
-      Objects.requireNonNull(work, "work must not be null");
-      return work.execute();
+    return new CanonicalWriteTransactionBoundary() {
+      @Override
+      public <T> T run(Work<T> work) {
+        Objects.requireNonNull(work, "work must not be null");
+        try {
+          return work.execute();
+        } catch (RuntimeException | Error exception) {
+          throw exception;
+        } catch (Exception exception) {
+          throw new CanonicalWriteTransactionException(
+              "checked canonical write transaction failure", exception);
+        }
+      }
     };
   }
 
   @FunctionalInterface
-  interface Work {
-    CanonicalWriteResult execute();
+  interface Work<T> {
+    T execute() throws Exception;
   }
 }

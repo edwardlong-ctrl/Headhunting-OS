@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResu
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
@@ -306,14 +307,21 @@ class TruthLayerServiceBoundaryRegressionTest {
   }
 
   @Test
-  void transactionBoundaryIsDocumentedAsSkeletonNotJdbcRollbackCoordinator() throws IOException {
-    String source = sourceFile(
+  void transactionBoundaryContractPointsToSpringRollbackCoordinator() throws IOException {
+    String contractSource = sourceFile(
         "src/main/java/com/recruitingtransactionos/coreapi/truthlayer/service/"
             + "CanonicalWriteTransactionBoundary.java");
+    String springSource = sourceFile(
+        "src/main/java/com/recruitingtransactionos/coreapi/truthlayer/service/"
+            + "SpringCanonicalWriteTransactionBoundary.java");
 
-    assertThat(source)
-        .contains("transaction boundary skeleton")
-        .contains("does not provide JDBC rollback coordination")
+    assertThat(contractSource)
+        .contains("Canonical write transaction boundary")
+        .contains("future canonical writes");
+    assertThat(springSource)
+        .contains("PlatformTransactionManager")
+        .contains("TransactionTemplate")
+        .contains("PROPAGATION_REQUIRED")
         .doesNotContain("java.sql.Connection")
         .doesNotContain("javax.sql.DataSource")
         .doesNotContain("setAutoCommit")
@@ -322,7 +330,7 @@ class TruthLayerServiceBoundaryRegressionTest {
   }
 
   @Test
-  void existingCanonicalWriteBoundaryIntegrationTestDoesNotAssertRollbackBehavior()
+  void canonicalWriteBoundaryIntegrationTestAssertsCommitAndRollbackBehavior()
       throws IOException {
     String source = sourceFile(
         "src/test/java/com/recruitingtransactionos/coreapi/truthlayer/"
@@ -330,10 +338,21 @@ class TruthLayerServiceBoundaryRegressionTest {
         .toLowerCase(Locale.ROOT);
 
     assertThat(source)
-        .doesNotContain("rollback")
-        .doesNotContain("commit")
-        .doesNotContain("savepoint")
-        .doesNotContain("setautocommit");
+        .contains("successfultransactioncommitsworkfloweventappend")
+        .contains("failedtransactionrollsbackworkfloweventappend")
+        .contains("datasourcetransactionmanager")
+        .doesNotContain("setautocommit")
+        .doesNotContain("savepoint");
+  }
+
+  @Test
+  void realSpringTransactionBoundaryImplementationHasNoBusinessLogic() {
+    assertThat(publicDeclaredMethodNames(SpringCanonicalWriteTransactionBoundary.class))
+        .containsExactly("run");
+    assertThat(allDeclaredMethodNames(SpringCanonicalWriteTransactionBoundary.class))
+        .noneMatch(TruthLayerServiceBoundaryRegressionTest::looksLikeCandidatePersistenceApi)
+        .noneMatch(TruthLayerServiceBoundaryRegressionTest::looksLikeWorkflowEngineApi)
+        .noneMatch(TruthLayerServiceBoundaryRegressionTest::looksLikeReviewPromotionApi);
   }
 
   private static CanonicalWriteService service(WorkflowEventPort workflowPort) {

@@ -305,9 +305,15 @@ class CanonicalWriteServiceTest {
     private int invocations;
 
     @Override
-    public CanonicalWriteResult run(Work work) {
+    public <T> T run(Work<T> work) {
       invocations++;
-      return work.execute();
+      try {
+        return work.execute();
+      } catch (RuntimeException | Error exception) {
+        throw exception;
+      } catch (Exception exception) {
+        throw new IllegalStateException("unexpected checked test failure", exception);
+      }
     }
   }
 }

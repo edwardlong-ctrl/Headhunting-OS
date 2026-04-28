@@ -1,7 +1,14 @@
 package com.recruitingtransactionos.coreapi.truthlayer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
+import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
@@ -9,11 +16,18 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewDecision;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteResult;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteReviewEvidence;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import java.io.PrintWriter;
 import java.sql.Connection;
@@ -31,6 +45,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -58,6 +73,47 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
         .load()
         .migrate();
     dataSource = postgresDataSource();
+  }
+
+  @Test
+  void successfulTransactionCommitsWorkflowEventAppend() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080301");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080302");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080303");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080304");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    WorkflowEventAppendResult result = boundary().run(() ->
+        workflowEventService().append(workflowCommand(
+            organizationId,
+            actorId,
+            candidateId,
+            reviewEventId,
+            "canonical-write-transaction-commit-" + organizationId)));
+
+    assertThat(result.workflowEventId()).isNotNull();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void failedTransactionRollsBackWorkflowEventAppend() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080401");
+    UUID actorId = uuid("00000000-0000-0000-0000-000000080402");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080403");
+    UUID reviewEventId = uuid("00000000-0000-0000-0000-000000080404");
+    insertOrganizationUserAndReview(organizationId, actorId, candidateId, reviewEventId);
+
+    assertThatThrownBy(() -> boundary().run(() -> {
+      workflowEventService().append(workflowCommand(
+          organizationId,
+          actorId,
+          candidateId,
+          reviewEventId,
+          "canonical-write-transaction-rollback-" + organizationId));
+      throw new DeliberateCanonicalWriteFailure("force canonical transaction rollback");
+    })).isInstanceOf(DeliberateCanonicalWriteFailure.class);
+
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
   }
 
   @Test
@@ -136,6 +192,25 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   }
 
   @Test
+  void candidateProfileServiceStillWorksIndependently() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000080501");
+    UUID candidateId = uuid("00000000-0000-0000-0000-000000080503");
+    insertOrganization(organizationId);
+    insertCandidate(organizationId, candidateId);
+
+    CandidateProfile profile = candidateProfileService().createCandidateProfile(
+        new CreateCandidateProfileRequest(
+            organizationId,
+            new CandidateId(candidateId),
+            new CandidateProfileVersion(1),
+            java.util.List.of()));
+
+    assertThat(profile.candidateId()).isEqualTo(new CandidateId(candidateId));
+    assertThat(countRows("recruiting.candidate_profile", organizationId)).isEqualTo(1);
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+  }
+
+  @Test
   void fullFlywayMigrationStillAppliesBeforeCanonicalWriteBoundaryTest()
       throws SQLException {
     assertThat(migrateResult.migrationsExecuted).isEqualTo(6);
@@ -145,8 +220,48 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   private static CanonicalWriteService service() {
     return new CanonicalWriteService(
         new CanonicalWriteGate(),
-        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
-        CanonicalWriteTransactionBoundary.immediate());
+        workflowEventService(),
+        boundary());
+  }
+
+  private static WorkflowEventService workflowEventService() {
+    return new WorkflowEventService(new JdbcWorkflowEventPort(dataSource));
+  }
+
+  private static CanonicalWriteTransactionBoundary boundary() {
+    return new SpringCanonicalWriteTransactionBoundary(
+        new DataSourceTransactionManager(dataSource));
+  }
+
+  private static CandidateProfileService candidateProfileService() {
+    return new CandidateProfileService(new JdbcCandidateProfilePersistencePort(dataSource));
+  }
+
+  private static WorkflowEventAppendCommand workflowCommand(
+      UUID organizationId,
+      UUID actorId,
+      UUID candidateId,
+      UUID reviewEventId,
+      String idempotencyKey) {
+    return new WorkflowEventAppendCommand(
+        organizationId,
+        "recruiting",
+        new EntityRef("CANDIDATE", candidateId),
+        null,
+        WorkflowActionCode.CANONICAL_WRITE_ALLOWED.wireValue(),
+        new WorkflowStateSnapshot("{\"boundary\":\"canonical_write\",\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot(
+            "{\"boundary\":\"canonical_write\",\"status\":\"allowed_audit_appended\"}"),
+        new ActorRef(actorId, ActorRole.CONSULTANT),
+        "canonical_write_transaction_boundary_test",
+        uuid("00000000-0000-0000-0000-000000080988"),
+        null,
+        new ReviewEventId(reviewEventId),
+        "reviewed source span before canonical boundary",
+        new WorkflowIdempotencyKey(idempotencyKey),
+        new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000080987")),
+        new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000080986")),
+        OCCURRED_AT);
   }
 
   private static CanonicalWriteCommand.Builder commandBuilder(
@@ -244,6 +359,41 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
       review.setObject(4, candidateId);
       review.setString(5, RiskTier.T1_LOW_RISK.wireValue());
       review.executeUpdate();
+    }
+  }
+
+  private static void insertOrganization(UUID organizationId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO identity.organization (
+              organization_id,
+              legal_name,
+              display_name,
+              status,
+              default_timezone
+            )
+            VALUES (?, ?, ?, 'active', 'UTC')
+            """)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, "Task 6C Profile Org " + organizationId);
+      statement.setString(3, "Task 6C Profile Org");
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertCandidate(UUID organizationId, UUID candidateId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO recruiting.candidate (
+              candidate_id,
+              organization_id,
+              status
+            )
+            VALUES (?, ?, 'new')
+            """)) {
+      statement.setObject(1, candidateId);
+      statement.setObject(2, organizationId);
+      statement.executeUpdate();
     }
   }
 
@@ -361,5 +511,11 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
 
   private static UUID uuid(String value) {
     return UUID.fromString(value);
+  }
+
+  private static final class DeliberateCanonicalWriteFailure extends RuntimeException {
+    private DeliberateCanonicalWriteFailure(String message) {
+      super(message);
+    }
   }
 }

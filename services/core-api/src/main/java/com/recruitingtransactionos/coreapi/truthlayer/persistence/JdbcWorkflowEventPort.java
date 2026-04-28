@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcWorkflowEventPort implements WorkflowEventPort {
 
@@ -115,8 +116,8 @@ public final class JdbcWorkflowEventPort implements WorkflowEventPort {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(idempotencyKey, "idempotencyKey must not be null");
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_BY_IDEMPOTENCY_KEY_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_IDEMPOTENCY_KEY_SQL)) {
       statement.setObject(1, organizationId);
       statement.setString(2, idempotencyKey.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -128,6 +129,8 @@ public final class JdbcWorkflowEventPort implements WorkflowEventPort {
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find workflow event by idempotency key",
           exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -136,13 +139,15 @@ public final class JdbcWorkflowEventPort implements WorkflowEventPort {
     Objects.requireNonNull(command, "command must not be null");
     WorkflowEventId workflowEventId = new WorkflowEventId(UUID.randomUUID());
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       bind(statement, workflowEventId, command);
       statement.executeUpdate();
       return new WorkflowEventAppendResult(workflowEventId);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append workflow event", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 

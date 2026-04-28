@@ -87,13 +87,14 @@ legality validation, or cleanup/deprecation of earlier V2 `recruiting.*`
 source/packet skeleton tables.
 
 Task 6A adds the CandidateProfile canonical contract vocabulary. Task 6B adds
-backend-internal CandidateProfile persistence skeletons only. Task 6B does not
-wire governed intake into CandidateProfile, does not call `CanonicalWriteService`,
-does not bypass `CanonicalWriteGate`, does not add API/UI exposure, does not
-create client-safe projection, does not implement Consent/Disclosure behavior,
-does not implement RBAC/ABAC, does not wire real AI extraction, does not add
-workflow engine behavior, does not add transition legality validation, and does
-not harden transaction rollback coordination.
+backend-internal CandidateProfile persistence skeletons only. Task 6C hardens
+the canonical write transaction boundary with real Spring/JDBC transaction
+coordination and rollback tests. Task 6B/6C do not wire governed intake into
+CandidateProfile, call `CanonicalWriteService` from CandidateProfile persistence,
+bypass `CanonicalWriteGate`, add API/UI exposure, create client-safe projection,
+implement Consent/Disclosure behavior, implement RBAC/ABAC, wire real AI
+extraction, add workflow engine behavior, add transition legality validation, or
+implement the real canonical write flow.
 
 ## GovernedIntakeService
 
@@ -258,6 +259,7 @@ not harden transaction rollback coordination.
 - `CandidateProfileService` validates create/upsert requests and builds `CandidateProfile` / `CandidateProfileField` domain objects before delegating to the port.
 - `CandidateProfilePersistencePort` is narrow: create profile, find by organization-scoped profile id, find latest profile by organization-scoped candidate id, upsert one field, and list fields for one organization-scoped profile.
 - `JdbcCandidateProfilePersistencePort` uses plain JDBC/DataSource and reuses the existing V2 `recruiting.candidate_profile` table.
+- `JdbcCandidateProfilePersistencePort` participates in Spring-managed transactions through transaction-aware JDBC connection handling.
 - No new migration, table, index, client-facing view, API DTO table, or competing CandidateProfile table was added in Task 6B.
 - `field_status_map` stores field path to status wire value.
 - `metadata.candidate_profile_fields` stores field value JSON, lineage, conflict metadata, staleness metadata, review timestamps, actor/profile-version confirmation references, source claim id, source review event id, source workflow event id, and notes.
@@ -350,17 +352,25 @@ not harden transaction rollback coordination.
 
 - Gate-first boundary.
 - Requires claim snapshot and review evidence.
+- Runs the existing boundary attempt inside `CanonicalWriteTransactionBoundary`.
 - Does not bypass `CanonicalWriteGate`.
 - Allowed boundary appends a `WorkflowEvent`.
 - Allowed boundary propagates idempotency/correlation/causation identifiers when the command supplies them.
 - Canonical persistence is explicitly deferred.
 - Does not write CandidateProfile.
-- Task 6B does not change this behavior and does not call `CanonicalWriteService` from CandidateProfile persistence.
+- Task 6B/6C do not change this behavior and do not call `CanonicalWriteService` from CandidateProfile persistence.
 
 ## Transaction Boundary
 
-- Current `CanonicalWriteTransactionBoundary` is skeleton/no JDBC rollback coordination.
-- Future work must implement real transaction coordination before canonical multi-table writes.
+- Task 6C hardens `CanonicalWriteTransactionBoundary` with `SpringCanonicalWriteTransactionBoundary`.
+- The implementation uses Spring `PlatformTransactionManager` and `TransactionTemplate`.
+- Nested behavior follows Spring's default `PROPAGATION_REQUIRED`: join an existing transaction when present, otherwise create one around the canonical write callback.
+- Successful callbacks commit and preserve their returned result.
+- Runtime callback failures propagate and roll back participating JDBC writes.
+- Checked callback failures are explicitly wrapped in `CanonicalWriteTransactionException` and roll back participating JDBC writes.
+- The boundary contains no gate, ClaimLedger, ReviewEvent, WorkflowEvent, CandidateProfile, API, UI, AI, or workflow-engine business logic.
+- Rollback behavior is tested against PostgreSQL/Testcontainers by appending a `WorkflowEvent` inside the boundary and throwing after the append.
+- This transaction boundary still does not implement the real canonical write flow and does not write CandidateProfile.
 
 ## Forbidden Current Misreadings
 
@@ -372,7 +382,8 @@ not harden transaction rollback coordination.
 - Do not treat `IntakeReviewBridgeService` as CanonicalWrite, CandidateProfile persistence, ClaimLedger verification mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat `IntakeCanonicalWriteBridgeService` as CandidateProfile persistence, ClaimLedger verification mutation, ReviewEvent mutation, raw Candidate/Profile persistence, workflow engine, transition legality validation, business target entity lookup, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, semantic parser, or client exposure.
 - Do not treat Task 6A CandidateProfile contracts as CandidateProfile persistence, canonical writes, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or transaction boundary hardening.
-- Do not treat Task 6B CandidateProfile persistence as governed-intake automatic writes, `CanonicalWriteService` writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, real canonical write flow, raw Candidate writes, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, transition legality validation, or real JDBC rollback coordination.
+- Do not treat Task 6B CandidateProfile persistence as governed-intake automatic writes, `CanonicalWriteService` writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, real canonical write flow, raw Candidate writes, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, real AI extraction, workflow engine, or transition legality validation.
+- Do not treat Task 6C transaction hardening as governed-intake automatic writes, `CanonicalWriteService` CandidateProfile writes, `CanonicalWriteGate` bypass, claim-to-fact promotion, ReviewEvent mutation, ClaimLedger verification mutation, raw Candidate/Profile persistence, API, UI, client-safe projection, Consent/Disclosure, RBAC/ABAC, AI model wiring, real AI extraction, workflow engine, or transition legality validation.
 - Do not treat Task 5C as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5D as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
 - Do not treat Task 5E as cleanup/deprecation/migration of the earlier `recruiting.*` source/packet skeleton tables. For this bridge, `intake.*` is operational governed-intake lineage and `recruiting.*` remains deferred schema cleanup.
@@ -385,6 +396,6 @@ not harden transaction rollback coordination.
 - Do not treat Task 4C audit read model as API, UI, client-safe projection, RBAC/ABAC, dashboard analytics, or workflow engine.
 - Do not treat `ReviewEventService` as verification promotion.
 - Do not treat `ClaimLedgerService` as canonical fact storage.
-- Do not treat transaction boundary skeleton as real rollback.
+- Do not treat the real transaction boundary as the real canonical write flow.
 - Do not expose raw Candidate to Client.
 - Do not treat Task 4C as ConsentRecord, DisclosureRecord, RBAC/ABAC, Client-safe projection, AI model wiring, or CandidateProfile canonical persistence.

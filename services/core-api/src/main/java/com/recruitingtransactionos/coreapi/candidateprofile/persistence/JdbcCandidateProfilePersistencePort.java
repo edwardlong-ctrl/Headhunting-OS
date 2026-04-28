@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcCandidateProfilePersistencePort implements CandidateProfilePersistencePort {
 
@@ -130,8 +131,8 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
   @Override
   public CandidateProfile createCandidateProfile(CandidateProfile candidateProfile) {
     Objects.requireNonNull(candidateProfile, "candidateProfile must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT_PROFILE_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_PROFILE_SQL)) {
       bindCreate(connection, statement, candidateProfile);
       int inserted = statement.executeUpdate();
       if (inserted != 1) {
@@ -141,9 +142,11 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
           candidateProfile.organizationId(),
           candidateProfile.candidateProfileId())
           .orElseThrow(() -> new IllegalStateException(
-              "candidate profile was not readable after create"));
+          "candidate profile was not readable after create"));
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create candidate profile", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -153,13 +156,15 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
       CandidateProfileId candidateProfileId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(candidateProfileId, "candidateProfileId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_PROFILE_BY_ID_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_PROFILE_BY_ID_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, candidateProfileId.value());
       return findOne(statement);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find candidate profile by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -169,15 +174,17 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
       CandidateId candidateId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(candidateId, "candidateId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(
-            FIND_PROFILE_BY_CANDIDATE_ID_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(
+        FIND_PROFILE_BY_CANDIDATE_ID_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, candidateId.value());
       return findOne(statement);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find candidate profile by candidate id",
           exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -190,7 +197,8 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
     Objects.requireNonNull(candidateProfileId, "candidateProfileId must not be null");
     Objects.requireNonNull(field, "field must not be null");
 
-    try (Connection connection = dataSource.getConnection()) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try {
       StoredProfileJson storedProfileJson = findStoredProfileJson(
           connection,
           organizationId,
@@ -221,6 +229,8 @@ public final class JdbcCandidateProfilePersistencePort implements CandidateProfi
       return field;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to upsert candidate profile field", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
