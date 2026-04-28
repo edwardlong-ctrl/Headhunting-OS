@@ -75,14 +75,24 @@ surface. There is still no Client-safe projection, no REST/API/controller/DTO/UI
 no RBAC/ABAC, no Consent/Disclosure, no real AI extraction, no stale detection
 engine, no conflict resolution workflow, and no full CandidateProfile engine.
 
+Task 7: Client-safe Projection & Privacy Boundary ⏳
+
+- 7A: ClientSafeCandidateCard contract + forbidden-field policy + L0-L4 vocabulary ✅
+
+Task 7A is a safe contract/policy/test slice only: it defines an anonymous
+client-safe card, an explicit deny-by-default forbidden-field policy, and L0-L4
+privacy vocabulary. There is still no projection service/read model,
+REST/API/controller/DTO/UI, RBAC/ABAC, Consent/Disclosure/Unlock,
+re-identification scorer, real redaction pipeline, automatic text rewriting, or
+identity disclosure behavior.
+
 ## Next Tasks
 
 Task 7: Client-safe Projection & Privacy Boundary
 
-- ClientSafeCandidateCard
-- redaction L0-L4
-- forbidden field tests
+- 7B: client-safe projection service/read-model skeleton without API/UI exposure
 - re-identification placeholder
+- redaction pipeline placeholder
 - raw Candidate never exposed to Client
 
 Task 8: Identity / RBAC / ABAC Kernel

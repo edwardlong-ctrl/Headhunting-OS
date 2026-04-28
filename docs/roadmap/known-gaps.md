@@ -1,5 +1,14 @@
 # Known Gaps
 
+## Client-safe Projection Contract Exists; Projection Behavior Deferred
+
+- Task 7A adds a backend-only `ClientSafeCandidateCard` contract using opaque anonymous/card identifiers, generalized profile fields, safe summary fields, safe evidence summary placeholders, and safe match narrative placeholders.
+- Task 7A adds `ClientVisibleCandidateFieldPolicy` as an explicit deny-by-default forbidden-field policy for client-visible candidate fields.
+- Task 7A adds L0-L4 `RedactionLevel` vocabulary aligned to v2.1 privacy semantics.
+- `L4_IDENTITY_DISCLOSED` is vocabulary only in Task 7A and is rejected by `ClientSafeCandidateCard`; it does not grant disclosure permission or implement unlock behavior.
+- Raw Candidate, CandidateProfile, SourceItem, InformationPacket, ClaimLedgerItem, ReviewEvent, WorkflowEvent, raw source text, raw document URLs, direct identity fields, consultant internal notes, and raw backend identifiers are not exposed through the Task 7A card contract.
+- No projection service/read model, API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real redaction pipeline, automatic text rewriting, database migration, or AI/model wiring exists from Task 7A.
+
 ## Canonical Persistence Minimal Path Exists; Metadata Hardened; Full Profile Deferred
 
 - Task 6D adds the first real but minimal canonical CandidateProfile field write path.
@@ -14,7 +23,7 @@
 - Task 6B implements backend-internal CandidateProfile persistence.
 - Task 6C hardens the canonical write transaction boundary.
 - Task 6F proves the current safe chain from ClaimLedgerItem + ReviewEvent evidence to gated transaction-boundary audit/profile write, plus gate-blocked no-write behavior, rollback no-partial-write behavior, wrong-organization isolation, and no client/API/UI/projection exposure.
-- Full CandidateProfile behavior, broad field families, conflict resolution, stale detection, API/UI exposure, client-safe projection, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
+- Full CandidateProfile behavior, broad field families, conflict resolution, stale detection, API/UI exposure, client-safe projection service/read model, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
 
 ## Transaction Boundary Hardened; Full Canonical Flow Still Deferred
 
@@ -51,7 +60,7 @@
 - Task 6D allows governed-intake ClaimLedgerItem plus ReviewEvent evidence to flow to one explicit CandidateProfile field only after `CanonicalWriteGate` allows it and `CanonicalWriteService` runs the transaction boundary.
 - Low-authority governed-intake placeholder claims remain blocked by the existing gate and do not write CandidateProfile.
 - Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
-- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection, redaction, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 6F.
+- No CandidateProfile REST/API/controller/DTO, UI, client-safe projection service/read model, redaction pipeline, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 7A.
 
 ## Consent / Disclosure Not Implemented
 
@@ -110,14 +119,16 @@
 - Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
 - No API/UI exposure exists for governed intake.
-- No Consent/Disclosure, RBAC/ABAC, Client-safe projection, redaction, unlock/disclosure, or client exposure exists for governed intake.
+- No Consent/Disclosure, RBAC/ABAC, Client-safe projection service/read model, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
-## Client-safe Projection Not Implemented
+## Client-safe Projection Service Not Implemented
 
 - Raw Candidate must never be exposed to Client.
-- `ClientSafeCandidateCard` does not exist yet.
-- Redaction L0-L4 does not exist yet.
+- `ClientSafeCandidateCard` exists only as a backend contract after Task 7A.
+- L0-L4 redaction vocabulary exists only as policy vocabulary after Task 7A.
+- No projection service/read model exists yet.
+- No real redaction implementation exists yet.
 - Re-identification risk scorer does not exist yet.
 
 ## Identity / RBAC / ABAC Not Implemented
@@ -157,7 +168,7 @@
 ## API Boundary Not Implemented
 
 - No REST/API DTO layer for truth layer.
-- No client-safe response contract.
+- No API-facing client-safe response contract.
 - No controller boundary tests.
 
 ## UI / AI / Access Boundaries Not Implemented
@@ -168,6 +179,6 @@
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure behavior exists.
 - No RBAC/ABAC implementation exists.
-- No Client-safe projection or redaction behavior exists.
+- No Client-safe projection service/read model/API/UI or redaction behavior exists.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.
