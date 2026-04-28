@@ -3,6 +3,11 @@ package com.recruitingtransactionos.coreapi.clientsafeprojection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
+import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -90,6 +95,7 @@ class ReidentificationRiskAssessmentServiceTest {
         Set.of(ReidentificationRiskFeature.EXACT_CURRENT_EMPLOYER));
 
     assertThatThrownBy(() -> projectionService.project(
+        clientSafeReadRequest(),
         snapshotWithCardId("card_task7c_0003"),
         highRiskAssessment))
         .isInstanceOf(IllegalArgumentException.class)
@@ -120,6 +126,7 @@ class ReidentificationRiskAssessmentServiceTest {
         Set.of());
 
     ClientSafeCandidateCard card = projectionService.project(
+        clientSafeReadRequest(),
         snapshotWithCardId("card_task7c_0004"),
         lowRiskAssessment);
 
@@ -153,5 +160,15 @@ class ReidentificationRiskAssessmentServiceTest {
         List.of("Evidence generalized from approved profile signals."),
         List.of("Strong fit based on generalized capability evidence."),
         ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
+  }
+
+  private static AccessRequest clientSafeReadRequest() {
+    return new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.CLIENT_SAFE_CANDIDATE_CARD,
+        AccessAction.READ,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(),
+        false);
   }
 }

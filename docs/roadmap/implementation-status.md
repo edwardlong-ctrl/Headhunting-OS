@@ -36,6 +36,7 @@
 - Task 7B current worktree: adds a backend-only `ClientSafeCandidateProjectionService` and internal candidate/profile-like snapshot that project to `ClientSafeCandidateCard` only, enforce the Task 7A field policy, reject L4, and block exact raw sensitive value carryover without adding API/UI/RBAC/Consent/Disclosure/Unlock behavior.
 - Task 7C current worktree: adds a backend-only deterministic `ReidentificationRiskAssessmentService` placeholder, risk feature/level/decision vocabulary, high-risk projection guard integration, and Task 7 regression/docs closure without adding API/UI/RBAC/ABAC/Consent/Disclosure/Unlock, real scoring, real redaction, or identity disclosure behavior.
 - Task 8A current worktree: adds backend-only role/resource/action/field-classification access-control contracts, relationship-scope request context, explicit allow/deny decisions, a deterministic deny-by-default `PermissionEvaluator` / `FieldAccessPolicy` skeleton, and focused denial tests without adding API/UI/auth/login/session/Spring Security/service enforcement/Consent/Disclosure/Unlock behavior.
+- Task 8B current worktree: adds backend-only `PermissionEnforcer` / `AccessDeniedException`, requires explicit `AccessRequest` context for `ClientSafeCandidateProjectionService`, and adds a minimal `CandidateProfileAccessService` guard/facade for raw Candidate/Profile reads and sensitive candidate actions without adding API/UI/auth/login/session/Spring Security/Consent/Disclosure/Unlock behavior.
 
 ## Current Test State
 
@@ -60,6 +61,7 @@
 - Task 7B adds focused unit coverage proving projection output omits raw candidate/profile ids, full name, email, phone, LinkedIn URL, exact employer, exact project/product/chip names, raw source text, consultant internal notes, raw CandidateProfile/evidence type names, unknown and forbidden field selections, L4 anonymous projection attempts, exact raw sensitive carryover, and raw internal entity types in public projection output signatures.
 - Task 7C adds focused unit coverage proving required unsafe re-identification categories, deterministic allow/generalize/review/block decisions, L4 as never anonymous client-safe, high-risk assessment blocking projection approval, low-risk assessment accompanying a `ClientSafeCandidateCard`, no external AI/model/Spring/persistence wiring, and no raw internal entity types in public client-safe output types.
 - Task 8A adds focused unit coverage proving required role/resource/action/field vocabulary, deny-by-default unknown access, Client raw Candidate/Profile denial, Client unsafe field denial, Client safe-card read allowance only at client-safe/generalized levels, L4/identity-disclosed denial, Candidate self-scope requirement, Admin/System/AI no canonical-write or disclosure bypass by role alone, no API/controller/Spring Security/database dependency, and no raw Candidate/CandidateProfile return types in public access contracts.
+- Task 8B adds focused unit coverage proving `PermissionEnforcer` fail-closed behavior, explicit denial exceptions preserving reason codes, client-safe projection requiring `AccessRequest`, Client raw Candidate/Profile and unsafe field denial at service boundaries, L4 anonymous projection denial, high-risk re-identification projection blocking, Candidate SELF-scope requirements, AI/Admin/System role-alone bypass denial, and no Spring Security/auth/API/controller/database dependency in the new guard layer.
 - Full Maven backend reached 342 tests, 0 failures/errors, 1 existing skip after Task 7B.
 - Full Maven backend reached 349 tests, 0 failures/errors, 1 existing skip after Task 7C.
 - Full Maven backend reached 360 tests, 0 failures/errors, 1 existing skip after Task 8A.
@@ -175,6 +177,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `L4_IDENTITY_DISCLOSED` requires DisclosureRecord semantics in later work and is not allowed as normal anonymous card exposure.
 - `ClientSafeCandidateProjectionService` projects a narrow internal candidate/profile-like snapshot into `ClientSafeCandidateCard` only.
 - The projection service validates selected client-visible field paths through `ClientVisibleCandidateFieldPolicy` and denies forbidden or unknown selections.
+- The projection service requires an explicit `AccessRequest` and uses `PermissionEnforcer` before returning a card; Client access is allowed only for `CLIENT_SAFE_CANDIDATE_CARD` reads at `CLIENT_SAFE` or `GENERALIZED` field classifications.
 - The projection service rejects `L4_IDENTITY_DISCLOSED` because identity disclosure is not implemented.
 - The projection service blocks exact raw candidate/profile id, identity/contact, exact employer/project/product/chip, raw source text, and consultant note value carryover into safe output fields.
 - `ReidentificationRiskAssessmentService` exists as a deterministic backend-only placeholder, not a real scorer.
@@ -191,11 +194,13 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `AccessRequest` and `AccessDecision` provide immutable evaluator input/output objects with explicit audit-friendly reason codes and safe explanations.
 - `RelationshipScope` currently supports explicit `SELF` scope for Candidate self-profile reads and reserved same-organization, assigned-consultant, owned-account, and governance scopes.
 - `PermissionEvaluator` delegates to `FieldAccessPolicy`; it is deterministic, deny-by-default, and has no database, external service, Spring Security, API/controller, login/session, or real-user dependency.
+- `PermissionEnforcer` wraps `PermissionEvaluator` for service boundaries, fails closed on missing/evaluator-failed decisions, and throws `AccessDeniedException` with the original denial decision when access is not allowed.
 - Client raw `Candidate` and raw `CandidateProfile` reads are denied.
 - Client unsafe field classifications are denied, including PII, raw source, consultant-private, internal audit, and consent/disclosure records.
 - Client can read `CLIENT_SAFE_CANDIDATE_CARD` only at `CLIENT_SAFE` / `GENERALIZED` field levels.
 - Candidate can read self-scoped safe/generalized `CANDIDATE_PROFILE` fields only when `SELF` scope is explicit.
 - Admin, System, and AI assistant roles do not bypass canonical-write or disclosure semantics by role alone.
+- `CandidateProfileAccessService` is a minimal backend guard/facade proving raw Candidate/Profile reads, raw CandidateProfile field reads, sensitive actions, and raw CandidateProfile updates require explicit access context and deny before delegation when the evaluator rejects the request.
 
 ## Current Non-capabilities
 
@@ -222,11 +227,11 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No AI model integration.
 - No Consent/Disclosure implementation.
 - No Client-safe projection API/UI.
-- No service-level RBAC/ABAC enforcement beyond the Task 8A contract/evaluator skeleton.
+- No broad service-level RBAC/ABAC enforcement beyond the Task 8B minimal client-safe projection and raw Candidate/Profile guard surfaces.
 - No real auth/login/session system.
 - No identity-disclosed Client access behavior.
 - No real re-identification scorer beyond the deterministic Task 7C placeholder.
 - No real redaction/rewriting pipeline.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7 is complete for the current backend kernel scope: contract/policy/vocabulary, minimal projection service/read-model boundary, raw exposure negative tests, and deterministic re-identification placeholder. Task 8A is complete only for backend access-control contracts and evaluator skeleton. Downstream privacy/access surfaces, service-level permission enforcement, five-portal negative boundary closure, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, real auth/login/session, real identity disclosure, real re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7 is complete for the current backend kernel scope: contract/policy/vocabulary, minimal projection service/read-model boundary, raw exposure negative tests, and deterministic re-identification placeholder. Task 8A is complete only for backend access-control contracts and evaluator skeleton. Task 8B is complete only for minimal backend service-level permission enforcement on client-safe projection and raw Candidate/Profile guard surfaces. Downstream privacy/access surfaces, five-portal negative boundary closure, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, real auth/login/session, real identity disclosure, real re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

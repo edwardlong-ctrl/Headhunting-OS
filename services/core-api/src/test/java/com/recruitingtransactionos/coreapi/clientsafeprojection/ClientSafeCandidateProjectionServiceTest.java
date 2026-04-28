@@ -8,6 +8,13 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacket;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItem;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
+import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
+import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
@@ -41,7 +48,7 @@ class ClientSafeCandidateProjectionServiceTest {
   void projectionReturnsOnlyClientSafeCandidateCardWithoutRawCandidateProfileOrSensitiveValues() {
     ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
 
-    ClientSafeCandidateCard card = service.project(baseSnapshot());
+    ClientSafeCandidateCard card = service.project(clientSafeReadRequest(), baseSnapshot());
 
     assertThat(card).isInstanceOf(ClientSafeCandidateCard.class);
     assertThat(card.cardId().value()).isEqualTo("card_task7b_0001");
@@ -76,9 +83,11 @@ class ClientSafeCandidateProjectionServiceTest {
   void projectionRejectsUnknownClientVisibleFieldsByDefault() {
     ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
 
-    assertThatThrownBy(() -> service.project(baseSnapshotWithFieldSelection(Set.of(
-        "profile.generalized_headline",
-        "profile.unreviewed_new_field"))))
+    assertThatThrownBy(() -> service.project(
+        clientSafeReadRequest(),
+        baseSnapshotWithFieldSelection(Set.of(
+            "profile.generalized_headline",
+            "profile.unreviewed_new_field"))))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(
             "client-visible candidate field is not allowed: "
@@ -89,9 +98,11 @@ class ClientSafeCandidateProjectionServiceTest {
   void projectionRejectsForbiddenClientVisibleFieldsEvenWhenSafeFieldsAreAlsoSelected() {
     ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
 
-    assertThatThrownBy(() -> service.project(baseSnapshotWithFieldSelection(Set.of(
-        "profile.generalized_headline",
-        "identity.full_name"))))
+    assertThatThrownBy(() -> service.project(
+        clientSafeReadRequest(),
+        baseSnapshotWithFieldSelection(Set.of(
+            "profile.generalized_headline",
+            "identity.full_name"))))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(
             "client-visible candidate field is not allowed: "
@@ -102,8 +113,9 @@ class ClientSafeCandidateProjectionServiceTest {
   void l4IdentityDisclosureIsRejectedForAnonymousProjectionReadModel() {
     ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
 
-    assertThatThrownBy(() -> service.project(baseSnapshotWithRedactionLevel(
-        RedactionLevel.L4_IDENTITY_DISCLOSED)))
+    assertThatThrownBy(() -> service.project(
+        clientSafeReadRequest(),
+        baseSnapshotWithRedactionLevel(RedactionLevel.L4_IDENTITY_DISCLOSED)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("client-safe projection cannot use L4 identity disclosure");
   }
@@ -112,10 +124,71 @@ class ClientSafeCandidateProjectionServiceTest {
   void projectionRejectsSafeOutputFieldsThatCopyRawSensitiveInputValues() {
     ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
 
-    assertThatThrownBy(() -> service.project(baseSnapshotWithSafeSummary(
-        "Built " + EXACT_PROJECT + " verification strategy for a regional chip team.")))
+    assertThatThrownBy(() -> service.project(
+        clientSafeReadRequest(),
+        baseSnapshotWithSafeSummary(
+            "Built " + EXACT_PROJECT + " verification strategy for a regional chip team.")))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("projected client-safe text contains raw sensitive input value");
+  }
+
+  @Test
+  void projectionRequiresExplicitClientSafeCardReadAccessContext() {
+    ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
+
+    assertThatThrownBy(() -> service.project(rawCandidateReadRequest(), baseSnapshot()))
+        .isInstanceOfSatisfying(AccessDeniedException.class, exception ->
+            assertThat(exception.decision().reasonCode()).isEqualTo("client_raw_candidate_denied"));
+
+    assertThatThrownBy(() -> service.project(
+        new AccessRequest(
+            PortalRole.CLIENT,
+            ResourceType.CLIENT_SAFE_CANDIDATE_CARD,
+            AccessAction.READ,
+            FieldClassification.PII,
+            Set.of(),
+            false),
+        baseSnapshot()))
+        .isInstanceOfSatisfying(AccessDeniedException.class, exception ->
+            assertThat(exception.decision().reasonCode()).isEqualTo("client_unsafe_field_denied"));
+  }
+
+  @Test
+  void projectionAllowsClientSafeCandidateCardOnlyForClientSafeOrGeneralizedFields() {
+    ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
+
+    ClientSafeCandidateCard clientSafeCard =
+        service.project(clientSafeReadRequest(), baseSnapshot());
+    ClientSafeCandidateCard generalizedCard = service.project(
+        new AccessRequest(
+            PortalRole.CLIENT,
+            ResourceType.CLIENT_SAFE_CANDIDATE_CARD,
+            AccessAction.READ,
+            FieldClassification.GENERALIZED,
+            Set.of(),
+            false),
+        baseSnapshot());
+
+    assertThat(clientSafeCard.cardId()).isEqualTo(baseSnapshot().cardId());
+    assertThat(generalizedCard.cardId()).isEqualTo(baseSnapshot().cardId());
+  }
+
+  @Test
+  void projectionRejectsAllowedButWrongResourceAccessContext() {
+    ClientSafeCandidateProjectionService service = new ClientSafeCandidateProjectionService();
+
+    assertThatThrownBy(() -> service.project(
+        new AccessRequest(
+            PortalRole.CANDIDATE,
+            ResourceType.CANDIDATE_PROFILE,
+            AccessAction.READ,
+            FieldClassification.GENERALIZED,
+            Set.of(RelationshipScope.SELF),
+            false),
+        baseSnapshot()))
+        .isInstanceOfSatisfying(AccessDeniedException.class, exception ->
+            assertThat(exception.decision().reasonCode())
+                .isEqualTo("client_safe_candidate_card_access_context_required"));
   }
 
   @Test
@@ -144,6 +217,26 @@ class ClientSafeCandidateProjectionServiceTest {
     assertThat(InternalCandidateProjectionSnapshot.class.getRecordComponents())
         .extracting(RecordComponent::getType)
         .doesNotContainAnyElementsOf(forbiddenRawTypes);
+  }
+
+  private static AccessRequest clientSafeReadRequest() {
+    return new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.CLIENT_SAFE_CANDIDATE_CARD,
+        AccessAction.READ,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(),
+        false);
+  }
+
+  private static AccessRequest rawCandidateReadRequest() {
+    return new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.CANDIDATE,
+        AccessAction.READ,
+        FieldClassification.PII,
+        Set.of(),
+        false);
   }
 
   private static InternalCandidateProjectionSnapshot baseSnapshot() {

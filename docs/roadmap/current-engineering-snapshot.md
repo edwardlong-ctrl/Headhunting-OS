@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 8A worktree: `beda2652ff540af12754ee4a7764aa2831e37dd3`
-- latest merged commit before Task 8A: Add client-safe reidentification regression coverage
-- Task 8A worktree validation: 360 tests, 0 failures, 0 errors, 1 existing skip
-- merge status: Task 8A current worktree; do not self-reference the final commit here
+- main HEAD before Task 8B worktree: `210ae49a8d426d878590796fb5c9cf9521fe34a6`
+- latest merged commit before Task 8B: Add access control contract skeleton
+- Task 8B focused worktree validation: 27 focused permission/projection boundary tests, 0 failures, 0 errors
+- merge status: Task 8B current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -24,6 +24,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 7C: Re-identification placeholder / Task 7 regression closure ✅
 - Task 7: Client-safe Projection & Privacy Boundary ✅ for current backend kernel scope
 - Task 8A: Identity / RBAC / ABAC contract and evaluator skeleton ✅
+- Task 8B: Service-level permission enforcement on minimal sensitive backend boundaries ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -43,12 +44,15 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 7 regression coverage now proves the client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative cases, and re-identification placeholder.
 - `identityaccess` now defines backend-only role, resource, action, field-classification, relationship-scope, access-request, and access-decision contracts.
 - `PermissionEvaluator` / `FieldAccessPolicy` now provide a deterministic no-database, no-Spring-Security evaluator skeleton that is deny-by-default, denies Client raw Candidate/CandidateProfile and unsafe fields, allows Client only to read `CLIENT_SAFE_CANDIDATE_CARD` at `CLIENT_SAFE` / `GENERALIZED` levels, and allows Candidate self-scoped safe profile reads only with explicit `SELF` scope.
+- `PermissionEnforcer` / `AccessDeniedException` now provide a reusable backend-only fail-closed service guard that preserves `AccessDecision` reason codes and safe explanations.
+- `ClientSafeCandidateProjectionService` now requires an explicit `AccessRequest` before projecting a `ClientSafeCandidateCard`.
+- `CandidateProfileAccessService` now provides a minimal access-checked backend facade/guard for raw Candidate/Profile reads and sensitive candidate actions before delegating to profile service methods.
 
 ## Current Known Gaps
 
 - Task 7 is complete only for the current backend kernel scope.
 - Task 8A is complete only for backend contract/evaluator-skeleton scope.
-- Task 8B service-level permission enforcement is not implemented.
+- Task 8B is complete only for minimal backend service-level enforcement on client-safe projection and raw Candidate/Profile guard surfaces.
 - Task 8C five-portal boundary negative tests/docs closure is not implemented.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No API/controller/UI yet.
@@ -74,7 +78,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 8B: Service-level permission enforcement
+Task 8C: Five-portal boundary negative tests/docs closure
 
 ## Future Prompt Strategy
 
