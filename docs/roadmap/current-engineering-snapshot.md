@@ -4,7 +4,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD: `ebbdfad5c6f68ef74d0aea155fc2c7cdaefbc1fc`
+- main HEAD: `70606e7855b1433ef9b862e0eb0b768130f0cc5b`
 - latest commit: Add client-safe projection privacy contracts
 - validation: 336 tests, 0 failures, 0 errors, 1 skipped
 - main status: clean
@@ -20,6 +20,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 5: Governed Intake Minimal Slice ✅
 - Task 6: Candidate Canonical Profile minimal slice ✅
 - Task 7A: Client-safe projection contract / policy / vocabulary ✅
+- Task 7B: Client-safe projection service / read-model boundary ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -33,13 +34,14 @@ This file contains mutable short-term engineering state. Update it after future 
 - `ClientSafeCandidateCard` now exists as a backend-only anonymous contract.
 - `ClientVisibleCandidateFieldPolicy` now denies forbidden and unknown client-visible candidate fields.
 - `RedactionLevel` now defines L0-L4 vocabulary, with L4 separated from anonymous client-safe card exposure.
+- `ClientSafeCandidateProjectionService` now projects an internal candidate/profile-like snapshot into `ClientSafeCandidateCard` only.
+- The minimal projection boundary validates selected client-visible fields through `ClientVisibleCandidateFieldPolicy`, rejects L4, and blocks exact raw sensitive value carryover into safe output text.
 
 ## Current Known Gaps
 
-- Task 7 Client-safe Projection & Privacy Boundary is in progress; only Task 7A is complete.
-- No re-identification risk scorer yet.
-- No client-safe projection read model yet.
-- No projection service yet.
+- Task 7 Client-safe Projection & Privacy Boundary is still in progress; Task 7A and Task 7B are complete.
+- Task 7C still needs the re-identification placeholder and Task 7 end-to-end regression/docs closure.
+- No real re-identification risk scorer yet.
 - No API/controller/UI yet.
 - No RBAC/ABAC yet.
 - No Consent/Disclosure/Unlock implementation yet.
@@ -62,7 +64,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 7B: Client-safe projection service/read-model skeleton without API/UI exposure
+Task 7C: re-identification placeholder plus Task 7 end-to-end regression/docs closure
 
 ## Future Prompt Strategy
 

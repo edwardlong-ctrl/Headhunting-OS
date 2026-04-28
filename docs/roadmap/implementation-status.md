@@ -33,6 +33,7 @@
 - Task 6E current worktree: hardens CandidateProfile lineage, stale, and conflict metadata validation and persistence without adding API/UI exposure, client-safe projection, conflict resolution, stale detection, or a broad CandidateProfile engine.
 - Task 6F current worktree: closes Task 6 with regression coverage and documentation for the safe CandidateProfile path: governed-intake ClaimLedgerItem plus ReviewEvent evidence -> mandatory CanonicalWriteGate -> CanonicalWriteTransactionBoundary -> WorkflowEvent audit plus one explicit CandidateProfile field write -> lineage/source-span and CandidateProfile metadata preservation, with no client/API/UI/projection exposure.
 - Task 7A current worktree: adds backend-only client-safe projection contracts, forbidden-field policy, L0-L4 redaction vocabulary, and privacy-boundary unit tests without adding projection service/read model/API/UI/RBAC/Consent/Disclosure/Unlock behavior.
+- Task 7B current worktree: adds a backend-only `ClientSafeCandidateProjectionService` and internal candidate/profile-like snapshot that project to `ClientSafeCandidateCard` only, enforce the Task 7A field policy, reject L4, and block exact raw sensitive value carryover without adding API/UI/RBAC/Consent/Disclosure/Unlock behavior.
 
 ## Current Test State
 
@@ -54,7 +55,8 @@
 - Task 6E adds focused unit and PostgreSQL/Testcontainers coverage for full CandidateProfile field lineage readback, blank lineage ref rejection, stale metadata reason/time-range validation, source-backed conflict metadata validation for `CONFLICTING` fields, conflict severity/resolution vocabulary, non-fact status invariants, organization-scoped metadata visibility, and governed-intake source-span preservation in the minimal allowed canonical write path.
 - Task 6F adds regression closure proving status policy invariants, metadata boundary behavior, governed-intake allowed-write lineage/source-span preservation, organization isolation, gate-blocked no-write behavior, ClaimLedgerItem/ReviewEvent immutability, no API/UI/client projection, and rollback of the allowed WorkflowEvent audit when the CandidateProfile field write fails.
 - Task 7A adds focused unit coverage proving anonymous-only `ClientSafeCandidateCard` construction, absence of raw Candidate/CandidateProfile/upstream evidence types from card components, recognition of forbidden identity/contact/raw/internal/rare identifier fields, deny-by-default unknown field behavior, explicit safe allowlist behavior, L0-L4 ordering/semantics, and rejection of L4 as normal anonymous client-safe card exposure.
-- Full Maven backend reached 336 tests, 0 failures/errors, 1 existing skip after Task 7A.
+- Task 7B adds focused unit coverage proving projection output omits raw candidate/profile ids, full name, email, phone, LinkedIn URL, exact employer, exact project/product/chip names, raw source text, consultant internal notes, raw CandidateProfile/evidence type names, unknown and forbidden field selections, L4 anonymous projection attempts, exact raw sensitive carryover, and raw internal entity types in public projection output signatures.
+- Full Maven backend reached 342 tests, 0 failures/errors, 1 existing skip after Task 7B.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -165,6 +167,10 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - Unknown fields are denied by default unless they are explicitly safe allowlisted.
 - `RedactionLevel` defines L0 teaser, L1 generalized, L2 client-safe, L3 consented detail, and L4 identity-disclosed vocabulary.
 - `L4_IDENTITY_DISCLOSED` requires DisclosureRecord semantics in later work and is not allowed as normal anonymous card exposure.
+- `ClientSafeCandidateProjectionService` projects a narrow internal candidate/profile-like snapshot into `ClientSafeCandidateCard` only.
+- The projection service validates selected client-visible field paths through `ClientVisibleCandidateFieldPolicy` and denies forbidden or unknown selections.
+- The projection service rejects `L4_IDENTITY_DISCLOSED` because identity disclosure is not implemented.
+- The projection service blocks exact raw candidate/profile id, identity/contact, exact employer/project/product/chip, raw source text, and consultant note value carryover into safe output fields.
 
 ## Current Non-capabilities
 
@@ -173,7 +179,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No raw Candidate writes to `recruiting.candidate`.
 - No generic CandidateProfile repository/search/list surface beyond the narrow Task 6B port methods.
 - No CandidateProfile API/controller/DTO/UI.
-- No CandidateProfile client-safe projection service/read model or real redaction pipeline.
+- No CandidateProfile API/controller/DTO/UI exposure or real redaction pipeline.
 - No raw Candidate/Profile exposure to Client.
 - No real AI extraction from SourceItem or InformationPacket.
 - No semantic extraction from SourceItem or InformationPacket.
@@ -190,8 +196,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No UI integration.
 - No AI model integration.
 - No Consent/Disclosure implementation.
-- No Client-safe projection service/read model/API/UI.
+- No Client-safe projection API/UI.
 - No RBAC/ABAC implementation.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7A closes only contract/policy/vocabulary for client-safe projection. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, client-safe projection service/read model, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7A closes contract/policy/vocabulary for client-safe projection, and Task 7B closes the minimal backend projection service/read-model boundary. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, RBAC/ABAC, re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

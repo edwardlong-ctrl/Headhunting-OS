@@ -78,21 +78,23 @@ engine, no conflict resolution workflow, and no full CandidateProfile engine.
 Task 7: Client-safe Projection & Privacy Boundary ⏳
 
 - 7A: ClientSafeCandidateCard contract + forbidden-field policy + L0-L4 vocabulary ✅
+- 7B: client-safe projection service/read-model skeleton without API/UI exposure ✅
 
 Task 7A is a safe contract/policy/test slice only: it defines an anonymous
 client-safe card, an explicit deny-by-default forbidden-field policy, and L0-L4
-privacy vocabulary. There is still no projection service/read model,
+privacy vocabulary. Task 7B adds the minimal backend projection boundary from
+an internal candidate/profile-like snapshot to `ClientSafeCandidateCard` only,
+with field-policy enforcement, L4 rejection, and exact raw sensitive value
+carryover blocking. Task 7 is still not complete: there is still no
 REST/API/controller/DTO/UI, RBAC/ABAC, Consent/Disclosure/Unlock,
-re-identification scorer, real redaction pipeline, automatic text rewriting, or
-identity disclosure behavior.
+re-identification scorer, real redaction pipeline, automatic text rewriting,
+identity disclosure behavior, or end-to-end Task 7 regression closure.
 
 ## Next Tasks
 
 Task 7: Client-safe Projection & Privacy Boundary
 
-- 7B: client-safe projection service/read-model skeleton without API/UI exposure
-- re-identification placeholder
-- redaction pipeline placeholder
+- 7C: re-identification placeholder plus Task 7 end-to-end regression/docs closure
 - raw Candidate never exposed to Client
 
 Task 8: Identity / RBAC / ABAC Kernel

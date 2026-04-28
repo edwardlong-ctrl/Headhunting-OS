@@ -213,14 +213,15 @@ class ClientSafeProjectionContractTest {
   }
 
   @Test
-  void clientSafeProjectionPackageAddsNoServiceReadModelControllerPersistenceOrSpringWiring()
+  void clientSafeProjectionPackageAddsProjectionServiceButNoControllerPersistenceOrSpringWiring()
       throws IOException {
     List<Path> productionFiles = clientSafeProjectionProductionFiles();
 
     assertThat(productionFiles)
         .extracting(path -> path.getFileName().toString())
-        .noneMatch(fileName -> fileName.endsWith("Service.java"))
-        .noneMatch(fileName -> fileName.endsWith("ReadModel.java"))
+        .contains(
+            "ClientSafeCandidateProjectionService.java",
+            "InternalCandidateProjectionSnapshot.java")
         .noneMatch(fileName -> fileName.endsWith("Controller.java"))
         .noneMatch(fileName -> fileName.endsWith("Repository.java"))
         .noneMatch(fileName -> fileName.endsWith("Port.java"))
