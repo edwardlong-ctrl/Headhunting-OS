@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 8C worktree: `494c5ec709dbad37ff1e8926e373c1337e2a3855`
-- latest merged commit before Task 8C: Enforce access checks on sensitive service boundaries
-- Task 8C focused worktree validation: five-portal boundary regression test class, 10 tests, 0 failures, 0 errors
-- merge status: Task 8C current worktree; do not self-reference the final commit here
+- main HEAD before Task 9A worktree: `2ad754c6989ec5b595a7b570b7bf8965975b7875`
+- latest merged commit before Task 9A: Add five-portal access boundary regression
+- Task 9A focused worktree validation: API boundary contract test class, 9 tests, 0 failures, 0 errors
+- merge status: Task 9A current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -27,6 +27,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 8B: Service-level permission enforcement on minimal sensitive backend boundaries ✅
 - Task 8C: Five-portal boundary negative tests/docs closure ✅
 - Task 8: Identity / RBAC / ABAC Kernel ✅ for current backend kernel scope
+- Task 9A: Internal-safe DTO / API contract skeleton ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -50,6 +51,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - `ClientSafeCandidateProjectionService` now requires an explicit `AccessRequest` before projecting a `ClientSafeCandidateCard`.
 - `CandidateProfileAccessService` now provides a minimal access-checked backend facade/guard for raw Candidate/Profile reads and sensitive candidate actions before delegating to profile service methods.
 - Task 8C regression coverage now proves five-portal and automation-role deny-by-default behavior across Owner, Consultant, Client, Candidate, Admin, System, and AI assistant; client-safe card remains the only Client-readable candidate-facing output at this layer; raw Candidate/CandidateProfile, unsafe fields, identity-disclosed/L4 anonymous access, sensitive actions, role-alone canonical-write/disclosure bypasses, and unknown vocabulary remain denied.
+- `apiboundary` now defines a minimal backend API DTO contract skeleton: response envelope bounded to API-safe response bodies, safe error/access-denied/validation DTOs, client-safe candidate card response DTO, contract rules, and a mapper from `ClientSafeCandidateCard` only.
+- Task 9A API boundary tests prove the client-safe API DTO omits raw Candidate/CandidateProfile, SourceItem, InformationPacket, ClaimLedger, ReviewEvent, WorkflowEvent, raw candidate/profile ids, PII, raw source, consultant notes, and L4 identity-disclosed fields.
 
 ## Current Known Gaps
 
@@ -57,8 +60,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 8A is complete only for backend contract/evaluator-skeleton scope.
 - Task 8B is complete only for minimal backend service-level enforcement on client-safe projection and raw Candidate/Profile guard surfaces.
 - Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, fail-closed `PermissionEnforcer` exists, sensitive backend guard slice exists, and five-portal boundary negative tests exist.
+- Task 9A is complete only for internal-safe API DTO/contract skeleton and contract-test scope.
+- Task 9 remains incomplete: 9B client-safe controller boundary and no internal entity leakage tests remain, and 9C API regression/docs closure remains.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
-- No API/controller/UI yet.
+- No REST controller, HTTP endpoint, API runtime behavior, or UI yet.
 - No real auth/login/session system yet.
 - No Spring Security yet.
 - No Consent/Disclosure/Unlock implementation yet.
@@ -83,7 +88,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 9A: API boundary contract tests / no raw Candidate or CandidateProfile exposure
+Task 9B: client-safe controller boundary + no internal entity leakage tests
 
 ## Future Prompt Strategy
 

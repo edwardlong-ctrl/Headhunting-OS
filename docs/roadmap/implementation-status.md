@@ -38,6 +38,7 @@
 - Task 8A current worktree: adds backend-only role/resource/action/field-classification access-control contracts, relationship-scope request context, explicit allow/deny decisions, a deterministic deny-by-default `PermissionEvaluator` / `FieldAccessPolicy` skeleton, and focused denial tests without adding API/UI/auth/login/session/Spring Security/service enforcement/Consent/Disclosure/Unlock behavior.
 - Task 8B current worktree: adds backend-only `PermissionEnforcer` / `AccessDeniedException`, requires explicit `AccessRequest` context for `ClientSafeCandidateProjectionService`, and adds a minimal `CandidateProfileAccessService` guard/facade for raw Candidate/Profile reads and sensitive candidate actions without adding API/UI/auth/login/session/Spring Security/Consent/Disclosure/Unlock behavior.
 - Task 8C current worktree: adds five-portal and automation-role boundary negative regression tests plus documentation closure for the current backend Identity / RBAC / ABAC kernel scope without adding API/UI/auth/login/session/Spring Security/Consent/Disclosure/Unlock behavior.
+- Task 9A current worktree: adds a minimal internal-safe `apiboundary` DTO/contract skeleton, response envelope bounded to API-safe response bodies, client-safe candidate card API response DTO, safe error/access-denied/validation response DTOs, contract rules, and a mapper from `ClientSafeCandidateCard` only, without adding REST controllers, HTTP endpoints, Spring Security, auth/login/session, API runtime behavior, UI, Consent/Disclosure/Unlock, or identity disclosure behavior.
 
 ## Current Test State
 
@@ -64,9 +65,11 @@
 - Task 8A adds focused unit coverage proving required role/resource/action/field vocabulary, deny-by-default unknown access, Client raw Candidate/Profile denial, Client unsafe field denial, Client safe-card read allowance only at client-safe/generalized levels, L4/identity-disclosed denial, Candidate self-scope requirement, Admin/System/AI no canonical-write or disclosure bypass by role alone, no API/controller/Spring Security/database dependency, and no raw Candidate/CandidateProfile return types in public access contracts.
 - Task 8B adds focused unit coverage proving `PermissionEnforcer` fail-closed behavior, explicit denial exceptions preserving reason codes, client-safe projection requiring `AccessRequest`, Client raw Candidate/Profile and unsafe field denial at service boundaries, L4 anonymous projection denial, high-risk re-identification projection blocking, Candidate SELF-scope requirements, AI/Admin/System role-alone bypass denial, and no Spring Security/auth/API/controller/database dependency in the new guard layer.
 - Task 8C adds focused unit coverage proving Owner, Consultant, Client, Candidate, Admin, System, and AI assistant deny-by-default boundaries; Client can read only `CLIENT_SAFE_CANDIDATE_CARD` at client-safe/generalized levels; Client cannot read raw Candidate/Profile, unsafe fields, internal audit/consent/disclosure fields, or use L4 as anonymous access; Candidate reads require explicit SELF scope; Consultant/Owner/Admin/System/AI do not bypass canonical-write or disclosure gates by role alone; unknown vocabulary remains denied; `PermissionEnforcer`, `CandidateProfileAccessService`, and `ClientSafeCandidateProjectionService` remain guarded/fail-closed boundaries.
+- Task 9A adds focused API boundary contract coverage proving the client-safe candidate API DTO maps only from `ClientSafeCandidateCard`, exposes only anonymous/generalized/client-safe fields, omits raw Candidate/CandidateProfile/upstream governance/audit/source types and raw ids, rejects L4 identity-disclosed API output, denies unknown/internal response fields by contract rule, verifies the response envelope is bounded to API-safe response bodies, verifies the mapper does not accept raw Candidate/Profile types, and verifies access-denied API responses do not leak stack traces, raw ids, or internal entity details.
 - Full Maven backend reached 342 tests, 0 failures/errors, 1 existing skip after Task 7B.
 - Full Maven backend reached 349 tests, 0 failures/errors, 1 existing skip after Task 7C.
 - Full Maven backend reached 360 tests, 0 failures/errors, 1 existing skip after Task 8A.
+- Full Maven backend reached 395 tests, 0 failures/errors, 1 existing skip after Task 9A.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -205,6 +208,16 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `CandidateProfileAccessService` is a minimal backend guard/facade proving raw Candidate/Profile reads, raw CandidateProfile field reads, sensitive actions, and raw CandidateProfile updates require explicit access context and deny before delegation when the evaluator rejects the request.
 - Task 8C closes the current backend Identity / RBAC / ABAC kernel scope with five-portal boundary negative tests. The completed scope is limited to role/resource/action/field policy contracts, deterministic `PermissionEvaluator`, fail-closed `PermissionEnforcer`, sensitive backend guard slice, and regression tests across the five product portals plus System and AI assistant.
 
+## Current API Boundary Contract Capabilities
+
+- `apiboundary` defines a minimal backend API DTO/contract skeleton only.
+- `ApiSafeResponseBody` marks the only DTO bodies permitted by the current API response envelope.
+- `ApiResponseEnvelope`, `ApiErrorResponse`, `ApiAccessDeniedResponse`, and `ApiValidationErrorResponse` provide safe response/error shapes for future controllers without adding any controller or HTTP runtime behavior.
+- `ClientSafeCandidateCardResponse` exposes only anonymous card/candidate refs, projection version, anonymous-safe redaction level, generalized profile fields, safe summaries, and safe evidence/match narratives.
+- `ClientSafeCandidateCardResponseMapper` maps from `ClientSafeCandidateCard` to `ClientSafeCandidateCardResponse` only; it does not map raw Candidate or CandidateProfile.
+- `ApiBoundaryContractRules` deny unknown/internal candidate-card response fields by default and sanitize error text that contains raw UUIDs, stack traces, internal package names, or internal entity details.
+- Task 9A is complete only for DTO/contract/test skeleton scope. It does not add REST controllers, HTTP endpoints, Spring Security, auth/login/session, API runtime behavior, frontend/UI, Consent/Disclosure/Unlock, or identity disclosure behavior.
+
 ## Current Non-capabilities
 
 - No full CandidateProfile implementation or broad profile update engine. Task 6D only supports one explicit minimal CandidateProfile field write target through `CanonicalWriteService` after `CanonicalWriteGate` allows it.
@@ -225,16 +238,16 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No transition legality validation; WorkflowEvent policy validation is audit request validation only.
 - No legal `from_state -> to_state` validation in the Task 4D transition audit skeleton.
 - No target entity lookup or state mutation in `WorkflowTransitionAuditService`.
-- No API layer.
+- No REST controller, HTTP endpoint, or API runtime layer.
 - No UI integration.
 - No AI model integration.
 - No Consent/Disclosure implementation.
-- No Client-safe projection API/UI.
+- No client-safe controller endpoint or UI; Task 9A adds only an API DTO contract skeleton.
 - No broad service-level RBAC/ABAC enforcement beyond the Task 8B/8C minimal client-safe projection and raw Candidate/Profile guard surfaces plus five-portal boundary regression tests.
 - No real auth/login/session system.
 - No identity-disclosed Client access behavior.
 - No real re-identification scorer beyond the deterministic Task 7C placeholder.
 - No real redaction/rewriting pipeline.
 - No dashboard analytics or generic repository search.
-- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7 is complete for the current backend kernel scope: contract/policy/vocabulary, minimal projection service/read-model boundary, raw exposure negative tests, and deterministic re-identification placeholder. Task 8 is complete for the current backend kernel scope: access-control contracts, deterministic evaluator, fail-closed enforcer, minimal sensitive backend guard surfaces, and five-portal boundary negative tests. Downstream privacy/access surfaces, full CandidateProfile behavior, API/UI wiring, real AI extraction, Consent/Disclosure, real auth/login/session, Spring Security, real identity disclosure, real re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, complete product-wide RBAC/ABAC enforcement, and recruiting.* source/packet cleanup remain future work.
+- Task 5 Governed Intake Minimal Slice is closed as a regression-covered safe chain. Task 6F closes the first minimal gated CandidateProfile write slice and metadata regression coverage. Task 7 is complete for the current backend kernel scope: contract/policy/vocabulary, minimal projection service/read-model boundary, raw exposure negative tests, and deterministic re-identification placeholder. Task 8 is complete for the current backend kernel scope: access-control contracts, deterministic evaluator, fail-closed enforcer, minimal sensitive backend guard surfaces, and five-portal boundary negative tests. Task 9A is complete for internal-safe API DTO/contract skeleton scope only. Downstream Task 9B/9C controller-boundary/API regression closure, privacy/access surfaces, full CandidateProfile behavior, API/UI runtime wiring, real AI extraction, Consent/Disclosure, real auth/login/session, Spring Security, real identity disclosure, real re-identification scoring, real redaction/rewriting, stale detection, conflict resolution, complete product-wide RBAC/ABAC enforcement, and recruiting.* source/packet cleanup remain future work.
 - A separate blocked canonical-attempt audit ledger remains future work; gate-blocked attempts currently do not append the allowed-write WorkflowEvent audit.

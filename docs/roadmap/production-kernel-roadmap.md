@@ -112,9 +112,25 @@ slice, and five-portal boundary negative tests. Task 8 still adds no
 API/controller/UI, auth/login/session, Spring Security, Consent/Disclosure/Unlock,
 identity-disclosure behavior, or complete product-wide RBAC/ABAC enforcement.
 
+Task 9: API Boundary ⏳
+
+- 9A: internal-safe DTO / API contract skeleton ✅
+- 9B: client-safe controller boundary + no internal entity leakage tests ⏳
+- 9C: API regression/docs closure ⏳
+
+Task 9A adds only the minimal backend API DTO contract skeleton: response
+envelope bounded to API-safe response bodies, safe error/access-denied/validation
+DTOs, client-safe candidate card response DTO, contract rules, and a mapper from
+`ClientSafeCandidateCard` to the API DTO. It adds no REST controllers, HTTP
+endpoints, Spring Security, auth, session behavior, API runtime behavior, UI,
+Consent/Disclosure/Unlock behavior, or identity disclosure behavior. Raw
+Candidate and CandidateProfile remain not client-exposed.
+
 ## Next Tasks
 
-Task 9A: API Boundary & Contract Tests / no raw Candidate or CandidateProfile exposure
+Task 9B: Client-safe controller boundary + no internal entity leakage tests
+
+Task 9C: API regression/docs closure
 
 Task 10: AITaskRun / AI Governance Skeleton
 
