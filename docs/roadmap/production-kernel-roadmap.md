@@ -165,9 +165,29 @@ there is still no real AI model call, model routing, prompt execution, AI task
 queue/worker, automatic human review workflow, canonical write execution from AI
 governance, AI governance API/controller, or UI.
 
+Task 11: Matching / Evidence Kernel ⏳
+
+- 11A: MatchReport scoring contracts + score-cap policy skeleton ✅
+- 11B: MatchReport generation service / evidence coverage / provenance weighting placeholder ⏳
+- 11C: matching/evidence regression/docs closure ⏳
+
+Task 11A adds a backend-only `matching` package with opaque MatchReport/job/
+subject references, 1-5 score validation, required dimension score vocabulary,
+explicit score confidence, bounded evidence coverage, provenance/source-strength
+placeholders, assertion-strength and authenticity-risk awareness, ontology and
+industry-pack version placeholders, and a deterministic score-cap policy. The
+policy caps insufficient independent high-trust evidence, cold industry packs,
+keyword-only evidence without project evidence, weak-signal intent, stale
+ontology/industry-pack metadata, and high authenticity risk according to v2.1
+rules. High re-identification risk blocks client delivery pending privacy review.
+Task 11A is contract/policy/test only: it adds no real AI matching, model calls,
+prompt execution, model routing, persistence, API/controller/UI, client-facing
+delivery, canonical fact writes, CandidateProfile mutation, or
+ClaimLedgerItem/ReviewEvent/WorkflowEvent writes. Task 11 is not complete.
+
 ## Next Tasks
 
-Task 11A: Matching / Evidence Skeleton
+Task 11B: MatchReport generation service / evidence coverage / provenance weighting placeholder
 
 Task 11: Matching / Evidence Skeleton
 

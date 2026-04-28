@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 10C worktree: `a17b83c87e56ee8d7eb716d3bdabf7864b43f6ed`
-- latest merged commit before Task 10C: Add AI task write-back review policy
-- Task 10C worktree validation: focused AI governance regression suite, 37 tests, 0 failures/errors; full backend Maven suite, 451 tests, 0 failures/errors, 1 existing skip
-- merge status: Task 10C current worktree; do not self-reference the final commit here
+- main HEAD before Task 11A worktree: `5158d484cf888cc0f61ab4a125ee0e04bafefc81`
+- latest merged commit before Task 11A: Add AI governance regression coverage
+- Task 11A worktree validation: focused matching contract/policy suite, 18 tests, 0 failures/errors; full backend Maven suite, 469 tests, 0 failures/errors, 1 existing skip
+- merge status: Task 11A current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -35,6 +35,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10B: Write-back target + human review status policy ✅
 - Task 10C: AI governance regression/docs closure ✅
 - Task 10: AI Governance Kernel ✅ for current backend kernel scope
+- Task 11A: MatchReport scoring contracts and score-cap policy skeleton ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -67,6 +68,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10B adds explicit AI write-back target and human-review status vocabulary plus deterministic `AITaskGovernancePolicy` decisions for metadata validation. It accepts no-write-back and claim-ledger proposal metadata, requires approved human review plus CanonicalWriteGate for canonical targets, requires client-safe boundary semantics for client-visible projection targets, and blocks consent/disclosure/unlock, workflow-action, and commercial/placement targets in this kernel.
 - Task 10C closes the current AI governance backend kernel scope with regression coverage proving AITaskRun persistence stores model/prompt/schema/task version metadata, safe status metadata, write-back target metadata, and human-review metadata only; it does not call AI/model services, execute prompts, route models, queue workers, retry/async work, execute write-back, invoke `CanonicalWriteService`, write canonical facts, mutate CandidateProfile, or append ClaimLedgerItem/ReviewEvent/WorkflowEvent rows.
 - Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract and persistence exist, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back execution, and no canonical mutation.
+- Task 11A adds a backend-only `matching` package with `MatchReport`, opaque match/job/subject references, 1-5 `MatchScore`, required dimension scores, score confidence, bounded evidence coverage, provenance/source-strength/weight placeholders, assertion-strength and authenticity-risk awareness, ontology/industry-pack version placeholders, and generated-at metadata.
+- Task 11A adds deterministic `ScoreCapPolicy` / `ScoreCapDecision` contracts that cap insufficient independent high-trust evidence to max 4, cold industry packs to max 3, keyword-only evidence without project evidence to max 3, weak-signal intent to max 3, stale ontology or stale industry-pack metadata to max 4, and high authenticity risk to max 4 with review/additional-evidence flags. High re-identification risk blocks client delivery pending privacy review.
+- Task 11A regression coverage proves the contract does not expose raw Candidate/Profile, SourceItem/InformationPacket, ClaimLedger/ReviewEvent/WorkflowEvent/AITaskRun internals, raw source text, PII, consultant notes, API/controller/UI, persistence, AI/model calls, canonical fact writes, CandidateProfile mutation, or governance-event writes.
+- Task 11A is contracts/policy/test only. `MatchReport` is not a canonical fact and is not a client-safe API output.
 
 ## Current Known Gaps
 
@@ -81,6 +86,11 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10B is complete only for write-back target vocabulary, human-review status vocabulary, metadata-only policy decisions, and AITaskRun metadata validation.
 - Task 10C is complete only for AI governance regression/docs closure.
 - Task 10 is complete only for the current backend kernel scope.
+- Task 11A is complete only for MatchReport scoring contracts, evidence/provenance placeholder vocabulary, and deterministic score-cap policy tests.
+- Task 11B remains: MatchReport generation service / evidence coverage / provenance weighting placeholder.
+- Task 11C remains: matching/evidence regression and docs closure.
+- Task 11 is not complete.
+- No real AI matching, model routing, prompt execution, AI task queue/worker, matching persistence, matching API/controller/UI, client-facing match report delivery, or real industry ontology calibration exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the Task 9 client-safe candidate-card read endpoint exists.
 - No real auth/login/session system yet.
@@ -108,7 +118,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 11A: Matching / Evidence Skeleton
+Task 11B: MatchReport generation service / evidence coverage / provenance weighting placeholder
 
 ## Future Prompt Strategy
 

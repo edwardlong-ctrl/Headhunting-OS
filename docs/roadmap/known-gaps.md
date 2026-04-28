@@ -1,5 +1,26 @@
 # Known Gaps
 
+## Task 11A MatchReport Scoring Contract Exists; Matching Engine Deferred
+
+- Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.
+- `MatchReport` uses opaque `match_report_`, `job_ref_`, and `match_subject_` references rather than raw Candidate or CandidateProfile objects.
+- `MatchScore` validates the v2.1 1-5 score vocabulary for both overall score and dimension scores.
+- Required dimensions are represented explicitly: technical fit, industry fit, seniority fit, salary fit, location fit, motivation fit, availability fit, evidence strength, and culture/manager fit.
+- `ScoreConfidence` is explicit as low, medium, and high.
+- `EvidenceCoverage` is bounded to a 0.0-1.0 ratio and tracks independent evidence count plus independent high-trust evidence count.
+- Provenance placeholders include source category, source strength, bounded provenance weight, assertion-strength awareness, and authenticity-risk level.
+- Version placeholders include ontology version and industry-pack version on the MatchReport contract.
+- `ScoreCapPolicy` is deterministic and fail-closed for the current metadata-only scope.
+- The score-cap policy caps insufficient independent high-trust evidence to max 4, cold industry packs to max 3, keyword-only evidence without project evidence to max 3, weak-signal intent to max 3, stale ontology or stale industry-pack metadata to max 4, and high authenticity risk to max 4 with review/additional-evidence flags.
+- High re-identification risk blocks client delivery pending privacy review; it does not make the MatchReport a safe client-delivery DTO.
+- `MatchReport` is not a canonical fact and is not a client-safe API response.
+- Task 11A tests prove no raw Candidate/Profile, SourceItem/InformationPacket, ClaimLedger/ReviewEvent/WorkflowEvent/AITaskRun internals, raw source text, PII, consultant-private notes, API/controller/UI, persistence, AI/model call, canonical fact write, CandidateProfile mutation, or governance-event write is added by the matching package.
+- Task 11A does not implement real AI matching, real candidate scoring, model calls, prompt execution, model routing, queue/worker behavior, API/controller, frontend/UI, database migration, persistence, client-facing match report delivery, Consent/Disclosure/Unlock, commercial/placement behavior, canonical facts, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, or WorkflowEvent append.
+- Task 11B remains: MatchReport generation service / evidence coverage / provenance weighting placeholder.
+- Task 11C remains: matching/evidence regression and docs closure.
+- Task 11 is not complete.
+- Broader gaps remain: no real AI matching, no real industry ontology calibration, no model routing, no prompt execution, no matching persistence, no client-facing match report delivery, and no matching API/controller/UI.
+
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
 - Task 7A adds a backend-only `ClientSafeCandidateCard` contract using opaque anonymous/card identifiers, generalized profile fields, safe summary fields, safe evidence summary placeholders, and safe match narrative placeholders.
