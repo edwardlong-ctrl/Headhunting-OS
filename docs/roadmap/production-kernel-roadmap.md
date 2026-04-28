@@ -115,7 +115,7 @@ identity-disclosure behavior, or complete product-wide RBAC/ABAC enforcement.
 Task 9: API Boundary ⏳
 
 - 9A: internal-safe DTO / API contract skeleton ✅
-- 9B: client-safe controller boundary + no internal entity leakage tests ⏳
+- 9B: client-safe controller boundary + no internal entity leakage tests ✅
 - 9C: API regression/docs closure ⏳
 
 Task 9A adds only the minimal backend API DTO contract skeleton: response
@@ -126,9 +126,16 @@ endpoints, Spring Security, auth, session behavior, API runtime behavior, UI,
 Consent/Disclosure/Unlock behavior, or identity disclosure behavior. Raw
 Candidate and CandidateProfile remain not client-exposed.
 
-## Next Tasks
+Task 9B adds the first minimal client-safe controller boundary for reading one
+anonymous client-safe candidate card by `card_` reference. The controller requires
+explicit temporary access-context headers, fails closed on missing/denied context,
+delegates to a safe query facade/port that returns `ClientSafeCandidateCard`, and
+maps only through `ClientSafeCandidateCardResponse`. It adds no raw
+Candidate/Profile endpoints, no broad REST API, no Spring Security, no
+auth/login/session, no frontend/UI, no Consent/Disclosure/Unlock, and no identity
+disclosure behavior.
 
-Task 9B: Client-safe controller boundary + no internal entity leakage tests
+## Next Tasks
 
 Task 9C: API regression/docs closure
 

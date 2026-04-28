@@ -194,14 +194,16 @@
 - It is not dashboard analytics, full reporting, full-text search, generic repository search, or arbitrary SQL filtering.
 - Correlation and causation identifiers are queryable for backend audit lineage, but no user-facing timeline/query API exists yet.
 
-## Task 9A API Boundary Contract Skeleton Exists; Controllers Deferred
+## Task 9A/9B API Boundary Slice Exists; Broad API Deferred
 
 - Task 9A adds a minimal backend `apiboundary` package with API-safe response envelope bounded to API-safe response bodies, error/access-denied/validation response DTOs, a client-safe candidate card response DTO, a mapper from `ClientSafeCandidateCard` only, and contract rules for safe field allowlisting and error text sanitization.
 - Task 9A contract tests prove the client-safe API DTO contains only anonymous/generalized/client-safe fields and does not contain raw Candidate, CandidateProfile, SourceItem, InformationPacket, ClaimLedgerItem, ReviewEvent, WorkflowEvent, raw candidate/profile ids, PII, raw source fields, consultant notes, or L4 identity-disclosed fields.
 - Task 9A access-denied response tests prove denial DTOs preserve safe reason codes while avoiding stack traces, raw ids, internal entity details, and unsafe exception text.
-- Task 9 remains incomplete: 9B must add the client-safe controller boundary plus no internal entity leakage tests, and 9C must close API regression/docs coverage.
-- No REST controllers or HTTP endpoints exist yet.
-- No Spring Security, auth/login/session, API runtime behavior, frontend/UI, Consent/Disclosure/Unlock behavior, or identity disclosure behavior exists yet.
+- Task 9B adds the first minimal controller boundary: `GET /api/client-safe/candidate-cards/{anonymousCardRef}` reads by anonymous `card_` reference, requires explicit temporary access-context headers, delegates to a safe query facade/port returning `ClientSafeCandidateCard`, and maps only to `ClientSafeCandidateCardResponse` inside the API-safe envelope.
+- Task 9B tests prove successful responses do not contain raw candidate/profile ids, full name, email, phone, LinkedIn URL, raw source text, consultant notes, exact employer, exact project/product/chip name, L4 identity fields, or raw internal entity/governance types; missing/denied/non-client/identity-disclosed access fails closed with sanitized responses; raw UUID path refs are rejected; no raw Candidate/Profile endpoints exist.
+- Task 9 remains incomplete: 9C must close API regression/docs coverage.
+- Only the Task 9B client-safe candidate-card read endpoint exists; no raw Candidate/Profile API endpoints, broad REST API, or general API runtime layer exists yet.
+- No Spring Security, auth/login/session, frontend/UI, Consent/Disclosure/Unlock behavior, or identity disclosure behavior exists yet.
 
 ## UI / AI / Access Boundaries Not Implemented
 
@@ -211,6 +213,6 @@
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure behavior exists.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
-- No client-safe controller endpoint, UI, or redaction behavior exists; Task 9A only adds a DTO contract skeleton.
+- No client-safe UI or real redaction behavior exists; Task 9B only adds one narrow controller boundary for already projected client-safe cards.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.

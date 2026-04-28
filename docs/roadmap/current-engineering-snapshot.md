@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 9A worktree: `2ad754c6989ec5b595a7b570b7bf8965975b7875`
-- latest merged commit before Task 9A: Add five-portal access boundary regression
-- Task 9A focused worktree validation: API boundary contract test class, 9 tests, 0 failures, 0 errors
-- merge status: Task 9A current worktree; do not self-reference the final commit here
+- main HEAD before Task 9B worktree: `e612963d720c17e93d857817a0e21dd42cd0c2c1`
+- latest merged commit before Task 9B: Add internal-safe API DTO contract skeleton
+- Task 9B focused worktree validation: client-safe controller boundary test class, 8 tests, 0 failures, 0 errors
+- merge status: Task 9B current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -28,6 +28,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 8C: Five-portal boundary negative tests/docs closure ✅
 - Task 8: Identity / RBAC / ABAC Kernel ✅ for current backend kernel scope
 - Task 9A: Internal-safe DTO / API contract skeleton ✅
+- Task 9B: Client-safe controller boundary + no internal entity leakage tests ✅
 
 ## Current Truth/Kernel Capabilities
 
@@ -53,6 +54,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 8C regression coverage now proves five-portal and automation-role deny-by-default behavior across Owner, Consultant, Client, Candidate, Admin, System, and AI assistant; client-safe card remains the only Client-readable candidate-facing output at this layer; raw Candidate/CandidateProfile, unsafe fields, identity-disclosed/L4 anonymous access, sensitive actions, role-alone canonical-write/disclosure bypasses, and unknown vocabulary remain denied.
 - `apiboundary` now defines a minimal backend API DTO contract skeleton: response envelope bounded to API-safe response bodies, safe error/access-denied/validation DTOs, client-safe candidate card response DTO, contract rules, and a mapper from `ClientSafeCandidateCard` only.
 - Task 9A API boundary tests prove the client-safe API DTO omits raw Candidate/CandidateProfile, SourceItem, InformationPacket, ClaimLedger, ReviewEvent, WorkflowEvent, raw candidate/profile ids, PII, raw source, consultant notes, and L4 identity-disclosed fields.
+- Task 9B adds the first minimal client-safe controller endpoint: `GET /api/client-safe/candidate-cards/{anonymousCardRef}`. The path uses the `card_` anonymous card reference, requires explicit temporary access-context headers, delegates to a safe query facade/port returning `ClientSafeCandidateCard`, maps only through `ClientSafeCandidateCardResponseMapper`, and returns the existing API-safe envelope.
+- Task 9B controller tests prove successful responses expose only the client-safe DTO/envelope, omit raw ids/PII/raw source/consultant notes/exact employer/project/product/chip/L4 identity fields, fail closed on missing/denied/identity-disclosed access context, sanitize denials, reject raw UUID path refs, expose no raw Candidate/Profile/governance types, and add no raw Candidate/Profile endpoints.
 
 ## Current Known Gaps
 
@@ -61,9 +64,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 8B is complete only for minimal backend service-level enforcement on client-safe projection and raw Candidate/Profile guard surfaces.
 - Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, fail-closed `PermissionEnforcer` exists, sensitive backend guard slice exists, and five-portal boundary negative tests exist.
 - Task 9A is complete only for internal-safe API DTO/contract skeleton and contract-test scope.
-- Task 9 remains incomplete: 9B client-safe controller boundary and no internal entity leakage tests remain, and 9C API regression/docs closure remains.
+- Task 9B is complete only for the first client-safe controller boundary and no-internal-entity-leakage test scope.
+- Task 9 remains incomplete: 9C API regression/docs closure remains.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
-- No REST controller, HTTP endpoint, API runtime behavior, or UI yet.
+- No broad REST controller/API surface or UI yet; only the Task 9B client-safe candidate-card read endpoint exists.
 - No real auth/login/session system yet.
 - No Spring Security yet.
 - No Consent/Disclosure/Unlock implementation yet.
@@ -88,7 +92,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 9B: client-safe controller boundary + no internal entity leakage tests
+Task 9C: API regression/docs closure
 
 ## Future Prompt Strategy
 
