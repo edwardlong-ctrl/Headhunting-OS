@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 11B worktree: `8593c2d81b291489585f08499801ff26db58ed5f`
-- latest merged commit before Task 11B: Add match report scoring contracts
-- Task 11B worktree validation: focused matching package suite, 33 tests, 0 failures/errors; full backend Maven suite, 484 tests, 0 failures/errors, 1 existing skip
-- merge status: Task 11B current worktree; do not self-reference the final commit here
+- main HEAD before Task 11C worktree: `a7310feab2c520874c0d24dfa0a729e49c3e2beb`
+- latest merged commit before Task 11C: Add match report generation placeholder
+- Task 11C worktree validation: focused matching package suite, 39 tests, 0 failures/errors; full backend Maven suite, 490 tests, 0 failures/errors, 1 existing skip
+- merge status: Task 11C current worktree; do not self-reference the final commit here
 
 ## Completed Major Tasks
 
@@ -37,6 +37,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10: AI Governance Kernel ✅ for current backend kernel scope
 - Task 11A: MatchReport scoring contracts and score-cap policy skeleton ✅
 - Task 11B: MatchReport generation service / evidence coverage / provenance weighting placeholder ✅
+- Task 11C: Matching / evidence regression and docs closure ✅
+- Task 11: Matching / Evidence Kernel ✅ for current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -78,6 +80,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 11B adds a deterministic provenance weighting placeholder covering `EXTERNAL_VERIFIED`, `CANDIDATE_CONFIRMED`, `CONSULTANT_ATTESTED`, `HUMAN_ACKNOWLEDGED`, `AI_EXTRACTED`, `SYSTEM_INFERENCE`, `WEAK_SIGNAL`, and `UNKNOWN` categories. Unknown provenance fails closed for generation; AI/system/weak-signal provenance cannot support high-confidence top scoring alone.
 - Task 11B generation applies existing `ScoreCapPolicy` before returning the `MatchReport`, caps dimension scores to the final cap, preserves safe cap decisions/reasons, and keeps generated reports non-canonical and not client-safe API output.
 - Task 11B regression coverage proves no raw Candidate/Profile, SourceItem/InformationPacket, raw source text, PII, consultant notes, internal audit data, API/controller/UI, persistence, AI/model calls, canonical fact writes, CandidateProfile mutation, or ClaimLedgerItem/ReviewEvent/WorkflowEvent writes are added.
+- Task 11C adds matching/evidence regression closure coverage proving MatchReport and generation contracts remain opaque-ref-only, non-canonical, not client-safe API output, free of raw Candidate/Profile/source/governance leakage, deterministic across score/evidence/provenance metadata, and bounded by score-cap policy before return.
+- Task 11C regression coverage proves no real AI/model service call, prompt execution, model routing, worker queue, persistence, database migration, canonical write, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, WorkflowEvent append, API/controller, or UI surface is added by Task 11 code.
+- Task 11 is complete only for the current backend kernel scope: MatchReport contracts exist, 1-5 score and dimension vocabularies exist, score confidence and evidence coverage metadata exist, provenance weighting placeholder exists, deterministic ScoreCapPolicy exists, MatchReportGenerationService placeholder exists, and regression tests prove no AI execution, no persistence, no canonical mutation, and no client/API exposure.
 
 ## Current Known Gaps
 
@@ -94,9 +99,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10 is complete only for the current backend kernel scope.
 - Task 11A is complete only for MatchReport scoring contracts, evidence/provenance placeholder vocabulary, and deterministic score-cap policy tests.
 - Task 11B is complete only for deterministic backend-only MatchReport generation from safe scoring inputs, evidence coverage/provenance placeholders, and ScoreCapPolicy integration.
-- Task 11C remains: matching/evidence regression and docs closure.
-- Task 11 is not complete.
+- Task 11C is complete only for matching/evidence regression and docs closure.
+- Task 11 is complete only for the current backend kernel scope.
 - No real AI matching, model routing, prompt execution, AI task queue/worker, matching persistence, matching API/controller/UI, client-facing match report delivery, or real industry ontology calibration exists yet.
+- No outcome-label feedback loop exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the Task 9 client-safe candidate-card read endpoint exists.
 - No real auth/login/session system yet.
@@ -124,7 +130,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 11C: matching/evidence regression and docs closure
+Task 12A
 
 ## Future Prompt Strategy
 

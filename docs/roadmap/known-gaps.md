@@ -1,6 +1,6 @@
 # Known Gaps
 
-## Task 11B MatchReport Generation Placeholder Exists; Matching Engine Deferred
+## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Matching Engine Deferred
 
 - Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.
 - `MatchReport` uses opaque `match_report_`, `job_ref_`, and `match_subject_` references rather than raw Candidate or CandidateProfile objects.
@@ -21,9 +21,10 @@
 - Task 11B provenance weighting remains a placeholder: it distinguishes external verified, candidate confirmed, consultant attested, human acknowledged, AI extracted, system inference, weak signal, and unknown provenance categories; unknown provenance fails closed for generation; AI/system/weak signals can lower confidence or trigger score caps but do not create facts.
 - Task 11B applies the existing `ScoreCapPolicy` before returning a report and preserves the cap decision/safe reason on the final `MatchReport`.
 - Task 11B is complete only for deterministic backend-only generation from safe scoring inputs. It does not implement real AI matching, real scoring, model calls, prompt execution, model routing, persistence, API/controller/UI, client-facing delivery, canonical fact writes, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, or WorkflowEvent append.
-- Task 11C remains: matching/evidence regression and docs closure.
-- Task 11 is not complete.
-- Broader gaps remain: no real AI matching, no real industry ontology calibration, no model routing, no prompt execution, no matching persistence, no client-facing match report delivery, and no matching API/controller/UI.
+- Task 11C adds matching/evidence regression closure coverage proving MatchReport and generation contracts remain opaque-ref-only, non-canonical, not client-safe API output, free of raw Candidate/Profile/source/governance leakage, deterministic across score/evidence/provenance metadata, and bounded by score-cap policy before return.
+- Task 11C proves Task 11 code adds no real AI/model service call, prompt execution, model routing, worker queue, persistence, database migration, canonical write, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, WorkflowEvent append, API/controller, or UI surface.
+- Task 11 is complete only for the current backend kernel scope: MatchReport contracts exist, 1-5 score and dimension vocabularies exist, score confidence and evidence coverage metadata exist, provenance weighting placeholder exists, deterministic ScoreCapPolicy exists, MatchReportGenerationService placeholder exists, and regression tests prove no AI execution, no persistence, no canonical mutation, and no client/API exposure.
+- Broader gaps remain: no real AI matching, no real industry ontology calibration, no model routing, no prompt execution, no matching persistence, no client-facing match report delivery, no matching API/controller/UI, and no outcome-label feedback loop.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 

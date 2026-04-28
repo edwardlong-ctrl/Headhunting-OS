@@ -165,11 +165,11 @@ there is still no real AI model call, model routing, prompt execution, AI task
 queue/worker, automatic human review workflow, canonical write execution from AI
 governance, AI governance API/controller, or UI.
 
-Task 11: Matching / Evidence Kernel ⏳
+Task 11: Matching / Evidence Kernel ✅ for current backend kernel scope
 
 - 11A: MatchReport scoring contracts + score-cap policy skeleton ✅
 - 11B: MatchReport generation service / evidence coverage / provenance weighting placeholder ✅
-- 11C: matching/evidence regression/docs closure ⏳
+- 11C: matching/evidence regression/docs closure ✅
 
 Task 11A adds a backend-only `matching` package with opaque MatchReport/job/
 subject references, 1-5 score validation, required dimension score vocabulary,
@@ -193,15 +193,21 @@ the report non-canonical and not client-safe API output. It still adds no real
 AI matching, model calls, prompt execution, model routing, persistence,
 API/controller/UI, client-facing delivery, canonical fact writes,
 CandidateProfile mutation, or ClaimLedgerItem/ReviewEvent/WorkflowEvent writes.
-Task 11 is not complete.
+
+Task 11C closes the current backend kernel scope with regression coverage and
+docs closure. Task 11 completion means MatchReport contracts exist, 1-5 score
+and dimension vocabularies exist, score confidence and evidence coverage
+metadata exist, a provenance weighting placeholder exists, deterministic
+ScoreCapPolicy exists, MatchReportGenerationService placeholder exists, and
+regression tests prove no AI execution, no persistence, no canonical mutation,
+and no client/API exposure. This is not real AI matching: model routing, prompt
+execution, matching persistence, API/controller/UI, client-facing match report
+delivery, real industry ontology calibration, and outcome-label feedback loops
+remain deferred.
 
 ## Next Tasks
 
-Task 11C: matching/evidence regression/docs closure
-
-Task 11: Matching / Evidence Skeleton
-
-Task 12: Consent / Disclosure Protection
+Task 12A: Consent / Disclosure Protection
 
 Task 13: Five Portal Backend-approved UI Integration
 
