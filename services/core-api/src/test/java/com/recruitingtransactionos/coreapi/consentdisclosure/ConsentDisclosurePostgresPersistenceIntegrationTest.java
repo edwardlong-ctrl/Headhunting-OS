@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.consentdisclosure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcConsentRecordPort;
@@ -116,6 +117,125 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
     assertThat(countRows("privacy.consent_record", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.unlock_decision", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.disclosure_record", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void consentUnlockAndDisclosureRefsAreReusableAcrossOrganizations() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b301");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-00000012b302");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b303");
+    UUID otherConsultantId = uuid("00000000-0000-0000-0000-00000012b304");
+    insertOrganizationAndUser(organizationId, consultantId);
+    insertOrganizationAndUser(otherOrganizationId, otherConsultantId);
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+    DisclosureRecordPort disclosurePort = new JdbcDisclosureRecordPort(dataSource);
+
+    String consentRecordRef = "consent_record_task12b_pg_reusable_ref";
+    String unlockDecisionRef = "unlock_decision_task12b_pg_reusable_ref";
+    String disclosureRecordRef = "disclosure_record_task12b_pg_reusable_ref";
+
+    ConsentRecord consent = consentPort.append(consent(
+        organizationId,
+        consentRecordRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable"));
+    UnlockDecision unlock = unlockPort.append(unlockDecision(
+        organizationId,
+        consultantId,
+        unlockDecisionRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable",
+        "client_ref_task12b_pg_reusable"));
+    DisclosureRecord disclosure = disclosurePort.append(approvedDisclosureRecord(
+        organizationId,
+        disclosureRecordRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable",
+        "client_ref_task12b_pg_reusable",
+        unlock.unlockDecisionRef(),
+        consent.consentRecordRef()));
+
+    ConsentRecord otherConsent = consentPort.append(consent(
+        otherOrganizationId,
+        consentRecordRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable"));
+    UnlockDecision otherUnlock = unlockPort.append(unlockDecision(
+        otherOrganizationId,
+        otherConsultantId,
+        unlockDecisionRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable",
+        "client_ref_task12b_pg_reusable"));
+    DisclosureRecord otherDisclosure = disclosurePort.append(approvedDisclosureRecord(
+        otherOrganizationId,
+        disclosureRecordRef,
+        "candidate_ref_task12b_pg_reusable",
+        "profile_ref_task12b_pg_reusable",
+        "job_ref_task12b_pg_reusable",
+        "client_ref_task12b_pg_reusable",
+        otherUnlock.unlockDecisionRef(),
+        otherConsent.consentRecordRef()));
+
+    assertThat(consentPort.findByRefAndOrganizationId(organizationId, consentRecordRef))
+        .contains(consent);
+    assertThat(consentPort.findByRefAndOrganizationId(otherOrganizationId, consentRecordRef))
+        .contains(otherConsent);
+    assertThat(unlockPort.findByRefAndOrganizationId(organizationId, unlockDecisionRef))
+        .contains(unlock);
+    assertThat(unlockPort.findByRefAndOrganizationId(otherOrganizationId, unlockDecisionRef))
+        .contains(otherUnlock);
+    assertThat(disclosurePort.findByRefAndOrganizationId(organizationId, disclosureRecordRef))
+        .contains(disclosure);
+    assertThat(disclosurePort.findByRefAndOrganizationId(otherOrganizationId, disclosureRecordRef))
+        .contains(otherDisclosure);
+  }
+
+  @Test
+  void disclosureRecordRejectsConsentAndUnlockRefsFromAnotherOrganization() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b401");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-00000012b402");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b403");
+    insertOrganizationAndUser(organizationId, consultantId);
+    insertOrganizationAndUser(otherOrganizationId, uuid("00000000-0000-0000-0000-00000012b404"));
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+    DisclosureRecordPort disclosurePort = new JdbcDisclosureRecordPort(dataSource);
+
+    ConsentRecord consent = consentPort.append(consent(
+        organizationId,
+        "consent_record_task12b_pg_cross_org_fk",
+        "candidate_ref_task12b_pg_cross_org_fk",
+        "profile_ref_task12b_pg_cross_org_fk",
+        "job_ref_task12b_pg_cross_org_fk"));
+    UnlockDecision unlock = unlockPort.append(unlockDecision(
+        organizationId,
+        consultantId,
+        "unlock_decision_task12b_pg_cross_org_fk",
+        "candidate_ref_task12b_pg_cross_org_fk",
+        "profile_ref_task12b_pg_cross_org_fk",
+        "job_ref_task12b_pg_cross_org_fk",
+        "client_ref_task12b_pg_cross_org_fk"));
+
+    assertThatThrownBy(() -> disclosurePort.append(approvedDisclosureRecord(
+        otherOrganizationId,
+        "disclosure_record_task12b_pg_cross_org_fk",
+        "candidate_ref_task12b_pg_cross_org_fk",
+        "profile_ref_task12b_pg_cross_org_fk",
+        "job_ref_task12b_pg_cross_org_fk",
+        "client_ref_task12b_pg_cross_org_fk",
+        unlock.unlockDecisionRef(),
+        consent.consentRecordRef())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Failed to append disclosure record");
   }
 
   @Test

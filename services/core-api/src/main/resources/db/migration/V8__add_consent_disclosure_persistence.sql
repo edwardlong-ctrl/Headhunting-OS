@@ -1,5 +1,5 @@
 CREATE TABLE privacy.consent_record (
-  consent_record_ref text PRIMARY KEY,
+  consent_record_ref text NOT NULL,
   organization_id uuid NOT NULL REFERENCES identity.organization (organization_id),
   candidate_ref text NOT NULL,
   candidate_profile_ref text NOT NULL,
@@ -11,14 +11,15 @@ CREATE TABLE privacy.consent_record (
   confirmed_at timestamptz NOT NULL,
   expires_at timestamptz,
   revoked boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id, consent_record_ref)
 );
 
 CREATE INDEX consent_record_org_candidate_job_idx
   ON privacy.consent_record (organization_id, candidate_ref, job_ref, confirmed_at);
 
 CREATE TABLE privacy.unlock_decision (
-  unlock_decision_ref text PRIMARY KEY,
+  unlock_decision_ref text NOT NULL,
   organization_id uuid NOT NULL REFERENCES identity.organization (organization_id),
   candidate_ref text NOT NULL,
   candidate_profile_ref text NOT NULL,
@@ -31,7 +32,8 @@ CREATE TABLE privacy.unlock_decision (
   approved_by_user_id uuid NOT NULL REFERENCES identity.user_account (user_account_id),
   approved_by_role governance.actor_role NOT NULL,
   decided_at timestamptz NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id, unlock_decision_ref)
 );
 
 CREATE INDEX unlock_decision_org_scope_idx
@@ -45,7 +47,7 @@ CREATE INDEX unlock_decision_org_scope_idx
   );
 
 CREATE TABLE privacy.disclosure_record (
-  disclosure_record_ref text PRIMARY KEY,
+  disclosure_record_ref text NOT NULL,
   organization_id uuid NOT NULL REFERENCES identity.organization (organization_id),
   candidate_ref text NOT NULL,
   candidate_profile_ref text NOT NULL,
@@ -54,11 +56,16 @@ CREATE TABLE privacy.disclosure_record (
   status text NOT NULL,
   disclosure_level text NOT NULL,
   redaction_level text NOT NULL,
-  unlock_decision_ref text NOT NULL REFERENCES privacy.unlock_decision (unlock_decision_ref),
-  consent_record_ref text NOT NULL REFERENCES privacy.consent_record (consent_record_ref),
+  unlock_decision_ref text NOT NULL,
+  consent_record_ref text NOT NULL,
   workflow_event_id uuid REFERENCES workflow.workflow_event (workflow_event_id),
   decided_at timestamptz NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id, disclosure_record_ref),
+  FOREIGN KEY (organization_id, unlock_decision_ref)
+    REFERENCES privacy.unlock_decision (organization_id, unlock_decision_ref),
+  FOREIGN KEY (organization_id, consent_record_ref)
+    REFERENCES privacy.consent_record (organization_id, consent_record_ref)
 );
 
 CREATE INDEX disclosure_record_org_scope_idx
