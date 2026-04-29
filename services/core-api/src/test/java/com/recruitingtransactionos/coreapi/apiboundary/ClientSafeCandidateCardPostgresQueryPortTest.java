@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.apiboundary;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.clientsafeprojection.AnonymousCandidateCardId;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateCard;
@@ -104,12 +105,19 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
   }
 
   @Test
-  void unscopedRouteReturnsRealSafeCardWhenAnonymousCardRefIsGloballyUnique()
+  void queryScopeCannotBeCreatedWithoutOrganizationId() {
+    assertThatThrownBy(() -> ClientSafeCandidateCardQueryScope.of(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("organizationId must not be null");
+  }
+
+  @Test
+  void productionBeanPathRequiresScopedQueryForGloballyUniqueAnonymousCardRef()
       throws SQLException {
     seedSuccessCardProjection();
 
     Optional<ClientSafeCandidateCard> card = productionBeanPathQueryPort().findByAnonymousCardId(
-        ClientSafeCandidateCardQueryScope.unscoped(),
+        scope(ORG_A),
         AnonymousCandidateCardId.of("card_task13b_success_0001"));
 
     assertThat(card).isPresent();
@@ -213,7 +221,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
   }
 
   @Test
-  void unscopedRouteFailsClosedWhenAnonymousCardRefIsReusedAcrossOrganizations()
+  void scopedRouteHandlesDuplicateAnonymousCardRefsWithinOrganizationBoundary()
       throws SQLException {
     String reusedCardRef = "card_task13b_cross_org_duplicate_0001";
     insertCandidateProfile(
@@ -257,9 +265,6 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
             }
             """);
 
-    assertThat(productionBeanPathQueryPort().findByAnonymousCardId(
-        ClientSafeCandidateCardQueryScope.unscoped(),
-        AnonymousCandidateCardId.of(reusedCardRef))).isEmpty();
     assertThat(productionBeanPathQueryPort().findByAnonymousCardId(
         scope(ORG_A),
         AnonymousCandidateCardId.of(reusedCardRef))).isPresent();

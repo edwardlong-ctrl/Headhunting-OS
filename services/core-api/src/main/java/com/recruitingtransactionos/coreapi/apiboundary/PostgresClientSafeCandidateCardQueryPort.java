@@ -41,18 +41,6 @@ public final class PostgresClientSafeCandidateCardQueryPort
   private static final String PROJECTION_METADATA_KEY =
       "client_safe_candidate_card_projection_by_ref";
 
-  private static final String FIND_BY_CARD_ID_SQL = """
-      SELECT
-        candidate_id,
-        candidate_profile_id,
-        jsonb_extract_path(metadata, ?, ?)::text AS projection_json
-      FROM recruiting.candidate_profile
-      WHERE status IN ('canonical', 'locked')
-        AND jsonb_extract_path(metadata, ?, ?) IS NOT NULL
-      ORDER BY updated_at DESC, created_at DESC
-      LIMIT 2
-      """;
-
   private static final String FIND_BY_CARD_ID_AND_ORGANIZATION_SQL = """
       SELECT
         candidate_id,
@@ -108,7 +96,8 @@ public final class PostgresClientSafeCandidateCardQueryPort
     Objects.requireNonNull(scope, "scope must not be null");
     Objects.requireNonNull(cardId, "cardId must not be null");
     Connection connection = DataSourceUtils.getConnection(dataSource);
-    try (PreparedStatement statement = connection.prepareStatement(sql(scope))) {
+    try (PreparedStatement statement =
+        connection.prepareStatement(FIND_BY_CARD_ID_AND_ORGANIZATION_SQL)) {
       bind(statement, scope, cardId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (!resultSet.next()) {
@@ -128,12 +117,6 @@ public final class PostgresClientSafeCandidateCardQueryPort
     }
   }
 
-  private static String sql(ClientSafeCandidateCardQueryScope scope) {
-    return scope.hasOrganizationScope()
-        ? FIND_BY_CARD_ID_AND_ORGANIZATION_SQL
-        : FIND_BY_CARD_ID_SQL;
-  }
-
   private void bind(
       PreparedStatement statement,
       ClientSafeCandidateCardQueryScope scope,
@@ -141,14 +124,9 @@ public final class PostgresClientSafeCandidateCardQueryPort
       throws SQLException {
     statement.setString(1, PROJECTION_METADATA_KEY);
     statement.setString(2, cardId.value());
-    if (scope.hasOrganizationScope()) {
-      statement.setObject(3, scope.organizationId());
-      statement.setString(4, PROJECTION_METADATA_KEY);
-      statement.setString(5, cardId.value());
-      return;
-    }
-    statement.setString(3, PROJECTION_METADATA_KEY);
-    statement.setString(4, cardId.value());
+    statement.setObject(3, scope.organizationId());
+    statement.setString(4, PROJECTION_METADATA_KEY);
+    statement.setString(5, cardId.value());
   }
 
   private Optional<ClientSafeCandidateCard> project(

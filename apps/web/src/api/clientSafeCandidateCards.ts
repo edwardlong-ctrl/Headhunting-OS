@@ -41,6 +41,8 @@ export type ClientSafeCandidateCardResult =
 const rawUuidPattern =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
+const clientOrganizationId = import.meta.env.VITE_RTO_CLIENT_ORGANIZATION_ID;
+
 export function isAnonymousCardRef(value: string): boolean {
   const normalized = value.trim();
   return normalized.startsWith("card_") && !rawUuidPattern.test(normalized);
@@ -56,14 +58,20 @@ export async function fetchClientSafeCandidateCard(
   }
 
   try {
+    const headers: Record<string, string> = {
+      "X-RTO-Actor-Role": "client",
+      "X-RTO-Field-Classification": "client_safe",
+      "X-RTO-Identity-Disclosure-Requested": "false",
+    };
+
+    if (isRuntimeOrganizationId(clientOrganizationId)) {
+      headers["X-RTO-Organization-Id"] = clientOrganizationId.trim();
+    }
+
     const response = await fetch(
       `/api/client-safe/candidate-cards/${encodeURIComponent(normalizedCardRef)}`,
       {
-        headers: {
-          "X-RTO-Actor-Role": "client",
-          "X-RTO-Field-Classification": "client_safe",
-          "X-RTO-Identity-Disclosure-Requested": "false",
-        },
+        headers,
         signal,
       },
     );
@@ -99,4 +107,8 @@ export async function fetchClientSafeCandidateCard(
 
     return { status: "unavailable" };
   }
+}
+
+function isRuntimeOrganizationId(value: string | undefined): value is string {
+  return value !== undefined && rawUuidPattern.test(value.trim());
 }

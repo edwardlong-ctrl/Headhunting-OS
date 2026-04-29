@@ -132,17 +132,17 @@ class ClientSafeCandidateCardControllerTest {
   }
 
   @Test
-  void mergedClientRouteCanQueryWithoutTemporaryOrganizationHeader() throws Exception {
+  void missingOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
     mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe")
             .header(IDENTITY_DISCLOSURE_HEADER, "false"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"));
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
+        .andExpect(jsonPath("$.error.safeMessage").value("Access context is required."));
 
-    assertThat(queryPort.calls).isEqualTo(1);
-    assertThat(queryPort.lastCardId).isEqualTo(AnonymousCandidateCardId.of("card_task9b_0001"));
-    assertThat(queryPort.lastScope).isEqualTo(ClientSafeCandidateCardQueryScope.unscoped());
+    assertThat(queryPort.calls).isZero();
   }
 
   @Test

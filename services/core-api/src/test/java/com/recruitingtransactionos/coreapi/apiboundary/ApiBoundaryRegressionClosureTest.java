@@ -118,7 +118,8 @@ class ApiBoundaryRegressionClosureTest {
         .contains("\"X-RTO-Actor-Role\": \"client\"")
         .contains("\"X-RTO-Field-Classification\": \"client_safe\"")
         .contains("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
-        .doesNotContain("\"X-RTO-Organization-Id\"")
+        .contains("\"X-RTO-Organization-Id\"")
+        .contains("VITE_RTO_CLIENT_ORGANIZATION_ID")
         .doesNotContain("00000000-0000-0000-0000-00000013b001");
   }
 
@@ -159,9 +160,9 @@ class ApiBoundaryRegressionClosureTest {
     mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe"))
-        .andExpect(status().isOk());
-    assertThat(queryPort.calls).isEqualTo(1);
-    assertThat(queryPort.lastScope).isEqualTo(ClientSafeCandidateCardQueryScope.unscoped());
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"));
+    assertThat(queryPort.calls).isZero();
     queryPort.reset();
 
     for (String role : List.of("owner-plus", "client")) {
