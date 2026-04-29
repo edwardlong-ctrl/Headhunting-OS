@@ -56,8 +56,6 @@ class ApiBoundaryRegressionClosureTest {
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009c0003";
-  private static final String CLIENT_PORTAL_ORGANIZATION_ID =
-      "00000000-0000-0000-0000-00000013b001";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009c0001";
@@ -120,7 +118,8 @@ class ApiBoundaryRegressionClosureTest {
         .contains("\"X-RTO-Actor-Role\": \"client\"")
         .contains("\"X-RTO-Field-Classification\": \"client_safe\"")
         .contains("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
-        .contains("\"X-RTO-Organization-Id\": CLIENT_PORTAL_ORGANIZATION_ID");
+        .doesNotContain("\"X-RTO-Organization-Id\"")
+        .doesNotContain("00000000-0000-0000-0000-00000013b001");
   }
 
   @Test
@@ -157,13 +156,13 @@ class ApiBoundaryRegressionClosureTest {
         .andReturn();
     assertSanitizedApiBody(missing.getResponse().getContentAsString());
 
-    MvcResult missingOrganization = mockMvc.perform(get(ENDPOINT)
+    mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
-        .andReturn();
-    assertSanitizedApiBody(missingOrganization.getResponse().getContentAsString());
+        .andExpect(status().isOk());
+    assertThat(queryPort.calls).isEqualTo(1);
+    assertThat(queryPort.lastScope).isEqualTo(ClientSafeCandidateCardQueryScope.unscoped());
+    queryPort.reset();
 
     for (String role : List.of("owner-plus", "client")) {
       queryPort.reset();

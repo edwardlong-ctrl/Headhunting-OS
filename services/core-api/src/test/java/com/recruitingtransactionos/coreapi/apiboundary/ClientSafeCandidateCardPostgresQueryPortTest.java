@@ -104,6 +104,32 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
   }
 
   @Test
+  void unscopedRouteReturnsRealSafeCardWhenAnonymousCardRefIsGloballyUnique()
+      throws SQLException {
+    seedSuccessCardProjection();
+
+    Optional<ClientSafeCandidateCard> card = productionBeanPathQueryPort().findByAnonymousCardId(
+        ClientSafeCandidateCardQueryScope.unscoped(),
+        AnonymousCandidateCardId.of("card_task13b_success_0001"));
+
+    assertThat(card).isPresent();
+    assertThat(card.orElseThrow().anonymousCandidateRef().value())
+        .isEqualTo("anon_candidate_task13b_success_0001");
+    assertThat(card.orElseThrow().toString())
+        .doesNotContain(
+            CANDIDATE_A.toString(),
+            PROFILE_A.toString(),
+            RAW_FULL_NAME,
+            RAW_EMAIL,
+            RAW_PHONE,
+            RAW_LINKEDIN,
+            RAW_EMPLOYER,
+            RAW_PROJECT,
+            RAW_SOURCE_TEXT,
+            RAW_CONSULTANT_NOTES);
+  }
+
+  @Test
   void existingApiRouteReturnsRealSafeCardFromBackendData() throws SQLException {
     seedSuccessCardProjection();
     ClientSafeCandidateCardController controller = new ClientSafeCandidateCardController(
@@ -184,6 +210,62 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     assertThat(response.getBody().error()).isNotNull();
     assertThat(response.getBody().error().safeReason())
         .isEqualTo("client_safe_candidate_card_unavailable");
+  }
+
+  @Test
+  void unscopedRouteFailsClosedWhenAnonymousCardRefIsReusedAcrossOrganizations()
+      throws SQLException {
+    String reusedCardRef = "card_task13b_cross_org_duplicate_0001";
+    insertCandidateProfile(
+        ORG_A,
+        CANDIDATE_A,
+        uuid("00000000-0000-0000-0000-00000013b504"),
+        reusedCardRef,
+        """
+            {
+              "anonymousCandidateRef": "anon_candidate_task13b_duplicate_a_0001",
+              "projectionVersion": "projection-v13b",
+              "redactionLevel": "l2_client_safe",
+              "generalizedHeadline": "Organization A candidate",
+              "generalizedRoleFamily": "semiconductor_verification",
+              "generalizedSeniorityBand": "senior_ic",
+              "generalizedLocationRegion": "greater_china",
+              "safeSummary": "Organization A safe text.",
+              "safeSkillSummary": "Safe skill summary.",
+              "safeEvidenceSummaries": ["Organization A evidence."],
+              "safeMatchNarratives": ["Organization A match narrative."]
+            }
+            """);
+    insertCandidateProfile(
+        ORG_B,
+        CANDIDATE_B,
+        uuid("00000000-0000-0000-0000-00000013b604"),
+        reusedCardRef,
+        """
+            {
+              "anonymousCandidateRef": "anon_candidate_task13b_duplicate_b_0001",
+              "projectionVersion": "projection-v13b",
+              "redactionLevel": "l2_client_safe",
+              "generalizedHeadline": "Organization B candidate",
+              "generalizedRoleFamily": "semiconductor_verification",
+              "generalizedSeniorityBand": "senior_ic",
+              "generalizedLocationRegion": "greater_china",
+              "safeSummary": "Organization B safe text.",
+              "safeSkillSummary": "Safe skill summary.",
+              "safeEvidenceSummaries": ["Organization B evidence."],
+              "safeMatchNarratives": ["Organization B match narrative."]
+            }
+            """);
+
+    assertThat(productionBeanPathQueryPort().findByAnonymousCardId(
+        ClientSafeCandidateCardQueryScope.unscoped(),
+        AnonymousCandidateCardId.of(reusedCardRef))).isEmpty();
+    assertThat(productionBeanPathQueryPort().findByAnonymousCardId(
+        scope(ORG_A),
+        AnonymousCandidateCardId.of(reusedCardRef))).isPresent();
+    assertThat(productionBeanPathQueryPort().findByAnonymousCardId(
+        scope(ORG_B),
+        AnonymousCandidateCardId.of(reusedCardRef))).isPresent();
   }
 
   private static void seedSuccessCardProjection() throws SQLException {

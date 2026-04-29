@@ -47,9 +47,7 @@ final class ClientSafeCandidateCardApiAccessContextAdapter {
 
   static ClientSafeCandidateCardQueryScope queryScopeFromHeaders(String organizationIdHeader) {
     if (isBlank(organizationIdHeader)) {
-      throw denied(
-          "api_access_context_required",
-          "Access context is required.");
+      return ClientSafeCandidateCardQueryScope.unscoped();
     }
     try {
       return ClientSafeCandidateCardQueryScope.of(UUID.fromString(organizationIdHeader.strip()));

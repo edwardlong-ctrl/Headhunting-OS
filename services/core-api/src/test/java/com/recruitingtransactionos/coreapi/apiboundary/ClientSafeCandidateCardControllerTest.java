@@ -132,6 +132,20 @@ class ClientSafeCandidateCardControllerTest {
   }
 
   @Test
+  void mergedClientRouteCanQueryWithoutTemporaryOrganizationHeader() throws Exception {
+    mockMvc.perform(get(ENDPOINT)
+            .header(ROLE_HEADER, "client")
+            .header(FIELD_HEADER, "client_safe")
+            .header(IDENTITY_DISCLOSURE_HEADER, "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"));
+
+    assertThat(queryPort.calls).isEqualTo(1);
+    assertThat(queryPort.lastCardId).isEqualTo(AnonymousCandidateCardId.of("card_task9b_0001"));
+    assertThat(queryPort.lastScope).isEqualTo(ClientSafeCandidateCardQueryScope.unscoped());
+  }
+
+  @Test
   void missingAccessContextFailsClosedWithoutQueryingCard() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT))
         .andExpect(status().isForbidden())
@@ -145,17 +159,7 @@ class ClientSafeCandidateCardControllerTest {
   }
 
   @Test
-  void missingOrInvalidOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
-    MvcResult missing = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
-        .andReturn();
-
-    assertSanitizedDenial(missing);
-    assertThat(queryPort.calls).isZero();
-
+  void invalidOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
     MvcResult invalid = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe")
