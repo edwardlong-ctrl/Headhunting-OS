@@ -239,6 +239,68 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
   }
 
   @Test
+  void disclosureRecordRejectsSameOrganizationConsentAndUnlockRefsFromDifferentScope()
+      throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b501");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b503");
+    insertOrganizationAndUser(organizationId, consultantId);
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+    DisclosureRecordPort disclosurePort = new JdbcDisclosureRecordPort(dataSource);
+
+    ConsentRecord candidateOneConsent = consentPort.append(consent(
+        organizationId,
+        "consent_record_task14_pg_same_org_wrong_scope",
+        "candidate_ref_task14_pg_scope_one",
+        "profile_ref_task14_pg_scope_one",
+        "job_ref_task14_pg_scope_one"));
+    UnlockDecision candidateOneUnlock = unlockPort.append(unlockDecision(
+        organizationId,
+        consultantId,
+        "unlock_decision_task14_pg_same_org_wrong_scope",
+        "candidate_ref_task14_pg_scope_one",
+        "profile_ref_task14_pg_scope_one",
+        "job_ref_task14_pg_scope_one",
+        "client_ref_task14_pg_scope_one"));
+
+    assertThatThrownBy(() -> disclosurePort.append(approvedDisclosureRecord(
+        organizationId,
+        "disclosure_record_task14_pg_same_org_wrong_scope",
+        "candidate_ref_task14_pg_scope_two",
+        "profile_ref_task14_pg_scope_two",
+        "job_ref_task14_pg_scope_two",
+        "client_ref_task14_pg_scope_two",
+        candidateOneUnlock.unlockDecisionRef(),
+        candidateOneConsent.consentRecordRef())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Failed to append disclosure record");
+  }
+
+  @Test
+  void unlockDecisionApproverMustBelongToSameOrganization() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b601");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-00000012b602");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b603");
+    UUID otherConsultantId = uuid("00000000-0000-0000-0000-00000012b604");
+    insertOrganizationAndUser(organizationId, consultantId);
+    insertOrganizationAndUser(otherOrganizationId, otherConsultantId);
+
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+
+    assertThatThrownBy(() -> unlockPort.append(unlockDecision(
+        organizationId,
+        otherConsultantId,
+        "unlock_decision_task14_pg_cross_org_approver",
+        "candidate_ref_task14_pg_cross_org_approver",
+        "profile_ref_task14_pg_cross_org_approver",
+        "job_ref_task14_pg_cross_org_approver",
+        "client_ref_task14_pg_cross_org_approver")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Failed to append unlock decision");
+  }
+
+  @Test
   void successfulAuditedIdentityDisclosureAppendsWorkflowEventAndFinalDisclosureRecord()
       throws SQLException {
     UUID organizationId = uuid("00000000-0000-0000-0000-00000012b201");
@@ -320,9 +382,132 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
   }
 
   @Test
+  void serviceDeniesLegacyCrossOrganizationUnlockApproverAfterMigration() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b801");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-00000012b802");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b803");
+    UUID otherConsultantId = uuid("00000000-0000-0000-0000-00000012b804");
+    insertOrganizationAndUser(organizationId, consultantId);
+    insertOrganizationAndUser(otherOrganizationId, otherConsultantId);
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+    DisclosureRecordPort disclosurePort = new JdbcDisclosureRecordPort(dataSource);
+
+    ConsentRecord consent = consentPort.append(consent(
+        organizationId,
+        "consent_record_task14_pg_legacy_cross_org_approver",
+        "candidate_ref_task14_pg_legacy_cross_org_approver",
+        "profile_ref_task14_pg_legacy_cross_org_approver",
+        "job_ref_task14_pg_legacy_cross_org_approver"));
+    dropUnlockDecisionApproverOrgConstraint();
+    try {
+      insertUnlockDecisionWithCrossOrgApprover(
+          organizationId,
+          otherConsultantId,
+          "unlock_decision_task14_pg_legacy_cross_org_approver",
+          "candidate_ref_task14_pg_legacy_cross_org_approver",
+          "profile_ref_task14_pg_legacy_cross_org_approver",
+          "job_ref_task14_pg_legacy_cross_org_approver",
+          "client_ref_task14_pg_legacy_cross_org_approver");
+    } finally {
+      restoreUnlockDecisionApproverOrgConstraint();
+    }
+    DisclosureRecord approvedDisclosure = disclosurePort.append(approvedDisclosureRecord(
+        organizationId,
+        "disclosure_record_task14_pg_legacy_cross_org_approver",
+        "candidate_ref_task14_pg_legacy_cross_org_approver",
+        "profile_ref_task14_pg_legacy_cross_org_approver",
+        "job_ref_task14_pg_legacy_cross_org_approver",
+        "client_ref_task14_pg_legacy_cross_org_approver",
+        "unlock_decision_task14_pg_legacy_cross_org_approver",
+        consent.consentRecordRef()));
+
+    ConsentDisclosureService service = new ConsentDisclosureService(
+        consentPort,
+        unlockPort,
+        disclosurePort,
+        new ConsentDisclosureProtectionPolicy(),
+        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        transactionBoundary());
+
+    ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(
+        ConsentDisclosureServiceRequest.builder()
+            .organizationId(organizationId)
+            .candidateRef("candidate_ref_task14_pg_legacy_cross_org_approver")
+            .candidateProfileRef("profile_ref_task14_pg_legacy_cross_org_approver")
+            .jobRef("job_ref_task14_pg_legacy_cross_org_approver")
+            .clientRef("client_ref_task14_pg_legacy_cross_org_approver")
+            .consentRecordRef(consent.consentRecordRef())
+            .unlockDecisionRef("unlock_decision_task14_pg_legacy_cross_org_approver")
+            .approvedDisclosureRecordRef(approvedDisclosure.disclosureRecordRef())
+            .requestedByRole(PortalRole.CONSULTANT)
+            .actor(new ActorRef(consultantId, ActorRole.CONSULTANT))
+            .requestedLevel(DisclosureLevel.L4_IDENTITY_DISCLOSED)
+            .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true))
+            .reason("legacy cross-org approver must not release identity")
+            .requestedAt(NOW)
+            .build());
+
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.DENIED);
+    assertThat(result.reasonCodes())
+        .containsExactly("unlock_approver_organization_mismatch");
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(countRows("privacy.disclosure_record", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void jdbcDisclosureAppendIfAbsentReturnsExistingFinalRecordWithoutDuplicateInsert()
+      throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b701");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b702");
+    insertOrganizationAndUser(organizationId, consultantId);
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+    UnlockDecisionPort unlockPort = new JdbcUnlockDecisionPort(dataSource);
+    DisclosureRecordPort disclosurePort = new JdbcDisclosureRecordPort(dataSource);
+
+    ConsentRecord consent = consentPort.append(consent(
+        organizationId,
+        "consent_record_task14_pg_idempotent",
+        "candidate_ref_task14_pg_idempotent",
+        "profile_ref_task14_pg_idempotent",
+        "job_ref_task14_pg_idempotent"));
+    UnlockDecision unlock = unlockPort.append(unlockDecision(
+        organizationId,
+        consultantId,
+        "unlock_decision_task14_pg_idempotent",
+        "candidate_ref_task14_pg_idempotent",
+        "profile_ref_task14_pg_idempotent",
+        "job_ref_task14_pg_idempotent",
+        "client_ref_task14_pg_idempotent"));
+    DisclosureRecord finalRecord = new DisclosureRecord(
+        "disclosure_record_task14_pg_idempotent_final",
+        organizationId,
+        "candidate_ref_task14_pg_idempotent",
+        "profile_ref_task14_pg_idempotent",
+        "job_ref_task14_pg_idempotent",
+        "client_ref_task14_pg_idempotent",
+        DisclosureStatus.IDENTITY_DISCLOSED,
+        DisclosureLevel.L4_IDENTITY_DISCLOSED,
+        RedactionLevel.L4_IDENTITY_DISCLOSED,
+        unlock.unlockDecisionRef(),
+        consent.consentRecordRef(),
+        Optional.empty(),
+        NOW);
+
+    DisclosureRecord first = disclosurePort.appendIfAbsent(finalRecord);
+    DisclosureRecord second = disclosurePort.appendIfAbsent(finalRecord);
+
+    assertThat(second).isEqualTo(first);
+    assertThat(countRows("privacy.disclosure_record", organizationId)).isEqualTo(1);
+  }
+
+  @Test
   void fullFlywayMigrationAddsTask12bPrivacyPersistenceTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(8);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(9);
+    assertThat(appliedMigrationVersions()).containsExactly(
+        "1", "2", "3", "4", "5", "6", "7", "8", "9");
     assertThat(tableExists("privacy", "consent_record")).isTrue();
     assertThat(tableExists("privacy", "unlock_decision")).isTrue();
     assertThat(tableExists("privacy", "disclosure_record")).isTrue();
@@ -483,6 +668,74 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         resultSet.next();
         return resultSet.getInt(1);
       }
+    }
+  }
+
+  private static void dropUnlockDecisionApproverOrgConstraint() throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            ALTER TABLE privacy.unlock_decision
+              DROP CONSTRAINT unlock_decision_approver_org_fk
+            """)) {
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertUnlockDecisionWithCrossOrgApprover(
+      UUID organizationId,
+      UUID approverUserId,
+      String unlockDecisionRef,
+      String candidateRef,
+      String profileRef,
+      String jobRef,
+      String clientRef) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO privacy.unlock_decision (
+              unlock_decision_ref,
+              organization_id,
+              candidate_ref,
+              candidate_profile_ref,
+              job_ref,
+              client_ref,
+              requested_disclosure_level,
+              status,
+              review_status,
+              risk_tier,
+              approved_by_user_id,
+              approved_by_role,
+              decided_at
+            )
+            VALUES (
+              ?, ?, ?, ?, ?, ?, 'l4_identity_disclosed', 'approved', 'human_approved',
+              'T4_TRANSACTION_LEGAL_BLOCKING'::governance.risk_tier,
+              ?, 'consultant'::governance.actor_role, ?
+            )
+            """)) {
+      statement.setString(1, unlockDecisionRef);
+      statement.setObject(2, organizationId);
+      statement.setString(3, candidateRef);
+      statement.setString(4, profileRef);
+      statement.setString(5, jobRef);
+      statement.setString(6, clientRef);
+      statement.setObject(7, approverUserId);
+      statement.setObject(8, java.time.OffsetDateTime.ofInstant(
+          NOW.minusSeconds(1_800),
+          java.time.ZoneOffset.UTC));
+      statement.executeUpdate();
+    }
+  }
+
+  private static void restoreUnlockDecisionApproverOrgConstraint() throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            ALTER TABLE privacy.unlock_decision
+              ADD CONSTRAINT unlock_decision_approver_org_fk
+              FOREIGN KEY (approved_by_user_id, organization_id)
+              REFERENCES identity.user_account (user_account_id, organization_id)
+              NOT VALID
+            """)) {
+      statement.executeUpdate();
     }
   }
 

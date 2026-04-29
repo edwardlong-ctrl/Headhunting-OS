@@ -183,6 +183,49 @@ class ConsentDisclosureServiceTest {
   }
 
   @Test
+  void l3ConsentedDetailDoesNotBindToIdentityDisclosureApprovalChain() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+    disclosureRecords.append(new DisclosureRecord(
+        "disclosure_record_task12b_approved_0001",
+        ORGANIZATION_ID,
+        CANDIDATE_REF,
+        PROFILE_REF,
+        JOB_REF,
+        CLIENT_REF,
+        DisclosureStatus.APPROVED,
+        DisclosureLevel.L4_IDENTITY_DISCLOSED,
+        RedactionLevel.L4_IDENTITY_DISCLOSED,
+        "unlock_decision_task12b_other",
+        "consent_record_task12b_other",
+        Optional.empty(),
+        NOW.minusSeconds(900)));
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(
+        identityDisclosureRequestBuilder()
+            .requestedLevel(DisclosureLevel.L3_CONSENTED_DETAIL)
+            .build());
+
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.ALLOWED);
+    assertThat(result.allowedLevel()).contains(DisclosureLevel.L3_CONSENTED_DETAIL);
+    assertThat(result.workflowEventId()).isEmpty();
+    assertThat(result.resultingDisclosureRecordRef()).isEmpty();
+    assertThat(workflowEvents.commands()).isEmpty();
+    assertThat(disclosureRecords.appendedRecords())
+        .extracting(DisclosureRecord::status)
+        .containsExactly(DisclosureStatus.APPROVED);
+  }
+
+  @Test
   void deniesWhenApprovedDisclosureRecordDoesNotReferenceRequestedConsentAndUnlockRefs() {
     RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
     InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
@@ -228,6 +271,39 @@ class ConsentDisclosureServiceTest {
   }
 
   @Test
+  void deniesIdentityDisclosureWhenUnlockApproverIsNotInRequestOrganization() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+    unlockDecisions.append(unlockDecision(UnlockDecisionStatus.APPROVED, ActorRole.CONSULTANT));
+    unlockDecisions.markApproverOutsideOrganization(
+        ORGANIZATION_ID,
+        "unlock_decision_task12b_0001");
+    disclosureRecords.append(approvedDisclosureRecord());
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult result =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.DENIED);
+    assertThat(result.reasonCodes())
+        .containsExactly("unlock_approver_organization_mismatch");
+    assertThat(result.workflowEventId()).isEmpty();
+    assertThat(result.resultingDisclosureRecordRef()).isEmpty();
+    assertThat(workflowEvents.commands()).isEmpty();
+    assertThat(disclosureRecords.appendedRecords())
+        .extracting(DisclosureRecord::status)
+        .containsExactly(DisclosureStatus.APPROVED);
+  }
+
+  @Test
   void repeatedAllowedIdentityDisclosureRequestReusesExistingWorkflowAndDisclosureBoundary() {
     RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
     InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
@@ -245,6 +321,35 @@ class ConsentDisclosureServiceTest {
 
     ConsentDisclosureServiceResult first =
         service.evaluateDisclosureAttempt(identityDisclosureRequest());
+    ConsentDisclosureServiceResult second =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+
+    assertThat(second).isEqualTo(first);
+    assertThat(workflowEvents.commands()).hasSize(1);
+    assertThat(disclosureRecords.appendedRecords())
+        .extracting(DisclosureRecord::status)
+        .containsExactly(DisclosureStatus.APPROVED, DisclosureStatus.IDENTITY_DISCLOSED);
+  }
+
+  @Test
+  void repeatedAllowedIdentityDisclosureRequestSurvivesDuplicateFinalDisclosureAppend() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+    unlockDecisions.append(unlockDecision(UnlockDecisionStatus.APPROVED, ActorRole.CONSULTANT));
+    disclosureRecords.append(approvedDisclosureRecord());
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult first =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+    disclosureRecords.simulateIdentityDisclosureDuplicateOnNextAppendAfterMiss();
     ConsentDisclosureServiceResult second =
         service.evaluateDisclosureAttempt(identityDisclosureRequest());
 
@@ -420,6 +525,7 @@ class ConsentDisclosureServiceTest {
   private static final class InMemoryUnlockDecisionPort implements UnlockDecisionPort {
 
     private final List<UnlockDecision> appendedRecords = new ArrayList<>();
+    private final List<String> outsideOrganizationApprovals = new ArrayList<>();
 
     @Override
     public UnlockDecision append(UnlockDecision unlockDecision) {
@@ -436,14 +542,31 @@ class ConsentDisclosureServiceTest {
           .filter(record -> record.unlockDecisionRef().equals(unlockDecisionRef))
           .findFirst();
     }
+
+    public boolean approvedByBelongsToOrganization(
+        UUID organizationId,
+        String unlockDecisionRef) {
+      return !outsideOrganizationApprovals.contains(organizationId + "|" + unlockDecisionRef);
+    }
+
+    void markApproverOutsideOrganization(UUID organizationId, String unlockDecisionRef) {
+      outsideOrganizationApprovals.add(organizationId + "|" + unlockDecisionRef);
+    }
   }
 
   private static final class InMemoryDisclosureRecordPort implements DisclosureRecordPort {
 
     private final List<DisclosureRecord> appendedRecords = new ArrayList<>();
+    private boolean hideNextIdentityDisclosureLookup;
+    private boolean failNextIdentityDisclosureAppendAsDuplicate;
 
     @Override
     public DisclosureRecord append(DisclosureRecord disclosureRecord) {
+      if (failNextIdentityDisclosureAppendAsDuplicate
+          && disclosureRecord.status() == DisclosureStatus.IDENTITY_DISCLOSED) {
+        failNextIdentityDisclosureAppendAsDuplicate = false;
+        throw new IllegalStateException("duplicate disclosure record");
+      }
       appendedRecords.add(disclosureRecord);
       return disclosureRecord;
     }
@@ -452,10 +575,23 @@ class ConsentDisclosureServiceTest {
     public Optional<DisclosureRecord> findByRefAndOrganizationId(
         UUID organizationId,
         String disclosureRecordRef) {
+      if (hideNextIdentityDisclosureLookup
+          && appendedRecords.stream()
+              .anyMatch(record -> record.organizationId().equals(organizationId)
+                  && record.disclosureRecordRef().equals(disclosureRecordRef)
+                  && record.status() == DisclosureStatus.IDENTITY_DISCLOSED)) {
+        hideNextIdentityDisclosureLookup = false;
+        return Optional.empty();
+      }
       return appendedRecords.stream()
           .filter(record -> record.organizationId().equals(organizationId))
           .filter(record -> record.disclosureRecordRef().equals(disclosureRecordRef))
           .findFirst();
+    }
+
+    void simulateIdentityDisclosureDuplicateOnNextAppendAfterMiss() {
+      hideNextIdentityDisclosureLookup = true;
+      failNextIdentityDisclosureAppendAsDuplicate = true;
     }
 
     List<DisclosureRecord> appendedRecords() {

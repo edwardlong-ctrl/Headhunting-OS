@@ -9,4 +9,10 @@ public interface UnlockDecisionPort {
   UnlockDecision append(UnlockDecision unlockDecision);
 
   Optional<UnlockDecision> findByRefAndOrganizationId(UUID organizationId, String unlockDecisionRef);
+
+  default boolean approvedByBelongsToOrganization(
+      UUID organizationId,
+      String unlockDecisionRef) {
+    return findByRefAndOrganizationId(organizationId, unlockDecisionRef).isPresent();
+  }
 }

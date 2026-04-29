@@ -90,12 +90,20 @@ public final class ConsentDisclosureService {
       return ConsentDisclosureServiceResult.denied(decision.reasonCodes());
     }
 
+    if (request.requestedLevel() == DisclosureLevel.L3_CONSENTED_DETAIL) {
+      return ConsentDisclosureServiceResult.allowed(request.requestedLevel());
+    }
+
+    if (!unlockDecisionPort.approvedByBelongsToOrganization(
+        request.organizationId(),
+        request.unlockDecisionRef())) {
+      return ConsentDisclosureServiceResult.denied(List.of(
+          "unlock_approver_organization_mismatch"));
+    }
+
     List<String> chainReasons = approvalChainDenialReasons(request, disclosureRecord);
     if (!chainReasons.isEmpty()) {
       return ConsentDisclosureServiceResult.denied(chainReasons);
-    }
-    if (request.requestedLevel() == DisclosureLevel.L3_CONSENTED_DETAIL) {
-      return ConsentDisclosureServiceResult.allowed(request.requestedLevel());
     }
 
     List<String> reviewReasons = deferredReviewReasons(request.prerequisites(), request.requestedLevel());
@@ -135,7 +143,7 @@ public final class ConsentDisclosureService {
         null,
         request.requestedAt()));
 
-    DisclosureRecord appendedBoundary = disclosureRecordPort.appendIfAbsent(new DisclosureRecord(
+    DisclosureRecord boundary = new DisclosureRecord(
         resultingDisclosureRecordRef,
         request.organizationId(),
         request.candidateRef(),
@@ -148,12 +156,43 @@ public final class ConsentDisclosureService {
         request.unlockDecisionRef(),
         request.consentRecordRef(),
         Optional.of(workflowEvent.workflowEventId()),
-        request.requestedAt()));
+        request.requestedAt());
+    DisclosureRecord appendedBoundary = appendFinalDisclosureRetrySafely(boundary);
 
     return ConsentDisclosureServiceResult.allowed(
         decision.allowedLevel().orElseThrow(),
         workflowEvent.workflowEventId(),
         appendedBoundary.disclosureRecordRef());
+  }
+
+  private DisclosureRecord appendFinalDisclosureRetrySafely(DisclosureRecord boundary) {
+    try {
+      return disclosureRecordPort.appendIfAbsent(boundary);
+    } catch (IllegalStateException exception) {
+      return disclosureRecordPort.findByRefAndOrganizationId(
+          boundary.organizationId(),
+          boundary.disclosureRecordRef())
+          .filter(existing -> sameFinalDisclosureBoundary(existing, boundary))
+          .orElseThrow(() -> exception);
+    }
+  }
+
+  private static boolean sameFinalDisclosureBoundary(
+      DisclosureRecord existing,
+      DisclosureRecord requested) {
+    return existing.organizationId().equals(requested.organizationId())
+        && existing.disclosureRecordRef().equals(requested.disclosureRecordRef())
+        && existing.candidateRef().equals(requested.candidateRef())
+        && existing.candidateProfileRef().equals(requested.candidateProfileRef())
+        && existing.jobRef().equals(requested.jobRef())
+        && existing.clientRef().equals(requested.clientRef())
+        && existing.status() == requested.status()
+        && existing.disclosureLevel() == requested.disclosureLevel()
+        && existing.redactionLevel() == requested.redactionLevel()
+        && existing.unlockDecisionRef().equals(requested.unlockDecisionRef())
+        && existing.consentRecordRef().equals(requested.consentRecordRef())
+        && existing.workflowEventId().equals(requested.workflowEventId())
+        && existing.decidedAt().equals(requested.decidedAt());
   }
 
   private static List<String> approvalChainDenialReasons(

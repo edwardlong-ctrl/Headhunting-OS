@@ -40,6 +40,10 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
+  private static final String INSERT_IF_ABSENT_SQL = INSERT_SQL + """
+      ON CONFLICT (organization_id, disclosure_record_ref) DO NOTHING
+      """;
+
   private static final String FIND_SQL = """
       SELECT
         disclosure_record_ref,
@@ -67,10 +71,26 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
   }
 
   @Override
+  public DisclosureRecord appendIfAbsent(DisclosureRecord disclosureRecord) {
+    Objects.requireNonNull(disclosureRecord, "disclosureRecord must not be null");
+    executeInsert(disclosureRecord, INSERT_IF_ABSENT_SQL);
+    return findByRefAndOrganizationId(
+        disclosureRecord.organizationId(),
+        disclosureRecord.disclosureRecordRef())
+        .orElseThrow(() -> new IllegalStateException(
+            "Failed to append disclosure record"));
+  }
+
+  @Override
   public DisclosureRecord append(DisclosureRecord disclosureRecord) {
     Objects.requireNonNull(disclosureRecord, "disclosureRecord must not be null");
+    executeInsert(disclosureRecord, INSERT_SQL);
+    return disclosureRecord;
+  }
+
+  private void executeInsert(DisclosureRecord disclosureRecord, String sql) {
     Connection connection = DataSourceUtils.getConnection(dataSource);
-    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, disclosureRecord.disclosureRecordRef());
       statement.setObject(2, disclosureRecord.organizationId());
       statement.setString(3, disclosureRecord.candidateRef());
@@ -89,7 +109,6 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
       }
       statement.setObject(13, OffsetDateTime.ofInstant(disclosureRecord.decidedAt(), ZoneOffset.UTC));
       statement.executeUpdate();
-      return disclosureRecord;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append disclosure record", exception);
     } finally {

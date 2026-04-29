@@ -61,6 +61,16 @@ public final class JdbcUnlockDecisionPort implements UnlockDecisionPort {
         AND unlock_decision_ref = ?
       """;
 
+  private static final String APPROVER_BELONGS_TO_ORGANIZATION_SQL = """
+      SELECT 1
+      FROM privacy.unlock_decision unlock_decision
+      JOIN identity.user_account approver
+        ON approver.user_account_id = unlock_decision.approved_by_user_id
+       AND approver.organization_id = unlock_decision.organization_id
+      WHERE unlock_decision.organization_id = ?
+        AND unlock_decision.unlock_decision_ref = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcUnlockDecisionPort(DataSource dataSource) {
@@ -124,6 +134,28 @@ public final class JdbcUnlockDecisionPort implements UnlockDecisionPort {
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find unlock decision", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public boolean approvedByBelongsToOrganization(
+      UUID organizationId,
+      String unlockDecisionRef) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(unlockDecisionRef, "unlockDecisionRef must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement =
+        connection.prepareStatement(APPROVER_BELONGS_TO_ORGANIZATION_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, unlockDecisionRef);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next();
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to verify unlock decision approver organization",
+          exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
