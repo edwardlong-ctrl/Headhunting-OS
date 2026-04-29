@@ -56,6 +56,8 @@ class ApiBoundaryRegressionClosureTest {
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009c0003";
+  private static final String CLIENT_PORTAL_ORGANIZATION_ID =
+      "00000000-0000-0000-0000-00000013b001";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009c0001";
@@ -104,6 +106,21 @@ class ApiBoundaryRegressionClosureTest {
         ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
     assertThat(queryPort.lastCardId)
         .isEqualTo(AnonymousCandidateCardId.of("card_task9c_0001"));
+  }
+
+  @Test
+  void mergedClientPortalFetchHelperSendsTemporaryOrganizationScopeHeader()
+      throws IOException {
+    String source = Files.readString(Path.of(System.getProperty("user.dir"))
+        .getParent()
+        .getParent()
+        .resolve("apps/web/src/api/clientSafeCandidateCards.ts"));
+
+    assertThat(source)
+        .contains("\"X-RTO-Actor-Role\": \"client\"")
+        .contains("\"X-RTO-Field-Classification\": \"client_safe\"")
+        .contains("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
+        .contains("\"X-RTO-Organization-Id\": CLIENT_PORTAL_ORGANIZATION_ID");
   }
 
   @Test
