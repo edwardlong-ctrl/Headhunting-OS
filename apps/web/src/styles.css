@@ -1,6 +1,6 @@
 :root {
-  color: #111827;
-  background: #f6f7f9;
+  color: #1f2933;
+  background: #f5f7fa;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -25,11 +25,19 @@ a {
   text-decoration: none;
 }
 
+button,
+input {
+  font: inherit;
+}
+
 .app-shell {
   min-height: 100vh;
 }
 
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -37,11 +45,13 @@ a {
   min-height: 64px;
   padding: 0 28px;
   border-bottom: 1px solid #d7dce3;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
 }
 
 .brand {
   flex: 0 0 auto;
+  color: #111827;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0;
@@ -66,24 +76,260 @@ a {
 
 .portal-nav a.active {
   color: #0f172a;
-  background: #eef2f7;
+  background: #e9eef5;
 }
 
 main {
-  padding: 40px 28px;
+  padding: 32px 28px 56px;
 }
 
-.portal-shell {
-  display: flex;
-  align-items: center;
-  min-height: calc(100vh - 144px);
+.portal-layout {
+  width: min(1180px, 100%);
+  margin: 0 auto;
 }
 
-.portal-shell h1 {
-  margin: 0;
-  font-size: clamp(32px, 5vw, 56px);
-  line-height: 1.05;
+.portal-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.portal-eyebrow {
+  color: #587084;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.portal-heading h1,
+.candidate-card-header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.portal-panel,
+.client-card-entry,
+.candidate-card-surface,
+.candidate-card {
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.05);
+}
+
+.portal-panel {
+  padding: 20px;
+}
+
+.portal-panel h2,
+.client-card-entry h2,
+.candidate-card h3,
+.candidate-card h4,
+.safe-state h3 {
+  margin: 0;
+  color: #111827;
+  letter-spacing: 0;
+}
+
+.portal-panel h2,
+.client-card-entry h2,
+.candidate-card h3 {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.module-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.module-list span,
+.candidate-card-meta span {
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 1px solid #d9e1ea;
+  border-radius: 6px;
+  background: #f7fafc;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.client-card-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: 24px;
+  align-items: end;
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.client-card-entry p,
+.safe-state p,
+.candidate-card p {
+  margin: 8px 0 0;
+  color: #52616f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.card-ref-form {
+  display: grid;
+  gap: 8px;
+}
+
+.card-ref-form label {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.card-ref-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.card-ref-row input {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid #c8d2df;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.card-ref-row button,
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid #246b5f;
+  border-radius: 6px;
+  padding: 8px 14px;
+  background: #246b5f;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-ref-row button:disabled {
+  border-color: #b8c3ce;
+  background: #d7dee6;
+  color: #697586;
+  cursor: not-allowed;
+}
+
+.candidate-card-surface {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.candidate-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secondary-link {
+  flex: 0 0 auto;
+  border-color: #c8d2df;
+  background: #ffffff;
+  color: #344054;
+}
+
+.safe-state {
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  padding: 18px;
+  background: #f7fafc;
+}
+
+.safe-state-warning {
+  border-color: #e5c56f;
+  background: #fff8e6;
+}
+
+.candidate-card {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  box-shadow: none;
+}
+
+.candidate-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.safe-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.safe-fields div {
+  min-width: 0;
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f7fafc;
+}
+
+.safe-fields dt {
+  color: #587084;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.safe-fields dd {
+  margin: 6px 0 0;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.safe-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #344054;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .portal-grid,
+  .client-card-entry,
+  .safe-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
@@ -99,6 +345,15 @@ main {
   }
 
   main {
-    padding: 32px 16px;
+    padding: 28px 16px 44px;
+  }
+
+  .candidate-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .secondary-link {
+    width: 100%;
   }
 }
