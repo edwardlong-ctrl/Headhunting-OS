@@ -53,6 +53,9 @@ class ApiBoundaryRegressionClosureTest {
   private static final String FIELD_HEADER = "X-RTO-Field-Classification";
   private static final String IDENTITY_DISCLOSURE_HEADER =
       "X-RTO-Identity-Disclosure-Requested";
+  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
+  private static final String ORGANIZATION_ID =
+      "00000000-0000-0000-0000-0000009c0003";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009c0001";
@@ -91,11 +94,14 @@ class ApiBoundaryRegressionClosureTest {
   void requestPathUsesAnonymousCardRefOnly() throws Exception {
     mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
 
     assertThat(queryPort.calls).isEqualTo(1);
+    assertThat(queryPort.lastScope).isEqualTo(
+        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
     assertThat(queryPort.lastCardId)
         .isEqualTo(AnonymousCandidateCardId.of("card_task9c_0001"));
   }
@@ -112,7 +118,8 @@ class ApiBoundaryRegressionClosureTest {
       MvcResult result = mockMvc.perform(get(
               "/api/client-safe/candidate-cards/" + unsafeRef)
               .header(ROLE_HEADER, "client")
-              .header(FIELD_HEADER, "client_safe"))
+              .header(FIELD_HEADER, "client_safe")
+              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
           .andExpect(jsonPath("$.error.safeReason")
@@ -133,12 +140,21 @@ class ApiBoundaryRegressionClosureTest {
         .andReturn();
     assertSanitizedApiBody(missing.getResponse().getContentAsString());
 
+    MvcResult missingOrganization = mockMvc.perform(get(ENDPOINT)
+            .header(ROLE_HEADER, "client")
+            .header(FIELD_HEADER, "client_safe"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
+        .andReturn();
+    assertSanitizedApiBody(missingOrganization.getResponse().getContentAsString());
+
     for (String role : List.of("owner-plus", "client")) {
       queryPort.reset();
       String field = role.equals("client") ? "identity" : "client_safe";
       MvcResult invalid = mockMvc.perform(get(ENDPOINT)
               .header(ROLE_HEADER, role)
-              .header(FIELD_HEADER, field))
+              .header(FIELD_HEADER, field)
+              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
           .andReturn();
@@ -150,12 +166,24 @@ class ApiBoundaryRegressionClosureTest {
     MvcResult malformedDisclosure = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
             .header(IDENTITY_DISCLOSURE_HEADER, "yes"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
         .andReturn();
 
     assertSanitizedApiBody(malformedDisclosure.getResponse().getContentAsString());
+    assertThat(queryPort.calls).isZero();
+
+    MvcResult malformedOrganization = mockMvc.perform(get(ENDPOINT)
+            .header(ROLE_HEADER, "client")
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, "not-a-uuid"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
+        .andReturn();
+
+    assertSanitizedApiBody(malformedOrganization.getResponse().getContentAsString());
     assertThat(queryPort.calls).isZero();
   }
 
@@ -166,7 +194,8 @@ class ApiBoundaryRegressionClosureTest {
       queryPort.reset();
       MvcResult result = mockMvc.perform(get(ENDPOINT)
               .header(ROLE_HEADER, "client")
-              .header(FIELD_HEADER, allowedField))
+              .header(FIELD_HEADER, allowedField)
+              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.redactionLevel").value("l2_client_safe"))
           .andReturn();
@@ -180,7 +209,8 @@ class ApiBoundaryRegressionClosureTest {
       queryPort.reset();
       MvcResult result = mockMvc.perform(get(ENDPOINT)
               .header(ROLE_HEADER, "client")
-              .header(FIELD_HEADER, unsafeField))
+              .header(FIELD_HEADER, unsafeField)
+              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
           .andReturn();
@@ -192,6 +222,7 @@ class ApiBoundaryRegressionClosureTest {
     MvcResult identityDisclosure = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
             .header(IDENTITY_DISCLOSURE_HEADER, "true"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
@@ -208,7 +239,8 @@ class ApiBoundaryRegressionClosureTest {
 
       MvcResult result = mockMvc.perform(get(ENDPOINT)
               .header(ROLE_HEADER, role)
-              .header(FIELD_HEADER, "client_safe"))
+              .header(FIELD_HEADER, "client_safe")
+              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
           .andReturn();
@@ -224,7 +256,8 @@ class ApiBoundaryRegressionClosureTest {
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.errorCode").value("not_found"))
         .andExpect(jsonPath("$.error.safeReason")
@@ -247,7 +280,8 @@ class ApiBoundaryRegressionClosureTest {
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.error.errorCode").value("internal_error"))
         .andExpect(jsonPath("$.error.safeReason").value("request_failed"))
@@ -354,7 +388,9 @@ class ApiBoundaryRegressionClosureTest {
           .contains("ClientSafeCandidateCard")
           .doesNotContain("CandidateProfile")
           .doesNotContain("CandidateId");
-      assertThat(method.getParameterTypes()).containsExactly(AnonymousCandidateCardId.class);
+      assertThat(method.getParameterTypes()).containsExactly(
+          ClientSafeCandidateCardQueryScope.class,
+          AnonymousCandidateCardId.class);
     }
 
     for (Method method : ClientSafeCandidateCardResponseMapper.class.getDeclaredMethods()) {
@@ -614,14 +650,17 @@ class ApiBoundaryRegressionClosureTest {
       implements ClientSafeCandidateCardQueryPort {
 
     private int calls;
+    private ClientSafeCandidateCardQueryScope lastScope;
     private AnonymousCandidateCardId lastCardId;
     private Optional<ClientSafeCandidateCard> nextCard = Optional.of(safeCard());
     private RuntimeException failure;
 
     @Override
     public Optional<ClientSafeCandidateCard> findByAnonymousCardId(
+        ClientSafeCandidateCardQueryScope scope,
         AnonymousCandidateCardId cardId) {
       calls++;
+      lastScope = scope;
       lastCardId = cardId;
       if (failure != null) {
         throw failure;
@@ -631,6 +670,7 @@ class ApiBoundaryRegressionClosureTest {
 
     private void reset() {
       calls = 0;
+      lastScope = null;
       lastCardId = null;
       nextCard = Optional.of(safeCard());
       failure = null;

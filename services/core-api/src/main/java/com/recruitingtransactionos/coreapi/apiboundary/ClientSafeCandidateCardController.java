@@ -39,14 +39,20 @@ public final class ClientSafeCandidateCardController {
               name =
                   ClientSafeCandidateCardApiAccessContextAdapter.IDENTITY_DISCLOSURE_HEADER,
               required = false)
-          String identityDisclosureRequested) {
+          String identityDisclosureRequested,
+      @RequestHeader(
+              name = ClientSafeCandidateCardApiAccessContextAdapter.ORGANIZATION_ID_HEADER,
+              required = false)
+          String organizationId) {
     AnonymousCandidateCardId cardId = AnonymousCandidateCardId.of(anonymousCardRef);
     AccessRequest accessRequest = ClientSafeCandidateCardApiAccessContextAdapter.fromHeaders(
         actorRole,
         fieldClassification,
         identityDisclosureRequested);
+    ClientSafeCandidateCardQueryScope queryScope =
+        ClientSafeCandidateCardApiAccessContextAdapter.queryScopeFromHeaders(organizationId);
 
-    return queryService.findClientSafeCandidateCard(accessRequest, cardId)
+    return queryService.findClientSafeCandidateCard(accessRequest, queryScope, cardId)
         .map(ClientSafeCandidateCardController::success)
         .orElseGet(ClientSafeCandidateCardController::notFound);
   }

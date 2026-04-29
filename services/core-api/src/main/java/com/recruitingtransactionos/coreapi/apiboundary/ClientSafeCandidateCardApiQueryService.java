@@ -32,10 +32,12 @@ public final class ClientSafeCandidateCardApiQueryService {
 
   public Optional<ClientSafeCandidateCardResponse> findClientSafeCandidateCard(
       AccessRequest accessRequest,
+      ClientSafeCandidateCardQueryScope queryScope,
       AnonymousCandidateCardId cardId) {
     permissionEnforcer.requireAllowed(accessRequest);
     requireClientSafeCandidateCardReadContext(accessRequest);
     return queryPort.findByAnonymousCardId(
+            Objects.requireNonNull(queryScope, "queryScope must not be null"),
             Objects.requireNonNull(cardId, "cardId must not be null"))
         .map(ClientSafeCandidateCardResponseMapper::from);
   }

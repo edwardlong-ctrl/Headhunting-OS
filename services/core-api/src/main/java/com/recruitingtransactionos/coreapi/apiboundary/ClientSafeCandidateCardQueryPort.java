@@ -6,5 +6,7 @@ import java.util.Optional;
 
 public interface ClientSafeCandidateCardQueryPort {
 
-  Optional<ClientSafeCandidateCard> findByAnonymousCardId(AnonymousCandidateCardId cardId);
+  Optional<ClientSafeCandidateCard> findByAnonymousCardId(
+      ClientSafeCandidateCardQueryScope scope,
+      AnonymousCandidateCardId cardId);
 }

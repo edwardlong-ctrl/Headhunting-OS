@@ -9,12 +9,14 @@ import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 final class ClientSafeCandidateCardApiAccessContextAdapter {
 
   static final String ACTOR_ROLE_HEADER = "X-RTO-Actor-Role";
   static final String FIELD_CLASSIFICATION_HEADER = "X-RTO-Field-Classification";
   static final String IDENTITY_DISCLOSURE_HEADER = "X-RTO-Identity-Disclosure-Requested";
+  static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private ClientSafeCandidateCardApiAccessContextAdapter() {}
 
@@ -41,6 +43,19 @@ final class ClientSafeCandidateCardApiAccessContextAdapter {
         fieldClassification,
         Set.of(),
         identityDisclosureRequested);
+  }
+
+  static ClientSafeCandidateCardQueryScope queryScopeFromHeaders(String organizationIdHeader) {
+    if (isBlank(organizationIdHeader)) {
+      throw denied(
+          "api_access_context_required",
+          "Access context is required.");
+    }
+    try {
+      return ClientSafeCandidateCardQueryScope.of(UUID.fromString(organizationIdHeader.strip()));
+    } catch (IllegalArgumentException exception) {
+      throw denied("api_access_context_invalid", "Access context is invalid.");
+    }
   }
 
   private static PortalRole parsePortalRole(String value) {

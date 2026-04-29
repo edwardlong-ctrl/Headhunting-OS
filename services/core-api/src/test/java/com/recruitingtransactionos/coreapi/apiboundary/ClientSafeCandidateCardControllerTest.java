@@ -47,6 +47,9 @@ class ClientSafeCandidateCardControllerTest {
   private static final String FIELD_HEADER = "X-RTO-Field-Classification";
   private static final String IDENTITY_DISCLOSURE_HEADER =
       "X-RTO-Identity-Disclosure-Requested";
+  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
+  private static final String ORGANIZATION_ID =
+      "00000000-0000-0000-0000-0000009b0003";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009b0001";
@@ -80,7 +83,8 @@ class ClientSafeCandidateCardControllerTest {
   void successfulControllerResponseReturnsOnlyClientSafeDtoEnvelope() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"))
         .andExpect(jsonPath("$.data.anonymousCandidateRef")
@@ -123,6 +127,8 @@ class ClientSafeCandidateCardControllerTest {
             "WorkflowEvent");
     assertThat(queryPort.calls).isEqualTo(1);
     assertThat(queryPort.lastCardId).isEqualTo(AnonymousCandidateCardId.of("card_task9b_0001"));
+    assertThat(queryPort.lastScope).isEqualTo(
+        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
   }
 
   @Test
@@ -139,10 +145,35 @@ class ClientSafeCandidateCardControllerTest {
   }
 
   @Test
+  void missingOrInvalidOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
+    MvcResult missing = mockMvc.perform(get(ENDPOINT)
+            .header(ROLE_HEADER, "client")
+            .header(FIELD_HEADER, "client_safe"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
+        .andReturn();
+
+    assertSanitizedDenial(missing);
+    assertThat(queryPort.calls).isZero();
+
+    MvcResult invalid = mockMvc.perform(get(ENDPOINT)
+            .header(ROLE_HEADER, "client")
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, "not-a-uuid"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
+        .andReturn();
+
+    assertSanitizedDenial(invalid);
+    assertThat(queryPort.calls).isZero();
+  }
+
+  @Test
   void clientDeniedPathIsSanitizedAndDoesNotLeakInternalDetails() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "raw_source"))
+            .header(FIELD_HEADER, "raw_source")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
         .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
@@ -156,7 +187,8 @@ class ClientSafeCandidateCardControllerTest {
   void nonClientOrIdentityDisclosedAccessCannotUseEndpointToGetInternalData() throws Exception {
     MvcResult nonClientResult = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "consultant")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
         .andReturn();
@@ -164,6 +196,7 @@ class ClientSafeCandidateCardControllerTest {
     MvcResult disclosureAttemptResult = mockMvc.perform(get(ENDPOINT)
             .header(ROLE_HEADER, "client")
             .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
             .header(IDENTITY_DISCLOSURE_HEADER, "true"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
@@ -179,7 +212,8 @@ class ClientSafeCandidateCardControllerTest {
     MvcResult result = mockMvc.perform(get(
             "/api/client-safe/candidate-cards/" + RAW_CANDIDATE_ID)
             .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe"))
+            .header(FIELD_HEADER, "client_safe")
+            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
         .andExpect(jsonPath("$.error.safeReason")
@@ -232,7 +266,9 @@ class ClientSafeCandidateCardControllerTest {
       assertThat(method.getReturnType()).isEqualTo(Optional.class);
       assertThat(method.getGenericReturnType().getTypeName())
           .contains(ClientSafeCandidateCard.class.getSimpleName());
-      assertThat(method.getParameterTypes()).containsExactly(AnonymousCandidateCardId.class);
+      assertThat(method.getParameterTypes()).containsExactly(
+          ClientSafeCandidateCardQueryScope.class,
+          AnonymousCandidateCardId.class);
     }
   }
 
@@ -376,19 +412,23 @@ class ClientSafeCandidateCardControllerTest {
       implements ClientSafeCandidateCardQueryPort {
 
     private int calls;
+    private ClientSafeCandidateCardQueryScope lastScope;
     private AnonymousCandidateCardId lastCardId;
     private Optional<ClientSafeCandidateCard> nextCard = Optional.of(safeCard());
 
     @Override
     public Optional<ClientSafeCandidateCard> findByAnonymousCardId(
+        ClientSafeCandidateCardQueryScope scope,
         AnonymousCandidateCardId cardId) {
       calls++;
+      lastScope = scope;
       lastCardId = cardId;
       return nextCard;
     }
 
     private void reset() {
       calls = 0;
+      lastScope = null;
       lastCardId = null;
       nextCard = Optional.of(safeCard());
     }

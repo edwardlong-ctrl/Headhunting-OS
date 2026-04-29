@@ -13,7 +13,10 @@ public final class UnavailableClientSafeCandidateCardQueryPort
     implements ClientSafeCandidateCardQueryPort {
 
   @Override
-  public Optional<ClientSafeCandidateCard> findByAnonymousCardId(AnonymousCandidateCardId cardId) {
+  public Optional<ClientSafeCandidateCard> findByAnonymousCardId(
+      ClientSafeCandidateCardQueryScope scope,
+      AnonymousCandidateCardId cardId) {
+    Objects.requireNonNull(scope, "scope must not be null");
     Objects.requireNonNull(cardId, "cardId must not be null");
     return Optional.empty();
   }

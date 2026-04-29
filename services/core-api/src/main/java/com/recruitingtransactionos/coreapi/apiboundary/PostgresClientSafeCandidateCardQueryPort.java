@@ -41,18 +41,6 @@ public final class PostgresClientSafeCandidateCardQueryPort
   private static final String PROJECTION_METADATA_KEY =
       "client_safe_candidate_card_projection_by_ref";
 
-  private static final String FIND_BY_CARD_ID_SQL = """
-      SELECT
-        candidate_id,
-        candidate_profile_id,
-        jsonb_extract_path(metadata, ?, ?)::text AS projection_json
-      FROM recruiting.candidate_profile
-      WHERE status IN ('canonical', 'locked')
-        AND jsonb_extract_path(metadata, ?, ?) IS NOT NULL
-      ORDER BY updated_at DESC, created_at DESC
-      LIMIT 2
-      """;
-
   private static final String FIND_BY_CARD_ID_AND_ORGANIZATION_SQL = """
       SELECT
         candidate_id,
@@ -79,29 +67,21 @@ public final class PostgresClientSafeCandidateCardQueryPort
       .build();
 
   private final DataSource dataSource;
-  private final UUID organizationId;
   private final ClientSafeCandidateProjectionService projectionService;
   private final ReidentificationRiskAssessmentService reidentificationRiskAssessmentService;
 
   public PostgresClientSafeCandidateCardQueryPort(DataSource dataSource) {
-    this(dataSource, null);
-  }
-
-  PostgresClientSafeCandidateCardQueryPort(DataSource dataSource, UUID organizationId) {
     this(
         dataSource,
-        organizationId,
         new ClientSafeCandidateProjectionService(),
         new ReidentificationRiskAssessmentService());
   }
 
   PostgresClientSafeCandidateCardQueryPort(
       DataSource dataSource,
-      UUID organizationId,
       ClientSafeCandidateProjectionService projectionService,
       ReidentificationRiskAssessmentService reidentificationRiskAssessmentService) {
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
-    this.organizationId = organizationId;
     this.projectionService =
         Objects.requireNonNull(projectionService, "projectionService must not be null");
     this.reidentificationRiskAssessmentService = Objects.requireNonNull(
@@ -110,11 +90,15 @@ public final class PostgresClientSafeCandidateCardQueryPort
   }
 
   @Override
-  public Optional<ClientSafeCandidateCard> findByAnonymousCardId(AnonymousCandidateCardId cardId) {
+  public Optional<ClientSafeCandidateCard> findByAnonymousCardId(
+      ClientSafeCandidateCardQueryScope scope,
+      AnonymousCandidateCardId cardId) {
+    Objects.requireNonNull(scope, "scope must not be null");
     Objects.requireNonNull(cardId, "cardId must not be null");
     Connection connection = DataSourceUtils.getConnection(dataSource);
-    try (PreparedStatement statement = connection.prepareStatement(sql())) {
-      bind(statement, cardId);
+    try (PreparedStatement statement = connection.prepareStatement(
+        FIND_BY_CARD_ID_AND_ORGANIZATION_SQL)) {
+      bind(statement, scope, cardId);
       try (ResultSet resultSet = statement.executeQuery()) {
         if (!resultSet.next()) {
           return Optional.empty();
@@ -133,23 +117,14 @@ public final class PostgresClientSafeCandidateCardQueryPort
     }
   }
 
-  private String sql() {
-    if (organizationId == null) {
-      return FIND_BY_CARD_ID_SQL;
-    }
-    return FIND_BY_CARD_ID_AND_ORGANIZATION_SQL;
-  }
-
-  private void bind(PreparedStatement statement, AnonymousCandidateCardId cardId)
+  private void bind(
+      PreparedStatement statement,
+      ClientSafeCandidateCardQueryScope scope,
+      AnonymousCandidateCardId cardId)
       throws SQLException {
     statement.setString(1, PROJECTION_METADATA_KEY);
     statement.setString(2, cardId.value());
-    if (organizationId == null) {
-      statement.setString(3, PROJECTION_METADATA_KEY);
-      statement.setString(4, cardId.value());
-      return;
-    }
-    statement.setObject(3, organizationId);
+    statement.setObject(3, scope.organizationId());
     statement.setString(4, PROJECTION_METADATA_KEY);
     statement.setString(5, cardId.value());
   }
@@ -161,9 +136,10 @@ public final class PostgresClientSafeCandidateCardQueryPort
         row.projectionJson(),
         ProjectionDocument.class);
     InternalCandidateProjectionSnapshot snapshot = document.toSnapshot(cardId, row);
-    ClientSafeCandidateCard card = projectionService.project(CLIENT_SAFE_READ_ACCESS, snapshot);
-    reidentificationRiskAssessmentService.assess(card, Set.of()).requireSafeAnonymousClientOutput();
-    return Optional.of(card);
+    return Optional.of(projectionService.project(
+        CLIENT_SAFE_READ_ACCESS,
+        snapshot,
+        reidentificationRiskAssessmentService.assess(snapshot)));
   }
 
   private static ProjectionRow projectionRow(ResultSet resultSet) throws SQLException {

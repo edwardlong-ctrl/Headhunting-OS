@@ -75,6 +75,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     seedSuccessCardProjection();
 
     Optional<ClientSafeCandidateCard> card = queryPort().findByAnonymousCardId(
+        scope(ORG_A),
         AnonymousCandidateCardId.of("card_task13b_success_0001"));
 
     assertThat(card).isPresent();
@@ -113,7 +114,8 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
             "card_task13b_success_0001",
             "client",
             "client_safe",
-            null);
+            null,
+            ORG_A.toString());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -143,6 +145,47 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
             "identityDisclosed");
   }
 
+  @Test
+  void productionBeanPathDeniesCrossOrganizationCardRefs() throws SQLException {
+    String otherOrgOnlyCardRef = "card_task13b_other_org_only_0001";
+    insertCandidateProfile(
+        ORG_B,
+        CANDIDATE_B,
+        uuid("00000000-0000-0000-0000-00000013b304"),
+        otherOrgOnlyCardRef,
+        """
+            {
+              "anonymousCandidateRef": "anon_candidate_task13b_other_org_0001",
+              "projectionVersion": "projection-v13b",
+              "redactionLevel": "l2_client_safe",
+              "generalizedHeadline": "Other organization candidate",
+              "generalizedRoleFamily": "semiconductor_verification",
+              "generalizedSeniorityBand": "senior_ic",
+              "generalizedLocationRegion": "greater_china",
+              "safeSummary": "This safe text belongs to another organization.",
+              "safeSkillSummary": "Safe skill summary.",
+              "safeEvidenceSummaries": ["Other organization evidence."],
+              "safeMatchNarratives": ["Other organization match narrative."]
+            }
+            """);
+    ClientSafeCandidateCardController controller = new ClientSafeCandidateCardController(
+        new ClientSafeCandidateCardApiQueryService(productionBeanPathQueryPort()));
+
+    ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
+        controller.readClientSafeCandidateCard(
+            otherOrgOnlyCardRef,
+            "client",
+            "client_safe",
+            null,
+            ORG_A.toString());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().error()).isNotNull();
+    assertThat(response.getBody().error().safeReason())
+        .isEqualTo("client_safe_candidate_card_unavailable");
+  }
+
   private static void seedSuccessCardProjection() throws SQLException {
     if (countProjectionRows("card_task13b_success_0001") > 0) {
       return;
@@ -157,9 +200,6 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
               "rawCandidateId": "00000000-0000-0000-0000-00000013b003",
               "rawCandidateProfileId": "00000000-0000-0000-0000-00000013b004",
               "fullName": "Task 13B Raw Candidate",
-              "email": "task13b.raw@example.com",
-              "phone": "+86 138 0013 0001",
-              "linkedInUrl": "https://linkedin.example/task13b",
               "rawSourceText": "Task 13B Raw Candidate at ExactCorp Task13B on Exact Task13B NPU",
               "consultantInternalNotes": "Do not show this Task 13B consultant note to the client.",
               "anonymousCandidateRef": "anon_candidate_task13b_success_0001",
@@ -201,8 +241,10 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
             """);
 
     assertThat(queryPort().findByAnonymousCardId(
+        scope(ORG_A),
         AnonymousCandidateCardId.of("card_task13b_missing_0001"))).isEmpty();
     assertThat(queryPort().findByAnonymousCardId(
+        scope(ORG_A),
         AnonymousCandidateCardId.of("card_task13b_unavailable_0001"))).isEmpty();
   }
 
@@ -255,19 +297,61 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ClientSafeCandidateCardQueryPort scopedOrgAQuery = queryPort(ORG_A);
 
     assertThat(scopedOrgAQuery.findByAnonymousCardId(
+        scope(ORG_A),
         AnonymousCandidateCardId.of(reusedCardRef))).isEmpty();
     assertThat(scopedOrgAQuery.findByAnonymousCardId(
+        scope(ORG_A),
         AnonymousCandidateCardId.of("card_task13b_unsafe_carryover_0001"))).isEmpty();
     assertThat(queryPort(ORG_B).findByAnonymousCardId(
+        scope(ORG_B),
         AnonymousCandidateCardId.of(reusedCardRef))).isPresent();
+  }
+
+  @Test
+  void snapshotLevelReidentificationRisksFailClosedEvenWhenOutputTextIsGeneralized()
+      throws SQLException {
+    insertCandidateProfile(
+        ORG_A,
+        CANDIDATE_A,
+        uuid("00000000-0000-0000-0000-00000013b404"),
+        "card_task13b_snapshot_risk_0001",
+        """
+            {
+              "exactCurrentEmployer": "ExactCorp Task13B",
+              "exactProjectProductOrChipNames": ["Exact Task13B NPU"],
+              "anonymousCandidateRef": "anon_candidate_task13b_snapshot_risk_0001",
+              "projectionVersion": "projection-v13b",
+              "redactionLevel": "l2_client_safe",
+              "generalizedHeadline": "Senior verification leader",
+              "generalizedRoleFamily": "semiconductor_verification",
+              "generalizedSeniorityBand": "senior_ic",
+              "generalizedLocationRegion": "greater_china",
+              "safeSummary": "Has led complex verification programs without disclosing employer or code names.",
+              "safeSkillSummary": "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
+              "safeEvidenceSummaries": ["Evidence generalized from approved profile signals."],
+              "safeMatchNarratives": ["Strong fit based on generalized capability evidence."]
+            }
+            """);
+
+    assertThat(queryPort().findByAnonymousCardId(
+        scope(ORG_A),
+        AnonymousCandidateCardId.of("card_task13b_snapshot_risk_0001"))).isEmpty();
   }
 
   private static ClientSafeCandidateCardQueryPort queryPort() {
     return queryPort(ORG_A);
   }
 
+  private static ClientSafeCandidateCardQueryPort productionBeanPathQueryPort() {
+    return new PostgresClientSafeCandidateCardQueryPort(dataSource);
+  }
+
   private static ClientSafeCandidateCardQueryPort queryPort(UUID organizationId) {
-    return new PostgresClientSafeCandidateCardQueryPort(dataSource, organizationId);
+    return new PostgresClientSafeCandidateCardQueryPort(dataSource);
+  }
+
+  private static ClientSafeCandidateCardQueryScope scope(UUID organizationId) {
+    return ClientSafeCandidateCardQueryScope.of(organizationId);
   }
 
   private static void insertCandidateProfile(
