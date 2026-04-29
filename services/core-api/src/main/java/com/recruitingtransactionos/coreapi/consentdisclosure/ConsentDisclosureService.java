@@ -90,6 +90,14 @@ public final class ConsentDisclosureService {
       return ConsentDisclosureServiceResult.denied(decision.reasonCodes());
     }
 
+    List<String> chainReasons = approvalChainDenialReasons(request, disclosureRecord);
+    if (!chainReasons.isEmpty()) {
+      return ConsentDisclosureServiceResult.denied(chainReasons);
+    }
+    if (request.requestedLevel() == DisclosureLevel.L3_CONSENTED_DETAIL) {
+      return ConsentDisclosureServiceResult.allowed(request.requestedLevel());
+    }
+
     List<String> reviewReasons = deferredReviewReasons(request.prerequisites(), request.requestedLevel());
     if (!reviewReasons.isEmpty()) {
       return ConsentDisclosureServiceResult.requiresReview(reviewReasons);
@@ -127,7 +135,7 @@ public final class ConsentDisclosureService {
         null,
         request.requestedAt()));
 
-    DisclosureRecord appendedBoundary = disclosureRecordPort.append(new DisclosureRecord(
+    DisclosureRecord appendedBoundary = disclosureRecordPort.appendIfAbsent(new DisclosureRecord(
         resultingDisclosureRecordRef,
         request.organizationId(),
         request.candidateRef(),
@@ -146,6 +154,23 @@ public final class ConsentDisclosureService {
         decision.allowedLevel().orElseThrow(),
         workflowEvent.workflowEventId(),
         appendedBoundary.disclosureRecordRef());
+  }
+
+  private static List<String> approvalChainDenialReasons(
+      ConsentDisclosureServiceRequest request,
+      Optional<DisclosureRecord> disclosureRecord) {
+    if (disclosureRecord.isEmpty()) {
+      return List.of();
+    }
+    DisclosureRecord disclosure = disclosureRecord.orElseThrow();
+    List<String> reasons = new ArrayList<>();
+    if (!disclosure.consentRecordRef().equals(request.consentRecordRef())) {
+      reasons.add("disclosure_consent_record_ref_mismatch");
+    }
+    if (!disclosure.unlockDecisionRef().equals(request.unlockDecisionRef())) {
+      reasons.add("disclosure_unlock_decision_ref_mismatch");
+    }
+    return reasons;
   }
 
   private static DisclosureAuditBoundary auditBoundary() {

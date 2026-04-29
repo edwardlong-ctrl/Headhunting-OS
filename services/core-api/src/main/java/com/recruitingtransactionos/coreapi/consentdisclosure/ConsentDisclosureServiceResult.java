@@ -34,6 +34,15 @@ public record ConsentDisclosureServiceResult(
         Optional.of(disclosureRecordRef));
   }
 
+  static ConsentDisclosureServiceResult allowed(DisclosureLevel level) {
+    return new ConsentDisclosureServiceResult(
+        ConsentDisclosureServiceStatus.ALLOWED,
+        Optional.of(level),
+        List.of(),
+        Optional.empty(),
+        Optional.empty());
+  }
+
   static ConsentDisclosureServiceResult denied(List<String> reasonCodes) {
     return new ConsentDisclosureServiceResult(
         ConsentDisclosureServiceStatus.DENIED,

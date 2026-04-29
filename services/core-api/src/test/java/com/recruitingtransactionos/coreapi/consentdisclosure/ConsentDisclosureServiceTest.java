@@ -156,6 +156,106 @@ class ConsentDisclosureServiceTest {
   }
 
   @Test
+  void l3ConsentedDetailDoesNotAppendIdentityDisclosureAuditOrState() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(
+        identityDisclosureRequestBuilder()
+            .requestedLevel(DisclosureLevel.L3_CONSENTED_DETAIL)
+            .build());
+
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.ALLOWED);
+    assertThat(result.allowedLevel()).contains(DisclosureLevel.L3_CONSENTED_DETAIL);
+    assertThat(result.workflowEventId()).isEmpty();
+    assertThat(result.resultingDisclosureRecordRef()).isEmpty();
+    assertThat(workflowEvents.commands()).isEmpty();
+    assertThat(disclosureRecords.appendedRecords()).isEmpty();
+  }
+
+  @Test
+  void deniesWhenApprovedDisclosureRecordDoesNotReferenceRequestedConsentAndUnlockRefs() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+    unlockDecisions.append(unlockDecision(UnlockDecisionStatus.APPROVED, ActorRole.CONSULTANT));
+    disclosureRecords.append(new DisclosureRecord(
+        "disclosure_record_task12b_approved_0001",
+        ORGANIZATION_ID,
+        CANDIDATE_REF,
+        PROFILE_REF,
+        JOB_REF,
+        CLIENT_REF,
+        DisclosureStatus.APPROVED,
+        DisclosureLevel.L4_IDENTITY_DISCLOSED,
+        RedactionLevel.L4_IDENTITY_DISCLOSED,
+        "unlock_decision_task12b_other",
+        "consent_record_task12b_other",
+        Optional.empty(),
+        NOW.minusSeconds(900)));
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult result =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.DENIED);
+    assertThat(result.reasonCodes())
+        .contains(
+            "disclosure_consent_record_ref_mismatch",
+            "disclosure_unlock_decision_ref_mismatch");
+    assertThat(result.workflowEventId()).isEmpty();
+    assertThat(result.resultingDisclosureRecordRef()).isEmpty();
+    assertThat(workflowEvents.commands()).isEmpty();
+    assertThat(disclosureRecords.appendedRecords())
+        .extracting(DisclosureRecord::status)
+        .containsExactly(DisclosureStatus.APPROVED);
+  }
+
+  @Test
+  void repeatedAllowedIdentityDisclosureRequestReusesExistingWorkflowAndDisclosureBoundary() {
+    RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
+    InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
+    InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
+    InMemoryDisclosureRecordPort disclosureRecords = new InMemoryDisclosureRecordPort();
+    consentRecords.append(consent(ConsentStatus.CONFIRMED));
+    unlockDecisions.append(unlockDecision(UnlockDecisionStatus.APPROVED, ActorRole.CONSULTANT));
+    disclosureRecords.append(approvedDisclosureRecord());
+
+    ConsentDisclosureService service = service(
+        consentRecords,
+        unlockDecisions,
+        disclosureRecords,
+        workflowEvents);
+
+    ConsentDisclosureServiceResult first =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+    ConsentDisclosureServiceResult second =
+        service.evaluateDisclosureAttempt(identityDisclosureRequest());
+
+    assertThat(second).isEqualTo(first);
+    assertThat(workflowEvents.commands()).hasSize(1);
+    assertThat(disclosureRecords.appendedRecords())
+        .extracting(DisclosureRecord::status)
+        .containsExactly(DisclosureStatus.APPROVED, DisclosureStatus.IDENTITY_DISCLOSED);
+  }
+
+  @Test
   void consentDisclosureServiceSurfaceRemainsBackendInternalAndRawCandidateFree() {
     assertThat(recordComponentTypes(ConsentDisclosureServiceRequest.class))
         .doesNotContain(
@@ -275,7 +375,13 @@ class ConsentDisclosureServiceTest {
     public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
         UUID organizationId,
         WorkflowIdempotencyKey idempotencyKey) {
-      return Optional.empty();
+      return commands.stream()
+          .filter(command -> command.organizationId().equals(organizationId))
+          .filter(command -> idempotencyKey.equals(command.idempotencyKey()))
+          .findFirst()
+          .map(command -> new WorkflowEventIdempotencyRecord(
+              new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-00000012b0ff")),
+              command));
     }
 
     @Override

@@ -11,4 +11,11 @@ public interface DisclosureRecordPort {
   Optional<DisclosureRecord> findByRefAndOrganizationId(
       UUID organizationId,
       String disclosureRecordRef);
+
+  default DisclosureRecord appendIfAbsent(DisclosureRecord disclosureRecord) {
+    return findByRefAndOrganizationId(
+        disclosureRecord.organizationId(),
+        disclosureRecord.disclosureRecordRef())
+        .orElseGet(() -> append(disclosureRecord));
+  }
 }

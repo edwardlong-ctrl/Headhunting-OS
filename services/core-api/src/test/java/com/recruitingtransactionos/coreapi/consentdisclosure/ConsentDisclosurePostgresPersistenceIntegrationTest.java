@@ -161,25 +161,28 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
         transactionBoundary());
 
-    ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(
-        ConsentDisclosureServiceRequest.builder()
-            .organizationId(organizationId)
-            .candidateRef("candidate_ref_task12b_pg_1001")
-            .candidateProfileRef("profile_ref_task12b_pg_1001")
-            .jobRef("job_ref_task12b_pg_1001")
-            .clientRef("client_ref_task12b_pg_1001")
-            .consentRecordRef(consent.consentRecordRef())
-            .unlockDecisionRef(unlock.unlockDecisionRef())
-            .approvedDisclosureRecordRef(approvedDisclosure.disclosureRecordRef())
-            .requestedByRole(PortalRole.CONSULTANT)
-            .actor(new ActorRef(consultantId, ActorRole.CONSULTANT))
-            .requestedLevel(DisclosureLevel.L4_IDENTITY_DISCLOSED)
-            .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true))
-            .reason("consultant released identity after consent, unlock, and disclosure approval")
-            .requestedAt(NOW)
-            .build());
+    ConsentDisclosureServiceRequest request = ConsentDisclosureServiceRequest.builder()
+        .organizationId(organizationId)
+        .candidateRef("candidate_ref_task12b_pg_1001")
+        .candidateProfileRef("profile_ref_task12b_pg_1001")
+        .jobRef("job_ref_task12b_pg_1001")
+        .clientRef("client_ref_task12b_pg_1001")
+        .consentRecordRef(consent.consentRecordRef())
+        .unlockDecisionRef(unlock.unlockDecisionRef())
+        .approvedDisclosureRecordRef(approvedDisclosure.disclosureRecordRef())
+        .requestedByRole(PortalRole.CONSULTANT)
+        .actor(new ActorRef(consultantId, ActorRole.CONSULTANT))
+        .requestedLevel(DisclosureLevel.L4_IDENTITY_DISCLOSED)
+        .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true))
+        .reason("consultant released identity after consent, unlock, and disclosure approval")
+        .requestedAt(NOW)
+        .build();
+
+    ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(request);
+    ConsentDisclosureServiceResult replayed = service.evaluateDisclosureAttempt(request);
 
     assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.ALLOWED);
+    assertThat(replayed).isEqualTo(result);
     assertThat(result.workflowEventId()).isPresent();
     assertThat(result.resultingDisclosureRecordRef()).isPresent();
     assertThat(countRows("privacy.consent_record", organizationId)).isEqualTo(1);
