@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- main HEAD before Task 11C worktree: `a7310feab2c520874c0d24dfa0a729e49c3e2beb`
-- latest merged commit before Task 11C: Add match report generation placeholder
-- Task 11C worktree validation: focused matching package suite, 39 tests, 0 failures/errors; full backend Maven suite, 490 tests, 0 failures/errors, 1 existing skip
-- merge status: Task 11C current worktree; do not self-reference the final commit here
+- current main HEAD: `02e8700c30de38a9ae73ac34b18d9d759d6d72bf`
+- latest merged commit: `02e8700` Harden consent disclosure chain persistence
+- current validation snapshot: full backend Maven suite reached 533 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build and whitespace diff checks were re-run for the current roadmap drift fix.
+- merge status: main contains Task 14; roadmap next task is intentionally pending human prioritization.
 
 ## Completed Major Tasks
 
@@ -41,7 +41,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 11: Matching / Evidence Kernel ✅ for current backend kernel scope
 - Task 12A: Consent / Disclosure Protection first backend-only kernel ✅
 - Task 12B: Consent / Disclosure persistence and audited service boundary ✅ for current backend kernel scope
+- Task 13A: Five-portal UI shell and client-safe candidate-card route ✅ for the current integrated slice
 - Task 13B: Real client-safe candidate card backend query slice ✅
+- Task 14: Consent / Disclosure production hardening ✅ for the current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -91,8 +93,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 12A regression coverage proves L4/identity disclosure cannot be granted by role alone, unlock/disclosure cannot bypass the new protection policy, missing/invalid/expired/revoked/not-human-approved states fail closed, allowed L4 decisions carry an explicit T4 `DISCLOSURE_IDENTITY_DISCLOSED` audit command, and no API/controller/UI/persistence/AI/canonical-write surface is added.
 - Task 12B adds the first PostgreSQL-backed consent/disclosure/unlock persistence slice through `V8__add_consent_disclosure_persistence.sql`, narrow backend-internal append/read ports plus JDBC adapters, and a deterministic `ConsentDisclosureService` that reads persisted consent/unlock/disclosure state, reuses `ConsentDisclosureProtectionPolicy`, returns safe allow/deny/requires-review results, appends `WorkflowEvent` only on allowed audited L4 transitions, and persists the resulting identity-disclosed boundary without mutating raw Candidate/Profile or bypassing `CanonicalWriteGate`.
 - Task 12B regression and PostgreSQL/Testcontainers coverage proves organization-scoped append/readback for `ConsentRecord` / `UnlockDecision` / `DisclosureRecord`, fail-closed denial for missing/mismatched/expired/revoked/not-human-approved persisted state, deferred job/fee/prior-contact/prior-application checks return explicit review reasons rather than silent allow, allowed L4 requests append exactly one audited `DISCLOSURE_IDENTITY_DISCLOSED` `WorkflowEvent` plus one resulting disclosure boundary, and no API/controller/UI/auth/session/direct client-read behavior is added.
+- Task 13A adds the route-aware five-portal web shell while preserving Consultant as one unified portal and keeping the v2.0/v2.1 portal taxonomy intact. It adds the narrow Client portal entry flow for anonymous candidate cards, fail-closed client-safe loading states, the typed frontend helper for the existing client-safe card endpoint, and a narrow Vite `/api` dev proxy without adding raw Candidate/Profile client exposure, identity-disclosed client read behavior, auth/session/Spring Security, or backend-truth drift.
 - Task 13B adds a narrow PostgreSQL-backed `ClientSafeCandidateCardQueryPort` implementation for the existing `GET /api/client-safe/candidate-cards/{anonymousCardRef}` endpoint. It reads only backend-owned client-safe projection metadata from `recruiting.candidate_profile`, rebuilds an internal projection snapshot, reuses `ClientSafeCandidateProjectionService` plus the re-identification boundary, and fails closed to unavailable when data is missing, ambiguous, invalid, L4/identity-disclosed, cross-organization, or carrying raw sensitive values.
-- Task 13B regression and PostgreSQL/Testcontainers coverage proves the existing endpoint can return a real safe success-state card from backend data, while preserving sanitized denial/unavailable behavior, anonymous `card_` references only, client-safe DTO mapping only, organization scope, no raw Candidate/Profile client exposure, no L4 identity-disclosed output, no auth/session/Spring Security, no frontend changes, and no broad workflow/API expansion.
+- Task 13B regression and PostgreSQL/Testcontainers coverage proves the existing endpoint can return a real safe success-state card from backend data, while preserving sanitized denial/unavailable behavior, anonymous `card_` references only, client-safe DTO mapping only, organization scope, no raw Candidate/Profile client exposure, no L4 identity-disclosed output, no Spring Security/auth/session, no broad workflow/API expansion, and compatibility with the existing Task 13A route through runtime-configured temporary organization scope.
+- Task 14 hardens the backend Consent / Disclosure slice without expanding product surface. It keeps `L3_CONSENTED_DETAIL` separate from identity disclosure, binds approved disclosure records to the requested consent/unlock chain, makes final disclosure persistence retry-safe, adds organization-scoped consent/disclosure linkage hardening through `V9__harden_consent_disclosure_org_scope_links.sql`, enforces runtime denial for legacy cross-organization unlock approvers, and preserves fail-closed L4 redaction-level checks without adding API/controller/UI/auth/session/Spring Security or identity-disclosed client reads.
 
 ## Current Known Gaps
 
@@ -113,7 +117,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 11 is complete only for the current backend kernel scope.
 - Task 12A is complete only for backend contracts, vocabulary, pure fail-closed policy, and regression tests.
 - Task 12B is complete only for the current backend kernel scope: PostgreSQL persistence for consent/disclosure/unlock records exists, a backend-internal audited service boundary exists, allowed audited L4 transitions append `WorkflowEvent` plus resulting disclosure boundary records, and regression tests prove no raw Candidate/Profile mutation, no broad API/UI/auth surface, and no identity-disclosed client read behavior.
+- Task 13A is complete only for the current integrated frontend slice: route-aware five-portal shell exists, Consultant remains one unified portal, the Client route can open anonymous candidate cards through the existing narrow endpoint, and fail-closed safe UI states exist. It does not add raw Candidate/Profile client exposure, identity-disclosed client read behavior, auth/session/Spring Security, or broad product workflow expansion.
 - Task 13B is complete only for a real backend-internal client-safe candidate card query/read-model slice behind the existing endpoint. It does not add broad shortlist service behavior, frontend UI changes, production auth/session, Spring Security, L4 identity disclosure, Consent/Disclosure workflow expansion, workflow engine behavior, or raw Candidate/Profile API exposure.
+- Task 14 is complete only for the current backend kernel scope: the consent/disclosure service and persistence layer are hardened for chain binding, L3/L4 separation, retry-safe final disclosure persistence, organization-scoped linkage, and legacy cross-organization approver denial. It still does not add Consent/Disclosure/Unlock API/controller/UI, real auth/session enforcement, Spring Security, full workflow execution, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior.
 - No real AI matching, model routing, prompt execution, AI task queue/worker, matching persistence, matching API/controller/UI, client-facing match report delivery, or real industry ontology calibration exists yet.
 - No outcome-label feedback loop exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
@@ -133,17 +139,18 @@ This file contains mutable short-term engineering state. Update it after future 
 - Blocked canonical attempts still have no separate persisted audit ledger.
 - recruiting.* source/packet cleanup/deprecation remains deferred.
 
-## Current Leftover Cleanup Note
-
-Task 6F worktree was not deleted because it contains an untracked Vim swap file:
-
-`/Users/edwardlong/.codex/worktrees/fc08/New project/services/core-api/src/test/java/com/recruitingtransactionos/coreapi/candidateprofile/.CandidateProfileContractTest.java.swp`
-
-This worktree has already been merged to main, but cleanup was safely skipped. Do not force-delete it. Close the relevant Vim/editor/session and confirm recovery is unnecessary before deleting the swap file/worktree.
-
 ## Next Recommended Task
 
-Task 13
+Task 15: Product Readiness Bridge, using:
+
+- `docs/roadmap/product-scope-after-kernel.md`
+- `docs/roadmap/productization-roadmap.md`
+- `docs/roadmap/productization-roadmap.zh-CN.md`
+- `docs/roadmap/pilot-readiness-checklist.md`
+
+Task 14 remains Production Kernel completion for the current backend kernel
+scope. It is not full product completion, not Usable v1, and not pilot-ready by
+itself.
 
 ## Future Prompt Strategy
 

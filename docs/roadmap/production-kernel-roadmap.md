@@ -36,7 +36,7 @@ Task 3: Truth Layer Persistence & Domain Services ✅
 - 3C: WorkflowEvent append persistence ✅
 - 3D: CanonicalWriteService transaction boundary skeleton ✅
 - 3E: Service boundary hardening / regression sweep ✅
-- 3F: Roadmap / status / known gaps materialization ⏳
+- 3F: Roadmap / status / known gaps materialization ✅
 
 Task 4: WorkflowEvent / Audit Foundation ✅
 
@@ -225,24 +225,57 @@ WorkflowEvent append execution, full workflow engine, prior-contact review flow,
 fee-agreement validation, job-activation lookup, or identity-disclosed Client
 read behavior.
 
-## Next Tasks
+Task 12B: Consent / Disclosure persistence and audited service boundary ✅ for current backend kernel scope
 
-Task 12B: Consent / Disclosure persistence and audited service boundary
+Task 13: Five Portal Backend-approved UI Integration ✅ for the current integrated slice
 
-Task 13: Five Portal Backend-approved UI Integration
-
+- 13A: route-aware five-portal UI shell plus client-safe candidate-card route ✅
 - 13B: real client-safe candidate card backend query slice ✅
+
+Task 13A adds the route-aware five-portal web shell while preserving Consultant
+as one unified portal and keeping the v2.0/v2.1 portal taxonomy intact. It
+adds the narrow Client portal entry flow for anonymous candidate cards at
+`/client/candidate-cards/{anonymousCardRef}`, fail-closed client-safe loading
+states, the typed frontend helper for the existing client-safe card endpoint,
+and a narrow Vite `/api` proxy. It adds no raw Candidate/Profile client
+exposure, no identity-disclosed client read behavior, no auth/session/Spring
+Security, no broad API/backend workflow expansion, and no change to backend as
+source of truth.
 
 Task 13B is a narrow backend query/read-model slice behind the existing
 `GET /api/client-safe/candidate-cards/{anonymousCardRef}` endpoint. It reads
 backend-owned client-safe projection metadata from PostgreSQL, rebuilds only the
-existing `ClientSafeCandidateCard` contract through `ClientSafeCandidateProjectionService`,
-and fails closed for missing, ambiguous, invalid, cross-organization, L4, or raw
-sensitive carryover cases. It adds no frontend changes, no raw Candidate/Profile
-endpoint, no auth/session/Spring Security, no workflow engine, and no identity
-disclosure behavior.
+existing `ClientSafeCandidateCard` contract through
+`ClientSafeCandidateProjectionService`, requires organization-scoped temporary
+access context, and fails closed for missing, ambiguous, invalid,
+cross-organization, L4, or raw sensitive carryover cases. It adds no raw
+Candidate/Profile endpoint, no broad shortlist service behavior, no
+Spring Security/auth/session, no workflow engine, and no identity disclosure
+behavior.
 
-Task 14: Production Hardening
+Task 14: Production Hardening ✅ for the current backend kernel scope
+
+Task 14 hardens the existing Consent / Disclosure backend slice without broadening
+surface area. It keeps L3 consented detail separate from L4 identity disclosure,
+binds approved disclosure records to the requested consent and unlock chain,
+makes final disclosure persistence retry-safe, adds `V9` follow-up organization-
+scoped linkage hardening for consent/disclosure records, and denies legacy
+cross-organization unlock approvers at runtime even when historical rows survive
+`NOT VALID` foreign-key rollout. It adds no Consent/Disclosure API/controller/UI,
+no Spring Security/auth/session, no broad workflow engine, and no identity-
+disclosed Client read behavior.
+
+## Next Tasks
+
+Post-Task 14 work continues in `docs/roadmap/productization-roadmap.md`.
+The Chinese companion plan is `docs/roadmap/productization-roadmap.zh-CN.md`.
+
+- Task 15: Product Readiness Bridge
+- Task 16-42: Usable v1 / Controlled Pilot Ready path
+- Task 43-60: Full v2.1/v2.0 Product 100% path
+
+Task 14 remains Production Kernel completion for the current backend kernel
+scope. It must not be described as full product completion or pilot readiness.
 
 ## Execution Rule
 

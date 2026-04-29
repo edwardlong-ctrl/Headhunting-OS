@@ -206,7 +206,7 @@
 - No real auth/login/session system exists.
 - No Spring Security exists.
 - No API/controller/UI exists for this access layer.
-- No Consent/Disclosure/Unlock behavior exists.
+- No Consent/Disclosure/Unlock product workflow exists beyond the current backend-only Task 12A/12B/14 policy, persistence, service, and hardening kernel.
 - No identity-disclosed Client access behavior exists.
 - No complete product-wide RBAC/ABAC enforcement exists beyond the Task 8B/8C backend guard surfaces and regression tests.
 
@@ -248,9 +248,11 @@
 - Task 9B tests prove successful responses do not contain raw candidate/profile ids, full name, email, phone, LinkedIn URL, raw source text, consultant notes, exact employer, exact project/product/chip name, L4 identity fields, or raw internal entity/governance types; missing/denied/non-client/identity-disclosed access fails closed with sanitized responses; raw UUID path refs are rejected; no raw Candidate/Profile endpoints exist.
 - Task 9C adds API regression closure for the current backend kernel scope: anonymous-card-only request paths, raw id rejection, fail-closed temporary access context, missing/unknown/unsupported context denial, sanitized denied/not-found/internal-error envelopes, successful DTO/envelope-only responses, reflection/source checks for controller/facade/port/mapper boundaries, public DTO/error text leakage checks, and endpoint-surface checks.
 - Task 9 is complete only for the current backend kernel scope: API-safe DTO/envelope contracts exist, the client-safe candidate-card controller boundary exists, the temporary access context is fail-closed, sanitized API error/denial responses exist, and API leakage regression tests exist.
+- Task 13A adds the route-aware five-portal shell while preserving Consultant as one unified portal, keeping the v2.0/v2.1 portal taxonomy intact, and exposing only a narrow Client portal entry flow for anonymous client-safe candidate cards. It adds fail-closed client-safe loading states and a typed frontend helper for the existing endpoint, but it does not add raw Candidate/Profile client exposure, identity-disclosed client read behavior, auth/session/Spring Security, or backend-truth drift.
 - Task 13B adds a real backend-internal PostgreSQL query/read-model implementation behind the existing client-safe candidate-card endpoint. It reads only safe projection metadata from `recruiting.candidate_profile`, reuses the existing projection and re-identification boundaries, and fails closed for missing/ambiguous/invalid/unsafe data.
+- Task 14 hardens the backend Consent / Disclosure persistence and service path only. It preserves fail-closed L3/L4 separation, binds approved disclosure records to the requested consent/unlock chain, makes final disclosure persistence retry-safe, adds organization-scoped linkage hardening in `V9`, and denies legacy cross-organization unlock approvers at runtime.
 - Only the existing client-safe candidate-card read endpoint exists; no raw Candidate/Profile API endpoints, broad REST API, or general API runtime layer exists yet.
-- No Spring Security, auth/login/session, frontend/UI, Consent/Disclosure/Unlock behavior, identity disclosure workflow, or production auth context exists yet. Header-based context is temporary and fail-closed.
+- No Spring Security, auth/login/session, broad frontend product UI, Consent/Disclosure/Unlock product workflow, identity disclosure workflow, or production auth context exists yet. Header-based context is temporary and fail-closed.
 
 ## UI / AI / Access Boundaries Not Implemented
 
@@ -258,8 +260,8 @@
 - No real AI model wiring exists for workflow actions.
 - No API/controller/UI integration exists for governed intake.
 - No API/controller/UI integration exists for CandidateProfile.
-- No Consent/Disclosure behavior exists.
+- No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
-- No client-safe UI or real redaction behavior exists; Task 9B only adds one narrow controller boundary for already projected client-safe cards.
+- No broad client-safe product UI or real redaction behavior exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, and Task 9B/13B together provide only the existing narrow endpoint behind it.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 - Blocked canonical attempts still have no separate persisted audit ledger.
