@@ -22,4 +22,13 @@ public enum DisclosureStatus {
   public String wireValue() {
     return wireValue;
   }
+
+  public static DisclosureStatus fromWireValue(String wireValue) {
+    for (DisclosureStatus status : values()) {
+      if (status.wireValue.equals(wireValue)) {
+        return status;
+      }
+    }
+    throw new IllegalArgumentException("unknown disclosure status: " + wireValue);
+  }
 }

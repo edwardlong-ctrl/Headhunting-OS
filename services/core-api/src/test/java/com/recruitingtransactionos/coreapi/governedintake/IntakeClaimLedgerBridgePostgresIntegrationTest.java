@@ -70,8 +70,8 @@ class IntakeClaimLedgerBridgePostgresIntegrationTest {
 
   @Test
   void flywayMigrationAddsBridgeSourceReferenceLookupIndex() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(7);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(8);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
     assertThat(indexExists(
         "governance",
         "claim_ledger_item",

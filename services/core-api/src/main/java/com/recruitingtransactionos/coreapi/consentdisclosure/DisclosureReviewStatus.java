@@ -18,4 +18,13 @@ public enum DisclosureReviewStatus {
   public String wireValue() {
     return wireValue;
   }
+
+  public static DisclosureReviewStatus fromWireValue(String wireValue) {
+    for (DisclosureReviewStatus status : values()) {
+      if (status.wireValue.equals(wireValue)) {
+        return status;
+      }
+    }
+    throw new IllegalArgumentException("unknown disclosure review status: " + wireValue);
+  }
 }

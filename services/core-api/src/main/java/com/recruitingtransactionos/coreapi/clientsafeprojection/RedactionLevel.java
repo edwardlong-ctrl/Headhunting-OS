@@ -44,6 +44,15 @@ public enum RedactionLevel {
     return description;
   }
 
+  public static RedactionLevel fromWireValue(String wireValue) {
+    for (RedactionLevel redactionLevel : values()) {
+      if (redactionLevel.wireValue.equals(wireValue)) {
+        return redactionLevel;
+      }
+    }
+    throw new IllegalArgumentException("unknown redaction level: " + wireValue);
+  }
+
   public boolean isAnonymousClientSafeLevel() {
     return this != L4_IDENTITY_DISCLOSED;
   }

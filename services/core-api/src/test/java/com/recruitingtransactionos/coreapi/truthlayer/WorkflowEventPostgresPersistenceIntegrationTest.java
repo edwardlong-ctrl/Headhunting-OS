@@ -352,14 +352,16 @@ class WorkflowEventPostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationStillAppliesBeforeWorkflowPersistenceTest() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(7);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(8);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
   }
 
   @Test
-  void knownConsentDisclosureGapRemainsOutOfScope() throws SQLException {
-    assertThat(tableExists("privacy", "consent_record")).isFalse();
-    assertThat(tableExists("privacy", "disclosure_record")).isFalse();
+  void consentDisclosurePersistenceTablesNowExistWithoutChangingWorkflowAuditScope()
+      throws SQLException {
+    assertThat(tableExists("privacy", "consent_record")).isTrue();
+    assertThat(tableExists("privacy", "unlock_decision")).isTrue();
+    assertThat(tableExists("privacy", "disclosure_record")).isTrue();
   }
 
   private static WorkflowEventService service() {

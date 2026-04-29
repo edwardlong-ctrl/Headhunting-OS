@@ -52,4 +52,13 @@ public enum DisclosureLevel {
   public boolean isRawInternalExposure() {
     return rawInternalExposure;
   }
+
+  public static DisclosureLevel fromWireValue(String wireValue) {
+    for (DisclosureLevel level : values()) {
+      if (level.wireValue.equals(wireValue)) {
+        return level;
+      }
+    }
+    throw new IllegalArgumentException("unknown disclosure level: " + wireValue);
+  }
 }

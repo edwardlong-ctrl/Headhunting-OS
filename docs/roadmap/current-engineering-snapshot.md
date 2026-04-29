@@ -40,6 +40,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 11C: Matching / evidence regression and docs closure ✅
 - Task 11: Matching / Evidence Kernel ✅ for current backend kernel scope
 - Task 12A: Consent / Disclosure Protection first backend-only kernel ✅
+- Task 12B: Consent / Disclosure persistence and audited service boundary ✅ for current backend kernel scope
 
 ## Current Truth/Kernel Capabilities
 
@@ -87,6 +88,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 12A adds a backend-only `consentdisclosure` package with minimal immutable `ConsentRecord`, `DisclosureRecord`, `UnlockDecision`, `DisclosureLevel`, status/review vocabulary, and audit-boundary command/result contracts.
 - `ConsentDisclosureProtectionPolicy` is a pure deterministic fail-closed policy. It allows existing anonymous L0/L1/L2 client-safe levels, allows L3 only with confirmed consent, denies raw Candidate/raw CandidateProfile exposure, and requires confirmed non-expired/non-revoked consent plus approved human unlock decision plus approved disclosure record plus WorkflowEvent/audit boundary metadata for L4 identity disclosure.
 - Task 12A regression coverage proves L4/identity disclosure cannot be granted by role alone, unlock/disclosure cannot bypass the new protection policy, missing/invalid/expired/revoked/not-human-approved states fail closed, allowed L4 decisions carry an explicit T4 `DISCLOSURE_IDENTITY_DISCLOSED` audit command, and no API/controller/UI/persistence/AI/canonical-write surface is added.
+- Task 12B adds the first PostgreSQL-backed consent/disclosure/unlock persistence slice through `V8__add_consent_disclosure_persistence.sql`, narrow backend-internal append/read ports plus JDBC adapters, and a deterministic `ConsentDisclosureService` that reads persisted consent/unlock/disclosure state, reuses `ConsentDisclosureProtectionPolicy`, returns safe allow/deny/requires-review results, appends `WorkflowEvent` only on allowed audited L4 transitions, and persists the resulting identity-disclosed boundary without mutating raw Candidate/Profile or bypassing `CanonicalWriteGate`.
+- Task 12B regression and PostgreSQL/Testcontainers coverage proves organization-scoped append/readback for `ConsentRecord` / `UnlockDecision` / `DisclosureRecord`, fail-closed denial for missing/mismatched/expired/revoked/not-human-approved persisted state, deferred job/fee/prior-contact/prior-application checks return explicit review reasons rather than silent allow, allowed L4 requests append exactly one audited `DISCLOSURE_IDENTITY_DISCLOSED` `WorkflowEvent` plus one resulting disclosure boundary, and no API/controller/UI/auth/session/direct client-read behavior is added.
 
 ## Current Known Gaps
 
@@ -106,13 +109,14 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 11C is complete only for matching/evidence regression and docs closure.
 - Task 11 is complete only for the current backend kernel scope.
 - Task 12A is complete only for backend contracts, vocabulary, pure fail-closed policy, and regression tests.
+- Task 12B is complete only for the current backend kernel scope: PostgreSQL persistence for consent/disclosure/unlock records exists, a backend-internal audited service boundary exists, allowed audited L4 transitions append `WorkflowEvent` plus resulting disclosure boundary records, and regression tests prove no raw Candidate/Profile mutation, no broad API/UI/auth surface, and no identity-disclosed client read behavior.
 - No real AI matching, model routing, prompt execution, AI task queue/worker, matching persistence, matching API/controller/UI, client-facing match report delivery, or real industry ontology calibration exists yet.
 - No outcome-label feedback loop exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the Task 9 client-safe candidate-card read endpoint exists.
 - No real auth/login/session system yet.
 - No Spring Security yet.
-- No Consent/Disclosure/Unlock persistence, API/controller/UI, real workflow execution, real auth/session enforcement, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed client read behavior exists yet.
+- No Consent/Disclosure/Unlock API/controller/UI, real workflow execution, real auth/session enforcement, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed client read behavior exists yet.
 - No identity-disclosed Client access behavior yet.
 - No complete product-wide RBAC/ABAC enforcement yet.
 - No real redaction pipeline or automatic text rewriting yet.
@@ -135,7 +139,7 @@ This worktree has already been merged to main, but cleanup was safely skipped. D
 
 ## Next Recommended Task
 
-Task 12A
+Task 13
 
 ## Future Prompt Strategy
 

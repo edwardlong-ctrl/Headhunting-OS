@@ -28,7 +28,6 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendComman
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimLedgerAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
-import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import java.io.IOException;
 import java.lang.reflect.RecordComponent;
 import java.nio.file.Files;
@@ -100,8 +99,7 @@ class ConsentDisclosureRegressionClosureTest {
         WorkflowEventAppendCommand.class,
         AITaskRunAppendCommand.class,
         AITaskRunRecord.class,
-        CanonicalWriteGate.class,
-        CanonicalWriteService.class);
+        CanonicalWriteGate.class);
 
     for (Class<?> surfaceType : Set.of(
         ConsentRecord.class,
@@ -129,7 +127,7 @@ class ConsentDisclosureRegressionClosureTest {
   }
 
   @Test
-  void consentDisclosureSliceAddsNoApiPersistenceAiCanonicalWriteOrUiSurface()
+  void consentDisclosureTask12bSliceAddsOnlyInternalPersistenceAndServiceSurface()
       throws IOException {
     List<Path> productionFiles = consentDisclosureProductionFiles();
 
@@ -138,9 +136,18 @@ class ConsentDisclosureRegressionClosureTest {
         .noneMatch(fileName -> fileName.endsWith("Controller.java"))
         .noneMatch(fileName -> fileName.endsWith("Repository.java"))
         .noneMatch(fileName -> fileName.endsWith("Entity.java"))
-        .noneMatch(fileName -> fileName.endsWith("Port.java"))
-        .noneMatch(fileName -> fileName.contains("Persistence"))
-        .noneMatch(fileName -> fileName.contains("Migration"));
+        .contains(
+            "ConsentDisclosureService.java",
+            "ConsentDisclosureServiceRequest.java",
+            "ConsentDisclosureServiceResult.java",
+            "ConsentDisclosureServiceStatus.java",
+            "ConsentDisclosurePrerequisites.java",
+            "ConsentRecordPort.java",
+            "UnlockDecisionPort.java",
+            "DisclosureRecordPort.java",
+            "JdbcConsentRecordPort.java",
+            "JdbcUnlockDecisionPort.java",
+            "JdbcDisclosureRecordPort.java");
 
     for (Path file : productionFiles) {
       String source = Files.readString(file);
@@ -154,8 +161,6 @@ class ConsentDisclosureRegressionClosureTest {
               "@RequestMapping",
               "@GetMapping",
               "@PostMapping",
-              "org.springframework",
-              "javax.sql.DataSource",
               "JdbcTemplate",
               "EntityManager",
               "@Entity",
@@ -178,8 +183,6 @@ class ConsentDisclosureRegressionClosureTest {
               "ClaimLedgerAppendCommand",
               "ReviewEventService",
               "ReviewEventAppendCommand",
-              "WorkflowEventService",
-              "WorkflowEventAppendCommand",
               "AITaskRunService",
               "CompletableFuture",
               "ExecutorService",
@@ -189,6 +192,30 @@ class ConsentDisclosureRegressionClosureTest {
     }
 
     assertThat(findConsentDisclosureUiFiles()).isEmpty();
+  }
+
+  @Test
+  void consentDisclosureTask12bStillAddsNoApiAuthSessionOrDirectClientReadSurface()
+      throws IOException {
+    for (Path file : consentDisclosureProductionFiles()) {
+      String source = Files.readString(file);
+      assertThat(source)
+          .as(file.toString())
+          .doesNotContain(
+              "SpringSecurity",
+              "SecurityFilterChain",
+              "HttpSession",
+              "MockMvc",
+              "ClientSafeCandidateCardController",
+              "ClientSafeCandidateCardResponse",
+              "CandidateProfileAccessService",
+              "ClientSafeCandidateProjectionService",
+              "@RestController",
+              "@Controller",
+              "@RequestMapping",
+              "@GetMapping",
+              "@PostMapping");
+    }
   }
 
   private static AccessRequest clientSafeReadRequest() {

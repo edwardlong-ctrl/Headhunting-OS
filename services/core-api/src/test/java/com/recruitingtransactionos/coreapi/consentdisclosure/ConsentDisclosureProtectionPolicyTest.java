@@ -187,6 +187,12 @@ class ConsentDisclosureProtectionPolicyTest {
         disclosure(DisclosureStatus.APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         null));
+    UnlockDisclosureDecision pendingAuditAppend = policy.decide(request(
+        DisclosureLevel.L4_IDENTITY_DISCLOSED,
+        consent(ConsentStatus.CONFIRMED),
+        disclosure(DisclosureStatus.APPROVED),
+        unlockDecision(UnlockDecisionStatus.APPROVED),
+        auditBoundaryWithoutWorkflowEvent()));
     UnlockDisclosureDecision allowed = policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
@@ -195,6 +201,9 @@ class ConsentDisclosureProtectionPolicyTest {
         auditBoundary()));
 
     assertDenied(missingAudit, "missing_audit_boundary");
+    assertThat(pendingAuditAppend.status()).isEqualTo(UnlockDisclosureDecisionStatus.ALLOWED);
+    assertThat(pendingAuditAppend.auditCommand()).isPresent();
+    assertThat(pendingAuditAppend.auditCommand().orElseThrow().workflowEventId()).isEmpty();
     assertThat(allowed.status()).isEqualTo(UnlockDisclosureDecisionStatus.ALLOWED);
     assertThat(allowed.allowedLevel()).contains(DisclosureLevel.L4_IDENTITY_DISCLOSED);
     assertThat(allowed.rawCandidateExposureAllowed()).isFalse();
@@ -342,6 +351,13 @@ class ConsentDisclosureProtectionPolicyTest {
         RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         Optional.of(new WorkflowEventId(
             UUID.fromString("00000000-0000-0000-0000-000000120099"))));
+  }
+
+  private static DisclosureAuditBoundary auditBoundaryWithoutWorkflowEvent() {
+    return new DisclosureAuditBoundary(
+        WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
+        Optional.empty());
   }
 
   private static void assertDenied(UnlockDisclosureDecision decision, String reasonCode) {

@@ -18,4 +18,13 @@ public enum UnlockDecisionStatus {
   public String wireValue() {
     return wireValue;
   }
+
+  public static UnlockDecisionStatus fromWireValue(String wireValue) {
+    for (UnlockDecisionStatus status : values()) {
+      if (status.wireValue.equals(wireValue)) {
+        return status;
+      }
+    }
+    throw new IllegalArgumentException("unknown unlock decision status: " + wireValue);
+  }
 }

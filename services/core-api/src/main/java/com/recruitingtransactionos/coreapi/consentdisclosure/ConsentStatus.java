@@ -19,4 +19,13 @@ public enum ConsentStatus {
   public String wireValue() {
     return wireValue;
   }
+
+  public static ConsentStatus fromWireValue(String wireValue) {
+    for (ConsentStatus status : values()) {
+      if (status.wireValue.equals(wireValue)) {
+        return status;
+      }
+    }
+    throw new IllegalArgumentException("unknown consent status: " + wireValue);
+  }
 }

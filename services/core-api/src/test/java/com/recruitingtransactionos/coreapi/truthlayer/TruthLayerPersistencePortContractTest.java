@@ -57,6 +57,10 @@ class TruthLayerPersistencePortContractTest {
       Path.of("src/main/java/com/recruitingtransactionos/coreapi/truthlayer");
   private static final Path V2_MIGRATION =
       Path.of("src/main/resources/db/migration/V2__create_truth_layer_core_tables.sql");
+  private static final Path V8_MIGRATION =
+      Path.of("src/main/resources/db/migration/V8__add_consent_disclosure_persistence.sql");
+  private static final Path CONSENT_DISCLOSURE_PORT_ROOT =
+      Path.of("src/main/java/com/recruitingtransactionos/coreapi/consentdisclosure/port");
   private static final UUID ORGANIZATION_ID = uuid("00000000-0000-0000-0000-000000000001");
   private static final UUID CANDIDATE_ID = uuid("00000000-0000-0000-0000-000000000002");
   private static final UUID REVIEWER_ID = uuid("00000000-0000-0000-0000-000000000003");
@@ -228,19 +232,20 @@ class TruthLayerPersistencePortContractTest {
   }
 
   @Test
-  void knownConsentDisclosureGapRemainsOutOfScopeForTask2G() throws IOException {
-    assertThat(migrationSql())
-        .doesNotContain("create table privacy.consent_record")
-        .doesNotContain("create table privacy.disclosure_record");
+  void consentDisclosurePersistenceNowExistsBeyondTask2gScope() throws IOException {
+    assertThat(consentDisclosureMigrationSql())
+        .contains("create table privacy.consent_record")
+        .contains("create table privacy.unlock_decision")
+        .contains("create table privacy.disclosure_record");
 
-    try (Stream<Path> paths = Files.walk(TRUTH_LAYER_SOURCE_ROOT)) {
+    try (Stream<Path> paths = Files.walk(CONSENT_DISCLOSURE_PORT_ROOT)) {
       List<String> fileNames = paths
           .filter(Files::isRegularFile)
           .map(path -> path.getFileName().toString())
           .toList();
 
       assertThat(fileNames)
-          .doesNotContain("ConsentRecordPort.java", "DisclosureRecordPort.java");
+          .contains("ConsentRecordPort.java", "UnlockDecisionPort.java", "DisclosureRecordPort.java");
     }
   }
 
@@ -325,6 +330,10 @@ class TruthLayerPersistencePortContractTest {
 
   private static String migrationSql() throws IOException {
     return Files.readString(V2_MIGRATION).toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+  }
+
+  private static String consentDisclosureMigrationSql() throws IOException {
+    return Files.readString(V8_MIGRATION).toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
   }
 
   private static List<String> methodNames(Class<?> type) {

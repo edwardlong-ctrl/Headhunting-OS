@@ -140,9 +140,6 @@ public final class ConsentDisclosureProtectionPolicy {
     if (boundary.riskTier() != RiskTier.T4_TRANSACTION_LEGAL_BLOCKING) {
       reasons.add("audit_risk_tier_not_t4");
     }
-    if (boundary.workflowEventId().isEmpty()) {
-      reasons.add("audit_workflow_event_required");
-    }
     return reasons;
   }
 

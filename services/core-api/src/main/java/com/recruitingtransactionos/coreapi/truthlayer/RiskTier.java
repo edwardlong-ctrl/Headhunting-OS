@@ -17,6 +17,15 @@ public enum RiskTier {
     return wireValue;
   }
 
+  public static RiskTier fromWireValue(String wireValue) {
+    for (RiskTier riskTier : values()) {
+      if (riskTier.wireValue.equals(wireValue)) {
+        return riskTier;
+      }
+    }
+    throw new IllegalArgumentException("unknown risk tier: " + wireValue);
+  }
+
   public boolean requiresHumanFinalActor() {
     return this == T3_HIGH_RISK || this == T4_TRANSACTION_LEGAL_BLOCKING;
   }
