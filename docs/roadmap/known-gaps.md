@@ -94,12 +94,19 @@
 - Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
 - No CandidateProfile REST/API/controller/DTO, UI, redaction pipeline, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 7B.
 
-## Consent / Disclosure Not Implemented
+## Task 12A Consent / Disclosure Protection Kernel Exists; Full Unlock Flow Deferred
 
-- `ConsentRecord` and `DisclosureRecord` are expected by product spec but not yet implemented as behavior.
-- Unlock/disclosure gate is not implemented.
-- No identity disclosure behavior exists.
-- Known alignment skip for consent/disclosure gap remains intentional until Task 12 or earlier dedicated workstream.
+- Task 12A adds backend-only `ConsentRecord`, `DisclosureRecord`, `UnlockDecision`, disclosure-level/status/review vocabulary, and audit-boundary command/result contracts.
+- `ConsentDisclosureProtectionPolicy` is pure and deterministic. It does not read databases, call services, mutate canonical facts, append WorkflowEvent rows, or expose raw Candidate/Profile data.
+- Existing anonymous L0/L1/L2 client-safe projection behavior remains outside identity disclosure and can stay allowed at this policy layer.
+- L3 consented detail requires confirmed consent but still does not allow raw Candidate/Profile or full identity exposure.
+- L4 identity disclosure requires confirmed non-expired/non-revoked consent, approved human unlock decision, approved disclosure record, and explicit T4 `DISCLOSURE_IDENTITY_DISCLOSED` WorkflowEvent/audit boundary metadata.
+- Raw Candidate and raw CandidateProfile exposure remain denied even when consent, disclosure, unlock, and audit metadata are present.
+- Task 12A tests prove missing, invalid, expired, revoked, or not-human-approved consent/disclosure/unlock state fails closed, and role alone cannot grant L4 disclosure.
+- No Consent/Disclosure/Unlock persistence or database migration exists yet.
+- No Consent/Disclosure REST/controller/API or UI exists yet.
+- No real auth/login/session/Spring Security enforcement exists yet.
+- No WorkflowEvent append execution, full workflow engine, transition legality validation, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior exists yet.
 
 ## Task 10 AITaskRun Metadata Governance Exists; AI Execution Deferred
 

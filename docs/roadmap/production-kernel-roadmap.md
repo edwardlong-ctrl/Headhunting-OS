@@ -205,9 +205,29 @@ execution, matching persistence, API/controller/UI, client-facing match report
 delivery, real industry ontology calibration, and outcome-label feedback loops
 remain deferred.
 
+Task 12A: Consent / Disclosure Protection ✅ for first backend-only kernel scope
+
+Task 12A adds the first backend-only Consent / Disclosure / Unlock protection
+kernel. The new `consentdisclosure` package defines minimal immutable
+`ConsentRecord`, `DisclosureRecord`, `UnlockDecision`, disclosure-level/status/
+review vocabulary, and explicit audit-boundary command/result contracts. The
+`ConsentDisclosureProtectionPolicy` is pure and deterministic: anonymous L0/L1/L2
+client-safe levels remain allowed; L3 consented detail requires confirmed
+consent; raw Candidate and raw CandidateProfile exposure remains denied; L4
+identity disclosure requires confirmed non-expired/non-revoked consent, approved
+human unlock decision, approved disclosure record, and an explicit T4
+`DISCLOSURE_IDENTITY_DISCLOSED` WorkflowEvent/audit boundary.
+
+Task 12A is complete only for backend contracts, vocabulary, policy, and
+regression tests. It adds no persistence, migration, REST/controller/API, UI,
+real auth/session/Spring Security, real AI execution, canonical fact write,
+WorkflowEvent append execution, full workflow engine, prior-contact review flow,
+fee-agreement validation, job-activation lookup, or identity-disclosed Client
+read behavior.
+
 ## Next Tasks
 
-Task 12A: Consent / Disclosure Protection
+Task 12B: Consent / Disclosure persistence and audited service boundary
 
 Task 13: Five Portal Backend-approved UI Integration
 
