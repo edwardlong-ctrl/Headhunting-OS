@@ -231,6 +231,17 @@ Task 12B: Consent / Disclosure persistence and audited service boundary
 
 Task 13: Five Portal Backend-approved UI Integration
 
+- 13B: real client-safe candidate card backend query slice ✅
+
+Task 13B is a narrow backend query/read-model slice behind the existing
+`GET /api/client-safe/candidate-cards/{anonymousCardRef}` endpoint. It reads
+backend-owned client-safe projection metadata from PostgreSQL, rebuilds only the
+existing `ClientSafeCandidateCard` contract through `ClientSafeCandidateProjectionService`,
+and fails closed for missing, ambiguous, invalid, cross-organization, L4, or raw
+sensitive carryover cases. It adds no frontend changes, no raw Candidate/Profile
+endpoint, no auth/session/Spring Security, no workflow engine, and no identity
+disclosure behavior.
+
 Task 14: Production Hardening
 
 ## Execution Rule

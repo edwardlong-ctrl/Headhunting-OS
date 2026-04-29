@@ -246,6 +246,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `ClientSafeCandidateCardResponseMapper` maps from `ClientSafeCandidateCard` to `ClientSafeCandidateCardResponse` only; it does not map raw Candidate or CandidateProfile.
 - `ApiBoundaryContractRules` deny unknown/internal candidate-card response fields by default and sanitize error text that contains raw UUIDs, stack traces, internal package names, or internal entity details.
 - `ClientSafeCandidateCardController` adds the first narrow runtime endpoint: `GET /api/client-safe/candidate-cards/{anonymousCardRef}`. It accepts only the `card_` anonymous id form, requires explicit temporary access-context headers, returns the existing safe envelope, and maps denials/validation failures to sanitized API errors.
+- Task 13B adds a real backend-internal query implementation behind that existing endpoint. `PostgresClientSafeCandidateCardQueryPort` reads client-safe projection metadata from `recruiting.candidate_profile`, projects only through `ClientSafeCandidateProjectionService`, applies the existing re-identification boundary, and returns unavailable instead of leaking data when the projection is missing, ambiguous, invalid, cross-organization, L4/identity-disclosed, or carries raw sensitive values.
 - `ClientSafeCandidateCardApiQueryService` and `ClientSafeCandidateCardQueryPort` keep the controller boundary behind a safe facade. The port returns `ClientSafeCandidateCard` only; the API response is still produced by `ClientSafeCandidateCardResponseMapper`.
 - Task 9A is complete only for DTO/contract/test skeleton scope. Task 9B is complete only for the first client-safe controller boundary and no-internal-entity-leakage test scope.
 
@@ -274,7 +275,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No AI model integration.
 - No AI task execution, model routing, prompt execution, AI task queue/worker, or actual write-back execution.
 - No Consent/Disclosure implementation.
-- No client-safe UI; Task 9B adds only one narrow client-safe candidate-card read endpoint.
+- No client-safe UI; Task 13B only backs the existing narrow client-safe candidate-card read endpoint with a PostgreSQL safe-projection query slice.
 - No broad service-level RBAC/ABAC enforcement beyond the Task 8B/8C minimal client-safe projection and raw Candidate/Profile guard surfaces plus five-portal boundary regression tests.
 - No real auth/login/session system.
 - No identity-disclosed Client access behavior.

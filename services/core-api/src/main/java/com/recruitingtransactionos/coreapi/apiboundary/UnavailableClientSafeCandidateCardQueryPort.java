@@ -4,9 +4,11 @@ import com.recruitingtransactionos.coreapi.clientsafeprojection.AnonymousCandida
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateCard;
 import java.util.Objects;
 import java.util.Optional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnMissingBean(ClientSafeCandidateCardQueryPort.class)
 public final class UnavailableClientSafeCandidateCardQueryPort
     implements ClientSafeCandidateCardQueryPort {
 
