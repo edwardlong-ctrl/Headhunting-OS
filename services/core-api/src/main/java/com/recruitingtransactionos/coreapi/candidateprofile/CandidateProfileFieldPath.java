@@ -48,10 +48,21 @@ public record CandidateProfileFieldPath(String value) {
   public static final CandidateProfileFieldPath CONSENT_LATEST_PROFILE_VERSION =
       of("consent.latest_profile_version");
   public static final CandidateProfileFieldPath METADATA_NOTES = of("metadata.notes");
+  public static final CandidateProfileFieldPath IDENTITY_CITIZENSHIP =
+      of("identity.citizenship");
+  public static final CandidateProfileFieldPath EXPERIENCE_PROJECTS =
+      of("experience.projects");
+  public static final CandidateProfileFieldPath EXPERIENCE_PORTFOLIO =
+      of("experience.portfolio");
+  public static final CandidateProfileFieldPath EXPERIENCE_INDUSTRY =
+      of("experience.industry");
+  public static final CandidateProfileFieldPath INTENT_MOTIVATION_TOWARD_OPPORTUNITY =
+      of("intent.motivation_toward_opportunity");
 
   private static final Set<String> INITIAL_PATH_VALUES = Set.of(
       IDENTITY_FULL_NAME.value(),
       IDENTITY_PREFERRED_NAME.value(),
+      IDENTITY_CITIZENSHIP.value(),
       CONTACT_EMAIL.value(),
       CONTACT_PHONE.value(),
       LOCATION_CURRENT_LOCATION.value(),
@@ -64,12 +75,16 @@ public record CandidateProfileFieldPath(String value) {
       EXPERIENCE_CURRENT_TITLE.value(),
       EXPERIENCE_YEARS_OF_EXPERIENCE.value(),
       EXPERIENCE_WORK_HISTORY.value(),
+      EXPERIENCE_PROJECTS.value(),
+      EXPERIENCE_PORTFOLIO.value(),
+      EXPERIENCE_INDUSTRY.value(),
       SKILLS_PRIMARY_SKILLS.value(),
       SKILLS_SECONDARY_SKILLS.value(),
       EDUCATION_HIGHEST_DEGREE.value(),
       EDUCATION_SCHOOLS.value(),
       INTENT_OPEN_TO_OPPORTUNITIES.value(),
       INTENT_INTEREST_LEVEL.value(),
+      INTENT_MOTIVATION_TOWARD_OPPORTUNITY.value(),
       CONSENT_LATEST_PROFILE_VERSION.value(),
       METADATA_NOTES.value());
 

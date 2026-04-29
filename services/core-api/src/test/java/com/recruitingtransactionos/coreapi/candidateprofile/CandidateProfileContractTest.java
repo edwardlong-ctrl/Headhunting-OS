@@ -118,6 +118,7 @@ class CandidateProfileContractTest {
         .containsExactlyInAnyOrder(
             "identity.full_name",
             "identity.preferred_name",
+            "identity.citizenship",
             "contact.email",
             "contact.phone",
             "location.current_location",
@@ -130,12 +131,16 @@ class CandidateProfileContractTest {
             "experience.current_title",
             "experience.years_of_experience",
             "experience.work_history",
+            "experience.projects",
+            "experience.portfolio",
+            "experience.industry",
             "skills.primary_skills",
             "skills.secondary_skills",
             "education.highest_degree",
             "education.schools",
             "intent.open_to_opportunities",
             "intent.interest_level",
+            "intent.motivation_toward_opportunity",
             "consent.latest_profile_version",
             "metadata.notes");
   }

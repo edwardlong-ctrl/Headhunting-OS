@@ -187,8 +187,8 @@ class ClaimLedgerPostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationStillAppliesBeforePersistenceTest() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(9);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(10);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
   }
 
   @Test

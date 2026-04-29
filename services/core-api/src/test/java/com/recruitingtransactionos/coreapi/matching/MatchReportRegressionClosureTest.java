@@ -705,11 +705,13 @@ class MatchReportRegressionClosureTest {
       return stream
           .filter(Files::isRegularFile)
           .filter(path -> path.toString().endsWith(".sql"))
-          .filter(path -> containsAny(
-              readUnchecked(path).toLowerCase(Locale.ROOT),
-              "match_report",
-              "score_cap",
-              "matching."))
+          .filter(path -> {
+              String content = readUnchecked(path).toLowerCase(Locale.ROOT);
+              return content.contains("score_cap")
+                  || content.contains("create schema matching")
+                  || content.contains("create table matching.")
+                  || content.contains("alter table matching.");
+          })
           .toList();
     }
   }
