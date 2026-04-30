@@ -79,8 +79,8 @@ class CanonicalWriteAttemptPostgresPersistenceIntegrationTest {
 
   @Test
   void migrationCreatesTableAndIndexes() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(11);
-    assertThat(appliedMigrationVersions()).contains("11");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(12);
+    assertThat(appliedMigrationVersions()).contains("12");
     assertThat(tableExists("governance", "canonical_write_attempt")).isTrue();
     assertThat(indexExists("governance", "cwa_org_decision_occurred_idx")).isTrue();
     assertThat(indexExists("governance", "cwa_org_entity_idx")).isTrue();

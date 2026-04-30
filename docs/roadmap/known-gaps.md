@@ -265,14 +265,14 @@
 - No broad client-safe product UI or real redaction behavior exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, and Task 9B/13B together provide only the existing narrow endpoint behind it.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
 
-## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening Deferred
+## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening RESOLVED (V12)
 
-- Task 16 V10 migration added 15 new product data model tables: `recruiting.company`, `recruiting.company_contact`, `recruiting.job`, `recruiting.job_requirement`, `recruiting.job_scorecard`, `recruiting.candidate_document`, `recruiting.interaction`, `recruiting.interview_feedback`, `recruiting.shortlist`, `recruiting.shortlist_card`, `recruiting.placement`, `recruiting.commission`, `recruiting.company_preference`, `metadata.profile_field_lineage`, and `metadata.candidate_profile_version`.
-- Domain contracts, persistence ports, JDBC adapters, and service boundaries exist for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, and ProfileFieldLineage. All entities are organization-scoped with backend-internal service boundaries only.
-- V10 child tables (`company_contact`, `job_requirement`, `job_scorecard`, `candidate_document`, `interaction`, `shortlist_card`, `placement`, `commission`) have their own `organization_id` column and a FK to the parent table's `id`, but no composite FK enforcing `parent.organization_id = child.organization_id` at DB level.
-- Service-layer org-scoped queries exist and enforce organization boundaries at the application level.
-- DB-level cross-org mismatch rejection tests are not yet present.
-- Future hardening: add composite unique constraint or FK on `(parent_id, organization_id)` pairs on child tables, and add negative integration tests proving the database rejects cross-org child inserts independently of service-layer checks.
+- **RESOLVED** by Task 16-Hardening V12 migration (`V12__harden_product_data_model_org_scope.sql`).
+- V12 adds UNIQUE (id, organization_id) on 7 parent tables: `recruiting.company`, `recruiting.job`, `recruiting.candidate`, `recruiting.candidate_profile`, `recruiting.shortlist`, `recruiting.placement`, `recruiting.candidate_company_interaction`.
+- V12 adds 19 composite FOREIGN KEY (parent_id, organization_id) REFERENCES parent (id, organization_id) across all child tables with NOT NULL parent FK columns.
+- 19 redundant simple FKs from V10 are dropped (composite FKs fully subsume them).
+- 8 cross-org negative integration tests added proving the database rejects cross-org child inserts independently of service-layer checks.
+- Remaining gaps (not covered by V12): nullable FK columns (`interaction.job_id`, `document.source_item_id`) and cross-cutting identity FK (`commission.consultant_id`) intentionally excluded. These do not pose the same org-isolation risk and are documented as design decisions.
 
 ## Task 17 Canonical Write Attempt Ledger Complete; Idempotency and FK Hardening Deferred
 

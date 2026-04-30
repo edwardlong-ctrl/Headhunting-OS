@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.productdatamodel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.candidatedocument.CandidateDocument;
 import com.recruitingtransactionos.coreapi.candidatedocument.CandidateDocumentId;
@@ -605,11 +606,96 @@ class ProductDataModelCompletionPostgresIntegrationTest {
         .contains(commissionId);
   }
 
+  // ========== V12 Org-Scope Hardening: Cross-Org Negative Tests ==========
+
+  @Test
+  void companyContactCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-CC-Company");
+    assertThatThrownBy(() -> insertRawCompanyContact(ORG_OTHER, companyId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void companyPreferenceCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-CP-Company");
+    assertThatThrownBy(() -> insertRawCompanyPreference(ORG_OTHER, companyId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void jobRequirementCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-JR-Company");
+    JobId jobId = createTestJob(companyId, "Neg-JR-Job");
+    assertThatThrownBy(() -> insertRawJobRequirement(ORG_OTHER, jobId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void jobScorecardCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-JS-Company");
+    JobId jobId = createTestJob(companyId, "Neg-JS-Job");
+    assertThatThrownBy(() -> insertRawJobScorecard(ORG_OTHER, jobId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void shortlistCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-SL-Company");
+    JobId jobId = createTestJob(companyId, "Neg-SL-Job");
+    assertThatThrownBy(() -> insertRawShortlist(ORG_OTHER, jobId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void shortlistCandidateCardCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-SC-Company");
+    JobId jobId = createTestJob(companyId, "Neg-SC-Job");
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+    shortlistService().createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_ID)
+        .jobId(jobId)
+        .status(ShortlistStatus.DRAFT)
+        .metadata("{}")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+    assertThatThrownBy(() -> insertRawShortlistCandidateCard(
+        ORG_OTHER, shortlistId.value(), CANDIDATE_A.value(), PROFILE_ID.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void placementCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-PL-Company");
+    JobId jobId = createTestJob(companyId, "Neg-PL-Job");
+    assertThatThrownBy(() -> insertRawPlacement(ORG_OTHER, jobId.value(),
+        CANDIDATE_A.value(), companyId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
+  @Test
+  void commissionCrossOrgShouldReject() throws SQLException {
+    CompanyId companyId = createTestCompany("Neg-CM-Company");
+    JobId jobId = createTestJob(companyId, "Neg-CM-Job");
+    PlacementId placementId = createTestPlacement(jobId, companyId);
+    assertThatThrownBy(() -> insertRawCommission(ORG_OTHER, placementId.value()))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("violates foreign key");
+  }
+
   // ========== V10 Migration Validation ==========
 
   @Test
   void v10MigrationCreatesAllExpectedTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(11);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(12);
     assertThat(tableExists("recruiting", "profile_field_lineage")).isTrue();
     assertThat(tableExists("recruiting", "company")).isTrue();
     assertThat(tableExists("recruiting", "company_contact")).isTrue();
@@ -819,6 +905,134 @@ class ProductDataModelCompletionPostgresIntegrationTest {
       statement.setObject(2, organizationId);
       statement.setObject(3, candidateId.value());
       statement.executeUpdate();
+    }
+  }
+
+  // ========== Raw JDBC helpers for cross-org negative tests ==========
+
+  private static void insertRawCompanyContact(UUID orgId, UUID companyId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.company_contact (
+              company_contact_id, organization_id, company_id, name, status, metadata
+            ) VALUES (?, ?, ?, ?, 'active', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, companyId);
+      ps.setString(4, "Cross-Org Test");
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawCompanyPreference(UUID orgId, UUID companyId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.company_preference (
+              company_preference_id, organization_id, company_id,
+              preference_key, preference_value
+            ) VALUES (?, ?, ?, 'test_key', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, companyId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawJobRequirement(UUID orgId, UUID jobId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.job_requirement (
+              job_requirement_id, organization_id, job_id,
+              requirement_type, label, importance
+            ) VALUES (?, ?, ?, 'skill', 'Test Skill', 'must_have')
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, jobId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawJobScorecard(UUID orgId, UUID jobId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.job_scorecard (
+              job_scorecard_id, organization_id, job_id, dimensions, status, metadata
+            ) VALUES (?, ?, ?, '[]'::jsonb, 'draft', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, jobId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawShortlist(UUID orgId, UUID jobId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.shortlist (
+              shortlist_id, organization_id, job_id, status, metadata
+            ) VALUES (?, ?, ?, 'draft', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, jobId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawShortlistCandidateCard(
+      UUID orgId, UUID shortlistId, UUID candidateId, UUID profileId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.shortlist_candidate_card (
+              shortlist_candidate_card_id, organization_id, shortlist_id,
+              anonymous_candidate_card_id, candidate_id, candidate_profile_id,
+              status, metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, 'draft', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, shortlistId);
+      ps.setObject(4, UUID.randomUUID());
+      ps.setObject(5, candidateId);
+      ps.setObject(6, profileId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawPlacement(
+      UUID orgId, UUID jobId, UUID candidateId, UUID companyId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.placement (
+              placement_id, organization_id, job_id, candidate_id, company_id, status, metadata
+            ) VALUES (?, ?, ?, ?, ?, 'offer_pending', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, jobId);
+      ps.setObject(4, candidateId);
+      ps.setObject(5, companyId);
+      ps.executeUpdate();
+    }
+  }
+
+  private static void insertRawCommission(UUID orgId, UUID placementId) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement ps = c.prepareStatement("""
+            INSERT INTO recruiting.commission (
+              commission_id, organization_id, placement_id, consultant_id,
+              status, commission_type, metadata
+            ) VALUES (?, ?, ?, ?, 'pending', 'full_fee', '{}'::jsonb)
+            """)) {
+      ps.setObject(1, UUID.randomUUID());
+      ps.setObject(2, orgId);
+      ps.setObject(3, placementId);
+      ps.setObject(4, USER_ACCOUNT_ID);
+      ps.executeUpdate();
     }
   }
 

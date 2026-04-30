@@ -6,7 +6,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 - current main HEAD: `66e416c`
 - latest merged commit: `66e416c` Task 17: persist canonical write attempts for audit and review (V11 migration + domain + tests)
-- current validation snapshot: full backend Maven suite reached 574 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
+- current validation snapshot: full backend Maven suite reached 582 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
 - merge status: main contains Task 17; next recommended task is Task 18.
 
 ## Completed Major Tasks
@@ -46,6 +46,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 14: Consent / Disclosure production hardening ✅ for the current backend kernel scope
 - Task 15: Product Readiness Bridge ✅ docs-only planning baseline delivering v2.1 capability split and usable-v1 acceptance scenarios
 - Task 16: Real Product Data Model Completion ✅ V10 migration (15 new tables), domain/port/adapter/service/tests for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, ProfileFieldLineage
+- Task 16-Hardening: DB Org-Scope Composite FK Hardening ✅ V12 migration (7 UNIQUE constraints + 19 composite FKs + 19 dropped simple FKs), 8 cross-org negative integration tests
 - Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
 
 ## Current Truth/Kernel Capabilities
@@ -141,7 +142,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - No stale detection engine.
 - No conflict resolution workflow.
 - No full CandidateProfile engine.
-- Task 16 V10 child tables (company_contact, job_requirement, job_scorecard, candidate_document, interaction, shortlist_card, placement, commission) have own `organization_id` and FK to parent id, but no composite FK enforcing `parent.organization_id = child.organization_id` at DB level. Service-layer org-scoped queries exist. DB-level cross-org mismatch rejection tests are not yet present.
+- Task 16-Hardening V12 resolves the previously known V10 org-scope FK gap: 7 parent UNIQUE constraints, 19 composite FKs, 8 cross-org negative tests. Nullable FK columns (interaction.job_id, document.source_item_id) and cross-cutting user FK (commission.consultant_id) intentionally excluded as documented design decisions.
 - Task 17 `persistAttempt()` idempotency returns existing attempt on key match without verifying payload equivalence. Future hardening should add an idempotency equivalence hash or command fingerprint.
 - Task 17 V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without FK constraints (intentional loose ledger design for now). Future hardening should document the FK-free design decision or add optional composite FKs.
 - recruiting.* source/packet cleanup/deprecation remains deferred.
