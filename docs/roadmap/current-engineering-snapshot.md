@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `1a560a4`
-- latest merged commit: Task 20: Document Storage and SourceItem v1 (V13 migration, DocumentStore interface, upload/download controller, SHA-256 dedup, MIME validation)
-- current validation snapshot: full backend Maven suite reached 622+ tests (18B: 622, 20: 614 pre-18B base — combined count pending build validation), 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
-- merge status: main contains Task 18A + Task 18B + Task 19-preflight + Task 20 + Task 16-Hardening + Task 20-preflight; next recommended tasks are Task 19A (auth implementation) and Task 21 (Real AI Task Runner).
+- current main HEAD: `970b2a8`
+- latest merged commit: Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE (Shortlist POST/PUT with optimistic locking, CompanyContact/JobRequirement/JobScorecard CREATE endpoints, 652 tests pass)
+- current validation snapshot: full backend Maven suite reached 652 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
+- merge status: main contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 20 + Task 16-Hardening; next recommended tasks are Task 19A (auth implementation) and Task 21 (Real AI Task Runner).
 
 ## Completed Major Tasks
 
@@ -50,6 +50,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
 - Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints ✅ generic pagination (PagedQuery/PagedResult), 6 consultant response DTOs (company/job/shortlist summary+detail), 3 consultant read-only controllers, ConsultantApiQueryService facade, ConsultantCompany/Job/Shortlist response mappers, ResourceType.SHORTLIST, FieldAccessPolicy consultant allow rules, ApiSafeResponseBody extension, ApiBoundaryContractRules allowlist expansion, findAllByOrganizationId on Company/Job/Shortlist ports+JDBC+services, leakage and denial tests for all 6 endpoints
 - Task 20: Document Storage and SourceItem v1 ✅ V13 migration (mime_type, file_size_bytes, original_filename, scan_status + unique constraint on intake.source_item), DocumentStore interface + DocumentStoreKey + InMemoryDocumentStore, VirusScanPort + NoOpVirusScanPort, DocumentUploadCommand + DocumentUploadResult, DocumentUploadService (MIME validation, size limits, SHA-256 dedup, idempotent), ConsultantDocumentController (POST upload + GET download), DocumentRetrievalResult, SourceItem record enhancement (4 new fields), JdbcSourceItemPersistencePort/JdbcInformationPacketPersistencePort column updates, API boundary leakage regression updated. No real virus scan (NoOp placeholder), no AI extraction, no client/candidate upload, no presigned URLs, CanonicalWriteGate bypass prevented.
+- Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 
 ## Current Truth/Kernel Capabilities
 

@@ -1,5 +1,27 @@
 # Known Gaps
 
+## Task 18C Consultant Shortlist CRUD + Sub-entity CREATE Complete; UPDATE/DELETE and Client Portal Deferred
+
+- Task 18C completes the Consultant write API surface by adding Shortlist CREATE and UPDATE endpoints (with optimistic locking), plus CompanyContact, JobRequirement, and JobScorecard CREATE endpoints as sub-resources.
+- `ShortlistPersistencePort.update()` and `JdbcShortlistPersistencePort.update()` with optimistic-locking JDBC implementation (`WHERE organization_id = ? AND version = ?`, `SET version = version + 1`).
+- `ShortlistService.updateShortlist()` domain service method delegates to the port.
+- `FieldAccessPolicy.decideConsultantAccess()` extended to allow CREATE and UPDATE on SHORTLIST alongside COMPANY and JOB.
+- Five new request DTOs: `ShortlistCreateRequest`, `ShortlistUpdateRequest`, `CompanyContactCreateRequest`, `JobRequirementCreateRequest`, `JobScorecardCreateRequest`.
+- `ConsultantApiCommandService` extended with 5 new methods: `createShortlist()`, `updateShortlist()`, `createCompanyContact()`, `createJobRequirement()`, `createJobScorecard()`.
+- `ConsultantShortlistController` now has `@PostMapping` and `@PutMapping("/{shortlistId}")`.
+- `ConsultantCompanyController` now has `@PostMapping("/{companyId}/contacts")`.
+- `ConsultantJobController` now has `@PostMapping("/{jobId}/requirements")` and `@PostMapping("/{jobId}/scorecard")`.
+- All sub-entity CREATE endpoints return the parent detail response (already includes nested sub-entity lists).
+- Remaining gaps:
+  - No UPDATE endpoints for sub-entities (CompanyContact, JobRequirement, JobScorecard). Sub-entities can only be created, not modified.
+  - No DELETE endpoints for any Consultant resource (Company, Job, Shortlist, or any sub-entity).
+  - No Soft-delete or archive behavior for any entity.
+  - No Client-portal endpoints (read or write).
+  - No Candidate/CandidateProfile write endpoints.
+  - No batch operations.
+  - No filtering/search on write responses.
+  - No real auth/login/session/Spring Security — header-based temporary access context remains the only auth mechanism.
+
 ## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
 
 - Task 20 adds V13 migration with `mime_type`, `file_size_bytes`, `original_filename`, `scan_status` columns and `uq_source_item_org_content_hash` partial unique index on `intake.source_item`.

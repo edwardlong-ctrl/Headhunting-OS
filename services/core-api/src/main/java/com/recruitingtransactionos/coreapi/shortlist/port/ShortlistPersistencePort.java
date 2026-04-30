@@ -16,4 +16,6 @@ public interface ShortlistPersistencePort {
   List<Shortlist> findByJobIdAndOrganizationId(UUID organizationId, JobId jobId);
 
   List<Shortlist> findAllByOrganizationId(UUID organizationId);
+
+  Shortlist update(Shortlist shortlist);
 }

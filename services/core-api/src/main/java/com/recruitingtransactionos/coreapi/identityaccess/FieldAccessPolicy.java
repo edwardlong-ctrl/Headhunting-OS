@@ -161,7 +161,8 @@ public final class FieldAccessPolicy {
     if (request.action() == AccessAction.CREATE
         || request.action() == AccessAction.UPDATE) {
       if (request.resourceType() == ResourceType.COMPANY
-          || request.resourceType() == ResourceType.JOB) {
+          || request.resourceType() == ResourceType.JOB
+          || request.resourceType() == ResourceType.SHORTLIST) {
         return AccessDecision.allow(
             "consultant_write_allowed",
             "Consultant role may create and update company and job resources.");

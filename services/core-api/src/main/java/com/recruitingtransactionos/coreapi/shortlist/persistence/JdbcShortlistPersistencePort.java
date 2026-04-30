@@ -54,6 +54,14 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
       ORDER BY created_at DESC
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.shortlist SET
+        job_id = ?, title = ?, status = ?, sent_at = ?,
+        client_viewed_at = ?, owner_consultant_id = ?,
+        metadata = ?::jsonb, updated_at = NOW(), version = version + 1
+      WHERE organization_id = ? AND shortlist_id = ? AND version = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcShortlistPersistencePort(DataSource dataSource) {
@@ -146,6 +154,38 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find shortlists by organization", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Shortlist update(Shortlist shortlist) {
+    Objects.requireNonNull(shortlist, "shortlist must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setObject(1, shortlist.jobId().value());
+      statement.setString(2, shortlist.title());
+      statement.setString(3, shortlist.status().wireValue());
+      statement.setTimestamp(4,
+          shortlist.sentAt() != null ? Timestamp.from(shortlist.sentAt()) : null);
+      statement.setTimestamp(5,
+          shortlist.clientViewedAt() != null
+              ? Timestamp.from(shortlist.clientViewedAt()) : null);
+      statement.setObject(6, shortlist.ownerConsultantId());
+      statement.setString(7, shortlist.metadata());
+      statement.setObject(8, shortlist.organizationId());
+      statement.setObject(9, shortlist.shortlistId().value());
+      statement.setInt(10, shortlist.version());
+      int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalStateException(
+            "Shortlist update affected 0 rows — version mismatch or shortlist not found");
+      }
+      return findByIdAndOrganizationId(shortlist.organizationId(), shortlist.shortlistId())
+          .orElseThrow(() -> new IllegalStateException("shortlist not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update shortlist", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

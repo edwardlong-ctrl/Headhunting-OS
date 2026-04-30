@@ -121,6 +121,24 @@ public final class ConsultantCompanyController {
     return ResponseEntity.ok(ApiResponseEnvelope.success(result));
   }
 
+  @PostMapping("/{companyId}/contacts")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createCompanyContact(
+      @PathVariable String companyId,
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody CompanyContactCreateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    CompanyId cid = parseCompanyId(companyId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.CREATE);
+
+    ConsultantCompanyDetailResponse result =
+        commandService.createCompanyContact(accessRequest, orgId, cid, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponseEnvelope.success(result));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(
       AccessDeniedException exception) {

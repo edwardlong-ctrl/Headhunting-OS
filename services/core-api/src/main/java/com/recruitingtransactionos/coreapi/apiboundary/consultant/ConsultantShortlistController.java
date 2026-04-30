@@ -24,9 +24,13 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,9 +44,13 @@ public final class ConsultantShortlistController {
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private final ConsultantApiQueryService queryService;
+  private final ConsultantApiCommandService commandService;
 
-  public ConsultantShortlistController(ConsultantApiQueryService queryService) {
+  public ConsultantShortlistController(
+      ConsultantApiQueryService queryService,
+      ConsultantApiCommandService commandService) {
     this.queryService = Objects.requireNonNull(queryService, "queryService must not be null");
+    this.commandService = Objects.requireNonNull(commandService, "commandService must not be null");
   }
 
   @GetMapping
@@ -80,6 +88,39 @@ public final class ConsultantShortlistController {
         .orElseGet(ConsultantShortlistController::notFound);
   }
 
+  @PostMapping
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createShortlist(
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody ShortlistCreateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.CREATE);
+
+    ConsultantShortlistDetailResponse result =
+        commandService.createShortlist(accessRequest, orgId, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponseEnvelope.success(result));
+  }
+
+  @PutMapping("/{shortlistId}")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateShortlist(
+      @PathVariable String shortlistId,
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody ShortlistUpdateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    ShortlistId sid = parseShortlistId(shortlistId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
+
+    ConsultantShortlistDetailResponse result =
+        commandService.updateShortlist(accessRequest, orgId, sid, request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(
       AccessDeniedException exception) {
@@ -96,6 +137,17 @@ public final class ConsultantShortlistController {
         ApiValidationErrorResponse.of(
             "invalid_request",
             List.of("Invalid request: " + exception.getMessage()))
+            .toErrorResponse());
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> unreadablePayload(
+      HttpMessageNotReadableException exception) {
+    return error(
+        HttpStatus.BAD_REQUEST,
+        ApiValidationErrorResponse.of(
+            "invalid_request",
+            List.of("Invalid request body."))
             .toErrorResponse());
   }
 
@@ -146,6 +198,16 @@ public final class ConsultantShortlistController {
         PortalRole.CONSULTANT,
         resourceType,
         AccessAction.READ,
+        FieldClassification.INTERNAL,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false);
+  }
+
+  private static AccessRequest buildAccessRequest(ResourceType resourceType, AccessAction action) {
+    return new AccessRequest(
+        PortalRole.CONSULTANT,
+        resourceType,
+        action,
         FieldClassification.INTERNAL,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);

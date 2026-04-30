@@ -21,6 +21,13 @@ import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePor
 import com.recruitingtransactionos.coreapi.job.port.JobRequirementPersistencePort;
 import com.recruitingtransactionos.coreapi.job.port.JobScorecardPersistencePort;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistStatus;
+import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
+import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
+import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -213,6 +220,218 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     assertThat(updated.version()).isEqualTo(created.version() + 1);
   }
 
+  // ── Shortlist org-isolation ─────────────────────────────────────────────────
+
+  @Test
+  void createShortlistWithOrgA_cannotReadWithOrgB() {
+    CompanyService companyService = companyService();
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService.createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Shortlist Host Company")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobService jobService = jobService();
+    JobId jobId = new JobId(UUID.randomUUID());
+    jobService.createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("Shortlist Job")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    ShortlistService shortlistService = shortlistService();
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+
+    shortlistService.createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Org A Shortlist")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    // Try to read with Org B — should not find it
+    Optional<Shortlist> fromB = shortlistService.findShortlistByIdAndOrganizationId(ORG_B, shortlistId);
+    assertThat(fromB).isEmpty();
+
+    // Cross-org attempt to update with Org B should fail
+    assertThatThrownBy(() -> shortlistService.updateShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_B)
+        .jobId(jobId)
+        .title("Bad Update")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(1)
+        .build()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("0 rows");
+  }
+
+  @Test
+  void createShortlistWithOrgA_canReadWithOrgA() {
+    CompanyService companyService = companyService();
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService.createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Shortlist Readable Host")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobService jobService = jobService();
+    JobId jobId = new JobId(UUID.randomUUID());
+    jobService.createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("Readable Shortlist Job")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    ShortlistService shortlistService = shortlistService();
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+
+    shortlistService.createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Readable Shortlist")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    Optional<Shortlist> found = shortlistService.findShortlistByIdAndOrganizationId(ORG_A, shortlistId);
+    assertThat(found).isPresent();
+    assertThat(found.get().title()).isEqualTo("Readable Shortlist");
+  }
+
+  // ── Shortlist update optimistic locking ─────────────────────────────────────
+
+  @Test
+  void updateShortlistWithWrongVersionFails() {
+    CompanyService companyService = companyService();
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService.createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Version Test Shortlist Host")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobService jobService = jobService();
+    JobId jobId = new JobId(UUID.randomUUID());
+    jobService.createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("Version Test Shortlist Job")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    ShortlistService shortlistService = shortlistService();
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+
+    Shortlist created = shortlistService.createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Version Test Shortlist")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThat(created.version()).isGreaterThanOrEqualTo(1);
+
+    assertThatThrownBy(() -> shortlistService.updateShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Bad Version Update")
+        .status(ShortlistStatus.SENT_TO_CLIENT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(created.version() + 99)
+        .build()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("0 rows");
+  }
+
+  @Test
+  void updateShortlistWithCorrectVersionSucceeds() {
+    CompanyService companyService = companyService();
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService.createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Correct Version Shortlist Host")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobService jobService = jobService();
+    JobId jobId = new JobId(UUID.randomUUID());
+    jobService.createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("Correct Version Shortlist Job")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    ShortlistService shortlistService = shortlistService();
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+
+    Shortlist created = shortlistService.createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Correct Version Shortlist")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    Shortlist updated = shortlistService.updateShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobId)
+        .title("Updated Shortlist Name")
+        .status(ShortlistStatus.READY_FOR_REVIEW)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(created.version())
+        .build());
+
+    assertThat(updated.title()).isEqualTo("Updated Shortlist Name");
+    assertThat(updated.status()).isEqualTo(ShortlistStatus.READY_FOR_REVIEW);
+    assertThat(updated.version()).isEqualTo(created.version() + 1);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private static CompanyService companyService() {
@@ -243,6 +462,16 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     };
     return new JobService(
         new JdbcJobPersistencePort(dataSource), requirementPort, scorecardPort);
+  }
+
+  private static ShortlistService shortlistService() {
+    ShortlistCandidateCardPersistencePort cardPort = new ShortlistCandidateCardPersistencePort() {
+      @Override public ShortlistCandidateCard create(ShortlistCandidateCard card) { return card; }
+      @Override public List<ShortlistCandidateCard> findByShortlistIdAndOrganizationId(
+          UUID organizationId, ShortlistId shortlistId) { return List.of(); }
+    };
+    return new ShortlistService(
+        new JdbcShortlistPersistencePort(dataSource), cardPort);
   }
 
   private static void insertOrganization(UUID orgId) {

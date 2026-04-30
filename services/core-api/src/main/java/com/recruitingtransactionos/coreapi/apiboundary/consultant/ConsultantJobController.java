@@ -122,6 +122,42 @@ public final class ConsultantJobController {
     return ResponseEntity.ok(ApiResponseEnvelope.success(result));
   }
 
+  @PostMapping("/{jobId}/requirements")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJobRequirement(
+      @PathVariable String jobId,
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody JobRequirementCreateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    JobId jid = parseJobId(jobId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
+
+    ConsultantJobDetailResponse result =
+        commandService.createJobRequirement(accessRequest, orgId, jid, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponseEnvelope.success(result));
+  }
+
+  @PostMapping("/{jobId}/scorecard")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJobScorecard(
+      @PathVariable String jobId,
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody JobScorecardCreateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    JobId jid = parseJobId(jobId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
+
+    ConsultantJobDetailResponse result =
+        commandService.createJobScorecard(accessRequest, orgId, jid, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponseEnvelope.success(result));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(
       AccessDeniedException exception) {

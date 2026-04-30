@@ -467,6 +467,273 @@ class ConsultantControllerLeakageTest {
     }
   }
 
+  // ── Shortlist Write Controller ──────────────────────────────────────────────
+
+  @Nested
+  class ShortlistWriteController {
+
+    private static final ConsultantShortlistDetailResponse SHORTLIST_DETAIL =
+        new ConsultantShortlistDetailResponse(
+            SHORTLIST_ID, JOB_ID, "test-shortlist", "draft",
+            null, null, null,
+            "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList());
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createShortlistMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Test Shortlist", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/shortlists")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createShortlistMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Test Shortlist", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/shortlists")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createShortlistSuccessReturns201() throws Exception {
+      when(commandService.createShortlist(any(), any(), any()))
+          .thenReturn(SHORTLIST_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Test Shortlist", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/shortlists")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.shortlistId").value(SHORTLIST_ID));
+    }
+
+    @Test
+    void updateShortlistMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Updated", "status", "sent_to_client", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void updateShortlistMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Updated", "status", "draft", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateShortlistSuccessReturns200() throws Exception {
+      when(commandService.updateShortlist(any(), any(), any(), any()))
+          .thenReturn(SHORTLIST_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("jobId", JOB_ID, "title", "Updated", "status", "draft", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.shortlistId").value(SHORTLIST_ID));
+    }
+  }
+
+  // ── Company Contact Create ──────────────────────────────────────────────────
+
+  @Nested
+  class CompanyContactCreateController {
+
+    private static final ConsultantCompanyDetailResponse COMPANY_DETAIL =
+        new ConsultantCompanyDetailResponse(
+            COMPANY_ID, "testcorp", null, "tech", null,
+            "asia", "medium", "active", "high", null,
+            "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(), 0);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createContactMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(Map.of("name", "John Doe"));
+
+      mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createContactMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(Map.of("name", "John Doe"));
+
+      mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createContactSuccessReturns201() throws Exception {
+      when(commandService.createCompanyContact(any(), any(), any(), any()))
+          .thenReturn(COMPANY_DETAIL);
+
+      String body = objectMapper.writeValueAsString(Map.of("name", "John Doe"));
+
+      mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
+    }
+  }
+
+  // ── Job Requirement Create ──────────────────────────────────────────────────
+
+  @Nested
+  class JobRequirementCreateController {
+
+    private static final ConsultantJobDetailResponse JOB_DETAIL =
+        new ConsultantJobDetailResponse(
+            JOB_ID, COMPANY_ID, "engineer", null, null,
+            null, null, null, null, "draft",
+            null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(), null);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createRequirementMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("requirementType", "skill", "label", "Java"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createRequirementMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("requirementType", "skill", "label", "Java"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createRequirementSuccessReturns201() throws Exception {
+      when(commandService.createJobRequirement(any(), any(), any(), any()))
+          .thenReturn(JOB_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("requirementType", "skill", "label", "Java"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
+    }
+  }
+
+  // ── Job Scorecard Create ────────────────────────────────────────────────────
+
+  @Nested
+  class JobScorecardCreateController {
+
+    private static final ConsultantJobDetailResponse JOB_DETAIL =
+        new ConsultantJobDetailResponse(
+            JOB_ID, COMPANY_ID, "engineer", null, null,
+            null, null, null, null, "draft",
+            null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(), null);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createScorecardMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("dimensions", "technical_fit"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createScorecardMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("dimensions", "technical_fit"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createScorecardSuccessReturns201() throws Exception {
+      when(commandService.createJobScorecard(any(), any(), any(), any()))
+          .thenReturn(JOB_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("dimensions", "technical_fit"));
+
+      mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
+    }
+  }
+
   // ── Allowlist validation ──────────────────────────────────────────────────
 
   @Test

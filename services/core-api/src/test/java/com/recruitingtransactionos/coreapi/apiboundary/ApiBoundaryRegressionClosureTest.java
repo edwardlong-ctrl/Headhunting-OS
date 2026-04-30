@@ -469,7 +469,8 @@ class ApiBoundaryRegressionClosureTest {
       // Allow @PostMapping on consultant write controllers and document controller
       boolean isConsultantWriteController =
           "ConsultantCompanyController.java".equals(fileName)
-              || "ConsultantJobController.java".equals(fileName);
+              || "ConsultantJobController.java".equals(fileName)
+              || "ConsultantShortlistController.java".equals(fileName);
       boolean isDocumentController =
           "ConsultantDocumentController.java".equals(fileName);
 

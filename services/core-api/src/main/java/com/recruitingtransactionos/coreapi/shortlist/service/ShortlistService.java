@@ -28,6 +28,11 @@ public final class ShortlistService {
     return shortlistPort.create(shortlist);
   }
 
+  public Shortlist updateShortlist(Shortlist shortlist) {
+    Objects.requireNonNull(shortlist, "shortlist must not be null");
+    return shortlistPort.update(shortlist);
+  }
+
   public Optional<Shortlist> findShortlistByIdAndOrganizationId(
       UUID organizationId, ShortlistId shortlistId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
