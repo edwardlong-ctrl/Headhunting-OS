@@ -61,8 +61,8 @@ workflows are mostly still ahead.
 | Milestone | Tasks | Completion label |
 | --- | --- | --- |
 | Production Kernel | 0-14 | Completed for current kernel scope |
-| Productization Bridge | 15 | Planning and scope bridge |
-| Operational Core | 16-20 | Real product objects, API, auth, storage |
+| Productization Bridge | 15-17 | Completed: planning baseline, product data model, canonical write audit |
+| Operational Core | 18-20 | Real product API, auth, storage |
 | Real AI Intake | 21-24 | Real AI, review, Consultant portal |
 | Recruiting Transaction Core | 25-34 | Job, workflow, matching, shortlist, redaction, candidate/client loops |
 | Pilot Operations | 35-42 | Outcome, placement, governance, seed, deployment, observability, security, E2E gate |
@@ -94,6 +94,8 @@ frontend and backend validation.
 
 Priority: P0
 
+Status: **Completed** at `328dcf9`.
+
 Goal: Convert the Task 0-14 kernel completion into a productization baseline
 without pretending that Task 14 is the full product.
 
@@ -123,6 +125,8 @@ Acceptance:
 ## Task 16: Real Product Data Model Completion
 
 Priority: P0
+
+Status: **Completed** at `d5045ce`. V10 migration added 15 new tables; domain/port/adapter/service/tests delivered for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, ProfileFieldLineage.
 
 Goal: Expand from kernel tables and minimal CandidateProfile persistence into
 real product aggregates.
@@ -163,6 +167,8 @@ Acceptance:
 ## Task 17: Canonical Write Audit and Blocked Attempt Ledger
 
 Priority: P0
+
+Status: **Completed** at `66e416c`. V11 migration added `governance.canonical_write_attempt`; CanonicalWriteService now persists attempt records for all decision types (allow/block/require_review); CanonicalWriteResult carries canonicalWriteAttemptId.
 
 Goal: Close the current kernel gap where allowed writes audit correctly, but
 blocked canonical attempts do not yet have a separate persisted audit ledger.

@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `02e8700c30de38a9ae73ac34b18d9d759d6d72bf`
-- latest merged commit: `02e8700` Harden consent disclosure chain persistence
-- current validation snapshot: full backend Maven suite reached 533 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build and whitespace diff checks were re-run for the current roadmap drift fix.
-- merge status: main contains Task 14; roadmap next task is intentionally pending human prioritization.
+- current main HEAD: `66e416c`
+- latest merged commit: `66e416c` Task 17: persist canonical write attempts for audit and review (V11 migration + domain + tests)
+- current validation snapshot: full backend Maven suite reached 574 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
+- merge status: main contains Task 17; next recommended task is Task 18.
 
 ## Completed Major Tasks
 
@@ -44,6 +44,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 13A: Five-portal UI shell and client-safe candidate-card route ✅ for the current integrated slice
 - Task 13B: Real client-safe candidate card backend query slice ✅
 - Task 14: Consent / Disclosure production hardening ✅ for the current backend kernel scope
+- Task 15: Product Readiness Bridge ✅ docs-only planning baseline delivering v2.1 capability split and usable-v1 acceptance scenarios
+- Task 16: Real Product Data Model Completion ✅ V10 migration (15 new tables), domain/port/adapter/service/tests for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, ProfileFieldLineage
+- Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
 
 ## Current Truth/Kernel Capabilities
 
@@ -52,6 +55,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - WorkflowEvent append/audit foundation exists.
 - CanonicalWriteGate exists and must be used before canonical writes.
 - CanonicalWriteService boundary exists.
+- `CanonicalWriteService` now persists a `governance.canonical_write_attempt` record for every decision type (allow/block/require_review) through `CanonicalWriteAttemptPort`. `CanonicalWriteResult` carries `canonicalWriteAttemptId` for downstream audit linkage.
+- `CanonicalWriteService` idempotency returns the existing attempt on matching idempotency key without re-executing the gate decision.
 - CandidateProfile minimal canonical field write exists through the gated transaction path.
 - CandidateProfile lineage/stale/conflict metadata persistence exists.
 - `ClientSafeCandidateCard` now exists as a backend-only anonymous contract.
@@ -136,20 +141,23 @@ This file contains mutable short-term engineering state. Update it after future 
 - No stale detection engine.
 - No conflict resolution workflow.
 - No full CandidateProfile engine.
-- Blocked canonical attempts still have no separate persisted audit ledger.
+- Task 16 V10 child tables (company_contact, job_requirement, job_scorecard, candidate_document, interaction, shortlist_card, placement, commission) have own `organization_id` and FK to parent id, but no composite FK enforcing `parent.organization_id = child.organization_id` at DB level. Service-layer org-scoped queries exist. DB-level cross-org mismatch rejection tests are not yet present.
+- Task 17 `persistAttempt()` idempotency returns existing attempt on key match without verifying payload equivalence. Future hardening should add an idempotency equivalence hash or command fingerprint.
+- Task 17 V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without FK constraints (intentional loose ledger design for now). Future hardening should document the FK-free design decision or add optional composite FKs.
 - recruiting.* source/packet cleanup/deprecation remains deferred.
 
 ## Next Recommended Task
 
-Task 15: Product Readiness Bridge, using:
+Task 18: Product API Layer v1, using:
 
-- `docs/roadmap/product-scope-after-kernel.md`
 - `docs/roadmap/productization-roadmap.md`
-- `docs/roadmap/productization-roadmap.zh-CN.md`
-- `docs/roadmap/pilot-readiness-checklist.md`
+- `docs/roadmap/current-engineering-snapshot.md`
+- `docs/roadmap/implementation-status.md`
+- `docs/roadmap/known-gaps.md`
 
-Task 14 remains Production Kernel completion for the current backend kernel
-scope. It is not full product completion, not Usable v1, and not pilot-ready by
+Task 17 closes the Production Kernel + Product Data Model + Canonical Write
+Audit scope. Tasks 15-17 bridged the kernel to productization baseline. The
+system is not full product completion, not Usable v1, and not pilot-ready by
 itself.
 
 ## Future Prompt Strategy

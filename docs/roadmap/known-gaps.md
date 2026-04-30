@@ -156,7 +156,7 @@
 - Task 5E adds no new migration, table, index, or API-facing view. It relies on existing `governance.claim_ledger_item`, `governance.review_event`, and `workflow.workflow_event` audit/idempotency behavior.
 - Task 5E duplicate behavior is deterministic for allowed boundary audits through existing WorkflowEvent idempotency. Gate-blocked attempts append no audit row under the current CanonicalWriteService design, so there is no DB-enforced blocked-attempt ledger yet.
 - Task 5F now regression-covers the full safe minimal chain from `SourceItem` / `InformationPacket` through deterministic extraction output envelope, ClaimLedgerItem claim, ReviewEvent evidence, CanonicalWriteService boundary attempt, CanonicalWriteGate decision, and no canonical persistence.
-- Task 5F verifies default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate is mandatory, allowed boundary fixtures still report `canonicalPersistencePerformed=false`, and blocked canonical attempts still have no separate persisted audit ledger.
+- Task 5F verifies default placeholder output appends no business ClaimLedger claims, bridge-eligible fixtures append claims but not facts, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate is mandatory, allowed boundary fixtures still report `canonicalPersistencePerformed=false`, and blocked canonical attempts had no separate persisted audit ledger at Task 5F time (resolved by Task 17 V11 `governance.canonical_write_attempt`).
 - Task 6D adds the first minimal allowed canonical write beyond Task 5F: allowed governed-intake fixtures with an explicit existing CandidateProfile target write one field, while default low-authority placeholder claims remain blocked and non-persistent.
 - Task 6E keeps that write single-field and gated, while preserving claim, review, workflow, and governed-intake source-span lineage in CandidateProfile field metadata.
 - These Task 5A `intake.*` governed-intake operational records coexist with earlier V2 skeleton schema artifacts: `recruiting.source_item` and `recruiting.information_packet`.
@@ -264,4 +264,20 @@
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
 - No broad client-safe product UI or real redaction behavior exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, and Task 9B/13B together provide only the existing narrow endpoint behind it.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
-- Blocked canonical attempts still have no separate persisted audit ledger.
+
+## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening Deferred
+
+- Task 16 V10 migration added 15 new product data model tables: `recruiting.company`, `recruiting.company_contact`, `recruiting.job`, `recruiting.job_requirement`, `recruiting.job_scorecard`, `recruiting.candidate_document`, `recruiting.interaction`, `recruiting.interview_feedback`, `recruiting.shortlist`, `recruiting.shortlist_card`, `recruiting.placement`, `recruiting.commission`, `recruiting.company_preference`, `metadata.profile_field_lineage`, and `metadata.candidate_profile_version`.
+- Domain contracts, persistence ports, JDBC adapters, and service boundaries exist for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, and ProfileFieldLineage. All entities are organization-scoped with backend-internal service boundaries only.
+- V10 child tables (`company_contact`, `job_requirement`, `job_scorecard`, `candidate_document`, `interaction`, `shortlist_card`, `placement`, `commission`) have their own `organization_id` column and a FK to the parent table's `id`, but no composite FK enforcing `parent.organization_id = child.organization_id` at DB level.
+- Service-layer org-scoped queries exist and enforce organization boundaries at the application level.
+- DB-level cross-org mismatch rejection tests are not yet present.
+- Future hardening: add composite unique constraint or FK on `(parent_id, organization_id)` pairs on child tables, and add negative integration tests proving the database rejects cross-org child inserts independently of service-layer checks.
+
+## Task 17 Canonical Write Attempt Ledger Complete; Idempotency and FK Hardening Deferred
+
+- Task 17 V11 migration added `governance.canonical_write_attempt` to record all canonical write decisions (allow/block/require_review) with decision type, reason codes, field path, entity type/id, actor, idempotency key, correlation/causation ids, and timestamps.
+- `CanonicalWriteAttemptPort` / `JdbcCanonicalWriteAttemptPort` provide append/read persistence. `CanonicalWriteService` now persists an attempt record for every decision type. `CanonicalWriteResult` carries `canonicalWriteAttemptId` for downstream audit linkage.
+- This resolves the long-standing gap where blocked canonical attempts had no separate persisted audit ledger.
+- Idempotency currently returns the existing attempt on key match without verifying payload equivalence. If a caller replays the same idempotency key with different command payload, the service returns the original attempt id without detecting the mismatch. Future hardening: add an idempotency equivalence hash or command fingerprint to detect replay payload drift.
+- V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without `REFERENCES` constraints (intentional loose ledger design for now). These columns record linkage for audit/query purposes but do not enforce referential integrity at the DB level. Future hardening: document the FK-free design decision explicitly, or add optional composite FKs if referential integrity becomes operationally necessary.
