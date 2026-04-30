@@ -21,6 +21,11 @@ import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePor
 import com.recruitingtransactionos.coreapi.job.port.JobRequirementPersistencePort;
 import com.recruitingtransactionos.coreapi.job.port.JobScorecardPersistencePort;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
+import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
@@ -34,6 +39,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
@@ -432,7 +438,207 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     assertThat(updated.version()).isEqualTo(created.version() + 1);
   }
 
+  // ── Cross-org parent-chain validation ──────────────────────────────────────
+
+  @Test
+  void createJobWithCrossOrgCompanyThrowsIllegalArgumentException() {
+    ConsultantApiCommandService commandService = commandService();
+    CompanyId companyInOrgB = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyInOrgB)
+        .organizationId(ORG_B)
+        .name("Company In Org B")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThatThrownBy(() -> commandService.createJob(
+        jobCreateAccessRequest(),
+        ORG_A,
+        new JobCreateRequest(
+            companyInOrgB.value().toString(), "Cross-org Job", null, null,
+            null, null, null, null, "draft", null, null, null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Company not found in this organization");
+  }
+
+  @Test
+  void updateJobWithCrossOrgCompanyThrowsIllegalArgumentException() {
+    ConsultantApiCommandService commandService = commandService();
+
+    CompanyId companyInOrgB = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyInOrgB)
+        .organizationId(ORG_B)
+        .name("Company In Org B")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    CompanyId companyInOrgA = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyInOrgA)
+        .organizationId(ORG_A)
+        .name("Company In Org A")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobId jobId = new JobId(UUID.randomUUID());
+    jobService().createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyInOrgA)
+        .title("Job In Org A")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThatThrownBy(() -> commandService.updateJob(
+        jobUpdateAccessRequest(),
+        ORG_A,
+        jobId,
+        new JobUpdateRequest(
+            companyInOrgB.value().toString(), "Cross-org Update", null, null,
+            null, null, null, null, "draft", null, null, null, 1)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Company not found in this organization");
+  }
+
+  @Test
+  void createShortlistWithCrossOrgJobThrowsIllegalArgumentException() {
+    ConsultantApiCommandService commandService = commandService();
+
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_B)
+        .name("Company In Org B")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobId jobInOrgB = new JobId(UUID.randomUUID());
+    jobService().createJob(Job.builder()
+        .jobId(jobInOrgB)
+        .organizationId(ORG_B)
+        .companyId(companyId)
+        .title("Job In Org B")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThatThrownBy(() -> commandService.createShortlist(
+        shortlistCreateAccessRequest(),
+        ORG_A,
+        new ShortlistCreateRequest(
+            jobInOrgB.value().toString(), "Cross-org Shortlist", "draft", null, null)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Job not found in this organization");
+  }
+
+  @Test
+  void updateShortlistWithCrossOrgJobThrowsIllegalArgumentException() {
+    ConsultantApiCommandService commandService = commandService();
+
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Company In Org A")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobId jobInOrgA = new JobId(UUID.randomUUID());
+    jobService().createJob(Job.builder()
+        .jobId(jobInOrgA)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("Job In Org A")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobId jobInOrgB = new JobId(UUID.randomUUID());
+    CompanyId companyInOrgB = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyInOrgB)
+        .organizationId(ORG_B)
+        .name("Company In Org B")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+    jobService().createJob(Job.builder()
+        .jobId(jobInOrgB)
+        .organizationId(ORG_B)
+        .companyId(companyInOrgB)
+        .title("Job In Org B")
+        .status(JobStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
+    shortlistService().createShortlist(Shortlist.builder()
+        .shortlistId(shortlistId)
+        .organizationId(ORG_A)
+        .jobId(jobInOrgA)
+        .title("Shortlist In Org A")
+        .status(ShortlistStatus.DRAFT)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThatThrownBy(() -> commandService.updateShortlist(
+        shortlistUpdateAccessRequest(),
+        ORG_A,
+        shortlistId,
+        new ShortlistUpdateRequest(
+            jobInOrgB.value().toString(), "Cross-org Update", "draft", null, null, 1)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Job not found in this organization");
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  private static ConsultantApiCommandService commandService() {
+    return new ConsultantApiCommandService(
+        companyService(), jobService(), shortlistService());
+  }
+
+  private static AccessRequest jobCreateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT, ResourceType.JOB, AccessAction.CREATE,
+        FieldClassification.CLIENT_SAFE, Set.of(), false);
+  }
+
+  private static AccessRequest jobUpdateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT, ResourceType.JOB, AccessAction.UPDATE,
+        FieldClassification.CLIENT_SAFE, Set.of(), false);
+  }
+
+  private static AccessRequest shortlistCreateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT, ResourceType.SHORTLIST, AccessAction.CREATE,
+        FieldClassification.CLIENT_SAFE, Set.of(), false);
+  }
+
+  private static AccessRequest shortlistUpdateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT, ResourceType.SHORTLIST, AccessAction.UPDATE,
+        FieldClassification.CLIENT_SAFE, Set.of(), false);
+  }
 
   private static CompanyService companyService() {
     CompanyContactPersistencePort contactPort = new CompanyContactPersistencePort() {

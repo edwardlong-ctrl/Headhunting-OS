@@ -149,8 +149,12 @@ public final class ConsultantApiCommandService {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(request, "request must not be null");
 
-    JobId jobId = new JobId(UUID.randomUUID());
     CompanyId companyId = new CompanyId(UUID.fromString(request.companyId()));
+    companyService.findCompanyByIdAndOrganizationId(organizationId, companyId)
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Company not found in this organization"));
+
+    JobId jobId = new JobId(UUID.randomUUID());
     Instant now = Instant.now();
 
     Job job = Job.builder()
@@ -187,11 +191,14 @@ public final class ConsultantApiCommandService {
     Objects.requireNonNull(jobId, "jobId must not be null");
     Objects.requireNonNull(request, "request must not be null");
 
+    CompanyId companyId = new CompanyId(UUID.fromString(request.companyId()));
+    companyService.findCompanyByIdAndOrganizationId(organizationId, companyId)
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Company not found in this organization"));
+
     // Verify the job exists in this organization
     Job existing = jobService.findJobByIdAndOrganizationId(organizationId, jobId)
         .orElseThrow(() -> new IllegalArgumentException("Job not found in this organization"));
-
-    CompanyId companyId = new CompanyId(UUID.fromString(request.companyId()));
 
     Job job = Job.builder()
         .jobId(jobId)
@@ -231,8 +238,12 @@ public final class ConsultantApiCommandService {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(request, "request must not be null");
 
-    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
     JobId jobId = new JobId(UUID.fromString(request.jobId()));
+    jobService.findJobByIdAndOrganizationId(organizationId, jobId)
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Job not found in this organization"));
+
+    ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
     Instant now = Instant.now();
 
     Shortlist shortlist = Shortlist.builder()
@@ -267,6 +278,9 @@ public final class ConsultantApiCommandService {
             "Shortlist not found in this organization"));
 
     JobId jobId = new JobId(UUID.fromString(request.jobId()));
+    jobService.findJobByIdAndOrganizationId(organizationId, jobId)
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Job not found in this organization"));
 
     Shortlist shortlist = Shortlist.builder()
         .shortlistId(shortlistId)
