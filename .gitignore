@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 
 # Dependencies
 node_modules/
@@ -7,17 +8,41 @@ node_modules/
 # Frontend build output
 dist/
 coverage/
+.vite/
+.eslintcache
 
 # Java build output
 target/
+build/
+out/
 
 # Local environment and logs
 .env
 .env.*
 !.env.example
 *.log
+*.out
+*.err
 *.tsbuildinfo
+hs_err_pid*
+replay_pid*
 
 # IDE state
 .idea/
 .vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Editors and temp files
+*.swp
+*.swo
+*~
+.history/
+.tmp/
+tmp/
+
+# Local service and storage data
+.local/
+storage/
