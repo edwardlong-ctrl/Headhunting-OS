@@ -98,7 +98,8 @@ class SpringCanonicalWriteTransactionBoundaryTest {
         false,
         null,
         false,
-        "unit-test-no-canonical-persistence");
+        "unit-test-no-canonical-persistence",
+        null);
   }
 
   private static String sourceFile(String relativePath) throws IOException {

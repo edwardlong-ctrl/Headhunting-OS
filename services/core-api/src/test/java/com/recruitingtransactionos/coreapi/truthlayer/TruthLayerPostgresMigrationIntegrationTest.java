@@ -35,6 +35,7 @@ class TruthLayerPostgresMigrationIntegrationTest {
       "governance", List.of(
           "claim_ledger_item",
           "review_event",
+          "canonical_write_attempt",
           "ai_task_definition",
           "ai_task_run"),
       "workflow", List.of("workflow_event"),
@@ -58,6 +59,9 @@ class TruthLayerPostgresMigrationIntegrationTest {
           "intake_packet_source_item_source_idx"),
       new IndexRef("intake", "extraction_run", "intake_extraction_run_org_packet_created_idx"),
       new IndexRef("governance", "claim_ledger_item", "claim_ledger_org_source_span_idx"),
+      new IndexRef("governance", "canonical_write_attempt", "cwa_org_decision_occurred_idx"),
+      new IndexRef("governance", "canonical_write_attempt", "cwa_org_entity_idx"),
+      new IndexRef("governance", "canonical_write_attempt", "cwa_org_idempotency_uidx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_idempotency_uidx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_correlation_idx"),
       new IndexRef("workflow", "workflow_event", "workflow_event_org_causation_idx"));
@@ -78,12 +82,12 @@ class TruthLayerPostgresMigrationIntegrationTest {
         .load()
         .migrate();
 
-    assertThat(result.migrationsExecuted).isEqualTo(10);
+    assertThat(result.migrationsExecuted).isEqualTo(11);
 
     try (Connection connection = DriverManager.getConnection(
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
       assertThat(appliedMigrationVersions(connection))
-          .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+          .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
 
       for (String schema : REQUIRED_SCHEMAS) {
         assertThat(schemaExists(connection, schema))

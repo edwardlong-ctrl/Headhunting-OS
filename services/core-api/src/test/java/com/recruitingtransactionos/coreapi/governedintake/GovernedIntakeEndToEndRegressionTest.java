@@ -37,6 +37,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
 import com.recruitingtransactionos.coreapi.truthlayer.VerificationStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcClaimLedgerPort;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcCanonicalWriteAttemptPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcReviewEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
@@ -112,8 +113,8 @@ class GovernedIntakeEndToEndRegressionTest {
   @Test
   void minimalSliceRunsThroughCanonicalGateWithoutCanonicalPersistence()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(10);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(11);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
     int candidateRowsBefore = countRows("recruiting.candidate", ORG_A);
     int candidateProfileRowsBefore = countRows("recruiting.candidate_profile", ORG_A);
 
@@ -254,7 +255,24 @@ class GovernedIntakeEndToEndRegressionTest {
     assertThat(duplicateBlockedResult.blockedReason()).isEqualTo(canonicalResult.blockedReason());
     assertThat(countWorkflowEventsForClaim(claimId)).isZero();
     assertThat(tableExists("audit", "canonical_write_attempt")).isFalse();
-    assertThat(tableExists("governance", "canonical_write_attempt")).isFalse();
+    assertThat(tableExists("governance", "canonical_write_attempt")).isTrue();
+    assertThat(countRows("governance.canonical_write_attempt", ORG_A)).isGreaterThanOrEqualTo(1);
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT decision, reason_codes
+            FROM governance.canonical_write_attempt
+            WHERE organization_id = ? AND decision = 'block'
+            """)) {
+      statement.setObject(1, ORG_A);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        assertThat(resultSet.getString("decision")).isEqualTo("block");
+        String[] reasonCodes = (String[]) resultSet.getArray("reason_codes").getArray();
+        assertThat(reasonCodes).contains(
+            "system_inference_cannot_be_canonical_fact",
+            "ai_extracted_claim_cannot_be_canonical_fact");
+      }
+    }
 
     assertThat(findClaim(claimId)).isEqualTo(claimBeforeReview);
     assertThat(findReview(reviewResult.reviewEventId())).isEqualTo(reviewBeforeCanonical);
@@ -305,6 +323,9 @@ class GovernedIntakeEndToEndRegressionTest {
     assertThat(second.workflowEventId()).isEqualTo(first.workflowEventId());
     assertThat(countWorkflowEventsForClaim(claimId)).isEqualTo(1);
     assertThat(second.canonicalPersistencePerformed()).isTrue();
+
+    assertThat(countRows("governance.canonical_write_attempt", ORG_A)).isEqualTo(1);
+    assertThat(first.workflowEventId()).isNotNull();
 
     PersistedWorkflowEvent workflowEvent = findWorkflowEvent(first.workflowEventId().value());
     assertThat(workflowEvent.action()).isEqualTo(WorkflowActionCode.CANONICAL_WRITE_ALLOWED.wireValue());
@@ -359,6 +380,23 @@ class GovernedIntakeEndToEndRegressionTest {
         profile.candidateProfileId())).isEmpty();
     assertThat(countRows("recruiting.source_item", ORG_A)).isZero();
     assertThat(countRows("recruiting.information_packet", ORG_A)).isZero();
+
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT decision, reason_codes, workflow_event_id
+            FROM governance.canonical_write_attempt
+            WHERE organization_id = ?
+            """)) {
+      statement.setObject(1, ORG_A);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        assertThat(resultSet.getString("decision")).isEqualTo("allow");
+        String[] reasonCodes = (String[]) resultSet.getArray("reason_codes").getArray();
+        assertThat(reasonCodes).contains("canonical_write_gate_passed");
+        assertThat(resultSet.getObject("workflow_event_id", UUID.class))
+            .isEqualTo(first.workflowEventId().value());
+      }
+    }
   }
 
   @Test
@@ -386,11 +424,15 @@ class GovernedIntakeEndToEndRegressionTest {
         RiskTier.T2_MEDIUM_RISK,
         "induce candidate profile write failure after allowed canonical audit");
 
+    int attemptRowsBefore = countRows("governance.canonical_write_attempt", ORG_A);
+
     assertThatThrownBy(() -> canonicalBridgeService().bridge(request))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("candidate profile not found in organization");
 
     assertThat(countWorkflowEventsForClaim(claimId)).isZero();
+    assertThat(countRows("governance.canonical_write_attempt", ORG_A))
+        .isEqualTo(attemptRowsBefore);
     assertThat(candidateProfileService().listCandidateProfileFields(
         ORG_A,
         existingProfile.candidateProfileId())).isEmpty();
@@ -638,7 +680,8 @@ class GovernedIntakeEndToEndRegressionTest {
             new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
             new SpringCanonicalWriteTransactionBoundary(
                 new DataSourceTransactionManager(dataSource)),
-            candidateProfileService()));
+            candidateProfileService(),
+            new JdbcCanonicalWriteAttemptPort(dataSource)));
   }
 
   private static CandidateProfileService candidateProfileService() {

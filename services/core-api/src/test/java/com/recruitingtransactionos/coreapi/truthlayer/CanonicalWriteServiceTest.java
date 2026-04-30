@@ -14,6 +14,11 @@ import com.recruitingtransactionos.coreapi.candidateprofile.port.CandidateProfil
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptAppendResult;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptIdempotencyRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewDecision;
@@ -306,6 +311,112 @@ class CanonicalWriteServiceTest {
     assertThat(workflowPort.commands).hasSize(1);
   }
 
+  @Test
+  void blockedDecisionPersistsAttemptRecordViaPort() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCanonicalWriteAttemptPort attemptPort = new RecordingCanonicalWriteAttemptPort();
+    CanonicalWriteResult result = service(workflowPort, attemptPort).attempt(commandBuilder()
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(result.canonicalWriteAttemptId()).isNotNull();
+    assertThat(result.canonicalWriteAttemptId()).isEqualTo(attemptPort.lastAppendedId);
+    assertThat(attemptPort.commands).hasSize(1);
+    CanonicalWriteAttemptAppendCommand cmd = attemptPort.commands.getFirst();
+    assertThat(cmd.decision()).isEqualTo("block");
+    assertThat(cmd.reasonCodes()).contains("system_inference_cannot_be_canonical_fact");
+    assertThat(cmd.organizationId()).isEqualTo(ORGANIZATION_ID);
+  }
+
+  @Test
+  void requireReviewDecisionPersistsAttemptRecordViaPort() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCanonicalWriteAttemptPort attemptPort = new RecordingCanonicalWriteAttemptPort();
+    CanonicalWriteResult result = service(workflowPort, attemptPort).attempt(commandBuilder()
+        .targetRiskTier(RiskTier.T3_HIGH_RISK)
+        .targetVerificationStatus(VerificationStatus.CANDIDATE_CONFIRMED)
+        .reviewEvidence(new CanonicalWriteReviewEvidence(
+            new ReviewEventId(REVIEW_EVENT_ID),
+            ReviewDecision.NEEDS_CONFIRMATION,
+            false,
+            false,
+            "candidate confirmation is still pending"))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.REQUIRE_REVIEW);
+    assertThat(result.canonicalWriteAttemptId()).isNotNull();
+    assertThat(result.canonicalWriteAttemptId()).isEqualTo(attemptPort.lastAppendedId);
+    assertThat(attemptPort.commands).hasSize(1);
+    CanonicalWriteAttemptAppendCommand cmd = attemptPort.commands.getFirst();
+    assertThat(cmd.decision()).isEqualTo("require_review");
+  }
+
+  @Test
+  void allowedDecisionPersistsAttemptRecordInsideTransactionBoundary() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCanonicalWriteAttemptPort attemptPort = new RecordingCanonicalWriteAttemptPort();
+    CanonicalWriteResult result = service(workflowPort, attemptPort).attempt(
+        commandBuilder().build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(result.canonicalWriteAttemptId()).isNotNull();
+    assertThat(result.canonicalWriteAttemptId()).isEqualTo(attemptPort.lastAppendedId);
+    assertThat(attemptPort.commands).hasSize(1);
+    CanonicalWriteAttemptAppendCommand cmd = attemptPort.commands.getFirst();
+    assertThat(cmd.decision()).isEqualTo("allow");
+    assertThat(cmd.reasonCodes()).contains("low_risk_human_acknowledged_write_allowed");
+    assertThat(cmd.workflowEventId()).isNotNull();
+  }
+
+  @Test
+  void blockedAttemptIsIdempotentViaAttemptPort() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCanonicalWriteAttemptPort attemptPort = new RecordingCanonicalWriteAttemptPort();
+    CanonicalWriteService svc = service(workflowPort, attemptPort);
+    CanonicalWriteCommand command = commandBuilder()
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false))
+        .build();
+
+    CanonicalWriteResult first = svc.attempt(command);
+    attemptPort.idempotencyRecord = new CanonicalWriteAttemptIdempotencyRecord(
+        attemptPort.lastAppendedId);
+    CanonicalWriteResult second = svc.attempt(command);
+
+    assertThat(first.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(second.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(second.canonicalWriteAttemptId()).isEqualTo(first.canonicalWriteAttemptId());
+    assertThat(attemptPort.commands).hasSize(1);
+    assertThat(attemptPort.findCalls).isEqualTo(2);
+  }
+
+  @Test
+  void allowedAttemptIsIdempotentViaAttemptPort() {
+    RecordingWorkflowEventPort workflowPort = new RecordingWorkflowEventPort();
+    RecordingCanonicalWriteAttemptPort attemptPort = new RecordingCanonicalWriteAttemptPort();
+    CanonicalWriteService svc = service(workflowPort, attemptPort);
+    CanonicalWriteCommand command = commandBuilder().build();
+
+    CanonicalWriteResult first = svc.attempt(command);
+    attemptPort.idempotencyRecord = new CanonicalWriteAttemptIdempotencyRecord(
+        attemptPort.lastAppendedId);
+    CanonicalWriteResult second = svc.attempt(command);
+
+    assertThat(first.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(second.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(second.canonicalWriteAttemptId()).isEqualTo(first.canonicalWriteAttemptId());
+  }
+
   private static CanonicalWriteService service(WorkflowEventPort workflowPort) {
     return new CanonicalWriteService(
         new CanonicalWriteGate(),
@@ -321,6 +432,29 @@ class CanonicalWriteServiceTest {
         new WorkflowEventService(workflowPort),
         CanonicalWriteTransactionBoundary.immediate(),
         new CandidateProfileService(profilePort));
+  }
+
+  private static CanonicalWriteService service(
+      WorkflowEventPort workflowPort,
+      CanonicalWriteAttemptPort attemptPort) {
+    return new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        new WorkflowEventService(workflowPort),
+        CanonicalWriteTransactionBoundary.immediate(),
+        null,
+        attemptPort);
+  }
+
+  private static CanonicalWriteService service(
+      WorkflowEventPort workflowPort,
+      CanonicalWriteAttemptPort attemptPort,
+      CanonicalWriteTransactionBoundary transactionBoundary) {
+    return new CanonicalWriteService(
+        new CanonicalWriteGate(),
+        new WorkflowEventService(workflowPort),
+        transactionBoundary,
+        null,
+        attemptPort);
   }
 
   private static CanonicalWriteCommand.Builder commandBuilder() {
@@ -470,6 +604,32 @@ class CanonicalWriteServiceTest {
   private static final class DeliberateProfileWriteFailure extends RuntimeException {
     private DeliberateProfileWriteFailure(String message) {
       super(message);
+    }
+  }
+
+  private static final class RecordingCanonicalWriteAttemptPort
+      implements CanonicalWriteAttemptPort {
+    private final List<CanonicalWriteAttemptAppendCommand> commands = new ArrayList<>();
+    private CanonicalWriteAttemptId lastAppendedId;
+    private CanonicalWriteAttemptIdempotencyRecord idempotencyRecord;
+    private int findCalls;
+
+    @Override
+    public Optional<CanonicalWriteAttemptIdempotencyRecord> findByIdempotencyKey(
+        UUID organizationId,
+        WorkflowIdempotencyKey idempotencyKey) {
+      findCalls++;
+      return Optional.ofNullable(idempotencyRecord);
+    }
+
+    @Override
+    public CanonicalWriteAttemptAppendResult append(
+        CanonicalWriteAttemptAppendCommand command) {
+      commands.add(command);
+      lastAppendedId = new CanonicalWriteAttemptId(
+          UUID.nameUUIDFromBytes(
+              ("test-cwa:" + commands.size()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+      return new CanonicalWriteAttemptAppendResult(lastAppendedId);
     }
   }
 }

@@ -12,11 +12,16 @@ import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteGate;
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.ClaimInput;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptIdempotencyRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class CanonicalWriteService {
 
@@ -29,12 +34,13 @@ public final class CanonicalWriteService {
   private final WorkflowEventService workflowEventService;
   private final CanonicalWriteTransactionBoundary transactionBoundary;
   private final CandidateProfileService candidateProfileService;
+  private final CanonicalWriteAttemptPort canonicalWriteAttemptPort;
 
   public CanonicalWriteService(
       CanonicalWriteGate gate,
       WorkflowEventService workflowEventService,
       CanonicalWriteTransactionBoundary transactionBoundary) {
-    this(gate, workflowEventService, transactionBoundary, null);
+    this(gate, workflowEventService, transactionBoundary, null, null);
   }
 
   public CanonicalWriteService(
@@ -42,12 +48,22 @@ public final class CanonicalWriteService {
       WorkflowEventService workflowEventService,
       CanonicalWriteTransactionBoundary transactionBoundary,
       CandidateProfileService candidateProfileService) {
+    this(gate, workflowEventService, transactionBoundary, candidateProfileService, null);
+  }
+
+  public CanonicalWriteService(
+      CanonicalWriteGate gate,
+      WorkflowEventService workflowEventService,
+      CanonicalWriteTransactionBoundary transactionBoundary,
+      CandidateProfileService candidateProfileService,
+      CanonicalWriteAttemptPort canonicalWriteAttemptPort) {
     this.gate = Objects.requireNonNull(gate, "gate must not be null");
     this.workflowEventService = Objects.requireNonNull(workflowEventService,
         "workflowEventService must not be null");
     this.transactionBoundary = Objects.requireNonNull(transactionBoundary,
         "transactionBoundary must not be null");
     this.candidateProfileService = candidateProfileService;
+    this.canonicalWriteAttemptPort = canonicalWriteAttemptPort;
   }
 
   public CanonicalWriteResult attempt(CanonicalWriteCommand command) {
@@ -61,22 +77,33 @@ public final class CanonicalWriteService {
         command.reviewEvidence().isExplicitApprovalFor(command.targetRiskTier())));
 
     if (decision.type() != CanonicalWriteDecisionType.ALLOW) {
-      return stopped(decision);
+      CanonicalWriteAttemptId attemptId = persistAttempt(
+          attemptCommand(command, decision, null));
+      return stopped(decision, attemptId);
     }
 
     if (!command.reviewEvidence().isApproved()) {
-      return stopped(new CanonicalWriteDecision(
+      CanonicalWriteDecision reviewDecision = new CanonicalWriteDecision(
           CanonicalWriteDecisionType.REQUIRE_REVIEW,
-          List.of("review_event_must_approve_canonical_boundary")));
+          List.of("review_event_must_approve_canonical_boundary"));
+      CanonicalWriteAttemptId attemptId = persistAttempt(
+          attemptCommand(command, reviewDecision, null));
+      return stopped(reviewDecision, attemptId);
     }
 
-    return transactionBoundary.run(() -> allowedAttemptWithinBoundary(command, decision));
+    CanonicalWriteAttemptAppendCommand attemptCommand =
+        attemptCommand(command, decision, null);
+    return transactionBoundary.run(() ->
+        allowedAttemptWithinBoundary(command, decision, attemptCommand));
   }
 
   private CanonicalWriteResult allowedAttemptWithinBoundary(
       CanonicalWriteCommand command,
-      CanonicalWriteDecision decision) {
+      CanonicalWriteDecision decision,
+      CanonicalWriteAttemptAppendCommand attemptCommand) {
     WorkflowEventAppendResult auditResult = workflowEventService.append(auditCommand(command));
+    CanonicalWriteAttemptId attemptId = persistAttemptInTransaction(
+        attemptCommand.withWorkflowEventId(auditResult.workflowEventId()));
     if (command.candidateProfileWriteTarget() != null) {
       if (candidateProfileService == null) {
         throw new IllegalStateException(
@@ -90,14 +117,16 @@ public final class CanonicalWriteService {
           true,
           auditResult.workflowEventId(),
           true,
-          CANDIDATE_PROFILE_FIELD_PERSISTED);
+          CANDIDATE_PROFILE_FIELD_PERSISTED,
+          attemptId);
     }
     return new CanonicalWriteResult(
         decision,
         true,
         auditResult.workflowEventId(),
         false,
-        CANONICAL_PERSISTENCE_DEFERRED);
+        CANONICAL_PERSISTENCE_DEFERRED,
+        attemptId);
   }
 
   private static UpsertCandidateProfileFieldRequest profileFieldRequest(
@@ -162,13 +191,70 @@ public final class CanonicalWriteService {
     return new CandidateProfileVersion(command.targetEntityVersion());
   }
 
-  private static CanonicalWriteResult stopped(CanonicalWriteDecision decision) {
+  private static CanonicalWriteResult stopped(
+      CanonicalWriteDecision decision,
+      CanonicalWriteAttemptId attemptId) {
     return new CanonicalWriteResult(
         decision,
         false,
         null,
         false,
-        "not_attempted_gate_did_not_allow");
+        "not_attempted_gate_did_not_allow",
+        attemptId);
+  }
+
+  private CanonicalWriteAttemptId persistAttempt(
+      CanonicalWriteAttemptAppendCommand attemptCommand) {
+    if (canonicalWriteAttemptPort == null) {
+      return null;
+    }
+    Optional<CanonicalWriteAttemptIdempotencyRecord> existing =
+        canonicalWriteAttemptPort.findByIdempotencyKey(
+            attemptCommand.organizationId(),
+            attemptCommand.idempotencyKey());
+    if (existing.isPresent()) {
+      return existing.get().attemptId();
+    }
+    return canonicalWriteAttemptPort.append(attemptCommand).attemptId();
+  }
+
+  private CanonicalWriteAttemptId persistAttemptInTransaction(
+      CanonicalWriteAttemptAppendCommand attemptCommand) {
+    if (canonicalWriteAttemptPort == null) {
+      return null;
+    }
+    Optional<CanonicalWriteAttemptIdempotencyRecord> existing =
+        canonicalWriteAttemptPort.findByIdempotencyKey(
+            attemptCommand.organizationId(),
+            attemptCommand.idempotencyKey());
+    if (existing.isPresent()) {
+      return existing.get().attemptId();
+    }
+    return canonicalWriteAttemptPort.append(attemptCommand).attemptId();
+  }
+
+  private static CanonicalWriteAttemptAppendCommand attemptCommand(
+      CanonicalWriteCommand command,
+      CanonicalWriteDecision decision,
+      WorkflowEventAppendResult workflowEventResult) {
+    return new CanonicalWriteAttemptAppendCommand(
+        command.organizationId(),
+        command.targetEntity(),
+        command.targetEntityVersion(),
+        command.targetFieldPath(),
+        command.proposedValueRef(),
+        command.sourceSpanRef(),
+        command.claimId(),
+        command.reviewEvidence().reviewEventId(),
+        decision.type().wireValue(),
+        decision.reasons(),
+        command.actor(),
+        command.aiTaskRunId(),
+        command.idempotencyKey(),
+        command.correlationId(),
+        command.causationId(),
+        workflowEventResult != null ? workflowEventResult.workflowEventId() : null,
+        command.occurredAt());
   }
 
   private static ClaimInput claimWithReviewBulkFlag(CanonicalWriteCommand command) {

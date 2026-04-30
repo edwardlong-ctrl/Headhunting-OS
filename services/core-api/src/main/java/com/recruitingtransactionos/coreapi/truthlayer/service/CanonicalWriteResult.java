@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.truthlayer.service;
 
 import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteDecision;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
 import java.util.Objects;
 
@@ -9,7 +10,8 @@ public record CanonicalWriteResult(
     boolean workflowEventAppended,
     WorkflowEventId workflowEventId,
     boolean canonicalPersistencePerformed,
-    String canonicalPersistenceStatus) {
+    String canonicalPersistenceStatus,
+    CanonicalWriteAttemptId canonicalWriteAttemptId) {
 
   public CanonicalWriteResult {
     Objects.requireNonNull(decision, "decision must not be null");

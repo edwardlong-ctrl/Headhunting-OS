@@ -14,6 +14,7 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVers
 import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcCanonicalWriteAttemptPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
@@ -376,15 +377,17 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
   @Test
   void fullFlywayMigrationStillAppliesBeforeCanonicalWriteBoundaryTest()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(10);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(11);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
   }
 
   private static CanonicalWriteService service() {
     return new CanonicalWriteService(
         new CanonicalWriteGate(),
         workflowEventService(),
-        boundary());
+        boundary(),
+        null,
+        new JdbcCanonicalWriteAttemptPort(dataSource));
   }
 
   private static CanonicalWriteService serviceWithCandidateProfile() {
@@ -392,7 +395,104 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
         new CanonicalWriteGate(),
         workflowEventService(),
         boundary(),
-        candidateProfileService());
+        candidateProfileService(),
+        new JdbcCanonicalWriteAttemptPort(dataSource));
+  }
+
+  @Test
+  void blockedAttemptPersistsAuditRecordButNotWorkflowEvent() throws SQLException {
+    UUID organizationId = UUID.fromString("00000000-0000-0000-0000-000000080999");
+    UUID userId = UUID.fromString("00000000-0000-0000-0000-000000081000");
+    UUID candidateId = UUID.fromString("00000000-0000-0000-0000-000000081001");
+    UUID reviewEventId = UUID.fromString("00000000-0000-0000-0000-000000081002");
+    insertOrganizationUserAndReview(organizationId, userId, candidateId, reviewEventId);
+
+    CanonicalWriteResult result = service().attempt(commandBuilder(
+        organizationId, userId, candidateId, reviewEventId)
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false))
+        .build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(result.workflowEventAppended()).isFalse();
+    assertThat(result.workflowEventId()).isNull();
+    assertThat(result.canonicalWriteAttemptId()).isNotNull();
+    assertThat(countRows("governance.canonical_write_attempt", organizationId)).isEqualTo(1);
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+  }
+
+  @Test
+  void allowedAttemptPersistsAttemptRecordInSameTransactionAsWorkflowEvent()
+      throws SQLException {
+    UUID organizationId = UUID.fromString("00000000-0000-0000-0000-000000081003");
+    UUID userId = UUID.fromString("00000000-0000-0000-0000-000000081004");
+    UUID candidateId = UUID.fromString("00000000-0000-0000-0000-000000081005");
+    UUID reviewEventId = UUID.fromString("00000000-0000-0000-0000-000000081006");
+    insertOrganizationUserAndReview(organizationId, userId, candidateId, reviewEventId);
+
+    CanonicalWriteResult result = service().attempt(
+        commandBuilder(organizationId, userId, candidateId, reviewEventId).build());
+
+    assertThat(result.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(result.workflowEventAppended()).isTrue();
+    assertThat(result.workflowEventId()).isNotNull();
+    assertThat(result.canonicalWriteAttemptId()).isNotNull();
+    assertThat(countRows("governance.canonical_write_attempt", organizationId)).isEqualTo(1);
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void repeatedBlockedAttemptIsIdempotentForAttemptRecord() throws SQLException {
+    UUID organizationId = UUID.fromString("00000000-0000-0000-0000-000000081007");
+    UUID userId = UUID.fromString("00000000-0000-0000-0000-000000081008");
+    UUID candidateId = UUID.fromString("00000000-0000-0000-0000-000000081009");
+    UUID reviewEventId = UUID.fromString("00000000-0000-0000-0000-000000081010");
+    insertOrganizationUserAndReview(organizationId, userId, candidateId, reviewEventId);
+
+    CanonicalWriteCommand.Builder builder = commandBuilder(
+        organizationId, userId, candidateId, reviewEventId)
+        .claim(new ClaimInput(
+            ClaimType.INFERENCE,
+            AssertionStrength.IMPLIED,
+            VerificationStatus.SYSTEM_INFERENCE,
+            ClientShareability.INTERNAL_ONLY,
+            false));
+
+    CanonicalWriteResult first = service().attempt(builder.build());
+    CanonicalWriteResult second = service().attempt(builder.build());
+
+    assertThat(first.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(second.decision().type()).isEqualTo(CanonicalWriteDecisionType.BLOCK);
+    assertThat(first.canonicalWriteAttemptId()).isNotNull();
+    assertThat(first.canonicalWriteAttemptId()).isEqualTo(second.canonicalWriteAttemptId());
+    assertThat(countRows("governance.canonical_write_attempt", organizationId)).isEqualTo(1);
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+  }
+
+  @Test
+  void repeatedAllowedAttemptIsIdempotentForAttemptRecord() throws SQLException {
+    UUID organizationId = UUID.fromString("00000000-0000-0000-0000-000000081011");
+    UUID userId = UUID.fromString("00000000-0000-0000-0000-000000081012");
+    UUID candidateId = UUID.fromString("00000000-0000-0000-0000-000000081013");
+    UUID reviewEventId = UUID.fromString("00000000-0000-0000-0000-000000081014");
+    insertOrganizationUserAndReview(organizationId, userId, candidateId, reviewEventId);
+
+    CanonicalWriteCommand command = commandBuilder(
+        organizationId, userId, candidateId, reviewEventId).build();
+
+    CanonicalWriteResult first = service().attempt(command);
+    CanonicalWriteResult second = service().attempt(command);
+
+    assertThat(first.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(second.decision().type()).isEqualTo(CanonicalWriteDecisionType.ALLOW);
+    assertThat(first.canonicalWriteAttemptId()).isNotNull();
+    assertThat(second.canonicalWriteAttemptId()).isEqualTo(first.canonicalWriteAttemptId());
+    assertThat(countRows("governance.canonical_write_attempt", organizationId)).isEqualTo(1);
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
   }
 
   private static WorkflowEventService workflowEventService() {

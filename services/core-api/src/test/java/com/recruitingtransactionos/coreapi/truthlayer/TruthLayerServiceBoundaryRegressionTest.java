@@ -286,6 +286,7 @@ class TruthLayerServiceBoundaryRegressionTest {
         .containsExactly(
             "governance.ai_task_definition",
             "governance.ai_task_run",
+            "governance.canonical_write_attempt",
             "governance.claim_ledger_item",
             "governance.review_event",
             "workflow.workflow_event");
