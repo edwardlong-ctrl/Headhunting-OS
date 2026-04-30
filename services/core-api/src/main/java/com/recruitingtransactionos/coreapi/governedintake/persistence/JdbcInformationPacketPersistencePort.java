@@ -96,7 +96,11 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
         source_item.received_at,
         source_item.created_at,
         source_item.metadata_json::text AS metadata_json,
-        source_item.status
+        source_item.status,
+        source_item.mime_type,
+        source_item.file_size_bytes,
+        source_item.original_filename,
+        source_item.scan_status
       FROM intake.information_packet_source_item packet_source
       JOIN intake.source_item source_item
         ON source_item.organization_id = packet_source.organization_id

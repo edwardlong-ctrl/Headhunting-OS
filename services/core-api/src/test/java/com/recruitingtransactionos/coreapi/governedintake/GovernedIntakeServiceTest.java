@@ -286,7 +286,11 @@ class GovernedIntakeServiceTest {
           command.receivedAt(),
           command.receivedAt(),
           command.metadataJson(),
-          command.status());
+          command.status(),
+          command.mimeType(),
+          command.fileSizeBytes(),
+          command.originalFilename(),
+          command.scanStatus());
       sourceItems.put(sourceItem.sourceItemId(), sourceItem);
       return sourceItem;
     }
@@ -295,6 +299,14 @@ class GovernedIntakeServiceTest {
     public Optional<SourceItem> findById(UUID organizationId, SourceItemId sourceItemId) {
       return Optional.ofNullable(sourceItems.get(sourceItemId))
           .filter(sourceItem -> sourceItem.organizationId().equals(organizationId));
+    }
+
+    @Override
+    public Optional<SourceItem> findByContentHash(UUID organizationId, String contentHash) {
+      return sourceItems.values().stream()
+          .filter(sourceItem -> sourceItem.organizationId().equals(organizationId)
+              && contentHash.equals(sourceItem.contentHash()))
+          .findFirst();
     }
   }
 

@@ -1,5 +1,21 @@
 # Known Gaps
 
+## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
+
+- Task 20 adds V13 migration with `mime_type`, `file_size_bytes`, `original_filename`, `scan_status` columns and `uq_source_item_org_content_hash` partial unique index on `intake.source_item`.
+- `DocumentStore` interface, `DocumentStoreKey`, and `InMemoryDocumentStore` provide an object storage abstraction with S3-compatible key convention `{org_id}/{source_item_id}/{hash[:16]}/{filename}`.
+- `VirusScanPort` and `NoOpVirusScanPort` are placeholder contracts only — no real virus scanning is implemented.
+- `DocumentUploadService` validates MIME type against a fixed whitelist (PDF/DOCX 25MB, images 10MB, text 5MB), computes SHA-256 content hashes, deduplicates by (organization_id, content_hash), and idempotently returns existing SourceItem on duplicate.
+- `ConsultantDocumentController` provides `POST /api/consultant/documents/upload` (multipart) and `GET /api/consultant/documents/{sourceItemId}/download` (proxy download). Download uses proxy streaming (not presigned URLs) and validates organization scope.
+- No real virus scanning exists — `scan_status` defaults to `not_scanned` and `NoOpVirusScanPort` always returns CLEAN.
+- No AI extraction or text parsing from uploaded documents (deferred to Task 22).
+- No Client or Candidate upload endpoints (deferred to portal tasks 31/32).
+- No presigned URL download (proxy-only for v1).
+- No `MinioDocumentStore` or `FileSystemDocumentStore` production implementations exist — only `InMemoryDocumentStore` for tests.
+- V2 `recruiting.source_item` and V4 `intake.source_item` tables remain separate (no merge).
+- No `FieldAccessPolicy` entries for DOCUMENT resource type or UPLOAD action exist.
+- No MinIO instance is configured in `docker-compose.yml` for production use.
+
 ## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Matching Engine Deferred
 
 - Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.

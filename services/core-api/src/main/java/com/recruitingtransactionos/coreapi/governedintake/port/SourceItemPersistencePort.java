@@ -11,4 +11,6 @@ public interface SourceItemPersistencePort {
   SourceItem append(SourceItemRegistrationCommand command);
 
   Optional<SourceItem> findById(UUID organizationId, SourceItemId sourceItemId);
+
+  Optional<SourceItem> findByContentHash(UUID organizationId, String contentHash);
 }

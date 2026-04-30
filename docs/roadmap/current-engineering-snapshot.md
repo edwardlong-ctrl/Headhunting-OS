@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `871dd66`
-- latest merged commit: `871dd66` Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints (pagination infrastructure, 6 consultant response DTOs, 3 read-only controllers, facade/mapper layer, FieldAccessPolicy extension, leakage/denial tests)
-- current validation snapshot: full backend Maven suite reached 595 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
-- merge status: main contains Task 18A + Task 16-Hardening + Task 20-preflight; next recommended task is Task 18B (Client/Consultant product API, write endpoints, and docs closure).
+- current main HEAD: `1a560a4`
+- latest merged commit: Task 20: Document Storage and SourceItem v1 (V13 migration, DocumentStore interface, upload/download controller, SHA-256 dedup, MIME validation)
+- current validation snapshot: full backend Maven suite reached 622+ tests (18B: 622, 20: 614 pre-18B base — combined count pending build validation), 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
+- merge status: main contains Task 18A + Task 18B + Task 19-preflight + Task 20 + Task 16-Hardening + Task 20-preflight; next recommended tasks are Task 19A (auth implementation) and Task 21 (Real AI Task Runner).
 
 ## Completed Major Tasks
 
@@ -49,6 +49,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 16-Hardening: DB Org-Scope Composite FK Hardening ✅ V12 migration (7 UNIQUE constraints + 19 composite FKs + 19 dropped simple FKs), 8 cross-org negative integration tests
 - Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
 - Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints ✅ generic pagination (PagedQuery/PagedResult), 6 consultant response DTOs (company/job/shortlist summary+detail), 3 consultant read-only controllers, ConsultantApiQueryService facade, ConsultantCompany/Job/Shortlist response mappers, ResourceType.SHORTLIST, FieldAccessPolicy consultant allow rules, ApiSafeResponseBody extension, ApiBoundaryContractRules allowlist expansion, findAllByOrganizationId on Company/Job/Shortlist ports+JDBC+services, leakage and denial tests for all 6 endpoints
+- Task 20: Document Storage and SourceItem v1 ✅ V13 migration (mime_type, file_size_bytes, original_filename, scan_status + unique constraint on intake.source_item), DocumentStore interface + DocumentStoreKey + InMemoryDocumentStore, VirusScanPort + NoOpVirusScanPort, DocumentUploadCommand + DocumentUploadResult, DocumentUploadService (MIME validation, size limits, SHA-256 dedup, idempotent), ConsultantDocumentController (POST upload + GET download), DocumentRetrievalResult, SourceItem record enhancement (4 new fields), JdbcSourceItemPersistencePort/JdbcInformationPacketPersistencePort column updates, API boundary leakage regression updated. No real virus scan (NoOp placeholder), no AI extraction, no client/candidate upload, no presigned URLs, CanonicalWriteGate bypass prevented.
 
 ## Current Truth/Kernel Capabilities
 

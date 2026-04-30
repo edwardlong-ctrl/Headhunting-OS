@@ -261,7 +261,11 @@ class IntakeExtractionServiceTest {
         NOW,
         NOW,
         "{\"rawCandidatePayload\":\"Jane Candidate expected salary 900k\"}",
-        SourceItemStatus.REGISTERED);
+        SourceItemStatus.REGISTERED,
+        null,
+        null,
+        null,
+        null);
   }
 
   private static String fieldValue(

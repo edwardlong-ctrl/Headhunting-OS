@@ -505,9 +505,9 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationAddsTask12bPrivacyPersistenceTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(12);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(13);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
     assertThat(tableExists("privacy", "consent_record")).isTrue();
     assertThat(tableExists("privacy", "unlock_decision")).isTrue();
     assertThat(tableExists("privacy", "disclosure_record")).isTrue();

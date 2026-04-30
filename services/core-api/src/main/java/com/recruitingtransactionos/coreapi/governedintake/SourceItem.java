@@ -21,7 +21,11 @@ public record SourceItem(
     Instant receivedAt,
     Instant createdAt,
     String metadataJson,
-    SourceItemStatus status) {
+    SourceItemStatus status,
+    String mimeType,
+    Long fileSizeBytes,
+    String originalFilename,
+    String scanStatus) {
 
   public SourceItem {
     Objects.requireNonNull(sourceItemId, "sourceItemId must not be null");
@@ -39,5 +43,8 @@ public record SourceItem(
     Objects.requireNonNull(createdAt, "createdAt must not be null");
     metadataJson = GovernedIntakeGuards.metadataJson(metadataJson);
     Objects.requireNonNull(status, "status must not be null");
+    mimeType = GovernedIntakeGuards.optionalNonBlank(mimeType, "mimeType");
+    originalFilename = GovernedIntakeGuards.optionalNonBlank(originalFilename, "originalFilename");
+    scanStatus = GovernedIntakeGuards.optionalNonBlank(scanStatus, "scanStatus");
   }
 }

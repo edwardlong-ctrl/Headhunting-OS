@@ -38,9 +38,13 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
         uploaded_by_actor_id,
         received_at,
         metadata_json,
-        status
+        status,
+        mime_type,
+        file_size_bytes,
+        original_filename,
+        scan_status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::governance.actor_role, ?, ?, ?::jsonb, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::governance.actor_role, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
       """;
 
   private static final String FIND_BY_ID_SQL = """
@@ -60,10 +64,41 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
         received_at,
         created_at,
         metadata_json::text AS metadata_json,
-        status
+        status,
+        mime_type,
+        file_size_bytes,
+        original_filename,
+        scan_status
       FROM intake.source_item
       WHERE organization_id = ?
         AND source_item_id = ?
+      """;
+
+  private static final String FIND_BY_CONTENT_HASH_SQL = """
+      SELECT
+        source_item_id,
+        organization_id,
+        source_type,
+        origin,
+        title,
+        content_hash,
+        external_ref,
+        storage_ref,
+        raw_ref,
+        language,
+        uploaded_by_actor_type::text AS uploaded_by_actor_type,
+        uploaded_by_actor_id,
+        received_at,
+        created_at,
+        metadata_json::text AS metadata_json,
+        status,
+        mime_type,
+        file_size_bytes,
+        original_filename,
+        scan_status
+      FROM intake.source_item
+      WHERE organization_id = ?
+        AND content_hash = ?
       """;
 
   private final DataSource dataSource;
@@ -75,7 +110,9 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
   @Override
   public SourceItem append(SourceItemRegistrationCommand command) {
     Objects.requireNonNull(command, "command must not be null");
-    SourceItemId sourceItemId = new SourceItemId(UUID.randomUUID());
+    SourceItemId sourceItemId = command.sourceItemId() != null
+        ? command.sourceItemId()
+        : new SourceItemId(UUID.randomUUID());
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       bindAppend(statement, sourceItemId, command);
@@ -106,6 +143,25 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
     }
   }
 
+  @Override
+  public Optional<SourceItem> findByContentHash(UUID organizationId, String contentHash) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(contentHash, "contentHash must not be null");
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(FIND_BY_CONTENT_HASH_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, contentHash);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(toSourceItem(resultSet));
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find source item by content hash", exception);
+    }
+  }
+
   static SourceItem toSourceItem(ResultSet resultSet) throws SQLException {
     return new SourceItem(
         new SourceItemId(resultSet.getObject("source_item_id", UUID.class)),
@@ -123,7 +179,16 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
         resultSet.getObject("received_at", OffsetDateTime.class).toInstant(),
         resultSet.getObject("created_at", OffsetDateTime.class).toInstant(),
         resultSet.getString("metadata_json"),
-        SourceItemStatus.fromWireValue(resultSet.getString("status")));
+        SourceItemStatus.fromWireValue(resultSet.getString("status")),
+        resultSet.getString("mime_type"),
+        nullableLong(resultSet, "file_size_bytes"),
+        resultSet.getString("original_filename"),
+        resultSet.getString("scan_status"));
+  }
+
+  private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {
+    long value = resultSet.getLong(column);
+    return resultSet.wasNull() ? null : value;
   }
 
   private static void bindAppend(
@@ -145,6 +210,22 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
     statement.setObject(13, OffsetDateTime.ofInstant(command.receivedAt(), ZoneOffset.UTC));
     statement.setString(14, command.metadataJson());
     statement.setString(15, command.status().wireValue());
+    setNullableString(statement, 16, command.mimeType());
+    setNullableLong(statement, 17, command.fileSizeBytes());
+    setNullableString(statement, 18, command.originalFilename());
+    String scanStatus = command.scanStatus();
+    statement.setString(19, scanStatus != null ? scanStatus : "not_scanned");
+  }
+
+  private static void setNullableLong(
+      PreparedStatement statement,
+      int index,
+      Long value) throws SQLException {
+    if (value == null) {
+      statement.setNull(index, Types.BIGINT);
+      return;
+    }
+    statement.setLong(index, value);
   }
 
   private static ActorRole actorRole(String wireValue) {

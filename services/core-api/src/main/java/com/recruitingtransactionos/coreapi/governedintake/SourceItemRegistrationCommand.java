@@ -19,7 +19,12 @@ public record SourceItemRegistrationCommand(
     UUID uploadedByActorId,
     Instant receivedAt,
     String metadataJson,
-    SourceItemStatus status) {
+    SourceItemStatus status,
+    String mimeType,
+    Long fileSizeBytes,
+    String originalFilename,
+    String scanStatus,
+    SourceItemId sourceItemId) {
 
   public SourceItemRegistrationCommand {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
@@ -35,6 +40,9 @@ public record SourceItemRegistrationCommand(
     Objects.requireNonNull(receivedAt, "receivedAt must not be null");
     metadataJson = GovernedIntakeGuards.metadataJson(metadataJson);
     Objects.requireNonNull(status, "status must not be null");
+    mimeType = GovernedIntakeGuards.optionalNonBlank(mimeType, "mimeType");
+    originalFilename = GovernedIntakeGuards.optionalNonBlank(originalFilename, "originalFilename");
+    scanStatus = GovernedIntakeGuards.optionalNonBlank(scanStatus, "scanStatus");
   }
 
   public static Builder builder() {
@@ -56,6 +64,11 @@ public record SourceItemRegistrationCommand(
     private Instant receivedAt;
     private String metadataJson;
     private SourceItemStatus status;
+    private String mimeType;
+    private Long fileSizeBytes;
+    private String originalFilename;
+    private String scanStatus;
+    private SourceItemId sourceItemId;
 
     private Builder() {
     }
@@ -130,6 +143,31 @@ public record SourceItemRegistrationCommand(
       return this;
     }
 
+    public Builder mimeType(String mimeType) {
+      this.mimeType = mimeType;
+      return this;
+    }
+
+    public Builder fileSizeBytes(Long fileSizeBytes) {
+      this.fileSizeBytes = fileSizeBytes;
+      return this;
+    }
+
+    public Builder originalFilename(String originalFilename) {
+      this.originalFilename = originalFilename;
+      return this;
+    }
+
+    public Builder scanStatus(String scanStatus) {
+      this.scanStatus = scanStatus;
+      return this;
+    }
+
+    public Builder sourceItemId(SourceItemId sourceItemId) {
+      this.sourceItemId = sourceItemId;
+      return this;
+    }
+
     public SourceItemRegistrationCommand build() {
       return new SourceItemRegistrationCommand(
           organizationId,
@@ -145,7 +183,12 @@ public record SourceItemRegistrationCommand(
           uploadedByActorId,
           receivedAt,
           metadataJson,
-          status);
+          status,
+          mimeType,
+          fileSizeBytes,
+          originalFilename,
+          scanStatus,
+          sourceItemId);
     }
   }
 }
