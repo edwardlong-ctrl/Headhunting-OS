@@ -74,8 +74,8 @@ class CandidateProfilePostgresPersistenceIntegrationTest {
 
   @Test
   void flywayMigrationAppliesAndReusesExistingCandidateProfileTable() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(15);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(17);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17");
     assertThat(tableExists("recruiting", "candidate_profile")).isTrue();
     assertThat(columnExists("recruiting", "candidate_profile", "field_status_map")).isTrue();
     assertThat(columnExists("recruiting", "candidate_profile", "metadata")).isTrue();

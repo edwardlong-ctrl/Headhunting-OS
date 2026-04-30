@@ -100,6 +100,22 @@ class JwtAuthenticationFilterTest {
     assertUnauthorized(response);
   }
 
+  @Test
+  void wrongIssuerFailsClosedWith401() throws Exception {
+    JwtAuthenticationFilter filter = filterWith(activeSessionPort(true, true, principal()));
+    JwtService wrongIssuer = new JwtService(
+        "0123456789abcdef0123456789abcdef",
+        "wrong-issuer",
+        1800,
+        604800);
+
+    MockHttpServletResponse response = perform(
+        filter,
+        "Bearer " + wrongIssuer.issueAccessToken(principal(), NOW));
+
+    assertUnauthorized(response);
+  }
+
   private static IdentityAuthenticationPort activeSessionPort(
       boolean activeAccount,
       boolean activeRole,

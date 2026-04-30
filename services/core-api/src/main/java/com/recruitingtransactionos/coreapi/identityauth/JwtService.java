@@ -65,6 +65,7 @@ public final class JwtService {
   public ParsedAccessToken parseAccessToken(String token) {
     Objects.requireNonNull(token, "token must not be null");
     Claims claims = Jwts.parser()
+        .requireIssuer(issuer)
         .verifyWith(signingKey())
         .build()
         .parseSignedClaims(token)

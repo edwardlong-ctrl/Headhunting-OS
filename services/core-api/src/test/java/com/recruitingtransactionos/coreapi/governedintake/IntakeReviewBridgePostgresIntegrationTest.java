@@ -77,8 +77,8 @@ class IntakeReviewBridgePostgresIntegrationTest {
 
   @Test
   void flywaySchemaAlreadySupportsReviewBridgeLineageWithoutNewMigration() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(15);
-    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15");
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(17);
+    assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17");
     assertThat(columnExists("governance", "review_event", "claim_ledger_item_id")).isTrue();
     assertThat(columnExists("governance", "review_event", "source_span_ref")).isTrue();
   }

@@ -76,14 +76,14 @@ class DocumentUploadServiceTest {
     assertThat(result.informationPacketId()).isNotNull();
     assertThat(result.contentHash()).startsWith("sha256:");
     assertThat(result.storageRef()).isNotNull();
-    assertThat(result.scanStatus()).isEqualTo("not_scanned");
+    assertThat(result.scanStatus()).isEqualTo("clean");
 
     SourceItem saved = sourceItemPort.findById(ORG_A, result.sourceItemId()).orElseThrow();
     assertThat(saved.mimeType()).isEqualTo("application/pdf");
     assertThat(saved.fileSizeBytes()).isEqualTo((long) FILE_CONTENT.length);
     assertThat(saved.originalFilename()).isEqualTo("cv.pdf");
     assertThat(saved.status()).isEqualTo(SourceItemStatus.REGISTERED);
-    assertThat(saved.scanStatus()).isEqualTo("not_scanned");
+    assertThat(saved.scanStatus()).isEqualTo("clean");
 
     assertThat(documentStore.exists(new DocumentStoreKey(
         ORG_A, result.sourceItemId().value(),
@@ -169,6 +169,60 @@ class DocumentUploadServiceTest {
     SourceItem storedItem = failingSourceItemPort.allSourceItems().get(0);
     assertThat(failingDocumentStore.exists(
         DocumentStoreKey.fromStorageRef(storedItem.storageRef()))).isFalse();
+  }
+
+  @Test
+  void infectedUploadIsRejectedBeforeStorageOrPersistence() {
+    DocumentUploadService infectedUploadService = new DocumentUploadService(
+        sourceItemPort,
+        governedIntakeService,
+        documentStore,
+        content -> VirusScanPort.ScanResult.INFECTED);
+
+    assertThatThrownBy(() -> infectedUploadService.upload(
+        uploadCommand(ORG_A).build(),
+        new ByteArrayInputStream(FILE_CONTENT)))
+        .isInstanceOf(DocumentUploadException.class)
+        .hasMessage("Uploaded file failed virus scan");
+
+    assertThat(sourceItemPort.allSourceItems()).isEmpty();
+  }
+
+  @Test
+  void scanErrorIsRejectedBeforeStorageOrPersistence() {
+    DocumentUploadService scanErrorUploadService = new DocumentUploadService(
+        sourceItemPort,
+        governedIntakeService,
+        documentStore,
+        content -> VirusScanPort.ScanResult.ERROR);
+
+    assertThatThrownBy(() -> scanErrorUploadService.upload(
+        uploadCommand(ORG_A).build(),
+        new ByteArrayInputStream(FILE_CONTENT)))
+        .isInstanceOf(DocumentUploadException.class)
+        .hasMessage("Virus scan failed");
+
+    assertThat(sourceItemPort.allSourceItems()).isEmpty();
+  }
+
+  @Test
+  void uploadRequiresAuthenticatedActorIdForWorkflowAudit() {
+    DocumentUploadCommand command = new DocumentUploadCommand.Builder(
+        ORG_A,
+        SourceItemType.CV,
+        SourceItemOrigin.CONSULTANT_UPLOAD,
+        ActorRole.CONSULTANT)
+        .title("Candidate CV")
+        .originalFilename("cv.pdf")
+        .mimeType("application/pdf")
+        .contentLength(FILE_CONTENT.length)
+        .build();
+
+    assertThatThrownBy(() -> uploadService.upload(
+        command,
+        new ByteArrayInputStream(FILE_CONTENT)))
+        .isInstanceOf(DocumentUploadException.class)
+        .hasMessage("Document upload requires an authenticated actor id");
   }
 
   @Test

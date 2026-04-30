@@ -85,6 +85,8 @@ class WorkflowActionPolicyTest {
       WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED,
       WorkflowActionCode.PRIOR_CONTACT_CLAIM_CREATED,
       WorkflowActionCode.PRIOR_APPLICATION_CLAIM_CREATED,
+      WorkflowActionCode.SOURCE_ITEM_REGISTERED,
+      WorkflowActionCode.INFORMATION_PACKET_CREATED,
       WorkflowActionCode.OFFER_ACCEPTED,
       WorkflowActionCode.CANDIDATE_ONBOARDED,
       WorkflowActionCode.INVOICE_READY,

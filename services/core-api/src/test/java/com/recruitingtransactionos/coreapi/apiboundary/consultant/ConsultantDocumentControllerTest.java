@@ -65,7 +65,7 @@ class ConsultantDocumentControllerTest {
         UUID.fromString("00000000-0000-0000-0000-000000200034"),
         "sha256:test",
         ORGANIZATION_ID + "/" + SOURCE_ITEM_ID + "/sha256_test/cv.pdf",
-        "not_scanned"));
+        "clean"));
 
     MockMultipartFile file = new MockMultipartFile(
         "file",
@@ -81,7 +81,7 @@ class ConsultantDocumentControllerTest {
             .with(authentication(auth(PortalRole.CONSULTANT))))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.data.sourceItemId").value(SOURCE_ITEM_ID.toString()))
-        .andExpect(jsonPath("$.data.scanStatus").value("not_scanned"));
+        .andExpect(jsonPath("$.data.scanStatus").value("clean"));
 
     verify(documentUploadService).upload(any(), any());
     verify(documentUploadService).upload(

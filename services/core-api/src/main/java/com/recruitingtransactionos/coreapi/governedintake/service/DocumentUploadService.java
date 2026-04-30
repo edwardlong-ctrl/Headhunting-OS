@@ -1,5 +1,7 @@
 package com.recruitingtransactionos.coreapi.governedintake.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentRetrievalResult;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStoreKey;
@@ -9,6 +11,7 @@ import com.recruitingtransactionos.coreapi.governedintake.AttachSourceItemToPack
 import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadCommand;
 import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadResult;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketCreateCommand;
+import com.recruitingtransactionos.coreapi.governedintake.InformationPacket;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketStatus;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketType;
 import com.recruitingtransactionos.coreapi.governedintake.IntendedEntityType;
@@ -16,7 +19,19 @@ import com.recruitingtransactionos.coreapi.governedintake.SourceItem;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemId;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemRegistrationCommand;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
 import com.recruitingtransactionos.coreapi.governedintake.port.SourceItemPersistencePort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempotencyRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -31,6 +46,7 @@ import java.util.UUID;
 
 public final class DocumentUploadService {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Map<String, Long> MAX_SIZE_BY_MIME_CATEGORY = Map.of(
       "application/pdf", 25L * 1024 * 1024,
       "application/msword", 25L * 1024 * 1024,
@@ -47,18 +63,40 @@ public final class DocumentUploadService {
   private final GovernedIntakeService governedIntakeService;
   private final DocumentStore documentStore;
   private final VirusScanPort virusScanPort;
+  private final CanonicalWriteTransactionBoundary transactionBoundary;
+  private final WorkflowTransitionAuditService workflowTransitionAuditService;
 
   public DocumentUploadService(
       SourceItemPersistencePort sourceItemPersistencePort,
       GovernedIntakeService governedIntakeService,
       DocumentStore documentStore,
       VirusScanPort virusScanPort) {
+    this(
+        sourceItemPersistencePort,
+        governedIntakeService,
+        documentStore,
+        virusScanPort,
+        CanonicalWriteTransactionBoundary.immediate(),
+        noOpWorkflowTransitionAuditService());
+  }
+
+  public DocumentUploadService(
+      SourceItemPersistencePort sourceItemPersistencePort,
+      GovernedIntakeService governedIntakeService,
+      DocumentStore documentStore,
+      VirusScanPort virusScanPort,
+      CanonicalWriteTransactionBoundary transactionBoundary,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
     this.sourceItemPersistencePort = Objects.requireNonNull(sourceItemPersistencePort,
         "sourceItemPersistencePort must not be null");
     this.governedIntakeService = Objects.requireNonNull(governedIntakeService,
         "governedIntakeService must not be null");
     this.documentStore = Objects.requireNonNull(documentStore, "documentStore must not be null");
     this.virusScanPort = Objects.requireNonNull(virusScanPort, "virusScanPort must not be null");
+    this.transactionBoundary = Objects.requireNonNull(
+        transactionBoundary, "transactionBoundary must not be null");
+    this.workflowTransitionAuditService = Objects.requireNonNull(
+        workflowTransitionAuditService, "workflowTransitionAuditService must not be null");
   }
 
   public DocumentUploadResult upload(DocumentUploadCommand command, InputStream content) {
@@ -76,57 +114,62 @@ public final class DocumentUploadService {
     }
 
     String contentHash = computeSha256(fileBytes);
-    virusScanPort.scan(new ByteArrayInputStream(fileBytes));
+    String scanStatus = scanStatusFor(fileBytes);
 
     SourceItemId sourceItemId = new SourceItemId(UUID.randomUUID());
     StorageAllocation allocation = allocateStorage(command, fileBytes, sourceItemId, contentHash);
 
     try {
-      SourceItemRegistrationCommand registrationCommand = SourceItemRegistrationCommand.builder()
-          .organizationId(command.organizationId())
-          .sourceType(command.sourceType())
-          .origin(command.origin())
-          .title(command.title())
-          .contentHash(contentHash)
-          .storageRef(allocation.storageRef())
-          .uploadedByActorType(command.uploadedByActorType())
-          .uploadedByActorId(command.uploadedByActorId())
-          .receivedAt(Instant.now())
-          .metadataJson("{}")
-          .status(SourceItemStatus.REGISTERED)
-          .mimeType(command.mimeType())
-          .fileSizeBytes(command.contentLength())
-          .originalFilename(command.originalFilename())
-          .scanStatus("not_scanned")
-          .sourceItemId(sourceItemId)
-          .build();
+      return transactionBoundary.run(() -> {
+        SourceItemRegistrationCommand registrationCommand = SourceItemRegistrationCommand.builder()
+            .organizationId(command.organizationId())
+            .sourceType(command.sourceType())
+            .origin(command.origin())
+            .title(command.title())
+            .contentHash(contentHash)
+            .storageRef(allocation.storageRef())
+            .uploadedByActorType(command.uploadedByActorType())
+            .uploadedByActorId(command.uploadedByActorId())
+            .receivedAt(Instant.now())
+            .metadataJson("{}")
+            .status(SourceItemStatus.REGISTERED)
+            .mimeType(command.mimeType())
+            .fileSizeBytes(command.contentLength())
+            .originalFilename(command.originalFilename())
+            .scanStatus(scanStatus)
+            .sourceItemId(sourceItemId)
+            .build();
 
-      SourceItem sourceItem = governedIntakeService.registerSourceItem(registrationCommand);
+        SourceItem sourceItem = governedIntakeService.registerSourceItem(registrationCommand);
 
-      var packet = governedIntakeService.createInformationPacket(
-          new InformationPacketCreateCommand(
-              command.organizationId(),
-              InformationPacketType.CANDIDATE,
-              IntendedEntityType.CANDIDATE,
-              null,
-              command.uploadedByActorType(),
-              command.uploadedByActorId(),
-              InformationPacketStatus.CREATED,
-              null,
-              "{}"));
+        var packet = governedIntakeService.createInformationPacket(
+            new InformationPacketCreateCommand(
+                command.organizationId(),
+                InformationPacketType.CANDIDATE,
+                IntendedEntityType.CANDIDATE,
+                null,
+                command.uploadedByActorType(),
+                command.uploadedByActorId(),
+                InformationPacketStatus.CREATED,
+                null,
+                "{}"));
 
-      governedIntakeService.attachSourceItemToPacket(
-          new AttachSourceItemToPacketCommand(
-              command.organizationId(),
-              packet.informationPacketId(),
-              sourceItem.sourceItemId()));
+        governedIntakeService.attachSourceItemToPacket(
+            new AttachSourceItemToPacketCommand(
+                command.organizationId(),
+                packet.informationPacketId(),
+                sourceItem.sourceItemId()));
 
-      return new DocumentUploadResult(
-          sourceItem.sourceItemId(),
-          packet.informationPacketId().value(),
-          contentHash,
-          allocation.storageRef(),
-          "not_scanned");
+        recordSourceItemRegistered(command, sourceItem, contentHash, scanStatus);
+        recordInformationPacketCreated(command, packet, sourceItem, scanStatus);
+
+        return new DocumentUploadResult(
+            sourceItem.sourceItemId(),
+            packet.informationPacketId().value(),
+            contentHash,
+            allocation.storageRef(),
+            scanStatus);
+      });
     } catch (RuntimeException exception) {
       try {
         allocation.cleanupIfNew(documentStore);
@@ -168,6 +211,105 @@ public final class DocumentUploadService {
     } catch (DocumentStoreException e) {
       throw new DocumentUploadException("Document not found in storage", e);
     }
+  }
+
+  private String scanStatusFor(byte[] fileBytes) {
+    VirusScanPort.ScanResult scanResult = virusScanPort.scan(new ByteArrayInputStream(fileBytes));
+    return switch (scanResult) {
+      case CLEAN -> "clean";
+      case INFECTED -> throw new DocumentUploadException("Uploaded file failed virus scan");
+      case ERROR -> throw new DocumentUploadException("Virus scan failed");
+    };
+  }
+
+  private void recordSourceItemRegistered(
+      DocumentUploadCommand command,
+      SourceItem sourceItem,
+      String contentHash,
+      String scanStatus) {
+    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+        .organizationId(command.organizationId())
+        .entityNamespace("intake")
+        .entityType(WorkflowEntityType.SOURCE_ITEM.wireValue())
+        .entityId(sourceItem.sourceItemId().value())
+        .actionCode(WorkflowActionCode.SOURCE_ITEM_REGISTERED.wireValue())
+        .actorType(command.uploadedByActorType())
+        .actorId(requireActorId(command))
+        .aiInvolvement(WorkflowAiInvolvement.NONE)
+        .beforeState("{\"status\":\"absent\"}")
+        .afterState(jsonState(Map.of(
+            "status", sourceItem.status().wireValue(),
+            "sourceType", sourceItem.sourceType().wireValue(),
+            "origin", sourceItem.origin().wireValue(),
+            "contentHash", contentHash,
+            "scanStatus", scanStatus,
+            "storageRef", sourceItem.storageRef())))
+        .reason("Document upload registered a governed source item.")
+        .idempotencyKey("source-item-register-" + sourceItem.sourceItemId().value())
+        .sourceType("document_upload")
+        .sourceRefId(sourceItem.sourceItemId().value())
+        .occurredAt(sourceItem.createdAt())
+        .build());
+  }
+
+  private void recordInformationPacketCreated(
+      DocumentUploadCommand command,
+      InformationPacket packet,
+      SourceItem sourceItem,
+      String scanStatus) {
+    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+        .organizationId(command.organizationId())
+        .entityNamespace("intake")
+        .entityType(WorkflowEntityType.INFORMATION_PACKET.wireValue())
+        .entityId(packet.informationPacketId().value())
+        .actionCode(WorkflowActionCode.INFORMATION_PACKET_CREATED.wireValue())
+        .actorType(command.uploadedByActorType())
+        .actorId(requireActorId(command))
+        .aiInvolvement(WorkflowAiInvolvement.NONE)
+        .beforeState("{\"status\":\"absent\"}")
+        .afterState(jsonState(Map.of(
+            "status", packet.processingStatus().wireValue(),
+            "packetType", packet.packetType().wireValue(),
+            "intendedEntityType", packet.intendedEntityType().wireValue(),
+            "attachedSourceItemId", sourceItem.sourceItemId().value().toString(),
+            "scanStatus", scanStatus)))
+        .reason("Document upload created an information packet for source evidence.")
+        .idempotencyKey("information-packet-create-" + packet.informationPacketId().value())
+        .sourceType("document_upload")
+        .sourceRefId(packet.informationPacketId().value())
+        .occurredAt(packet.createdAt())
+        .build());
+  }
+
+  private static UUID requireActorId(DocumentUploadCommand command) {
+    if (command.uploadedByActorId() == null) {
+      throw new DocumentUploadException("Document upload requires an authenticated actor id");
+    }
+    return command.uploadedByActorId();
+  }
+
+  private static String jsonState(Map<String, Object> state) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(state);
+    } catch (JsonProcessingException exception) {
+      throw new IllegalStateException("Failed to serialize workflow state snapshot", exception);
+    }
+  }
+
+  private static WorkflowTransitionAuditService noOpWorkflowTransitionAuditService() {
+    return new WorkflowTransitionAuditService(new WorkflowEventService(new WorkflowEventPort() {
+      @Override
+      public Optional<WorkflowEventIdempotencyRecord> findByIdempotencyKey(
+          UUID organizationId,
+          com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey idempotencyKey) {
+        return Optional.empty();
+      }
+
+      @Override
+      public WorkflowEventAppendResult append(WorkflowEventAppendCommand command) {
+        return new WorkflowEventAppendResult(new WorkflowEventId(UUID.randomUUID()));
+      }
+    }));
   }
 
   private static void validateMimeType(String mimeType) {

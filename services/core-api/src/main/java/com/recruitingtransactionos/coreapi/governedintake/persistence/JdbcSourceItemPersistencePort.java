@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcSourceItemPersistencePort implements SourceItemPersistencePort {
 
@@ -99,6 +100,8 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
       FROM intake.source_item
       WHERE organization_id = ?
         AND content_hash = ?
+      ORDER BY created_at ASC, source_item_id ASC
+      LIMIT 1
       """;
 
   private final DataSource dataSource;
@@ -113,14 +116,16 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
     SourceItemId sourceItemId = command.sourceItemId() != null
         ? command.sourceItemId()
         : new SourceItemId(UUID.randomUUID());
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       bindAppend(statement, sourceItemId, command);
       statement.executeUpdate();
       return findById(command.organizationId(), sourceItemId)
           .orElseThrow(() -> new IllegalStateException("source item was not readable after append"));
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append source item", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -128,8 +133,8 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
   public Optional<SourceItem> findById(UUID organizationId, SourceItemId sourceItemId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(sourceItemId, "sourceItemId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, sourceItemId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -140,6 +145,8 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find source item by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -147,8 +154,8 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
   public Optional<SourceItem> findByContentHash(UUID organizationId, String contentHash) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(contentHash, "contentHash must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_BY_CONTENT_HASH_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_CONTENT_HASH_SQL)) {
       statement.setObject(1, organizationId);
       statement.setString(2, contentHash);
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -159,6 +166,8 @@ public final class JdbcSourceItemPersistencePort implements SourceItemPersistenc
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find source item by content hash", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 

@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcInformationPacketPersistencePort implements InformationPacketPersistencePort {
 
@@ -120,8 +121,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
   public InformationPacket create(InformationPacketCreateCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     InformationPacketId informationPacketId = new InformationPacketId(UUID.randomUUID());
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT_PACKET_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_PACKET_SQL)) {
       bindCreate(statement, informationPacketId, command);
       statement.executeUpdate();
       return findById(command.organizationId(), informationPacketId)
@@ -129,6 +130,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
               "information packet was not readable after create"));
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create information packet", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -138,8 +141,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       InformationPacketId informationPacketId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_PACKET_BY_ID_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_PACKET_BY_ID_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, informationPacketId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -150,6 +153,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find information packet by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -161,8 +166,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
     Objects.requireNonNull(sourceItemId, "sourceItemId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(HAS_SOURCE_ITEM_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(HAS_SOURCE_ITEM_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, informationPacketId.value());
       statement.setObject(3, sourceItemId.value());
@@ -174,6 +179,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to check packet source link", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -185,8 +192,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
     Objects.requireNonNull(sourceItemId, "sourceItemId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(ATTACH_SOURCE_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(ATTACH_SOURCE_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, informationPacketId.value());
       statement.setObject(3, sourceItemId.value());
@@ -198,6 +205,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       }
       throw new IllegalStateException("Failed to attach source item to information packet",
           exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -207,8 +216,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       InformationPacketId informationPacketId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(LIST_SOURCE_ITEMS_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(LIST_SOURCE_ITEMS_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, informationPacketId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -221,6 +230,8 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to list source items for information packet",
           exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
