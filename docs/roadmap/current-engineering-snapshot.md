@@ -7,7 +7,14 @@ This file contains mutable short-term engineering state. Update it after future 
 - current main HEAD: `970b2a8`
 - latest merged commit: Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE (Shortlist POST/PUT with optimistic locking, CompanyContact/JobRequirement/JobScorecard CREATE endpoints, 652 tests pass)
 - current validation snapshot: full backend Maven suite reached 652 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
-- merge status: main contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 20 + Task 16-Hardening; next recommended tasks are Task 19A (auth implementation) and Task 21 (Real AI Task Runner).
+- merge status: main contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 20 + Task 16-Hardening.
+
+## Current Worktree Implementation Candidate
+
+- local worktree state: Task 19A + Task 19B + Task 19C implementation candidate is complete in this worktree and not yet merged to main.
+- local validation snapshot: `mvn -q -f services/core-api/pom.xml test -DskipITs` passes with 667 tests, 0 failures/errors, 1 existing skip after Task 19C auth/session hardening work.
+- local delivery scope: V15 migration, Spring Security baseline, JWT parsing/issuance, `/api/auth/login|refresh|logout`, persisted refresh-token-backed `identity.session`, auth DTO boundary, consultant/client-safe/document controller migration onto `SecurityContext` / `@AuthenticationPrincipal`, access-token strong session revocation via active `identity.session` checks, and expanded auth-aware WebMvc / integration regression coverage.
+- next recommended tasks after merging this candidate: Task 21 (Real AI Task Runner) plus future auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
 
 ## Completed Major Tasks
 
@@ -51,6 +58,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints ✅ generic pagination (PagedQuery/PagedResult), 6 consultant response DTOs (company/job/shortlist summary+detail), 3 consultant read-only controllers, ConsultantApiQueryService facade, ConsultantCompany/Job/Shortlist response mappers, ResourceType.SHORTLIST, FieldAccessPolicy consultant allow rules, ApiSafeResponseBody extension, ApiBoundaryContractRules allowlist expansion, findAllByOrganizationId on Company/Job/Shortlist ports+JDBC+services, leakage and denial tests for all 6 endpoints
 - Task 20: Document Storage and SourceItem v1 ✅ V13 migration (mime_type, file_size_bytes, original_filename, scan_status + unique constraint on intake.source_item), DocumentStore interface + DocumentStoreKey + InMemoryDocumentStore, VirusScanPort + NoOpVirusScanPort, DocumentUploadCommand + DocumentUploadResult, DocumentUploadService (MIME validation, size limits, SHA-256 dedup, idempotent), ConsultantDocumentController (POST upload + GET download), DocumentRetrievalResult, SourceItem record enhancement (4 new fields), JdbcSourceItemPersistencePort/JdbcInformationPacketPersistencePort column updates, API boundary leakage regression updated. No real virus scan (NoOp placeholder), no AI extraction, no client/candidate upload, no presigned URLs, CanonicalWriteGate bypass prevented.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
+- Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
+- Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
+- Task 19C: Auth/Session Hardening and Regression Closure ✅ access tokens now fail closed against active `identity.session` state on every authenticated request, refresh now revokes the old session and creates a new session id so old access tokens die immediately, filter-time checks now fail closed on session/account/role mismatch, auth/controller regression tests now cover revoked-session bearer tokens and stale principal paths, and the backend Maven suite passes with the stronger revocation model.
 
 ## Current Truth/Kernel Capabilities
 
@@ -137,8 +147,11 @@ This file contains mutable short-term engineering state. Update it after future 
 - No outcome-label feedback loop exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the existing client-safe candidate-card read endpoint exists, now backed by a narrow Task 13B PostgreSQL client-safe projection query slice.
-- No real auth/login/session system yet.
-- No Spring Security yet.
+- Task 19A closes the "no auth/login/session" gap only for the baseline auth infrastructure slice: login/refresh/logout exist, JWT issuance/validation exists, Spring Security exists, and refresh-token-backed persisted sessions exist.
+- Existing product controllers now evaluate identity through JWT-backed `SecurityContext`, and Task 19C closes the session revocation, stale-session, and broader auth regression gap for the current baseline.
+- No multi-organization membership/session switching exists yet; `identity.user_account` remains directly organization-scoped in this baseline.
+- No SSO/OIDC/external identity provider integration exists yet.
+- No password reset, MFA, email verification, or auth hardening flow exists yet.
 - No Consent/Disclosure/Unlock API/controller/UI, real workflow execution, real auth/session enforcement, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed client read behavior exists yet.
 - No identity-disclosed Client access behavior yet.
 - No complete product-wide RBAC/ABAC enforcement yet.
@@ -153,23 +166,21 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 17 `persistAttempt()` idempotency returns existing attempt on key match without verifying payload equivalence. Future hardening should add an idempotency equivalence hash or command fingerprint.
 - Task 17 V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without FK constraints (intentional loose ledger design for now). Future hardening should document the FK-free design decision or add optional composite FKs.
 - recruiting.* source/packet cleanup/deprecation remains deferred.
-- Task 18A is complete only for Consultant read endpoints on companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No filtering by status (except the optional status query param on list endpoints) or full-text search exists. No shortlist candidate card detail with safe generalized content exists yet. The header-based temporary access context (`X-RTO-Actor-Role`, `X-RTO-Organization-Id`) remains the only auth mechanism — no real auth/login/session/Spring Security exists.
+- Task 18A is complete only for Consultant read endpoints on companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No filtering by status (except the optional status query param on list endpoints) or full-text search exists. No shortlist candidate card detail with safe generalized content exists yet. The header-based temporary access context (`X-RTO-Actor-Role`, `X-RTO-Organization-Id`) still powers consultant product endpoints today, even though the Task 19A auth baseline now provides real auth/login/session/Spring Security for `/api/auth/*` and future controller migration.
 - Task 18B (partial) adds Consultant write endpoints (CREATE/UPDATE) for Company and Job only. No DELETE endpoints exist. No Shortlist write endpoints exist. No Client-portal write endpoints exist. No Candidate/CandidateProfile write endpoints exist. No batch operations exist. No filtering/search on write responses exists.
 
 ## Next Recommended Task
 
-Task 18B (remaining): Product API Layer v1 — Client-readable consultant product API and docs closure, using:
+Task 21: Real AI Task Runner, using:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/current-engineering-snapshot.md`
 - `docs/roadmap/implementation-status.md`
 - `docs/roadmap/known-gaps.md`
 
-Task 18A closes the Consultant read API surface for companies, jobs, and shortlists.
-Task 18B (partial) adds Consultant write (CREATE/UPDATE) endpoints for Company and Job with optimistic locking, organization-scoped isolation, and access-control enforcement.
-Tasks 15-18A bridge the kernel to productization baseline. The system is
-not full product completion, not Usable v1, and not pilot-ready by itself.
-Task 18B remaining work should deliver Client-readable consultant product API, Shortlist write endpoints, DELETE support, and docs closure.
+Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
+Future auth work is now longer-horizon backlog rather than the next blocking productization step.
+Task 21 remains the next independent productization stream.
 
 ## Future Prompt Strategy
 

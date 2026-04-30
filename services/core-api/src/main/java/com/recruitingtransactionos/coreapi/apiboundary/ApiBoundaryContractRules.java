@@ -50,6 +50,21 @@ public final class ApiBoundaryContractRules {
           "shortlistId", "jobId", "title", "status", "sentAt", "clientViewedAt",
           "ownerConsultantId", "createdAt", "updatedAt", "cards");
 
+  private static final Set<String> AUTH_SESSION_RESPONSE_FIELDS =
+      Set.of(
+          "organizationId",
+          "userAccountId",
+          "displayName",
+          "portalRole",
+          "tokenType",
+          "accessToken",
+          "refreshToken",
+          "accessTokenExpiresAt",
+          "refreshTokenExpiresAt");
+
+  private static final Set<String> AUTH_LOGOUT_RESPONSE_FIELDS =
+      Set.of("status", "loggedOutAt");
+
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
           "l0_teaser",
@@ -149,6 +164,28 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantShortlistDetailResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedAuthSessionResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return AUTH_SESSION_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> authSessionResponseFieldNames() {
+    return new LinkedHashSet<>(AUTH_SESSION_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedAuthLogoutResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return AUTH_LOGOUT_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> authLogoutResponseFieldNames() {
+    return new LinkedHashSet<>(AUTH_LOGOUT_RESPONSE_FIELDS);
   }
 
   public static String requireNonBlank(String value, String fieldName) {

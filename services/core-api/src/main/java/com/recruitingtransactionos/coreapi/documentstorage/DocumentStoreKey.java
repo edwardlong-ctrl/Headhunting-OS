@@ -21,6 +21,24 @@ public record DocumentStoreKey(
         + (originalFilename != null ? originalFilename : "file");
   }
 
+  public static DocumentStoreKey fromStorageRef(String storageRef) {
+    String normalized = requireNonBlank(storageRef, "storageRef");
+    String[] segments = normalized.split("/", 4);
+    if (segments.length != 4) {
+      throw new IllegalArgumentException("storageRef must have 4 path segments");
+    }
+    return new DocumentStoreKey(
+        UUID.fromString(segments[0]),
+        UUID.fromString(segments[1]),
+        segments[2],
+        segments[3]);
+  }
+
+  public static String safeDownloadFilename(String filename) {
+    String sanitized = sanitizeFilename(filename);
+    return sanitized != null ? sanitized : "file";
+  }
+
   private static String requireNonBlank(String value, String name) {
     Objects.requireNonNull(value, name + " must not be null");
     if (value.isBlank()) {
@@ -35,7 +53,8 @@ public record DocumentStoreKey(
     }
     String sanitized = filename.strip()
         .replaceAll("[^a-zA-Z0-9._-]", "_")
-        .replaceAll("_+", "_");
+        .replaceAll("_+", "_")
+        .replaceFirst("^[._-]+", "");
     if (sanitized.length() > 255) {
       sanitized = sanitized.substring(0, 255);
     }

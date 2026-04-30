@@ -1,5 +1,15 @@
 # Known Gaps
 
+## Task 19A/19B/19C Auth Baseline, Controller Migration, and Hardening Complete; Extended Identity Features Deferred
+
+- Task 19A adds V15 auth persistence baseline through `identity.user_account.password_hash` and `identity.session`.
+- Spring Security now exists with a stateless filter chain, JWT issuance/validation, persisted refresh-token-backed session lifecycle, and `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`.
+- Current scope now includes JWT-backed product-controller enforcement. Consultant/client-safe/document product endpoints read authenticated identity from Spring Security rather than temporary role/org headers.
+- Remaining gaps:
+  - No multi-organization membership/session switching exists yet; `identity.user_account` remains directly organization-scoped in this baseline.
+  - No SSO/OIDC/external identity provider integration exists yet.
+  - No password reset, MFA, email verification, lockout, or auth-audit hardening flow exists yet.
+
 ## Task 18C Consultant Shortlist CRUD + Sub-entity CREATE Complete; UPDATE/DELETE and Client Portal Deferred
 
 - Task 18C completes the Consultant write API surface by adding Shortlist CREATE and UPDATE endpoints (with optimistic locking), plus CompanyContact, JobRequirement, and JobScorecard CREATE endpoints as sub-resources.
@@ -20,7 +30,7 @@
   - No Candidate/CandidateProfile write endpoints.
   - No batch operations.
   - No filtering/search on write responses.
-  - No real auth/login/session/Spring Security — header-based temporary access context remains the only auth mechanism.
+-  - Real auth/login/session/Spring Security now exists, product endpoints are on JWT-backed `SecurityContext`, and Task 19C closes the current baseline hardening slice; remaining auth work is now longer-horizon identity capability backlog.
 
 ## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
 
@@ -143,7 +153,7 @@
 - Raw Candidate and raw CandidateProfile exposure remain denied even when consent, disclosure, unlock, and audit metadata are present.
 - Task 12A tests prove missing, invalid, expired, revoked, or not-human-approved consent/disclosure/unlock state fails closed, and role alone cannot grant L4 disclosure.
 - No Consent/Disclosure REST/controller/API or UI exists yet.
-- No real auth/login/session/Spring Security enforcement exists yet.
+- Real auth/login/session infrastructure now exists, and product-endpoint enforcement now runs through JWT-backed `SecurityContext` with Task 19C strong session revocation.
 - No full WorkflowEvent-driven workflow engine, transition legality validation, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior exists yet.
 
 ## Task 10 AITaskRun Metadata Governance Exists; AI Execution Deferred
@@ -241,8 +251,7 @@
 - Task 8C proves deny-by-default and no role-based gate bypass across raw Candidate/Profile reads, unsafe field classifications, sensitive actions, identity-disclosed/L4 anonymous access, canonical-write-like requests, disclosure/unlock requests, unknown vocabulary, and guarded service facades.
 - Task 8C proves `ClientSafeCandidateCard` remains the only Client-readable candidate-facing output at this layer, while raw Candidate and raw CandidateProfile remain denied to Client.
 - Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, `PermissionEnforcer` exists, a sensitive backend guard slice exists, and five-portal boundary negative tests exist.
-- No real auth/login/session system exists.
-- No Spring Security exists.
+- Real auth/login/session baseline now exists. Spring Security and JWT are now the enforcement source for product controllers, with Task 19C adding strong session checks before principal establishment.
 - No API/controller/UI exists for this access layer.
 - No Consent/Disclosure/Unlock product workflow exists beyond the current backend-only Task 12A/12B/14 policy, persistence, service, and hardening kernel.
 - No identity-disclosed Client access behavior exists.
@@ -290,7 +299,7 @@
 - Task 13B adds a real backend-internal PostgreSQL query/read-model implementation behind the existing client-safe candidate-card endpoint. It reads only safe projection metadata from `recruiting.candidate_profile`, reuses the existing projection and re-identification boundaries, and fails closed for missing/ambiguous/invalid/unsafe data.
 - Task 14 hardens the backend Consent / Disclosure persistence and service path only. It preserves fail-closed L3/L4 separation, binds approved disclosure records to the requested consent/unlock chain, makes final disclosure persistence retry-safe, adds organization-scoped linkage hardening in `V9`, and denies legacy cross-organization unlock approvers at runtime.
 - Only the existing client-safe candidate-card read endpoint exists; no raw Candidate/Profile API endpoints, broad REST API, or general API runtime layer exists yet.
-- No Spring Security, auth/login/session, broad frontend product UI, Consent/Disclosure/Unlock product workflow, identity disclosure workflow, or production auth context exists yet. Header-based context is temporary and fail-closed.
+- Broad frontend product UI, Consent/Disclosure/Unlock product workflow, and identity disclosure workflow still do not exist here. Spring Security/auth/login/session now exist, and product controllers now enforce JWT-backed identity rather than temporary header context.
 
 ## UI / AI / Access Boundaries Not Implemented
 
@@ -330,11 +339,11 @@
 - `ApiBoundaryContractRules` contains explicit allowlists for all six consultant response types, with public accessor methods for field-name validation.
 - `ConsultantApiQueryService` serves as the single facade for consultant reads, enforcing `PermissionEnforcer.requireAllowed()` before delegating to domain services and mappers.
 - Leakage and denial `@WebMvcTest` coverage exists for all 6 endpoints, proving:
-  - Missing/wrong-role/missing-org headers fail closed (403/400).
+  - Unauthenticated/wrong-role/invalid-request cases fail closed under JWT-backed controller enforcement.
   - Successful responses return only allowlisted fields with no internal entity leakage.
   - Not-found returns sanitized 404; invalid UUID returns sanitized 400.
   - No raw Candidate, CandidateProfile, PII, internal entity types, stack traces, or internal package names leak through response bodies or denial messages.
-- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. No real auth/login/session/Spring Security exists — the header-based temporary access context remains the only auth mechanism.
+- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. Real auth/login/session/Spring Security now exists, the consultant product API uses JWT-backed `SecurityContext`, and Task 19C closes the baseline auth/session hardening slice.
 
 ## Task 18B (Partial) Consultant Write Endpoints for Company and Job
 

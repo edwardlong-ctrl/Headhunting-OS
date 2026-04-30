@@ -97,7 +97,7 @@ class DocumentUploadServiceTest {
   }
 
   @Test
-  void duplicateUploadReturnsExistingSourceItem() {
+  void duplicateUploadReusesStoredBlobButCreatesIndependentSourceItemAndPacket() {
     DocumentUploadCommand command = uploadCommand(ORG_A).build();
     InputStream content = new ByteArrayInputStream(FILE_CONTENT);
 
@@ -105,9 +105,70 @@ class DocumentUploadServiceTest {
     DocumentUploadResult second = uploadService.upload(command,
         new ByteArrayInputStream(FILE_CONTENT));
 
-    assertThat(second.sourceItemId()).isEqualTo(first.sourceItemId());
-    assertThat(second.informationPacketId()).isNull();
+    assertThat(second.sourceItemId()).isNotEqualTo(first.sourceItemId());
+    assertThat(second.informationPacketId()).isNotNull();
     assertThat(second.contentHash()).isEqualTo(first.contentHash());
+    assertThat(second.storageRef()).isEqualTo(first.storageRef());
+
+    SourceItem firstItem = sourceItemPort.findById(ORG_A, first.sourceItemId()).orElseThrow();
+    SourceItem secondItem = sourceItemPort.findById(ORG_A, second.sourceItemId()).orElseThrow();
+    assertThat(firstItem.storageRef()).isEqualTo(secondItem.storageRef());
+
+    assertThat(documentStore.exists(DocumentStoreKey.fromStorageRef(first.storageRef()))).isTrue();
+    assertThat(documentStore.exists(new DocumentStoreKey(
+        ORG_A,
+        second.sourceItemId().value(),
+        second.contentHash().substring(0, 16),
+        "cv.pdf"))).isFalse();
+
+    assertThat(governedIntakeService.listSourceItemsForPacket(
+        ORG_A, new InformationPacketId(first.informationPacketId())))
+        .extracting(SourceItem::sourceItemId)
+        .containsExactly(first.sourceItemId());
+    assertThat(governedIntakeService.listSourceItemsForPacket(
+        ORG_A, new InformationPacketId(second.informationPacketId())))
+        .extracting(SourceItem::sourceItemId)
+        .containsExactly(second.sourceItemId());
+  }
+
+  @Test
+  void retrieveDocumentUsesPersistedStorageRefForDeduplicatedSourceItems() throws Exception {
+    DocumentUploadCommand command = uploadCommand(ORG_A).build();
+
+    DocumentUploadResult first = uploadService.upload(command, new ByteArrayInputStream(FILE_CONTENT));
+    DocumentUploadResult second = uploadService.upload(command, new ByteArrayInputStream(FILE_CONTENT));
+
+    byte[] retrieved = uploadService.retrieveDocument(ORG_A, second.sourceItemId().value())
+        .content()
+        .readAllBytes();
+
+    assertThat(retrieved).isEqualTo(FILE_CONTENT);
+    assertThat(second.storageRef()).isEqualTo(first.storageRef());
+  }
+
+  @Test
+  void uploadFailureAfterStoreCleansUpNewBlob() {
+    InMemorySourceItemPort failingSourceItemPort = new InMemorySourceItemPort();
+    FailingAttachInformationPacketPort failingPacketPort =
+        new FailingAttachInformationPacketPort(failingSourceItemPort);
+    GovernedIntakeService failingGovernedIntakeService =
+        new GovernedIntakeService(failingSourceItemPort, failingPacketPort);
+    InMemoryDocumentStore failingDocumentStore = new InMemoryDocumentStore();
+    DocumentUploadService failingUploadService = new DocumentUploadService(
+        failingSourceItemPort,
+        failingGovernedIntakeService,
+        failingDocumentStore,
+        new NoOpVirusScanPort());
+
+    assertThatThrownBy(() -> failingUploadService.upload(
+        uploadCommand(ORG_A).build(),
+        new ByteArrayInputStream(FILE_CONTENT)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("attach failed");
+
+    SourceItem storedItem = failingSourceItemPort.allSourceItems().get(0);
+    assertThat(failingDocumentStore.exists(
+        DocumentStoreKey.fromStorageRef(storedItem.storageRef()))).isFalse();
   }
 
   @Test
@@ -269,6 +330,10 @@ class DocumentUploadServiceTest {
               && contentHash.equals(sourceItem.contentHash()))
           .findFirst();
     }
+
+    private List<SourceItem> allSourceItems() {
+      return List.copyOf(sourceItems.values());
+    }
   }
 
   private static final class InMemoryInformationPacketPort
@@ -338,6 +403,48 @@ class DocumentUploadServiceTest {
           .map(sourceItemId -> sourceItemPort.findById(organizationId, sourceItemId))
           .flatMap(Optional::stream)
           .toList();
+    }
+  }
+
+  private static final class FailingAttachInformationPacketPort
+      implements InformationPacketPersistencePort {
+    private final InMemoryInformationPacketPort delegate;
+
+    private FailingAttachInformationPacketPort(InMemorySourceItemPort sourceItemPort) {
+      this.delegate = new InMemoryInformationPacketPort(sourceItemPort);
+    }
+
+    @Override
+    public InformationPacket create(InformationPacketCreateCommand command) {
+      return delegate.create(command);
+    }
+
+    @Override
+    public Optional<InformationPacket> findById(
+        UUID organizationId, InformationPacketId informationPacketId) {
+      return delegate.findById(organizationId, informationPacketId);
+    }
+
+    @Override
+    public boolean hasSourceItem(
+        UUID organizationId,
+        InformationPacketId informationPacketId,
+        SourceItemId sourceItemId) {
+      return delegate.hasSourceItem(organizationId, informationPacketId, sourceItemId);
+    }
+
+    @Override
+    public void attachSourceItem(
+        UUID organizationId,
+        InformationPacketId informationPacketId,
+        SourceItemId sourceItemId) {
+      throw new IllegalStateException("attach failed");
+    }
+
+    @Override
+    public List<SourceItem> listSourceItems(
+        UUID organizationId, InformationPacketId informationPacketId) {
+      return delegate.listSourceItems(organizationId, informationPacketId);
     }
   }
 }

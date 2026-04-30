@@ -447,7 +447,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyInOrgB)
         .organizationId(ORG_B)
-        .name("Company In Org B")
+        .name("Company In Org B " + companyInOrgB.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -471,7 +471,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyInOrgB)
         .organizationId(ORG_B)
-        .name("Company In Org B")
+        .name("Company In Org B " + companyInOrgB.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -481,7 +481,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyInOrgA)
         .organizationId(ORG_A)
-        .name("Company In Org A")
+        .name("Company In Org A " + companyInOrgA.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -517,7 +517,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyId)
         .organizationId(ORG_B)
-        .name("Company In Org B")
+        .name("Company In Org B " + companyId.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -551,7 +551,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyId)
         .organizationId(ORG_A)
-        .name("Company In Org A")
+        .name("Company In Org A " + companyId.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -573,7 +573,7 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     companyService().createCompany(Company.builder()
         .companyId(companyInOrgB)
         .organizationId(ORG_B)
-        .name("Company In Org B")
+        .name("Company In Org B " + companyInOrgB.value())
         .status(CompanyStatus.ACTIVE)
         .createdAt(NOW)
         .updatedAt(NOW)
@@ -686,9 +686,10 @@ class ConsultantWriteOrgIsolationIntegrationTest {
              "INSERT INTO identity.organization "
                  + "(organization_id, legal_name, display_name, status, default_timezone) "
                  + "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")) {
+      String uniqueName = "Test Org " + orgId;
       stmt.setObject(1, orgId);
-      stmt.setString(2, "Test Org " + orgId.toString().substring(0, 8));
-      stmt.setString(3, "Test Org " + orgId.toString().substring(0, 8));
+      stmt.setString(2, uniqueName);
+      stmt.setString(3, uniqueName);
       stmt.setString(4, "active");
       stmt.setString(5, "UTC");
       stmt.executeUpdate();

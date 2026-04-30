@@ -76,78 +76,65 @@ public final class DocumentUploadService {
     }
 
     String contentHash = computeSha256(fileBytes);
-
-    Optional<SourceItem> existing = sourceItemPersistencePort.findByContentHash(
-        command.organizationId(), contentHash);
-    if (existing.isPresent()) {
-      SourceItem existingItem = existing.get();
-      return new DocumentUploadResult(
-          existingItem.sourceItemId(),
-          null,
-          existingItem.contentHash(),
-          existingItem.storageRef(),
-          existingItem.scanStatus());
-    }
-
-    SourceItemId sourceItemId = new SourceItemId(UUID.randomUUID());
-
-    DocumentStoreKey storageKey = new DocumentStoreKey(
-        command.organizationId(),
-        sourceItemId.value(),
-        contentHash.length() >= 16 ? contentHash.substring(0, 16) : contentHash,
-        command.originalFilename());
-
-    documentStore.store(storageKey, new ByteArrayInputStream(fileBytes),
-        command.contentLength());
-
     virusScanPort.scan(new ByteArrayInputStream(fileBytes));
 
-    String storageRef = storageKey.storagePath();
-    SourceItemRegistrationCommand registrationCommand = SourceItemRegistrationCommand.builder()
-        .organizationId(command.organizationId())
-        .sourceType(command.sourceType())
-        .origin(command.origin())
-        .title(command.title())
-        .contentHash(contentHash)
-        .storageRef(storageRef)
-        .uploadedByActorType(command.uploadedByActorType())
-        .uploadedByActorId(command.uploadedByActorId())
-        .receivedAt(Instant.now())
-        .metadataJson("{}")
-        .status(SourceItemStatus.REGISTERED)
-        .mimeType(command.mimeType())
-        .fileSizeBytes(command.contentLength())
-        .originalFilename(command.originalFilename())
-        .scanStatus("not_scanned")
-        .sourceItemId(sourceItemId)
-        .build();
+    SourceItemId sourceItemId = new SourceItemId(UUID.randomUUID());
+    StorageAllocation allocation = allocateStorage(command, fileBytes, sourceItemId, contentHash);
 
-    SourceItem sourceItem = governedIntakeService.registerSourceItem(registrationCommand);
+    try {
+      SourceItemRegistrationCommand registrationCommand = SourceItemRegistrationCommand.builder()
+          .organizationId(command.organizationId())
+          .sourceType(command.sourceType())
+          .origin(command.origin())
+          .title(command.title())
+          .contentHash(contentHash)
+          .storageRef(allocation.storageRef())
+          .uploadedByActorType(command.uploadedByActorType())
+          .uploadedByActorId(command.uploadedByActorId())
+          .receivedAt(Instant.now())
+          .metadataJson("{}")
+          .status(SourceItemStatus.REGISTERED)
+          .mimeType(command.mimeType())
+          .fileSizeBytes(command.contentLength())
+          .originalFilename(command.originalFilename())
+          .scanStatus("not_scanned")
+          .sourceItemId(sourceItemId)
+          .build();
 
-    var packet = governedIntakeService.createInformationPacket(
-        new InformationPacketCreateCommand(
-            command.organizationId(),
-            InformationPacketType.CANDIDATE,
-            IntendedEntityType.CANDIDATE,
-            null,
-            command.uploadedByActorType(),
-            command.uploadedByActorId(),
-            InformationPacketStatus.CREATED,
-            null,
-            "{}"));
+      SourceItem sourceItem = governedIntakeService.registerSourceItem(registrationCommand);
 
-    governedIntakeService.attachSourceItemToPacket(
-        new AttachSourceItemToPacketCommand(
-            command.organizationId(),
-            packet.informationPacketId(),
-            sourceItem.sourceItemId()));
+      var packet = governedIntakeService.createInformationPacket(
+          new InformationPacketCreateCommand(
+              command.organizationId(),
+              InformationPacketType.CANDIDATE,
+              IntendedEntityType.CANDIDATE,
+              null,
+              command.uploadedByActorType(),
+              command.uploadedByActorId(),
+              InformationPacketStatus.CREATED,
+              null,
+              "{}"));
 
-    return new DocumentUploadResult(
-        sourceItem.sourceItemId(),
-        packet.informationPacketId().value(),
-        contentHash,
-        storageRef,
-        "not_scanned");
+      governedIntakeService.attachSourceItemToPacket(
+          new AttachSourceItemToPacketCommand(
+              command.organizationId(),
+              packet.informationPacketId(),
+              sourceItem.sourceItemId()));
+
+      return new DocumentUploadResult(
+          sourceItem.sourceItemId(),
+          packet.informationPacketId().value(),
+          contentHash,
+          allocation.storageRef(),
+          "not_scanned");
+    } catch (RuntimeException exception) {
+      try {
+        allocation.cleanupIfNew(documentStore);
+      } catch (RuntimeException cleanupException) {
+        exception.addSuppressed(cleanupException);
+      }
+      throw exception;
+    }
   }
 
   public DocumentRetrievalResult retrieveDocument(UUID organizationId, UUID sourceItemIdValue) {
@@ -162,19 +149,16 @@ public final class DocumentUploadService {
       throw new DocumentUploadException("Document not found in organization");
     }
 
-    String contentHash = sourceItem.contentHash();
-    if (contentHash == null) {
-      throw new DocumentUploadException("Document has no content hash");
+    String storageRef = sourceItem.storageRef();
+    if (storageRef == null) {
+      throw new DocumentUploadException("Document has no storage reference");
     }
-
-    String hashPrefix = contentHash.length() >= 16
-        ? contentHash.substring(0, 16) : contentHash;
-
-    DocumentStoreKey storageKey = new DocumentStoreKey(
-        sourceItem.organizationId(),
-        sourceItem.sourceItemId().value(),
-        hashPrefix,
-        sourceItem.originalFilename());
+    DocumentStoreKey storageKey;
+    try {
+      storageKey = DocumentStoreKey.fromStorageRef(storageRef);
+    } catch (IllegalArgumentException exception) {
+      throw new DocumentUploadException("Document has invalid storage reference", exception);
+    }
 
     try {
       return new DocumentRetrievalResult(
@@ -208,6 +192,54 @@ public final class DocumentUploadService {
       return "sha256:" + HexFormat.of().formatHex(hash);
     } catch (NoSuchAlgorithmException e) {
       throw new DocumentUploadException("SHA-256 algorithm not available", e);
+    }
+  }
+
+  private StorageAllocation allocateStorage(
+      DocumentUploadCommand command,
+      byte[] fileBytes,
+      SourceItemId sourceItemId,
+      String contentHash) {
+    Optional<SourceItem> existing = sourceItemPersistencePort.findByContentHash(
+        command.organizationId(), contentHash);
+    if (existing.isPresent()) {
+      SourceItem existingItem = existing.get();
+      String existingStorageRef = existingItem.storageRef();
+      if (existingStorageRef != null) {
+        try {
+          DocumentStoreKey existingKey = DocumentStoreKey.fromStorageRef(existingStorageRef);
+          if (documentStore.exists(existingKey)) {
+            return StorageAllocation.reused(existingStorageRef);
+          }
+        } catch (IllegalArgumentException ignored) {
+          // Fall through to allocate a new storage location when legacy refs are malformed.
+        }
+      }
+    }
+
+    DocumentStoreKey storageKey = new DocumentStoreKey(
+        command.organizationId(),
+        sourceItemId.value(),
+        contentHash.length() >= 16 ? contentHash.substring(0, 16) : contentHash,
+        command.originalFilename());
+    documentStore.store(storageKey, new ByteArrayInputStream(fileBytes), command.contentLength());
+    return StorageAllocation.created(storageKey);
+  }
+
+  private record StorageAllocation(DocumentStoreKey key, String storageRef, boolean newlyStored) {
+
+    private static StorageAllocation created(DocumentStoreKey key) {
+      return new StorageAllocation(key, key.storagePath(), true);
+    }
+
+    private static StorageAllocation reused(String storageRef) {
+      return new StorageAllocation(null, storageRef, false);
+    }
+
+    private void cleanupIfNew(DocumentStore documentStore) {
+      if (newlyStored && key != null) {
+        documentStore.delete(key);
+      }
     }
   }
 }

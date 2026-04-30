@@ -82,12 +82,12 @@ class TruthLayerPostgresMigrationIntegrationTest {
         .load()
         .migrate();
 
-    assertThat(result.migrationsExecuted).isEqualTo(13);
+    assertThat(result.migrationsExecuted).isEqualTo(15);
 
     try (Connection connection = DriverManager.getConnection(
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
       assertThat(appliedMigrationVersions(connection))
-          .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+          .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15");
 
       for (String schema : REQUIRED_SCHEMAS) {
         assertThat(schemaExists(connection, schema))

@@ -2,9 +2,16 @@ package com.recruitingtransactionos.coreapi.apiboundary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticationToken;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import org.springframework.security.core.Authentication;
+import java.util.UUID;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
@@ -30,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -37,17 +45,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+@org.springframework.test.context.TestPropertySource(properties = {"rto.auth.jwt.secret=0123456789abcdef0123456789abcdef", "rto.auth.jwt.issuer=test"})
 @WebMvcTest(ClientSafeCandidateCardController.class)
-@Import(ClientSafeCandidateCardControllerTest.TestConfig.class)
+@Import({
+    ClientSafeCandidateCardControllerTest.TestConfig.class,
+    com.recruitingtransactionos.coreapi.identityauth.SecurityConfig.class
+})
 class ClientSafeCandidateCardControllerTest {
 
   private static final String ENDPOINT =
       "/api/client-safe/candidate-cards/card_task9b_0001";
-  private static final String ROLE_HEADER = "X-RTO-Actor-Role";
   private static final String FIELD_HEADER = "X-RTO-Field-Classification";
   private static final String IDENTITY_DISCLOSURE_HEADER =
       "X-RTO-Identity-Disclosure-Requested";
-  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009b0003";
 
@@ -74,6 +84,9 @@ class ClientSafeCandidateCardControllerTest {
   @Autowired
   private RecordingClientSafeCandidateCardQueryPort queryPort;
 
+  @MockBean
+  private IdentityAuthenticationPort identityAuthenticationPort;
+
   @BeforeEach
   void resetQueryPort() {
     queryPort.reset();
@@ -82,9 +95,8 @@ class ClientSafeCandidateCardControllerTest {
   @Test
   void successfulControllerResponseReturnsOnlyClientSafeDtoEnvelope() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+        .with(authentication(auth("client")))
+            .header(FIELD_HEADER, "client_safe"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"))
         .andExpect(jsonPath("$.data.anonymousCandidateRef")
@@ -131,23 +143,12 @@ class ClientSafeCandidateCardControllerTest {
         ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
   }
 
-  @Test
-  void missingOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
-    mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe")
-            .header(IDENTITY_DISCLOSURE_HEADER, "false"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
-        .andExpect(jsonPath("$.error.safeMessage").value("Access context is required."));
-
-    assertThat(queryPort.calls).isZero();
-  }
+  
 
   @Test
   void missingAccessContextFailsClosedWithoutQueryingCard() throws Exception {
-    MvcResult result = mockMvc.perform(get(ENDPOINT))
+    MvcResult result = mockMvc.perform(get(ENDPOINT)
+        .with(authentication(auth("client"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
         .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
@@ -158,26 +159,13 @@ class ClientSafeCandidateCardControllerTest {
     assertThat(queryPort.calls).isZero();
   }
 
-  @Test
-  void invalidOrganizationScopeFailsClosedWithoutQueryingCard() throws Exception {
-    MvcResult invalid = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, "not-a-uuid"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
-        .andReturn();
-
-    assertSanitizedDenial(invalid);
-    assertThat(queryPort.calls).isZero();
-  }
+  
 
   @Test
   void clientDeniedPathIsSanitizedAndDoesNotLeakInternalDetails() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "raw_source")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+        .with(authentication(auth("client")))
+            .header(FIELD_HEADER, "raw_source"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
         .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
@@ -190,17 +178,15 @@ class ClientSafeCandidateCardControllerTest {
   @Test
   void nonClientOrIdentityDisclosedAccessCannotUseEndpointToGetInternalData() throws Exception {
     MvcResult nonClientResult = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "consultant")
-            .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+        .with(authentication(auth("consultant")))
+            .header(FIELD_HEADER, "client_safe"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
         .andReturn();
 
     MvcResult disclosureAttemptResult = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+        .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
             .header(IDENTITY_DISCLOSURE_HEADER, "true"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
@@ -215,9 +201,8 @@ class ClientSafeCandidateCardControllerTest {
   void rawUuidPathIsRejectedAsNonAnonymousCardReference() throws Exception {
     MvcResult result = mockMvc.perform(get(
             "/api/client-safe/candidate-cards/" + RAW_CANDIDATE_ID)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+        .with(authentication(auth("client")))
+            .header(FIELD_HEADER, "client_safe"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
         .andExpect(jsonPath("$.error.safeReason")
@@ -436,5 +421,29 @@ class ClientSafeCandidateCardControllerTest {
       lastCardId = null;
       nextCard = Optional.of(safeCard());
     }
+  }
+
+  private static Authentication auth(String role) {
+    PortalRole portalRole = PortalRole.UNKNOWN;
+    for (PortalRole r : PortalRole.values()) {
+        if (r.wireValue().equals(role)) {
+            portalRole = r;
+            break;
+        }
+    }
+    if (portalRole == PortalRole.UNKNOWN && "client".equals(role)) {
+        portalRole = PortalRole.CLIENT;
+    }
+    if (portalRole == PortalRole.UNKNOWN && "consultant".equals(role)) {
+        portalRole = PortalRole.CONSULTANT;
+    }
+    RtoAuthenticatedPrincipal principal = new RtoAuthenticatedPrincipal(
+        UUID.randomUUID(),
+        UUID.fromString(ORGANIZATION_ID),
+        portalRole,
+        "Test User",
+        UUID.randomUUID()
+    );
+    return new RtoAuthenticationToken(principal);
   }
 }
