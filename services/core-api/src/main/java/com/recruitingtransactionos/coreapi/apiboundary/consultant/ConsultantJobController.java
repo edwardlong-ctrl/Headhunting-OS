@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,8 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/consultant/jobs")
 public final class ConsultantJobController {
 
-  private static final String ACTOR_ROLE_HEADER = "X-RTO-Actor-Role";
-  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private final ConsultantApiQueryService queryService;
   private final ConsultantApiCommandService commandService;
@@ -55,15 +55,14 @@ public final class ConsultantJobController {
 
   @GetMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> listJobs(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String companyId,
       @RequestParam(defaultValue = "20") int limit,
       @RequestParam(defaultValue = "0") int offset) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.READ);
     PagedQuery pagedQuery = PagedQuery.builder(orgId).limit(limit).offset(offset).build();
 
@@ -75,11 +74,10 @@ public final class ConsultantJobController {
   @GetMapping("/{jobId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> getJob(
       @PathVariable String jobId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId) {
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     JobId jid = parseJobId(jobId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.READ);
 
@@ -91,12 +89,11 @@ public final class ConsultantJobController {
 
   @PostMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJob(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody JobCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
 
     ConsultantJobDetailResponse result =
@@ -108,12 +105,11 @@ public final class ConsultantJobController {
   @PutMapping("/{jobId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateJob(
       @PathVariable String jobId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody JobUpdateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     JobId jid = parseJobId(jobId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.UPDATE);
 
@@ -125,12 +121,11 @@ public final class ConsultantJobController {
   @PostMapping("/{jobId}/requirements")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJobRequirement(
       @PathVariable String jobId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody JobRequirementCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     JobId jid = parseJobId(jobId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
 
@@ -143,12 +138,11 @@ public final class ConsultantJobController {
   @PostMapping("/{jobId}/scorecard")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJobScorecard(
       @PathVariable String jobId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody JobScorecardCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     JobId jid = parseJobId(jobId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
 
@@ -199,8 +193,8 @@ public final class ConsultantJobController {
             "Request failed."));
   }
 
-  private static void requireConsultantRole(String actorRole) {
-    if (actorRole == null || !PortalRole.CONSULTANT.wireValue().equals(actorRole.strip())) {
+  private static void requireConsultantRole(PortalRole portalRole) {
+    if (portalRole != PortalRole.CONSULTANT) {
       throw new AccessDeniedException(
           new AccessDecision(false,
               "consultant_role_required",
@@ -208,16 +202,6 @@ public final class ConsultantJobController {
     }
   }
 
-  private static UUID parseOrganizationId(String organizationId) {
-    if (organizationId == null || organizationId.isBlank()) {
-      throw new IllegalArgumentException("X-RTO-Organization-Id header is required.");
-    }
-    try {
-      return UUID.fromString(organizationId.strip());
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Invalid organization ID format.");
-    }
-  }
 
   private static JobId parseJobId(String jobId) {
     if (jobId == null || jobId.isBlank()) {

@@ -136,7 +136,9 @@ class ApiBoundaryContractTest {
         ApiErrorResponse.class,
         ApiAccessDeniedResponse.class,
         ApiValidationErrorResponse.class,
-        ClientSafeCandidateCardResponse.class);
+        ClientSafeCandidateCardResponse.class,
+        AuthSessionResponse.class,
+        AuthLogoutResponse.class);
 
     for (Class<?> dto : apiDtos) {
       assertThat(dto.isRecord()).as(dto.getSimpleName()).isTrue();
@@ -162,6 +164,8 @@ class ApiBoundaryContractTest {
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(ApiErrorResponse.class);
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(ApiAccessDeniedResponse.class);
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(ApiValidationErrorResponse.class);
+    assertThat(ApiSafeResponseBody.class).isAssignableFrom(AuthSessionResponse.class);
+    assertThat(ApiSafeResponseBody.class).isAssignableFrom(AuthLogoutResponse.class);
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(CandidateProfile.class)).isFalse();
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(CandidateProfileId.class)).isFalse();
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(SourceItem.class)).isFalse();

@@ -157,6 +157,13 @@ public final class FieldAccessPolicy {
             "consultant_read_allowed",
             "Consultant role may read company, job, and shortlist resources.");
       }
+      if (request.resourceType() == ResourceType.SOURCE_ITEM
+          && request.fieldClassification() == FieldClassification.RAW_SOURCE
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_source_item_read_allowed",
+            "Consultant role may read same-organization raw source items.");
+      }
     }
     if (request.action() == AccessAction.CREATE
         || request.action() == AccessAction.UPDATE) {
@@ -166,6 +173,14 @@ public final class FieldAccessPolicy {
         return AccessDecision.allow(
             "consultant_write_allowed",
             "Consultant role may create and update company and job resources.");
+      }
+      if (request.action() == AccessAction.CREATE
+          && request.resourceType() == ResourceType.SOURCE_ITEM
+          && request.fieldClassification() == FieldClassification.RAW_SOURCE
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_source_item_create_allowed",
+            "Consultant role may upload same-organization raw source items.");
       }
     }
     return deny(

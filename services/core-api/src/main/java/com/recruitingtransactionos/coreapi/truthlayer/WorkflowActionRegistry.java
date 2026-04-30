@@ -203,6 +203,17 @@ public final class WorkflowActionRegistry {
             WorkflowActionCode.PRIOR_CONTACT_CLAIM_CREATED,
             WorkflowActionCode.PRIOR_APPLICATION_CLAIM_CREATED)));
 
+    policies.add(transition(
+        WorkflowActionCode.SOURCE_ITEM_REGISTERED,
+        RiskTier.T2_MEDIUM_RISK,
+        "Source item intake was registered with preserved provenance.",
+        WorkflowEntityType.SOURCE_ITEM));
+    policies.add(transition(
+        WorkflowActionCode.INFORMATION_PACKET_CREATED,
+        RiskTier.T2_MEDIUM_RISK,
+        "Information packet intake was created and linked to uploaded evidence.",
+        WorkflowEntityType.INFORMATION_PACKET));
+
     policies.addAll(transitions(WorkflowEntityType.PLACEMENT,
         RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         List.of(

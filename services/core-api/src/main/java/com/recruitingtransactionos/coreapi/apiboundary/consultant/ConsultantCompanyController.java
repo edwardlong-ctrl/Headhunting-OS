@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,8 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/consultant/companies")
 public final class ConsultantCompanyController {
 
-  private static final String ACTOR_ROLE_HEADER = "X-RTO-Actor-Role";
-  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private final ConsultantApiQueryService queryService;
   private final ConsultantApiCommandService commandService;
@@ -55,14 +55,13 @@ public final class ConsultantCompanyController {
 
   @GetMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> listCompanies(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestParam(required = false) String status,
       @RequestParam(defaultValue = "20") int limit,
       @RequestParam(defaultValue = "0") int offset) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.READ);
     PagedQuery pagedQuery = PagedQuery.builder(orgId).limit(limit).offset(offset).build();
 
@@ -74,11 +73,10 @@ public final class ConsultantCompanyController {
   @GetMapping("/{companyId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> getCompany(
       @PathVariable String companyId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId) {
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     CompanyId cid = parseCompanyId(companyId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.READ);
 
@@ -90,12 +88,11 @@ public final class ConsultantCompanyController {
 
   @PostMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createCompany(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody CompanyCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.CREATE);
 
     ConsultantCompanyDetailResponse result =
@@ -107,12 +104,11 @@ public final class ConsultantCompanyController {
   @PutMapping("/{companyId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateCompany(
       @PathVariable String companyId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody CompanyUpdateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     CompanyId cid = parseCompanyId(companyId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.UPDATE);
 
@@ -124,12 +120,11 @@ public final class ConsultantCompanyController {
   @PostMapping("/{companyId}/contacts")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createCompanyContact(
       @PathVariable String companyId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody CompanyContactCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     CompanyId cid = parseCompanyId(companyId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.COMPANY, AccessAction.CREATE);
 
@@ -180,8 +175,8 @@ public final class ConsultantCompanyController {
             "Request failed."));
   }
 
-  private static void requireConsultantRole(String actorRole) {
-    if (actorRole == null || !PortalRole.CONSULTANT.wireValue().equals(actorRole.strip())) {
+  private static void requireConsultantRole(PortalRole portalRole) {
+    if (portalRole != PortalRole.CONSULTANT) {
       throw new AccessDeniedException(
           new AccessDecision(false,
               "consultant_role_required",
@@ -189,16 +184,6 @@ public final class ConsultantCompanyController {
     }
   }
 
-  private static UUID parseOrganizationId(String organizationId) {
-    if (organizationId == null || organizationId.isBlank()) {
-      throw new IllegalArgumentException("X-RTO-Organization-Id header is required.");
-    }
-    try {
-      return UUID.fromString(organizationId.strip());
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Invalid organization ID format.");
-    }
-  }
 
   private static CompanyId parseCompanyId(String companyId) {
     if (companyId == null || companyId.isBlank()) {

@@ -7,6 +7,12 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticationToken;
+import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import org.springframework.security.core.Authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,6 +42,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+@org.springframework.context.annotation.Import({
+    com.recruitingtransactionos.coreapi.identityauth.SecurityConfig.class
+})
+@org.springframework.test.context.TestPropertySource(properties = {"rto.auth.jwt.secret=0123456789abcdef0123456789abcdef", "rto.auth.jwt.issuer=test"})
 @WebMvcTest({
     ConsultantCompanyController.class,
     ConsultantJobController.class,
@@ -57,17 +67,20 @@ class ConsultantControllerLeakageTest {
   @MockBean
   private ConsultantApiCommandService commandService;
 
+  @MockBean
+  private IdentityAuthenticationPort identityAuthenticationPort;
+
   // ── Company Controller ────────────────────────────────────────────────────
 
   @Nested
   class CompanyController {
 
     @Test
-    void missingRoleHeaderReturns403() throws Exception {
+    void unauthenticatedReturns401() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/companies")
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
           .andReturn();
       assertSanitizedDenial(result);
     }
@@ -75,8 +88,8 @@ class ConsultantControllerLeakageTest {
     @Test
     void wrongRoleClientReturns403() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/companies")
-              .header("X-RTO-Actor-Role", "client")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("client")))
+              )
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
           .andReturn();
@@ -86,18 +99,9 @@ class ConsultantControllerLeakageTest {
     @Test
     void wrongRoleCandidateReturns403() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/companies")
-              .header("X-RTO-Actor-Role", "candidate")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("candidate")))
+              )
           .andExpect(status().isForbidden())
-          .andReturn();
-      assertSanitizedDenial(result);
-    }
-
-    @Test
-    void missingOrganizationHeaderReturns400() throws Exception {
-      MvcResult result = mockMvc.perform(get("/api/consultant/companies")
-              .header("X-RTO-Actor-Role", "consultant"))
-          .andExpect(status().isBadRequest())
           .andReturn();
       assertSanitizedDenial(result);
     }
@@ -111,8 +115,8 @@ class ConsultantControllerLeakageTest {
       when(queryService.listCompanies(any(), any(), eq(null))).thenReturn(result);
 
       MvcResult mvcResult = mockMvc.perform(get("/api/consultant/companies")
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.items[0].companyId").value(COMPANY_ID))
           .andExpect(jsonPath("$.data.items[0].name").value("test-corp"))
@@ -133,8 +137,8 @@ class ConsultantControllerLeakageTest {
       when(queryService.getCompanyDetail(any(), any(), any())).thenReturn(Optional.empty());
 
       MvcResult result = mockMvc.perform(get("/api/consultant/companies/" + COMPANY_ID)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.error.errorCode").value("not_found"))
           .andReturn();
@@ -144,8 +148,8 @@ class ConsultantControllerLeakageTest {
     @Test
     void getCompanyDetailInvalidIdReturns400() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/companies/not-a-uuid")
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isBadRequest())
           .andReturn();
       assertSanitizedDenial(result);
@@ -158,19 +162,18 @@ class ConsultantControllerLeakageTest {
   class JobController {
 
     @Test
-    void missingRoleHeaderReturns403() throws Exception {
-      MvcResult result = mockMvc.perform(get("/api/consultant/jobs")
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
+    void unauthenticatedReturns401() throws Exception {
+      MvcResult result = mockMvc.perform(get("/api/consultant/jobs"))
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
           .andReturn();
-      assertSanitizedDenial(result);
     }
 
     @Test
     void wrongRoleReturns403() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/jobs")
-              .header("X-RTO-Actor-Role", "client")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("client")))
+              )
           .andExpect(status().isForbidden())
           .andReturn();
       assertSanitizedDenial(result);
@@ -179,7 +182,7 @@ class ConsultantControllerLeakageTest {
     @Test
     void missingOrgReturns400() throws Exception {
       mockMvc.perform(get("/api/consultant/jobs")
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -188,8 +191,8 @@ class ConsultantControllerLeakageTest {
       when(queryService.getJobDetail(any(), any(), any())).thenReturn(Optional.empty());
 
       MvcResult result = mockMvc.perform(get("/api/consultant/jobs/" + JOB_ID)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isNotFound())
           .andReturn();
       assertSanitizedDenial(result);
@@ -202,19 +205,18 @@ class ConsultantControllerLeakageTest {
   class ShortlistController {
 
     @Test
-    void missingRoleHeaderReturns403() throws Exception {
-      MvcResult result = mockMvc.perform(get("/api/consultant/shortlists")
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
+    void unauthenticatedReturns401() throws Exception {
+      MvcResult result = mockMvc.perform(get("/api/consultant/shortlists"))
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
           .andReturn();
-      assertSanitizedDenial(result);
     }
 
     @Test
     void wrongRoleReturns403() throws Exception {
       MvcResult result = mockMvc.perform(get("/api/consultant/shortlists")
-              .header("X-RTO-Actor-Role", "candidate")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("candidate")))
+              )
           .andExpect(status().isForbidden())
           .andReturn();
       assertSanitizedDenial(result);
@@ -223,7 +225,7 @@ class ConsultantControllerLeakageTest {
     @Test
     void missingOrgReturns400() throws Exception {
       mockMvc.perform(get("/api/consultant/shortlists")
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -232,8 +234,8 @@ class ConsultantControllerLeakageTest {
       when(queryService.getShortlistDetail(any(), any(), any())).thenReturn(Optional.empty());
 
       MvcResult result = mockMvc.perform(get("/api/consultant/shortlists/" + SHORTLIST_ID)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isNotFound())
           .andReturn();
       assertSanitizedDenial(result);
@@ -255,16 +257,16 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createCompanyMissingRoleReturns403() throws Exception {
+    void createCompanyUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("name", "NewCo", "status", "active"));
 
       mockMvc.perform(post("/api/consultant/companies")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -275,7 +277,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/companies")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -290,23 +292,23 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/companies")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
     }
 
     @Test
-    void updateCompanyMissingRoleReturns403() throws Exception {
+    void updateCompanyUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("name", "UpdatedCo", "status", "active", "version", 1));
 
       mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -317,7 +319,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -332,8 +334,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
     }
@@ -346,8 +348,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/companies")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isBadRequest());
     }
   }
@@ -367,16 +369,16 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createJobMissingRoleReturns403() throws Exception {
+    void createJobUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("companyId", COMPANY_ID, "title", "Engineer", "status", "draft"));
 
       mockMvc.perform(post("/api/consultant/jobs")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -387,7 +389,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -402,14 +404,14 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
     }
 
     @Test
-    void updateJobMissingRoleReturns403() throws Exception {
+    void updateJobUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("companyId", COMPANY_ID, "title", "Updated",
               "status", "active", "version", 1));
@@ -417,9 +419,9 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -431,7 +433,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -447,8 +449,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
     }
@@ -461,8 +463,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isBadRequest());
     }
   }
@@ -482,16 +484,16 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createShortlistMissingRoleReturns403() throws Exception {
+    void createShortlistUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("jobId", JOB_ID, "title", "Test Shortlist", "status", "draft"));
 
       mockMvc.perform(post("/api/consultant/shortlists")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -502,7 +504,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/shortlists")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -517,23 +519,23 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/shortlists")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.shortlistId").value(SHORTLIST_ID));
     }
 
     @Test
-    void updateShortlistMissingRoleReturns403() throws Exception {
+    void updateShortlistUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("jobId", JOB_ID, "title", "Updated", "status", "sent_to_client", "version", 1));
 
       mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -544,7 +546,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -559,8 +561,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(put("/api/consultant/shortlists/" + SHORTLIST_ID)
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.shortlistId").value(SHORTLIST_ID));
     }
@@ -581,15 +583,15 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createContactMissingRoleReturns403() throws Exception {
+    void createContactUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(Map.of("name", "John Doe"));
 
       mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -599,7 +601,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -613,8 +615,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/companies/" + COMPANY_ID + "/contacts")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
     }
@@ -635,16 +637,16 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createRequirementMissingRoleReturns403() throws Exception {
+    void createRequirementUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("requirementType", "skill", "label", "Java"));
 
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -655,7 +657,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -670,8 +672,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/requirements")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
     }
@@ -692,16 +694,16 @@ class ConsultantControllerLeakageTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void createScorecardMissingRoleReturns403() throws Exception {
+    void createScorecardUnauthenticatedReturns401() throws Exception {
       String body = objectMapper.writeValueAsString(
           Map.of("dimensions", "technical_fit"));
 
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Organization-Id", ORG_ID))
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+              )
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
     }
 
     @Test
@@ -712,7 +714,7 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant"))
+              .with(authentication(auth("consultant"))))
           .andExpect(status().isBadRequest());
     }
 
@@ -727,8 +729,8 @@ class ConsultantControllerLeakageTest {
       mockMvc.perform(post("/api/consultant/jobs/" + JOB_ID + "/scorecard")
               .contentType(MediaType.APPLICATION_JSON)
               .content(body)
-              .header("X-RTO-Actor-Role", "consultant")
-              .header("X-RTO-Organization-Id", ORG_ID))
+              .with(authentication(auth("consultant")))
+              )
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
     }
@@ -829,5 +831,29 @@ class ConsultantControllerLeakageTest {
             "disclosureRecord",
             "CandidateProfile",
             "canonicalWrite");
+  }
+
+  private static Authentication auth(String role) {
+    PortalRole portalRole = PortalRole.UNKNOWN;
+    for (PortalRole r : PortalRole.values()) {
+        if (r.wireValue().equals(role)) {
+            portalRole = r;
+            break;
+        }
+    }
+    if (portalRole == PortalRole.UNKNOWN && "client".equals(role)) {
+        portalRole = PortalRole.CLIENT;
+    }
+    if (portalRole == PortalRole.UNKNOWN && "candidate".equals(role)) {
+        portalRole = PortalRole.CANDIDATE;
+    }
+    RtoAuthenticatedPrincipal principal = new RtoAuthenticatedPrincipal(
+        UUID.randomUUID(),
+        UUID.fromString(ORG_ID),
+        portalRole,
+        "Test User",
+        UUID.randomUUID()
+    );
+    return new RtoAuthenticationToken(principal);
   }
 }

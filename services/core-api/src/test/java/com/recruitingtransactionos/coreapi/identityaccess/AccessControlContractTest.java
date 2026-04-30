@@ -206,6 +206,35 @@ class AccessControlContractTest {
   }
 
   @Test
+  void consultantCanReadAndCreateSameOrganizationRawSourceItemsOnly() {
+    for (AccessAction action : List.of(AccessAction.READ, AccessAction.CREATE)) {
+      AccessDecision allowed = evaluator.evaluate(new AccessRequest(
+          PortalRole.CONSULTANT,
+          ResourceType.SOURCE_ITEM,
+          action,
+          FieldClassification.RAW_SOURCE,
+          Set.of(RelationshipScope.SAME_ORGANIZATION),
+          false));
+
+      assertAllowed(
+          allowed,
+          action == AccessAction.READ
+              ? "consultant_source_item_read_allowed"
+              : "consultant_source_item_create_allowed");
+
+      AccessDecision denied = evaluator.evaluate(new AccessRequest(
+          PortalRole.CONSULTANT,
+          ResourceType.SOURCE_ITEM,
+          action,
+          FieldClassification.RAW_SOURCE,
+          Set.of(RelationshipScope.ASSIGNED_CONSULTANT),
+          false));
+
+      assertDenied(denied, "access_denied_by_default");
+    }
+  }
+
+  @Test
   void adminSystemAndAiDoNotBypassCanonicalWriteOrDisclosureSemanticsByRoleAlone() {
     for (PortalRole governanceRole : List.of(
         PortalRole.ADMIN,

@@ -19,6 +19,8 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -146,10 +148,9 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             "card_task13b_success_0001",
-            "client",
+            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()),
             "client_safe",
-            null,
-            ORG_A.toString());
+            null);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -208,10 +209,9 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             otherOrgOnlyCardRef,
-            "client",
+            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()),
             "client_safe",
-            null,
-            ORG_A.toString());
+            null);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();

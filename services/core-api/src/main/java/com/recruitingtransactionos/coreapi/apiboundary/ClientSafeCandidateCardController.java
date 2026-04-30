@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,10 +29,7 @@ public final class ClientSafeCandidateCardController {
   @GetMapping("/{anonymousCardRef}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> readClientSafeCandidateCard(
       @PathVariable String anonymousCardRef,
-      @RequestHeader(
-              name = ClientSafeCandidateCardApiAccessContextAdapter.ACTOR_ROLE_HEADER,
-              required = false)
-          String actorRole,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestHeader(
               name = ClientSafeCandidateCardApiAccessContextAdapter.FIELD_CLASSIFICATION_HEADER,
               required = false)
@@ -39,18 +38,14 @@ public final class ClientSafeCandidateCardController {
               name =
                   ClientSafeCandidateCardApiAccessContextAdapter.IDENTITY_DISCLOSURE_HEADER,
               required = false)
-          String identityDisclosureRequested,
-      @RequestHeader(
-              name = ClientSafeCandidateCardApiAccessContextAdapter.ORGANIZATION_ID_HEADER,
-              required = false)
-          String organizationId) {
+          String identityDisclosureRequested) {
     AnonymousCandidateCardId cardId = AnonymousCandidateCardId.of(anonymousCardRef);
-    AccessRequest accessRequest = ClientSafeCandidateCardApiAccessContextAdapter.fromHeaders(
-        actorRole,
+    AccessRequest accessRequest = ClientSafeCandidateCardApiAccessContextAdapter.fromPrincipal(
+        principal,
         fieldClassification,
         identityDisclosureRequested);
     ClientSafeCandidateCardQueryScope queryScope =
-        ClientSafeCandidateCardApiAccessContextAdapter.queryScopeFromHeaders(organizationId);
+        ClientSafeCandidateCardApiAccessContextAdapter.queryScopeFromPrincipal(principal);
 
     return queryService.findClientSafeCandidateCard(accessRequest, queryScope, cardId)
         .map(ClientSafeCandidateCardController::success)

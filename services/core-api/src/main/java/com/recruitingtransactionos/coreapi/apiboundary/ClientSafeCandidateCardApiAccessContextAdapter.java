@@ -7,30 +7,29 @@ import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
 final class ClientSafeCandidateCardApiAccessContextAdapter {
 
-  static final String ACTOR_ROLE_HEADER = "X-RTO-Actor-Role";
   static final String FIELD_CLASSIFICATION_HEADER = "X-RTO-Field-Classification";
   static final String IDENTITY_DISCLOSURE_HEADER = "X-RTO-Identity-Disclosure-Requested";
-  static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private ClientSafeCandidateCardApiAccessContextAdapter() {}
 
-  static AccessRequest fromHeaders(
-      String actorRoleHeader,
+  static AccessRequest fromPrincipal(
+      RtoAuthenticatedPrincipal principal,
       String fieldClassificationHeader,
       String identityDisclosureRequestedHeader) {
-    if (isBlank(actorRoleHeader) || isBlank(fieldClassificationHeader)) {
+    if (principal == null || isBlank(fieldClassificationHeader)) {
       throw denied(
           "api_access_context_required",
           "Access context is required.");
     }
 
-    PortalRole actorRole = parsePortalRole(actorRoleHeader);
+    PortalRole actorRole = principal.portalRole();
     FieldClassification fieldClassification =
         parseFieldClassification(fieldClassificationHeader);
     boolean identityDisclosureRequested =
@@ -45,17 +44,13 @@ final class ClientSafeCandidateCardApiAccessContextAdapter {
         identityDisclosureRequested);
   }
 
-  static ClientSafeCandidateCardQueryScope queryScopeFromHeaders(String organizationIdHeader) {
-    if (isBlank(organizationIdHeader)) {
+  static ClientSafeCandidateCardQueryScope queryScopeFromPrincipal(RtoAuthenticatedPrincipal principal) {
+    if (principal == null || principal.organizationId() == null) {
       throw denied(
           "api_access_context_required",
           "Access context is required.");
     }
-    try {
-      return ClientSafeCandidateCardQueryScope.of(UUID.fromString(organizationIdHeader.strip()));
-    } catch (IllegalArgumentException exception) {
-      throw denied("api_access_context_invalid", "Access context is invalid.");
-    }
+    return ClientSafeCandidateCardQueryScope.of(principal.organizationId());
   }
 
   private static PortalRole parsePortalRole(String value) {

@@ -2,12 +2,23 @@ package com.recruitingtransactionos.coreapi.apiboundary;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticationToken;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import org.springframework.security.core.Authentication;
+import java.util.UUID;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.identityauth.JwtService;
+import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
@@ -28,6 +39,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,6 +48,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -43,8 +56,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+@org.springframework.test.context.TestPropertySource(properties = {"rto.auth.jwt.secret=0123456789abcdef0123456789abcdef", "rto.auth.jwt.issuer=test"})
 @WebMvcTest(ClientSafeCandidateCardController.class)
-@Import(ApiBoundaryRegressionClosureTest.TestConfig.class)
+@Import({
+    ApiBoundaryRegressionClosureTest.TestConfig.class,
+    com.recruitingtransactionos.coreapi.identityauth.SecurityConfig.class
+})
 class ApiBoundaryRegressionClosureTest {
 
   private static final String ENDPOINT =
@@ -85,6 +102,9 @@ class ApiBoundaryRegressionClosureTest {
   @Autowired
   private RecordingClientSafeCandidateCardQueryPort queryPort;
 
+  @MockBean
+  private IdentityAuthenticationPort identityAuthenticationPort;
+
   @BeforeEach
   void resetQueryPort() {
     queryPort.reset();
@@ -93,9 +113,9 @@ class ApiBoundaryRegressionClosureTest {
   @Test
   void requestPathUsesAnonymousCardRefOnly() throws Exception {
     mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+            )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
 
@@ -134,9 +154,9 @@ class ApiBoundaryRegressionClosureTest {
 
       MvcResult result = mockMvc.perform(get(
               "/api/client-safe/candidate-cards/" + unsafeRef)
-              .header(ROLE_HEADER, "client")
+              .with(authentication(auth("client")))
               .header(FIELD_HEADER, "client_safe")
-              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+              )
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
           .andExpect(jsonPath("$.error.safeReason")
@@ -152,28 +172,32 @@ class ApiBoundaryRegressionClosureTest {
   void temporaryAccessContextAdapterFailsClosedForMissingUnknownOrUnsupportedHeaders()
       throws Exception {
     MvcResult missing = mockMvc.perform(get(ENDPOINT))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
+        .andExpect(jsonPath("$.error.safeReason").value("authentication_required"))
         .andReturn();
     assertSanitizedApiBody(missing.getResponse().getContentAsString());
 
     mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"));
-    assertThat(queryPort.calls).isZero();
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
+    assertThat(queryPort.calls).isEqualTo(1);
     queryPort.reset();
 
     for (String role : List.of("owner-plus", "client")) {
       queryPort.reset();
       String field = role.equals("client") ? "identity" : "client_safe";
+      String expectedReason = role.equals("client")
+          ? "api_access_context_invalid"
+          : "unknown_access_denied_by_default";
       MvcResult invalid = mockMvc.perform(get(ENDPOINT)
-              .header(ROLE_HEADER, role)
+              .with(authentication(auth(role)))
               .header(FIELD_HEADER, field)
-              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+              )
           .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
+          .andExpect(jsonPath("$.error.safeReason").value(expectedReason))
           .andReturn();
 
       assertSanitizedApiBody(invalid.getResponse().getContentAsString());
@@ -181,9 +205,9 @@ class ApiBoundaryRegressionClosureTest {
     }
 
     MvcResult malformedDisclosure = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
+            
             .header(IDENTITY_DISCLOSURE_HEADER, "yes"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
@@ -192,15 +216,22 @@ class ApiBoundaryRegressionClosureTest {
     assertSanitizedApiBody(malformedDisclosure.getResponse().getContentAsString());
     assertThat(queryPort.calls).isZero();
 
-    MvcResult malformedOrganization = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
-            .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, "not-a-uuid"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
-        .andReturn();
+  }
 
-    assertSanitizedApiBody(malformedOrganization.getResponse().getContentAsString());
+  @Test
+  void revokedSessionBearerTokenFailsClosedBeforeController() throws Exception {
+    RtoAuthenticatedPrincipal principal = principal("client", UUID.fromString(ORGANIZATION_ID));
+    Instant issuedAt = Instant.parse("2026-05-01T00:00:00Z");
+    when(identityAuthenticationPort.findActiveSessionBySessionId(
+        eq(principal.sessionId()), any(Instant.class)))
+        .thenReturn(Optional.empty());
+
+    mockMvc.perform(get(ENDPOINT)
+            .header("Authorization", validBearerToken(principal, issuedAt))
+            .header(FIELD_HEADER, "client_safe"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
+        .andExpect(jsonPath("$.error.safeReason").value("invalid_token"));
     assertThat(queryPort.calls).isZero();
   }
 
@@ -210,9 +241,9 @@ class ApiBoundaryRegressionClosureTest {
     for (String allowedField : List.of("client_safe", "generalized")) {
       queryPort.reset();
       MvcResult result = mockMvc.perform(get(ENDPOINT)
-              .header(ROLE_HEADER, "client")
+              .with(authentication(auth("client")))
               .header(FIELD_HEADER, allowedField)
-              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+              )
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.data.redactionLevel").value("l2_client_safe"))
           .andReturn();
@@ -225,9 +256,9 @@ class ApiBoundaryRegressionClosureTest {
         "consent_disclosure", "system_governance")) {
       queryPort.reset();
       MvcResult result = mockMvc.perform(get(ENDPOINT)
-              .header(ROLE_HEADER, "client")
+              .with(authentication(auth("client")))
               .header(FIELD_HEADER, unsafeField)
-              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+              )
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
           .andReturn();
@@ -237,9 +268,9 @@ class ApiBoundaryRegressionClosureTest {
     }
 
     MvcResult identityDisclosure = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID)
+            
             .header(IDENTITY_DISCLOSURE_HEADER, "true"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
@@ -255,9 +286,9 @@ class ApiBoundaryRegressionClosureTest {
       queryPort.reset();
 
       MvcResult result = mockMvc.perform(get(ENDPOINT)
-              .header(ROLE_HEADER, role)
+              .with(authentication(auth(role)))
               .header(FIELD_HEADER, "client_safe")
-              .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+              )
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
           .andReturn();
@@ -272,9 +303,9 @@ class ApiBoundaryRegressionClosureTest {
     queryPort.nextCard = Optional.empty();
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+            )
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.errorCode").value("not_found"))
         .andExpect(jsonPath("$.error.safeReason")
@@ -296,9 +327,9 @@ class ApiBoundaryRegressionClosureTest {
             + "com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileService");
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
-            .header(ROLE_HEADER, "client")
+            .with(authentication(auth("client")))
             .header(FIELD_HEADER, "client_safe")
-            .header(ORGANIZATION_ID_HEADER, ORGANIZATION_ID))
+            )
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.error.errorCode").value("internal_error"))
         .andExpect(jsonPath("$.error.safeReason").value("request_failed"))
@@ -444,7 +475,8 @@ class ApiBoundaryRegressionClosureTest {
             "ConsultantCompanyController.java",
             "ConsultantJobController.java",
             "ConsultantShortlistController.java",
-            "ConsultantDocumentController.java");
+            "ConsultantDocumentController.java",
+        "AuthenticationController.java");
 
     for (Path controllerFile : controllerFiles) {
       String source = Files.readString(controllerFile);
@@ -474,7 +506,10 @@ class ApiBoundaryRegressionClosureTest {
       boolean isDocumentController =
           "ConsultantDocumentController.java".equals(fileName);
 
-      if (!isConsultantWriteController && !isDocumentController) {
+      boolean isAuthenticationController =
+          "AuthenticationController.java".equals(fileName);
+
+      if (!isConsultantWriteController && !isDocumentController && !isAuthenticationController) {
         assertThat(source)
             .as(controllerFile.toString())
             .doesNotContain("@PostMapping");
@@ -673,6 +708,41 @@ class ApiBoundaryRegressionClosureTest {
         "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
         List.of("Evidence generalized from approved profile signals."),
         List.of("Strong fit based on generalized capability evidence."));
+  }
+
+  private static Authentication auth(String role) {
+    return new RtoAuthenticationToken(principal(role, UUID.fromString(ORGANIZATION_ID)));
+  }
+
+  private static RtoAuthenticatedPrincipal principal(String role, UUID organizationId) {
+    PortalRole portalRole = PortalRole.UNKNOWN;
+    for (PortalRole r : PortalRole.values()) {
+        if (r.wireValue().equals(role)) {
+            portalRole = r;
+            break;
+        }
+    }
+    if (portalRole == PortalRole.UNKNOWN && "client".equals(role)) {
+        portalRole = PortalRole.CLIENT;
+    }
+    if (portalRole == PortalRole.UNKNOWN && "consultant".equals(role)) {
+        portalRole = PortalRole.CONSULTANT;
+    }
+    return new RtoAuthenticatedPrincipal(
+        UUID.randomUUID(),
+        organizationId,
+        portalRole,
+        "Test User",
+        UUID.randomUUID()
+    );
+  }
+
+  private static String validBearerToken(RtoAuthenticatedPrincipal principal, Instant issuedAt) {
+    return "Bearer " + new JwtService(
+        "0123456789abcdef0123456789abcdef",
+        "test",
+        1800,
+        604800).issueAccessToken(principal, issuedAt);
   }
 
   @TestConfiguration

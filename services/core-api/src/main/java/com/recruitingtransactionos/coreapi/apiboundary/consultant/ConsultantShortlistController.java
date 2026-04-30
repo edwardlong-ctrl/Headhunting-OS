@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,8 +42,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/consultant/shortlists")
 public final class ConsultantShortlistController {
 
-  private static final String ACTOR_ROLE_HEADER = "X-RTO-Actor-Role";
-  private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private final ConsultantApiQueryService queryService;
   private final ConsultantApiCommandService commandService;
@@ -55,14 +55,13 @@ public final class ConsultantShortlistController {
 
   @GetMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> listShortlists(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestParam(required = false) String jobId,
       @RequestParam(defaultValue = "20") int limit,
       @RequestParam(defaultValue = "0") int offset) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST);
     PagedQuery pagedQuery = PagedQuery.builder(orgId).limit(limit).offset(offset).build();
 
@@ -74,11 +73,10 @@ public final class ConsultantShortlistController {
   @GetMapping("/{shortlistId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> getShortlist(
       @PathVariable String shortlistId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId) {
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     ShortlistId sid = parseShortlistId(shortlistId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST);
 
@@ -90,12 +88,11 @@ public final class ConsultantShortlistController {
 
   @PostMapping
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createShortlist(
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody ShortlistCreateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.CREATE);
 
     ConsultantShortlistDetailResponse result =
@@ -107,12 +104,11 @@ public final class ConsultantShortlistController {
   @PutMapping("/{shortlistId}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateShortlist(
       @PathVariable String shortlistId,
-      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
-      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody ShortlistUpdateRequest request) {
 
-    requireConsultantRole(actorRole);
-    UUID orgId = parseOrganizationId(organizationId);
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
     ShortlistId sid = parseShortlistId(shortlistId);
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
 
@@ -162,8 +158,8 @@ public final class ConsultantShortlistController {
             "Request failed."));
   }
 
-  private static void requireConsultantRole(String actorRole) {
-    if (actorRole == null || !PortalRole.CONSULTANT.wireValue().equals(actorRole.strip())) {
+  private static void requireConsultantRole(PortalRole portalRole) {
+    if (portalRole != PortalRole.CONSULTANT) {
       throw new AccessDeniedException(
           new AccessDecision(false,
               "consultant_role_required",
@@ -171,16 +167,6 @@ public final class ConsultantShortlistController {
     }
   }
 
-  private static UUID parseOrganizationId(String organizationId) {
-    if (organizationId == null || organizationId.isBlank()) {
-      throw new IllegalArgumentException("X-RTO-Organization-Id header is required.");
-    }
-    try {
-      return UUID.fromString(organizationId.strip());
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Invalid organization ID format.");
-    }
-  }
 
   private static ShortlistId parseShortlistId(String shortlistId) {
     if (shortlistId == null || shortlistId.isBlank()) {
