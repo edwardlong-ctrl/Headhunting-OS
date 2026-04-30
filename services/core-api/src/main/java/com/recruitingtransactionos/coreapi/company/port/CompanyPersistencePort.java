@@ -11,6 +11,8 @@ public interface CompanyPersistencePort {
 
   Company create(Company company);
 
+  Company update(Company company);
+
   Optional<Company> findByIdAndOrganizationId(UUID organizationId, CompanyId companyId);
 
   List<Company> findByOrganizationIdAndStatus(UUID organizationId, CompanyStatus status);

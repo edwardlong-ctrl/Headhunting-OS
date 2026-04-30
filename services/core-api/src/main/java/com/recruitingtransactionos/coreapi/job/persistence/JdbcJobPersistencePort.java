@@ -76,6 +76,17 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
       ORDER BY created_at DESC
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.job SET
+        company_id = ?, title = ?, description = ?, location = ?::jsonb,
+        seniority_band = ?, role_family = ?, employment_type = ?,
+        compensation = ?::jsonb, status = ?, commercial_terms = ?::jsonb,
+        owner_consultant_id = ?, activated_at = ?, closed_at = ?,
+        close_reason = ?, industry_pack_id = ?, metadata = ?::jsonb,
+        updated_at = NOW(), version = version + 1
+      WHERE organization_id = ? AND job_id = ? AND version = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcJobPersistencePort(DataSource dataSource) {
@@ -110,6 +121,44 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
           .orElseThrow(() -> new IllegalStateException("job not readable after create"));
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create job", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Job update(Job job) {
+    Objects.requireNonNull(job, "job must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setObject(1, job.companyId().value());
+      statement.setString(2, job.title());
+      statement.setString(3, job.description());
+      statement.setString(4, job.location());
+      statement.setString(5, job.seniorityBand());
+      statement.setString(6, job.roleFamily());
+      statement.setString(7, job.employmentType());
+      statement.setString(8, job.compensation());
+      statement.setString(9, job.status().wireValue());
+      statement.setString(10, job.commercialTerms());
+      statement.setObject(11, job.ownerConsultantId());
+      statement.setObject(12, job.activatedAt());
+      statement.setObject(13, job.closedAt());
+      statement.setString(14, job.closeReason());
+      statement.setObject(15, job.industryPackId());
+      statement.setString(16, job.metadata());
+      statement.setObject(17, job.organizationId());
+      statement.setObject(18, job.jobId().value());
+      statement.setInt(19, job.version());
+      int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalStateException(
+            "Job update affected 0 rows — version mismatch or job not found");
+      }
+      return findByIdAndOrganizationId(job.organizationId(), job.jobId())
+          .orElseThrow(() -> new IllegalStateException("job not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update job", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

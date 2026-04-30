@@ -12,6 +12,8 @@ public interface JobPersistencePort {
 
   Job create(Job job);
 
+  Job update(Job job);
+
   Optional<Job> findByIdAndOrganizationId(UUID organizationId, JobId jobId);
 
   List<Job> findByOrganizationIdAndStatus(UUID organizationId, JobStatus status);

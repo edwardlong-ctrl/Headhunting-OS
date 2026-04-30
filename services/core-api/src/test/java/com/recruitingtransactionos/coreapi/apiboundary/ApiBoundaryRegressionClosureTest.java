@@ -447,12 +447,9 @@ class ApiBoundaryRegressionClosureTest {
 
     for (Path controllerFile : controllerFiles) {
       String source = Files.readString(controllerFile);
+      String fileName = controllerFile.getFileName().toString();
       assertThat(source)
           .as(controllerFile.toString())
-          .doesNotContain("@PostMapping")
-          .doesNotContain("@PutMapping")
-          .doesNotContain("@PatchMapping")
-          .doesNotContain("@DeleteMapping")
           .doesNotContain("/api/candidates")
           .doesNotContain("/api/candidate-profiles")
           .doesNotContain("/api/profiles")
@@ -467,6 +464,23 @@ class ApiBoundaryRegressionClosureTest {
           .doesNotContain("{candidateProfileId}")
           .doesNotContain("ResourceType.CANDIDATE_PROFILE")
           .doesNotContain("ResourceType.CANDIDATE");
+
+      // Allow @PostMapping and @PutMapping only on consultant write controllers
+      boolean isConsultantWriteController =
+          "ConsultantCompanyController.java".equals(fileName)
+              || "ConsultantJobController.java".equals(fileName);
+
+      if (!isConsultantWriteController) {
+        assertThat(source)
+            .as(controllerFile.toString())
+            .doesNotContain("@PostMapping")
+            .doesNotContain("@PutMapping");
+      }
+
+      assertThat(source)
+          .as(controllerFile.toString())
+          .doesNotContain("@PatchMapping")
+          .doesNotContain("@DeleteMapping");
     }
 
     String apiControllerSource = Files.readString(projectPath(

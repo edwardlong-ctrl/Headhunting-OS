@@ -36,6 +36,11 @@ public final class JobService {
     return jobPort.create(job);
   }
 
+  public Job updateJob(Job job) {
+    Objects.requireNonNull(job, "job must not be null");
+    return jobPort.update(job);
+  }
+
   public Optional<Job> findJobByIdAndOrganizationId(UUID organizationId, JobId jobId) {
     return jobPort.findByIdAndOrganizationId(organizationId, jobId);
   }

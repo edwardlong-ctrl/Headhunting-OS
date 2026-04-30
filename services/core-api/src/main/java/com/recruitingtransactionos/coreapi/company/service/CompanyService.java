@@ -34,6 +34,11 @@ public final class CompanyService {
     return companyPort.create(company);
   }
 
+  public Company updateCompany(Company company) {
+    Objects.requireNonNull(company, "company must not be null");
+    return companyPort.update(company);
+  }
+
   public Optional<Company> findCompanyByIdAndOrganizationId(
       UUID organizationId, CompanyId companyId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");

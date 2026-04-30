@@ -151,7 +151,7 @@ public final class ApiBoundaryContractRules {
     return new LinkedHashSet<>(CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS);
   }
 
-  static String requireNonBlank(String value, String fieldName) {
+  public static String requireNonBlank(String value, String fieldName) {
     Objects.requireNonNull(value, fieldName + " must not be null");
     if (value.isBlank()) {
       throw new IllegalArgumentException(fieldName + " must not be blank");

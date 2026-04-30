@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,7 +20,10 @@ import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -47,6 +53,9 @@ class ConsultantControllerLeakageTest {
 
   @MockBean
   private ConsultantApiQueryService queryService;
+
+  @MockBean
+  private ConsultantApiCommandService commandService;
 
   // ── Company Controller ────────────────────────────────────────────────────
 
@@ -228,6 +237,233 @@ class ConsultantControllerLeakageTest {
           .andExpect(status().isNotFound())
           .andReturn();
       assertSanitizedDenial(result);
+    }
+  }
+
+  // ── Company Write Controller ──────────────────────────────────────────────
+
+  @Nested
+  class CompanyWriteController {
+
+    private static final ConsultantCompanyDetailResponse COMPANY_DETAIL =
+        new ConsultantCompanyDetailResponse(
+            COMPANY_ID, "testcorp", null, "tech", null,
+            "asia", "medium", "active", "high", null,
+            "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(), 0);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createCompanyMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "NewCo", "status", "active"));
+
+      mockMvc.perform(post("/api/consultant/companies")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createCompanyMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "NewCo", "status", "active"));
+
+      mockMvc.perform(post("/api/consultant/companies")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createCompanySuccessReturns201() throws Exception {
+      when(commandService.createCompany(any(), any(), any()))
+          .thenReturn(COMPANY_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "NewCo", "status", "active"));
+
+      mockMvc.perform(post("/api/consultant/companies")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
+    }
+
+    @Test
+    void updateCompanyMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "UpdatedCo", "status", "active", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void updateCompanyMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "UpdatedCo", "status", "active", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateCompanySuccessReturns200() throws Exception {
+      when(commandService.updateCompany(any(), any(), any(), any()))
+          .thenReturn(COMPANY_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "UpdatedCo", "status", "active", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/companies/" + COMPANY_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.companyId").value(COMPANY_ID));
+    }
+
+    @Test
+    void createCompanyInvalidPayloadReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("name", "", "status", "active"));
+
+      mockMvc.perform(post("/api/consultant/companies")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  // ── Job Write Controller ──────────────────────────────────────────────────
+
+  @Nested
+  class JobWriteController {
+
+    private static final ConsultantJobDetailResponse JOB_DETAIL =
+        new ConsultantJobDetailResponse(
+            JOB_ID, COMPANY_ID, "engineer", null, null,
+            null, null, null, null, "draft",
+            null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(), null);
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createJobMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Engineer", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/jobs")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void createJobMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Engineer", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/jobs")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createJobSuccessReturns201() throws Exception {
+      when(commandService.createJob(any(), any(), any()))
+          .thenReturn(JOB_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Engineer", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/jobs")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
+    }
+
+    @Test
+    void updateJobMissingRoleReturns403() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Updated",
+              "status", "active", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.errorCode").value("access_denied"));
+    }
+
+    @Test
+    void updateJobMissingOrgReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Updated",
+              "status", "active", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateJobSuccessReturns200() throws Exception {
+      when(commandService.updateJob(any(), any(), any(), any()))
+          .thenReturn(JOB_DETAIL);
+
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "Updated",
+              "status", "draft", "version", 1));
+
+      mockMvc.perform(put("/api/consultant/jobs/" + JOB_ID)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.jobId").value(JOB_ID));
+    }
+
+    @Test
+    void createJobInvalidPayloadReturns400() throws Exception {
+      String body = objectMapper.writeValueAsString(
+          Map.of("companyId", COMPANY_ID, "title", "", "status", "draft"));
+
+      mockMvc.perform(post("/api/consultant/jobs")
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(body)
+              .header("X-RTO-Actor-Role", "consultant")
+              .header("X-RTO-Organization-Id", ORG_ID))
+          .andExpect(status().isBadRequest());
     }
   }
 

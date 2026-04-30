@@ -56,6 +56,15 @@ public final class JdbcCompanyPersistencePort implements CompanyPersistencePort 
       ORDER BY name
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.company SET
+        name = ?, display_name = ?, industry = ?, website = ?,
+        headquarters_location = ?, size_band = ?, status = ?,
+        payment_reliability = ?, owner_consultant_id = ?,
+        metadata = ?::jsonb, updated_at = NOW(), version = version + 1
+      WHERE organization_id = ? AND company_id = ? AND version = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcCompanyPersistencePort(DataSource dataSource) {
@@ -84,6 +93,38 @@ public final class JdbcCompanyPersistencePort implements CompanyPersistencePort 
           .orElseThrow(() -> new IllegalStateException("company not readable after create"));
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create company", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Company update(Company company) {
+    Objects.requireNonNull(company, "company must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setString(1, company.name());
+      statement.setString(2, company.displayName());
+      statement.setString(3, company.industry());
+      statement.setString(4, company.website());
+      statement.setString(5, company.headquartersLocation());
+      statement.setString(6, company.sizeBand());
+      statement.setString(7, company.status().wireValue());
+      statement.setString(8, company.paymentReliability());
+      statement.setObject(9, company.ownerConsultantId());
+      statement.setString(10, company.metadata());
+      statement.setObject(11, company.organizationId());
+      statement.setObject(12, company.companyId().value());
+      statement.setInt(13, company.version());
+      int rows = statement.executeUpdate();
+      if (rows == 0) {
+        throw new IllegalStateException(
+            "Company update affected 0 rows — version mismatch or company not found");
+      }
+      return findByIdAndOrganizationId(company.organizationId(), company.companyId())
+          .orElseThrow(() -> new IllegalStateException("company not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update company", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

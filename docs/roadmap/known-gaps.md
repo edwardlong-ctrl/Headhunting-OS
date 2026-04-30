@@ -296,4 +296,20 @@
   - Successful responses return only allowlisted fields with no internal entity leakage.
   - Not-found returns sanitized 404; invalid UUID returns sanitized 400.
   - No raw Candidate, CandidateProfile, PII, internal entity types, stack traces, or internal package names leak through response bodies or denial messages.
-- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No create/update/delete endpoints exist yet. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. No real auth/login/session/Spring Security exists — the header-based temporary access context remains the only auth mechanism.
+- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. No real auth/login/session/Spring Security exists — the header-based temporary access context remains the only auth mechanism.
+
+## Task 18B (Partial) Consultant Write Endpoints for Company and Job
+
+- Task 18B (partial) adds CREATE and UPDATE operations for Company and Job through the Consultant API boundary.
+- `CompanyPersistencePort.update()` and `JobPersistencePort.update()` with optimistic-locking JDBC implementations (`WHERE organization_id = ? AND version = ?`, `SET version = version + 1`).
+- `CompanyService.updateCompany()` and `JobService.updateJob()` domain service methods with null-safety guards.
+- `FieldAccessPolicy.decideConsultantAccess()` extended to allow CREATE and UPDATE on COMPANY and JOB resources, in addition to existing READ.
+- Four request DTOs: `CompanyCreateRequest`, `CompanyUpdateRequest`, `JobCreateRequest`, `JobUpdateRequest` with compact canonical-constructor validation through `ApiBoundaryContractRules.requireNonBlank()`. Update requests include a required `version` field (>= 1) for optimistic locking.
+- `ConsultantApiCommandService` facade with `PermissionEnforcer`-based access enforcement, domain-object assembly from request DTOs, and response mapping through existing `ConsultantCompanyResponseMapper`/`ConsultantJobResponseMapper`.
+- `@PostMapping` and `@PutMapping` endpoints on `ConsultantCompanyController` and `ConsultantJobController`.
+- `HttpMessageNotReadableException` handler added to both controllers for invalid request body deserialization (returns 400).
+- `ApiBoundaryRegressionClosureTest` updated to allow POST/PUT only on consultant company/job controllers while still blocking PATCH/DELETE on all controllers.
+- 14 new @WebMvcTest write-operation cases in `ConsultantControllerLeakageTest` covering role/org header enforcement, success paths (201/200), and invalid payload (400).
+- 5 new PostgreSQL/Testcontainers integration tests in `ConsultantWriteOrgIsolationIntegrationTest` proving organization-scoped isolation (cross-org read/update denied) and optimistic locking (wrong version fails, correct version succeeds and increments).
+- Full Maven backend reached 622 tests, 0 failures/errors, 1 existing skip.
+- Remaining gaps: no DELETE endpoints, no Shortlist write endpoints, no Client-portal write endpoints, no Candidate/CandidateProfile write endpoints, no batch operations.

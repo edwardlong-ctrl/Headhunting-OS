@@ -24,9 +24,13 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,9 +44,13 @@ public final class ConsultantJobController {
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
 
   private final ConsultantApiQueryService queryService;
+  private final ConsultantApiCommandService commandService;
 
-  public ConsultantJobController(ConsultantApiQueryService queryService) {
+  public ConsultantJobController(
+      ConsultantApiQueryService queryService,
+      ConsultantApiCommandService commandService) {
     this.queryService = Objects.requireNonNull(queryService, "queryService must not be null");
+    this.commandService = Objects.requireNonNull(commandService, "commandService must not be null");
   }
 
   @GetMapping
@@ -56,7 +64,7 @@ public final class ConsultantJobController {
 
     requireConsultantRole(actorRole);
     UUID orgId = parseOrganizationId(organizationId);
-    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.READ);
     PagedQuery pagedQuery = PagedQuery.builder(orgId).limit(limit).offset(offset).build();
 
     PagedResult<ConsultantJobSummaryResponse> result =
@@ -73,12 +81,45 @@ public final class ConsultantJobController {
     requireConsultantRole(actorRole);
     UUID orgId = parseOrganizationId(organizationId);
     JobId jid = parseJobId(jobId);
-    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.READ);
 
     return queryService.getJobDetail(accessRequest, orgId, jid)
         .map(response -> ResponseEntity.ok(
             ApiResponseEnvelope.<ApiSafeResponseBody>success(response)))
         .orElseGet(ConsultantJobController::notFound);
+  }
+
+  @PostMapping
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> createJob(
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody JobCreateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.CREATE);
+
+    ConsultantJobDetailResponse result =
+        commandService.createJob(accessRequest, orgId, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponseEnvelope.success(result));
+  }
+
+  @PutMapping("/{jobId}")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateJob(
+      @PathVariable String jobId,
+      @RequestHeader(name = ACTOR_ROLE_HEADER, required = false) String actorRole,
+      @RequestHeader(name = ORGANIZATION_ID_HEADER, required = false) String organizationId,
+      @RequestBody JobUpdateRequest request) {
+
+    requireConsultantRole(actorRole);
+    UUID orgId = parseOrganizationId(organizationId);
+    JobId jid = parseJobId(jobId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.UPDATE);
+
+    ConsultantJobDetailResponse result =
+        commandService.updateJob(accessRequest, orgId, jid, request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
   }
 
   @ExceptionHandler(AccessDeniedException.class)
@@ -97,6 +138,17 @@ public final class ConsultantJobController {
         ApiValidationErrorResponse.of(
             "invalid_request",
             List.of("Invalid request: " + exception.getMessage()))
+            .toErrorResponse());
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> unreadablePayload(
+      HttpMessageNotReadableException exception) {
+    return error(
+        HttpStatus.BAD_REQUEST,
+        ApiValidationErrorResponse.of(
+            "invalid_request",
+            List.of("Invalid request body."))
             .toErrorResponse());
   }
 
@@ -142,11 +194,11 @@ public final class ConsultantJobController {
     }
   }
 
-  private static AccessRequest buildAccessRequest(ResourceType resourceType) {
+  private static AccessRequest buildAccessRequest(ResourceType resourceType, AccessAction action) {
     return new AccessRequest(
         PortalRole.CONSULTANT,
         resourceType,
-        AccessAction.READ,
+        action,
         FieldClassification.INTERNAL,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
