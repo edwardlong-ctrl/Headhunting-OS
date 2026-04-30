@@ -15,6 +15,7 @@ public enum ResourceType {
   JOB("job"),
   COMPANY("company"),
   MATCH_REPORT("match_report"),
+  SHORTLIST("shortlist"),
   ADMIN_GOVERNANCE("admin_governance");
 
   private final String wireValue;

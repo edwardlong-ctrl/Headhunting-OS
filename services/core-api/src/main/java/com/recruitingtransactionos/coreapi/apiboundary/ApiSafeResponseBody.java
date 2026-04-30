@@ -4,4 +4,11 @@ public sealed interface ApiSafeResponseBody
     permits ApiErrorResponse,
         ApiAccessDeniedResponse,
         ApiValidationErrorResponse,
-        ClientSafeCandidateCardResponse {}
+        ClientSafeCandidateCardResponse,
+        ConsultantCompanySummaryResponse,
+        ConsultantCompanyDetailResponse,
+        ConsultantJobSummaryResponse,
+        ConsultantJobDetailResponse,
+        ConsultantShortlistSummaryResponse,
+        ConsultantShortlistDetailResponse,
+        PagedResult {}

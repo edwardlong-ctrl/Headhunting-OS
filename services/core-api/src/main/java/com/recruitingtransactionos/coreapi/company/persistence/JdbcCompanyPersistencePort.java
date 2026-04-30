@@ -46,6 +46,16 @@ public final class JdbcCompanyPersistencePort implements CompanyPersistencePort 
       ORDER BY name
       """;
 
+  private static final String FIND_ALL_BY_ORG_SQL = """
+      SELECT company_id, organization_id, name, display_name, industry, website,
+        headquarters_location, size_band, status, payment_reliability,
+        owner_consultant_id, metadata::text AS metadata,
+        created_at, updated_at, version
+      FROM recruiting.company
+      WHERE organization_id = ?
+      ORDER BY name
+      """;
+
   private final DataSource dataSource;
 
   public JdbcCompanyPersistencePort(DataSource dataSource) {
@@ -117,6 +127,26 @@ public final class JdbcCompanyPersistencePort implements CompanyPersistencePort 
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find companies by status", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<Company> findAllByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_BY_ORG_SQL)) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Company> results = new ArrayList<>();
+        while (resultSet.next()) {
+          results.add(toCompany(resultSet));
+        }
+        return List.copyOf(results);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find companies by organization", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

@@ -1,0 +1,50 @@
+package com.recruitingtransactionos.coreapi.apiboundary;
+
+import java.util.List;
+
+public record ConsultantCompanyDetailResponse(
+    String companyId,
+    String name,
+    String displayName,
+    String industry,
+    String website,
+    String headquartersLocation,
+    String sizeBand,
+    String status,
+    String paymentReliability,
+    String ownerConsultantId,
+    String createdAt,
+    String updatedAt,
+    List<Contact> contacts,
+    int jobCount) implements ApiSafeResponseBody {
+
+  public ConsultantCompanyDetailResponse {
+    companyId = ApiBoundaryContractRules.requireNonBlank(companyId, "companyId");
+    name = ApiBoundaryContractRules.requireApiSafeExternalText(name, "name");
+    displayName = ApiBoundaryContractRules.sanitizeExternalText(displayName, null);
+    industry = ApiBoundaryContractRules.sanitizeExternalText(industry, null);
+    website = ApiBoundaryContractRules.sanitizeExternalText(website, null);
+    headquartersLocation =
+        ApiBoundaryContractRules.sanitizeExternalText(headquartersLocation, null);
+    sizeBand = ApiBoundaryContractRules.sanitizeExternalText(sizeBand, null);
+    status = ApiBoundaryContractRules.requireNonBlank(status, "status");
+    paymentReliability =
+        ApiBoundaryContractRules.sanitizeExternalText(paymentReliability, null);
+    createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
+    updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");
+    contacts = ApiBoundaryContractRules.requireNonNullList(contacts, "contacts");
+    if (jobCount < 0) {
+      throw new IllegalArgumentException("jobCount must be >= 0");
+    }
+  }
+
+  public record Contact(
+      String contactId,
+      String name,
+      String title,
+      String email,
+      String phone,
+      String roleType,
+      boolean isPrimary,
+      String status) {}
+}

@@ -45,6 +45,15 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
       ORDER BY created_at DESC
       """;
 
+  private static final String FIND_ALL_BY_ORG_SQL = """
+      SELECT shortlist_id, organization_id, job_id, title, status,
+        sent_at, client_viewed_at, owner_consultant_id,
+        metadata::text AS metadata, created_at, updated_at, version
+      FROM recruiting.shortlist
+      WHERE organization_id = ?
+      ORDER BY created_at DESC
+      """;
+
   private final DataSource dataSource;
 
   public JdbcShortlistPersistencePort(DataSource dataSource) {
@@ -117,6 +126,26 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find shortlists by job", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<Shortlist> findAllByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_BY_ORG_SQL)) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Shortlist> results = new ArrayList<>();
+        while (resultSet.next()) {
+          results.add(toShortlist(resultSet));
+        }
+        return List.copyOf(results);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find shortlists by organization", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

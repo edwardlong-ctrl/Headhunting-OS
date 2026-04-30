@@ -42,6 +42,11 @@ public final class ShortlistService {
     return shortlistPort.findByJobIdAndOrganizationId(organizationId, jobId);
   }
 
+  public List<Shortlist> findAllShortlistsByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    return shortlistPort.findAllByOrganizationId(organizationId);
+  }
+
   public ShortlistCandidateCard addCandidateCard(ShortlistCandidateCard card) {
     Objects.requireNonNull(card, "card must not be null");
     return cardPort.create(card);

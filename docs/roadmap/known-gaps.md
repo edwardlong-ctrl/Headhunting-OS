@@ -281,3 +281,19 @@
 - This resolves the long-standing gap where blocked canonical attempts had no separate persisted audit ledger.
 - Idempotency currently returns the existing attempt on key match without verifying payload equivalence. If a caller replays the same idempotency key with different command payload, the service returns the original attempt id without detecting the mismatch. Future hardening: add an idempotency equivalence hash or command fingerprint to detect replay payload drift.
 - V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without `REFERENCES` constraints (intentional loose ledger design for now). These columns record linkage for audit/query purposes but do not enforce referential integrity at the DB level. Future hardening: document the FK-free design decision explicitly, or add optional composite FKs if referential integrity becomes operationally necessary.
+
+## Task 18A Consultant Read API Layer Complete; Write and Client-Side API Deferred
+
+- Task 18A adds the first v1 product API layer for Consultant read access to companies, jobs, and shortlists through three read-only REST controllers (`ConsultantCompanyController`, `ConsultantJobController`, `ConsultantShortlistController`).
+- Generic offset-based pagination infrastructure (`PagedQuery` with builder pattern, DEFAULT_LIMIT=20, MAX_LIMIT=100; sealed `PagedResult<T>`) exists and is reusable by future controllers.
+- Six consultant response DTOs exist: `ConsultantCompanySummaryResponse`, `ConsultantCompanyDetailResponse`, `ConsultantJobSummaryResponse`, `ConsultantJobDetailResponse`, `ConsultantShortlistSummaryResponse`, `ConsultantShortlistDetailResponse`. All are sealed as `ApiSafeResponseBody` permits.
+- `ResourceType.SHORTLIST` is added to the access-control vocabulary.
+- `FieldAccessPolicy` now allows CONSULTANT role READ on COMPANY, JOB, and SHORTLIST resource types. Consultant access to all other resource types remains denied by default.
+- `ApiBoundaryContractRules` contains explicit allowlists for all six consultant response types, with public accessor methods for field-name validation.
+- `ConsultantApiQueryService` serves as the single facade for consultant reads, enforcing `PermissionEnforcer.requireAllowed()` before delegating to domain services and mappers.
+- Leakage and denial `@WebMvcTest` coverage exists for all 6 endpoints, proving:
+  - Missing/wrong-role/missing-org headers fail closed (403/400).
+  - Successful responses return only allowlisted fields with no internal entity leakage.
+  - Not-found returns sanitized 404; invalid UUID returns sanitized 400.
+  - No raw Candidate, CandidateProfile, PII, internal entity types, stack traces, or internal package names leak through response bodies or denial messages.
+- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No create/update/delete endpoints exist yet. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. No real auth/login/session/Spring Security exists — the header-based temporary access context remains the only auth mechanism.

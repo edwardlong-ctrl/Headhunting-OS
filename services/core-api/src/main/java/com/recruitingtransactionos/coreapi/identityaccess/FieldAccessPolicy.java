@@ -48,6 +48,10 @@ public final class FieldAccessPolicy {
       return decideCandidateAccess(request);
     }
 
+    if (request.actorRole() == PortalRole.CONSULTANT) {
+      return decideConsultantAccess(request);
+    }
+
     return deny(
         "access_denied_by_default",
         "No allow rule exists for this role, action, resource, and field classification.");
@@ -142,5 +146,23 @@ public final class FieldAccessPolicy {
 
   private static AccessDecision deny(String reasonCode, String safeExplanation) {
     return AccessDecision.deny(reasonCode, safeExplanation);
+  }
+
+  private static AccessDecision decideConsultantAccess(AccessRequest request) {
+    if (request.action() != AccessAction.READ) {
+      return deny(
+          "consultant_read_only",
+          "Consultant role can only read resources in this evaluator.");
+    }
+    if (request.resourceType() == ResourceType.COMPANY
+        || request.resourceType() == ResourceType.JOB
+        || request.resourceType() == ResourceType.SHORTLIST) {
+      return AccessDecision.allow(
+          "consultant_read_allowed",
+          "Consultant role may read company, job, and shortlist resources.");
+    }
+    return deny(
+        "access_denied_by_default",
+        "No consultant allow rule exists for this resource type.");
   }
 }

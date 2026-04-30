@@ -23,6 +23,33 @@ public final class ApiBoundaryContractRules {
           "safeEvidenceSummaries",
           "safeMatchNarratives");
 
+  private static final Set<String> CONSULTANT_COMPANY_SUMMARY_RESPONSE_FIELDS =
+      Set.of("companyId", "name", "status", "contactCount", "jobCount", "createdAt");
+
+  private static final Set<String> CONSULTANT_COMPANY_DETAIL_RESPONSE_FIELDS =
+      Set.of(
+          "companyId", "name", "displayName", "industry", "website", "headquartersLocation",
+          "sizeBand", "status", "paymentReliability", "ownerConsultantId", "createdAt",
+          "updatedAt", "contacts", "jobCount");
+
+  private static final Set<String> CONSULTANT_JOB_SUMMARY_RESPONSE_FIELDS =
+      Set.of("jobId", "title", "companyId", "status", "createdAt");
+
+  private static final Set<String> CONSULTANT_JOB_DETAIL_RESPONSE_FIELDS =
+      Set.of(
+          "jobId", "companyId", "title", "description", "location", "seniorityBand",
+          "roleFamily", "employmentType", "compensation", "status", "ownerConsultantId",
+          "activatedAt", "closedAt", "closeReason", "createdAt", "updatedAt",
+          "requirements", "scorecard");
+
+  private static final Set<String> CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS =
+      Set.of("shortlistId", "title", "jobId", "status", "candidateCount", "createdAt");
+
+  private static final Set<String> CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS =
+      Set.of(
+          "shortlistId", "jobId", "title", "status", "sentAt", "clientViewedAt",
+          "ownerConsultantId", "createdAt", "updatedAt", "cards");
+
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
           "l0_teaser",
@@ -58,6 +85,72 @@ public final class ApiBoundaryContractRules {
     return new LinkedHashSet<>(CLIENT_SAFE_CANDIDATE_CARD_RESPONSE_FIELDS);
   }
 
+  public static boolean isAllowedConsultantCompanySummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_COMPANY_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantCompanySummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_COMPANY_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantCompanyDetailResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_COMPANY_DETAIL_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantCompanyDetailResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_COMPANY_DETAIL_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantJobSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_JOB_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantJobSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_JOB_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantJobDetailResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_JOB_DETAIL_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantJobDetailResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_JOB_DETAIL_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantShortlistSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantShortlistSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantShortlistDetailResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantShortlistDetailResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS);
+  }
+
   static String requireNonBlank(String value, String fieldName) {
     Objects.requireNonNull(value, fieldName + " must not be null");
     if (value.isBlank()) {
@@ -79,6 +172,13 @@ public final class ApiBoundaryContractRules {
     Objects.requireNonNull(values, fieldName + " must not be null");
     return values.stream()
         .map(value -> requireNonBlank(value, fieldName + " item"))
+        .toList();
+  }
+
+  static <T> List<T> requireNonNullList(List<T> values, String fieldName) {
+    Objects.requireNonNull(values, fieldName + " must not be null");
+    return values.stream()
+        .map(item -> Objects.requireNonNull(item, fieldName + " item must not be null"))
         .toList();
   }
 

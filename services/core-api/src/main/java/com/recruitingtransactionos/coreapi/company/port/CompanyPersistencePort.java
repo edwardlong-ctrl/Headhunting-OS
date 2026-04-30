@@ -14,4 +14,6 @@ public interface CompanyPersistencePort {
   Optional<Company> findByIdAndOrganizationId(UUID organizationId, CompanyId companyId);
 
   List<Company> findByOrganizationIdAndStatus(UUID organizationId, CompanyStatus status);
+
+  List<Company> findAllByOrganizationId(UUID organizationId);
 }

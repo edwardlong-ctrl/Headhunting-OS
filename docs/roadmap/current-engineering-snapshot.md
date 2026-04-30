@@ -4,10 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `66e416c`
-- latest merged commit: `66e416c` Task 17: persist canonical write attempts for audit and review (V11 migration + domain + tests)
-- current validation snapshot: full backend Maven suite reached 582 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
-- merge status: main contains Task 17; next recommended task is Task 18.
+- current main HEAD: `871dd66`
+- latest merged commit: `871dd66` Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints (pagination infrastructure, 6 consultant response DTOs, 3 read-only controllers, facade/mapper layer, FieldAccessPolicy extension, leakage/denial tests)
+- current validation snapshot: full backend Maven suite reached 595 tests, 0 failures/errors, 1 existing skip; frontend typecheck/build validated through Task 13A.
+- merge status: main contains Task 18A + Task 16-Hardening + Task 20-preflight; next recommended task is Task 18B (Client/Consultant product API, write endpoints, and docs closure).
 
 ## Completed Major Tasks
 
@@ -48,6 +48,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 16: Real Product Data Model Completion ✅ V10 migration (15 new tables), domain/port/adapter/service/tests for Company, Job, Shortlist, Placement, Commission, CandidateDocument, Interaction, InterviewFeedback, ProfileFieldLineage
 - Task 16-Hardening: DB Org-Scope Composite FK Hardening ✅ V12 migration (7 UNIQUE constraints + 19 composite FKs + 19 dropped simple FKs), 8 cross-org negative integration tests
 - Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
+- Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints ✅ generic pagination (PagedQuery/PagedResult), 6 consultant response DTOs (company/job/shortlist summary+detail), 3 consultant read-only controllers, ConsultantApiQueryService facade, ConsultantCompany/Job/Shortlist response mappers, ResourceType.SHORTLIST, FieldAccessPolicy consultant allow rules, ApiSafeResponseBody extension, ApiBoundaryContractRules allowlist expansion, findAllByOrganizationId on Company/Job/Shortlist ports+JDBC+services, leakage and denial tests for all 6 endpoints
 
 ## Current Truth/Kernel Capabilities
 
@@ -103,6 +104,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 13B adds a narrow PostgreSQL-backed `ClientSafeCandidateCardQueryPort` implementation for the existing `GET /api/client-safe/candidate-cards/{anonymousCardRef}` endpoint. It reads only backend-owned client-safe projection metadata from `recruiting.candidate_profile`, rebuilds an internal projection snapshot, reuses `ClientSafeCandidateProjectionService` plus the re-identification boundary, and fails closed to unavailable when data is missing, ambiguous, invalid, L4/identity-disclosed, cross-organization, or carrying raw sensitive values.
 - Task 13B regression and PostgreSQL/Testcontainers coverage proves the existing endpoint can return a real safe success-state card from backend data, while preserving sanitized denial/unavailable behavior, anonymous `card_` references only, client-safe DTO mapping only, organization scope, no raw Candidate/Profile client exposure, no L4 identity-disclosed output, no Spring Security/auth/session, no broad workflow/API expansion, and compatibility with the existing Task 13A route through runtime-configured temporary organization scope.
 - Task 14 hardens the backend Consent / Disclosure slice without expanding product surface. It keeps `L3_CONSENTED_DETAIL` separate from identity disclosure, binds approved disclosure records to the requested consent/unlock chain, makes final disclosure persistence retry-safe, adds organization-scoped consent/disclosure linkage hardening through `V9__harden_consent_disclosure_org_scope_links.sql`, enforces runtime denial for legacy cross-organization unlock approvers, and preserves fail-closed L4 redaction-level checks without adding API/controller/UI/auth/session/Spring Security or identity-disclosed client reads.
+- Task 18A adds the first v1 product API layer for Consultant read access: generic offset-based pagination infrastructure (`PagedQuery` with DEFAULT_LIMIT=20, MAX_LIMIT=100; `PagedResult<T>` sealed as `ApiSafeResponseBody`), six consultant-specific response DTOs (`ConsultantCompanySummaryResponse`, `ConsultantCompanyDetailResponse`, `ConsultantJobSummaryResponse`, `ConsultantJobDetailResponse`, `ConsultantShortlistSummaryResponse`, `ConsultantShortlistDetailResponse`), three read-only REST controllers at `/api/consultant/companies`, `/api/consultant/jobs`, and `/api/consultant/shortlists` (list + detail endpoints), `ConsultantApiQueryService` facade using `PermissionEnforcer.requireAllowed()` plus domain services and mappers, `ResourceType.SHORTLIST` added to the access-control vocabulary, `FieldAccessPolicy` extended with Consultant allow rules for READ on COMPANY/JOB/SHORTLIST, `ApiSafeResponseBody` sealed interface extended to permit all new response types, `ApiBoundaryContractRules` updated with allowlist field definitions for all six consultant responses, and `findAllByOrganizationId` methods added to Company/Job/Shortlist persistence ports, JDBC adapters, and domain services.
+- Task 18A leakage and denial tests prove: (1) missing/wrong-role/missing-org headers fail closed for all endpoints, (2) successful responses contain only allowlisted fields, (3) not-found and invalid-id paths return sanitized API errors, (4) no internal entity type/CandidateProfile/candidate identity details leak through consultant response bodies or denial messages, (5) allowlist field definitions match the actual response DTO record components.
 
 ## Current Known Gaps
 
@@ -146,20 +149,21 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 17 `persistAttempt()` idempotency returns existing attempt on key match without verifying payload equivalence. Future hardening should add an idempotency equivalence hash or command fingerprint.
 - Task 17 V11 `governance.canonical_write_attempt` columns `claim_ledger_item_id`, `review_event_id`, and `workflow_event_id` are ref-only uuid columns without FK constraints (intentional loose ledger design for now). Future hardening should document the FK-free design decision or add optional composite FKs.
 - recruiting.* source/packet cleanup/deprecation remains deferred.
+- Task 18A is complete only for Consultant read endpoints on companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No create/update/delete endpoints exist for any entity type. No filtering by status (except the optional status query param on list endpoints) or full-text search exists. No shortlist candidate card detail with safe generalized content exists yet. The header-based temporary access context (`X-RTO-Actor-Role`, `X-RTO-Organization-Id`) remains the only auth mechanism — no real auth/login/session/Spring Security exists.
 
 ## Next Recommended Task
 
-Task 18: Product API Layer v1, using:
+Task 18B: Product API Layer v1 — Client-readable consultant product API, write endpoints, and docs closure, using:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/current-engineering-snapshot.md`
 - `docs/roadmap/implementation-status.md`
 - `docs/roadmap/known-gaps.md`
 
-Task 17 closes the Production Kernel + Product Data Model + Canonical Write
-Audit scope. Tasks 15-17 bridged the kernel to productization baseline. The
-system is not full product completion, not Usable v1, and not pilot-ready by
-itself.
+Task 18A closes the Consultant read API surface for companies, jobs, and shortlists.
+Tasks 15-18A bridge the kernel to productization baseline. The system is
+not full product completion, not Usable v1, and not pilot-ready by itself.
+Task 18B should deliver the Client-readable consultant product API and docs closure.
 
 ## Future Prompt Strategy
 

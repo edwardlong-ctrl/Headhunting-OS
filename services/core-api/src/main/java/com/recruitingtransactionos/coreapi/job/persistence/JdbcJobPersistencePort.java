@@ -64,6 +64,18 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
       ORDER BY created_at DESC
       """;
 
+  private static final String FIND_ALL_BY_ORG_SQL = """
+      SELECT job_id, organization_id, company_id, title, description,
+        location::text AS location, seniority_band, role_family, employment_type,
+        compensation::text AS compensation, status,
+        commercial_terms::text AS commercial_terms, owner_consultant_id,
+        activated_at, closed_at, close_reason, industry_pack_id,
+        metadata::text AS metadata, created_at, updated_at, version
+      FROM recruiting.job
+      WHERE organization_id = ?
+      ORDER BY created_at DESC
+      """;
+
   private final DataSource dataSource;
 
   public JdbcJobPersistencePort(DataSource dataSource) {
@@ -148,6 +160,20 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
       return findAll(statement);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find jobs by company", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<Job> findAllByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_BY_ORG_SQL)) {
+      statement.setObject(1, organizationId);
+      return findAll(statement);
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find jobs by organization", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

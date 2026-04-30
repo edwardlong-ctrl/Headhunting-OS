@@ -17,4 +17,6 @@ public interface JobPersistencePort {
   List<Job> findByOrganizationIdAndStatus(UUID organizationId, JobStatus status);
 
   List<Job> findByCompanyIdAndOrganizationId(UUID organizationId, CompanyId companyId);
+
+  List<Job> findAllByOrganizationId(UUID organizationId);
 }

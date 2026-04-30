@@ -48,6 +48,11 @@ public final class CompanyService {
     return companyPort.findByOrganizationIdAndStatus(organizationId, status);
   }
 
+  public List<Company> findAllCompaniesByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    return companyPort.findAllByOrganizationId(organizationId);
+  }
+
   public CompanyContact createContact(CompanyContact contact) {
     Objects.requireNonNull(contact, "contact must not be null");
     return contactPort.create(contact);

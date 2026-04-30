@@ -49,6 +49,11 @@ public final class JobService {
     return jobPort.findByCompanyIdAndOrganizationId(organizationId, companyId);
   }
 
+  public List<Job> findAllJobsByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    return jobPort.findAllByOrganizationId(organizationId);
+  }
+
   public JobRequirement createRequirement(JobRequirement requirement) {
     return requirementPort.create(requirement);
   }

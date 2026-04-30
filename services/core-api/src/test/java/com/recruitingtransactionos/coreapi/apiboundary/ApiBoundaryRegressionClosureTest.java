@@ -438,9 +438,12 @@ class ApiBoundaryRegressionClosureTest {
 
     assertThat(controllerFiles)
         .extracting(path -> path.getFileName().toString())
-        .containsExactly(
+        .containsExactlyInAnyOrder(
             "ClientSafeCandidateCardController.java",
-            "HealthController.java");
+            "HealthController.java",
+            "ConsultantCompanyController.java",
+            "ConsultantJobController.java",
+            "ConsultantShortlistController.java");
 
     for (Path controllerFile : controllerFiles) {
       String source = Files.readString(controllerFile);
