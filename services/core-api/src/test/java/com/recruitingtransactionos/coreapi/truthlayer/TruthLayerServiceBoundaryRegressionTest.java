@@ -275,11 +275,19 @@ class TruthLayerServiceBoundaryRegressionTest {
       while (matcher.find()) {
         insertedTables.add(matcher.group(1));
       }
-      assertThat(source)
-          .doesNotContain("UPDATE ")
-          .doesNotContain("DELETE FROM ")
-          .doesNotContain("recruiting.candidate")
-          .doesNotContain("recruiting.candidate_profile");
+      if (file.getFileName().toString().equals("JdbcAITaskRunPort.java")) {
+        assertThat(source)
+            .contains("UPDATE governance.ai_task_run")
+            .doesNotContain("DELETE FROM ")
+            .doesNotContain("recruiting.candidate")
+            .doesNotContain("recruiting.candidate_profile");
+      } else {
+        assertThat(source)
+            .doesNotContain("UPDATE ")
+            .doesNotContain("DELETE FROM ")
+            .doesNotContain("recruiting.candidate")
+            .doesNotContain("recruiting.candidate_profile");
+      }
     }
 
     assertThat(insertedTables)

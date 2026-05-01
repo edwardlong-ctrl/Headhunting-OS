@@ -44,6 +44,7 @@
 - Task 10A: adds the minimal AITaskRun governance metadata contract, explicit status vocabulary, task/model/prompt/schema version validation, safe failure reason validation, requested-by/correlation/causation metadata, V7 database hardening, and append/readback PostgreSQL persistence without adding real AI/model calls, model routing, prompt execution, queue/worker behavior, write-back behavior, canonical fact writes, API/controller, or UI.
 - Task 10B: adds explicit AI write-back target vocabulary, human-review status vocabulary, and a deterministic metadata-only AITaskGovernancePolicy/AITaskGovernanceDecision layer that validates AITaskRun target/review metadata without adding AI/model calls, prompt execution, queue/worker behavior, actual write-back execution, canonical fact writes, ClaimLedgerItem/ReviewEvent/WorkflowEvent writes, CandidateProfile mutation, API/controller, or UI.
 - Task 10C: closes the current AI governance backend kernel scope with regression tests and docs closure proving AITaskRun metadata persistence, explicit write-back/review schema vocabulary, deterministic fail-closed governance policy, no AI execution/model routing/prompt execution/queue/retry/async behavior, no actual write-back execution, no canonical fact writes, no CandidateProfile mutation, no ClaimLedgerItem/ReviewEvent/WorkflowEvent writes from AITaskRun governance, and no AI governance API/controller/UI.
+- Task 21: Real AI Task Runner v1 via V18 migration adding `input_payload`, `output_payload`, and `replayed_from_ai_task_run_id` to `governance.ai_task_run`; `AITaskRun` append/update/readback audit model; `aitaskrunner` package with prompt registry, schema validator, model router, replay service, DeepSeek provider adapter, Candidate Profile Parser v1, Authenticity Risk Assessor v1, authenticity-to-matching request factory, audited replay, classpath prompt/schema resources, and focused runner tests. Scope remains audit-only with no ClaimLedger/ReviewEvent/WorkflowEvent/canonical write-back.
 - Task 11A: adds backend-only MatchReport scoring contracts, explicit score/dimension/confidence/evidence/provenance vocabulary, ontology and industry-pack version placeholders, and a deterministic score-cap policy skeleton without adding real AI matching, model calls, prompt execution, model routing, persistence, canonical fact writes, CandidateProfile mutation, ClaimLedgerItem/ReviewEvent/WorkflowEvent writes, API/controller, or UI.
 - Task 11B: adds a deterministic backend-only MatchReport generation service, safe generation request/result value objects, evidence coverage summary placeholders, and provenance weighting placeholders. It applies `ScoreCapPolicy` before returning generated reports and still adds no real AI matching, model calls, prompt execution, model routing, persistence, canonical fact writes, CandidateProfile mutation, ClaimLedgerItem/ReviewEvent/WorkflowEvent writes, API/controller, or UI.
 - Task 11C: closes the current Matching / Evidence backend kernel scope with focused regression coverage and docs closure proving MatchReport contracts, generation, evidence coverage, provenance weighting, and score-cap policy remain deterministic, opaque-ref-only, non-canonical, not client-safe API output, and free of raw Candidate/Profile/source/governance leakage. It adds no production code, real AI matching, model calls, prompt execution, model routing, persistence, canonical fact writes, CandidateProfile mutation, ClaimLedgerItem/ReviewEvent/WorkflowEvent writes, API/controller, or UI.
@@ -120,7 +121,7 @@
 - Current full Maven backend reached 622 tests, 0 failures/errors, 1 existing skip after Task 18B (partial).
 - Current frontend validation passed `npm run typecheck:web` and `npm run build:web` for the Task 13A route-aware shell and client-safe candidate-card flow.
 - Full Maven backend reached 664 tests, 0 failures/errors, 1 existing skip after Task 19A.
-- `mvn -q -f services/core-api/pom.xml test -DskipITs` reached 667 tests, 0 failures/errors, 1 existing skip after Task 19C.
+- `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` reached 685 tests, 0 failures/errors, 1 existing skip after Task 21.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -134,7 +135,9 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - `ClaimLedgerService` appends to `governance.claim_ledger_item`.
 - `ReviewEventService` appends to `governance.review_event`.
 - `WorkflowEventService` appends to `workflow.workflow_event`.
-- `AITaskRunService` validates AI write-back target and human-review status metadata through `AITaskGovernancePolicy`, then appends and reads back metadata-only AITaskRun audit records through `JdbcAITaskRunPort`; it does not execute prompts, call models, route models, queue work, or write back outputs.
+- `AITaskRunService` validates AI write-back target and human-review status metadata through `AITaskGovernancePolicy`, then appends, updates, and reads back audited `AITaskRun` records through `JdbcAITaskRunPort`.
+- `AITaskRunnerService` now provides the first real AI execution baseline: task-definition registry, prompt loading, JSON-schema validation, provider routing, DeepSeek-backed execution, audited replay, and `AITaskRun` input/output/tool-call/cost/trace metadata persistence.
+- `CandidateProfileParserTaskService` and `AuthenticityRiskAssessorTaskService` are the first two audited executable AI tasks; their outputs remain non-canonical audit artifacts and do not append ClaimLedger, ReviewEvent, WorkflowEvent, or canonical writes.
 - `WorkflowEventService` validates known workflow action vocabulary and audit policy before append.
 - `WorkflowEventService` validates idempotency, correlation, and causation identifiers before append.
 - `WorkflowEventService` returns the existing event for duplicate equivalent idempotency-key appends and rejects duplicate different payloads as idempotency conflicts.
@@ -300,8 +303,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No target entity lookup or state mutation in `WorkflowTransitionAuditService`.
 - No broad REST controller, raw Candidate/Profile endpoint, or general API runtime layer.
 - No broad product UI integration beyond the Task 13A five-portal shell and narrow client-safe candidate-card flow.
-- No AI model integration.
-- No AI task execution, model routing, prompt execution, AI task queue/worker, or actual write-back execution.
+- No document intelligence, OCR, uploaded-document text extraction, citation retrieval, or evidence chunking exists yet.
+- No AI task queue/worker, retry scheduler, multi-provider production routing, actual write-back execution, automatic human review workflow, or AI governance API/UI exists yet.
 - No Consent/Disclosure API/controller/UI or broad workflow surface beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad client-safe product UI exists beyond the current Task 13A route-aware portal shell and narrow client-safe candidate-card read flow. Task 13B only backs that existing narrow endpoint with a PostgreSQL safe-projection query slice.
 - No broad service-level RBAC/ABAC enforcement beyond the Task 8B/8C minimal client-safe projection and raw Candidate/Profile guard surfaces plus five-portal boundary regression tests.

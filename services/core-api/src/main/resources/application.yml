@@ -15,5 +15,18 @@ rto:
       secret: ${RTO_AUTH_JWT_SECRET:}
       access-token-ttl-seconds: ${RTO_AUTH_ACCESS_TOKEN_TTL_SECONDS:1800}
       refresh-token-ttl-seconds: ${RTO_AUTH_REFRESH_TOKEN_TTL_SECONDS:604800}
+  ai:
+    deepseek:
+      base-url: ${RTO_AI_DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      api-key: ${RTO_AI_DEEPSEEK_API_KEY:}
+      connect-timeout-seconds: ${RTO_AI_DEEPSEEK_CONNECT_TIMEOUT_SECONDS:10}
+      read-timeout-seconds: ${RTO_AI_DEEPSEEK_READ_TIMEOUT_SECONDS:60}
+    routes:
+      candidate-profile-parser:
+        provider: ${RTO_AI_ROUTE_CANDIDATE_PROFILE_PROVIDER:deepseek}
+        model: ${RTO_AI_ROUTE_CANDIDATE_PROFILE_MODEL:deepseek-v4-pro}
+      authenticity-risk-assessor:
+        provider: ${RTO_AI_ROUTE_AUTHENTICITY_PROVIDER:deepseek}
+        model: ${RTO_AI_ROUTE_AUTHENTICITY_MODEL:deepseek-v4-pro}
   document-storage:
     root-dir: ${RTO_DOCUMENT_STORAGE_ROOT_DIR:}

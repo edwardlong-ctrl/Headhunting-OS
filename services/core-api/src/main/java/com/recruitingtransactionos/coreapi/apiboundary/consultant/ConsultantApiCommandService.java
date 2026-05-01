@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -48,6 +49,7 @@ public final class ConsultantApiCommandService {
   private final ShortlistService shortlistService;
   private final PermissionEnforcer permissionEnforcer;
 
+  @Autowired
   public ConsultantApiCommandService(
       CompanyService companyService,
       JobService jobService,

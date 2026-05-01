@@ -1,0 +1,125 @@
+package com.recruitingtransactionos.coreapi.aitaskrunner;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.aitaskrunner.deepseek.DeepSeekAITaskProvider;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityAwareMatchRequestFactory;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityRiskAssessorTaskService;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.CandidateProfileParserTaskService;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
+import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
+import java.time.Duration;
+import java.util.List;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(AITaskRunnerProperties.class)
+public class AITaskRunnerConfiguration {
+
+  @Bean
+  AITaskDefinitionRegistry aiTaskDefinitionRegistry() {
+    return new AITaskDefinitionRegistry(List.of(
+        new AITaskDefinition(
+            "candidate-profile-parser",
+            "candidate-profile-parser.v1",
+            "prompt.candidate-profile-parser.v1",
+            "/ai/prompts/candidate-profile-parser-v1.txt",
+            "/ai/schemas/candidate-profile-parser-input.schema.json",
+            "/ai/schemas/candidate-profile-parser-output.schema.json",
+            AITaskWriteBackTarget.NO_WRITE_BACK,
+            AITaskHumanReviewStatus.NOT_REQUIRED),
+        new AITaskDefinition(
+            "authenticity-risk-assessor",
+            "authenticity-risk-assessor.v1",
+            "prompt.authenticity-risk-assessor.v1",
+            "/ai/prompts/authenticity-risk-assessor-v1.txt",
+            "/ai/schemas/authenticity-risk-assessor-input.schema.json",
+            "/ai/schemas/authenticity-risk-assessor-output.schema.json",
+            AITaskWriteBackTarget.NO_WRITE_BACK,
+            AITaskHumanReviewStatus.NOT_REQUIRED)));
+  }
+
+  @Bean
+  AITaskPromptRegistry aiTaskPromptRegistry() {
+    return new AITaskPromptRegistry();
+  }
+
+  @Bean
+  AITaskSchemaValidator aiTaskSchemaValidator(ObjectMapper objectMapper) {
+    return new AITaskSchemaValidator(objectMapper);
+  }
+
+  @Bean
+  AITaskModelRouter aiTaskModelRouter(AITaskRunnerProperties properties) {
+    return new AITaskModelRouter(properties);
+  }
+
+  @Bean
+  RestClient deepSeekRestClient(AITaskRunnerProperties properties) {
+    SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+    requestFactory.setConnectTimeout(Duration.ofSeconds(properties.getDeepseek().getConnectTimeoutSeconds()));
+    requestFactory.setReadTimeout(Duration.ofSeconds(properties.getDeepseek().getReadTimeoutSeconds()));
+    return RestClient.builder()
+        .baseUrl(properties.getDeepseek().getBaseUrl())
+        .requestFactory(requestFactory)
+        .build();
+  }
+
+  @Bean
+  DeepSeekAITaskProvider deepSeekAITaskProvider(
+      RestClient deepSeekRestClient,
+      AITaskRunnerProperties properties,
+      ObjectMapper objectMapper) {
+    return new DeepSeekAITaskProvider(deepSeekRestClient, properties, objectMapper);
+  }
+
+  @Bean
+  AITaskRunnerService aiTaskRunnerService(
+      AITaskRunService aiTaskRunService,
+      AITaskDefinitionRegistry definitionRegistry,
+      AITaskPromptRegistry promptRegistry,
+      AITaskSchemaValidator schemaValidator,
+      AITaskModelRouter modelRouter,
+      List<AITaskProvider> providers,
+      ObjectMapper objectMapper) {
+    return new AITaskRunnerService(
+        aiTaskRunService,
+        definitionRegistry,
+        promptRegistry,
+        schemaValidator,
+        modelRouter,
+        providers,
+        objectMapper);
+  }
+
+  @Bean
+  AITaskReplayService aiTaskReplayService(
+      AITaskRunService aiTaskRunService,
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new AITaskReplayService(aiTaskRunService, aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  CandidateProfileParserTaskService candidateProfileParserTaskService(
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new CandidateProfileParserTaskService(aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService(
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new AuthenticityRiskAssessorTaskService(aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  AuthenticityAwareMatchRequestFactory authenticityAwareMatchRequestFactory() {
+    return new AuthenticityAwareMatchRequestFactory();
+  }
+}

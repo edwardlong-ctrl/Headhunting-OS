@@ -54,10 +54,19 @@
       ],
       "$comment": "Governance metadata only. This field records review state and does not execute approval or write-back behavior."
     },
+    "input_payload": {
+      "type": ["object", "array"],
+      "$comment": "Validated execution input payload used for replay. Not canonical fact storage."
+    },
+    "output_payload": {
+      "type": ["object", "array"],
+      "$comment": "Validated execution output payload captured for audit and replay. Not canonical fact storage."
+    },
     "requested_by_user_id": { "type": "string", "format": "uuid" },
     "requested_by_role": { "type": "string", "enum": ["owner", "consultant", "client", "candidate", "admin", "system", "ai"] },
     "correlation_id": { "type": "string", "format": "uuid" },
     "causation_id": { "type": "string", "format": "uuid" },
+    "replayed_from_ai_task_run_id": { "type": "string", "format": "uuid" },
     "started_at": { "type": "string", "format": "date-time" },
     "completed_at": { "type": "string", "format": "date-time" },
     "failure_reason": {

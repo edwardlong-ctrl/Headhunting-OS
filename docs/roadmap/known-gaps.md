@@ -48,6 +48,21 @@
 - No `FieldAccessPolicy` entries for DOCUMENT resource type or UPLOAD action exist.
 - No MinIO instance is configured in `docker-compose.yml` for production use.
 
+## Task 21 Real AI Task Runner v1 Complete; Document Intelligence and AI Write-back Deferred
+
+- Task 21 adds the first real audited AI task runner baseline through `AITaskRunnerService`, `AITaskReplayService`, task-definition routing, prompt loading, JSON-schema validation, and a DeepSeek-backed provider adapter.
+- `governance.ai_task_run` now stores validated `input_payload`, `output_payload`, tool-call metadata, cost units, trace refs, and replay lineage. `AITaskRunService` now supports append, update, and readback of these audited runs.
+- The first audited executable tasks now exist:
+  - `candidate-profile-parser.v1`
+  - `authenticity-risk-assessor.v1`
+- `AuthenticityAwareMatchRequestFactory` provides the first bounded bridge from audited authenticity output into matching request assembly.
+- Remaining gaps:
+  - No document intelligence, OCR, PDF parsing, chunking, citation retrieval, or uploaded-document text extraction yet. Task 22 remains next.
+  - No AI task queue/worker, retry scheduler, or long-running execution orchestration yet.
+  - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from AI outputs yet.
+  - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
+  - No multi-provider product routing; the current real provider baseline is DeepSeek only.
+
 ## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Matching Engine Deferred
 
 - Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.
@@ -156,12 +171,12 @@
 - Real auth/login/session infrastructure now exists, and product-endpoint enforcement now runs through JWT-backed `SecurityContext` with Task 19C strong session revocation.
 - No full WorkflowEvent-driven workflow engine, transition legality validation, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior exists yet.
 
-## Task 10 AITaskRun Metadata Governance Exists; AI Execution Deferred
+## Task 10 Metadata Governance + Task 21 Audited Execution Baseline Exist; Full AI Productization Deferred
 
 - Task 10A adds minimal AITaskRun metadata auditability only.
 - `AITaskRunStatus` is now an explicit small vocabulary: `CREATED`, `RUNNING`, `SUCCEEDED`, `FAILED`, and `CANCELLED`.
 - AITaskRun append commands validate task version, input schema version, output schema version, prompt version, model provider/name, completion ordering, and safe single-line failure reasons for failed runs.
-- `JdbcAITaskRunPort` can append and read back AITaskRun metadata, preserving task/model/prompt/schema versions, requested-by, correlation, causation, target entity reference, source references, optional write-back target metadata, timing, failure reason, and created timestamp.
+- `JdbcAITaskRunPort` can append, update, and read back AITaskRun audit records, preserving task/model/prompt/schema versions, requested-by, correlation, causation, target entity reference, source references, validated input/output payloads, optional write-back target metadata, tool-calls, cost units, trace refs, replay lineage, timing, failure reason, and created timestamp.
 - V7 adds AITaskRun governance metadata columns and hardens the status/completion/failure-reason database constraints.
 - Task 10B adds explicit `AITaskWriteBackTarget` vocabulary: `NONE`, `NO_WRITE_BACK`, `CLAIM_LEDGER_PROPOSAL`, `REVIEW_QUEUE`, `HUMAN_REVIEW_REQUIRED`, `CANONICAL_CANDIDATE_PROFILE`, `CLIENT_SAFE_PROJECTION`, `JOB_PROFILE`, `COMPANY_PROFILE`, `CONSENT_DISCLOSURE`, `WORKFLOW_ACTION`, and `COMMERCIAL_OR_PLACEMENT`.
 - Task 10B adds explicit `AITaskHumanReviewStatus` vocabulary: `NOT_REQUIRED`, `REQUIRED`, `PENDING`, `APPROVED`, `REJECTED`, `NEEDS_REVISION`, and `EXPIRED`.
@@ -173,7 +188,8 @@
 - Task 10C proves the write-back/review policy remains deterministic and fail-closed: unknown target/status deny by default, `NONE` / `NO_WRITE_BACK` remains metadata-only, claim-ledger proposal does not become fact, canonical targets require approved human review and canonical gate metadata, AI/System self-approval is denied, client-safe projection requires client-safe boundary semantics, and consent/disclosure/unlock, workflow-action, and commercial/placement targets remain blocked or future-gated.
 - Task 10C strengthens `packages/contracts/schemas/ai-task-run.schema.json` so write-back target and human-review status vocabularies are explicit metadata-only schema vocabulary, not executable write-back or approval behavior.
 - Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract exists, AITaskRun metadata persistence exists, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back, and no canonical mutation.
-- Broader AI gaps remain: no real AI model wiring, no model routing, no prompt execution, no AI task queue/worker, no retries/async execution, no actual write-back execution, no AI governance API/UI, no automatic human review workflow, and no canonical write execution from AI governance.
+- Task 21 adds the first real AI execution baseline on top of that governance kernel: prompt registry, schema validator, model router, DeepSeek provider adapter, replay, and two audited executable tasks.
+- Broader AI gaps remain: no document intelligence/OCR/text extraction, no AI task queue/worker, no retries scheduler, no actual write-back execution, no AI governance API/UI, no automatic human review workflow, and no canonical write execution from AI governance.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 

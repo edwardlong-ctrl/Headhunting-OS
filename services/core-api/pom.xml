@@ -36,6 +36,11 @@
       <artifactId>spring-boot-starter-jdbc</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>1.5.7</version>
+    </dependency>
+    <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
       <version>0.12.6</version>

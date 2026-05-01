@@ -139,7 +139,7 @@ class TruthLayerPersistencePortContractTest {
   @Test
   void aiTaskRunPortDoesNotWriteCanonicalFacts() {
     assertThat(methodNames(AITaskRunPort.class))
-        .containsExactly("append", "findById");
+        .containsExactly("append", "findById", "update");
     assertThat(methodNames(AITaskRunPort.class))
         .noneMatch(this::looksLikeCanonicalWriteShortcut);
   }

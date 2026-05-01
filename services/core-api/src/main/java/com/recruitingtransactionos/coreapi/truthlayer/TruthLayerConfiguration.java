@@ -1,0 +1,25 @@
+package com.recruitingtransactionos.coreapi.truthlayer;
+
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcAITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
+import javax.sql.DataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration(proxyBeanMethods = false)
+public class TruthLayerConfiguration {
+
+  @Bean
+  @ConditionalOnMissingBean(AITaskRunPort.class)
+  AITaskRunPort aiTaskRunPort(DataSource dataSource) {
+    return new JdbcAITaskRunPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(AITaskRunService.class)
+  AITaskRunService aiTaskRunService(AITaskRunPort aiTaskRunPort) {
+    return new AITaskRunService(aiTaskRunPort);
+  }
+}

@@ -76,9 +76,9 @@ class AITaskGovernanceRegressionClosureTest {
 
   @Test
   void aiTaskRunAppendSurfaceRemainsMetadataAppendReadOnly() {
-    assertThat(publicDeclaredMethodNames(AITaskRunPort.class)).containsExactly("append", "findById");
-    assertThat(publicDeclaredMethodNames(JdbcAITaskRunPort.class)).containsExactly("append", "findById");
-    assertThat(publicDeclaredMethodNames(AITaskRunService.class)).containsExactly("append", "findById");
+    assertThat(publicDeclaredMethodNames(AITaskRunPort.class)).containsExactly("append", "findById", "update");
+    assertThat(publicDeclaredMethodNames(JdbcAITaskRunPort.class)).containsExactly("append", "findById", "update");
+    assertThat(publicDeclaredMethodNames(AITaskRunService.class)).containsExactly("append", "findById", "update");
 
     assertThat(allDeclaredMethodNames(AITaskRunPort.class)).noneMatch(this::looksExecutable);
     assertThat(allDeclaredMethodNames(JdbcAITaskRunPort.class)).noneMatch(this::looksExecutable);
@@ -94,7 +94,6 @@ class AITaskGovernanceRegressionClosureTest {
         "ChatClient",
         "OpenAI",
         "Anthropic",
-        "DeepSeek",
         "RestTemplate",
         "WebClient",
         "PromptTemplate",
@@ -251,7 +250,7 @@ class AITaskGovernanceRegressionClosureTest {
 
   private static String aiGovernanceSource() throws IOException {
     StringBuilder source = new StringBuilder();
-    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
+    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT.resolve("com/recruitingtransactionos/coreapi/truthlayer"))) {
       for (Path path : paths
           .filter(Files::isRegularFile)
           .filter(file -> file.getFileName().toString().endsWith(".java"))

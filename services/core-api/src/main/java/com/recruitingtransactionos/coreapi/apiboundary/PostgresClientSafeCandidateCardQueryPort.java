@@ -27,14 +27,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
 
-@Component
-@ConditionalOnBean(DataSource.class)
-@Primary
 public final class PostgresClientSafeCandidateCardQueryPort
     implements ClientSafeCandidateCardQueryPort {
 

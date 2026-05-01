@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.recruitingtransactionos.dev/ai/candidate-profile-parser-output.schema.json",
+  "type": "object",
+  "properties": {
+    "headline": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "primarySkills": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "projects": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "timelineHighlights": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "required": ["headline", "summary", "primarySkills", "projects", "timelineHighlights"],
+  "additionalProperties": false
+}

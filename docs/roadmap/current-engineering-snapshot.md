@@ -9,9 +9,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - latest product baseline merges on main:
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
-- latest documented validation snapshot: backend Maven suite reached 667 tests, 0 failures/errors, 1 existing skip after Task 19C auth/session hardening; earlier frontend typecheck/build validation remains recorded through Task 13A.
-- merge status: main contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 16-Hardening.
-- next recommended task: Task 21 (Real AI Task Runner), followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
+- latest documented validation snapshot: backend Maven suite reached 685 tests, 0 failures/errors, 1 existing skip after Task 21 Real AI Task Runner v1; earlier frontend typecheck/build validation remains recorded through Task 13A.
+- merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 16-Hardening.
+- next recommended task: Task 22 (Document Intelligence and Evidence Retrieval v1), followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
 
 ## Completed Major Tasks
 
@@ -54,6 +54,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 17: Canonical Write Audit and Blocked Attempt Ledger ✅ V11 migration (governance.canonical_write_attempt), CanonicalWriteAttemptPort, CanonicalWriteService persistence for all decision types (allow/block/require_review), CanonicalWriteResult carries canonicalWriteAttemptId
 - Task 18A: Product API Layer v1 — Infrastructure + Consultant Read Endpoints ✅ generic pagination (PagedQuery/PagedResult), 6 consultant response DTOs (company/job/shortlist summary+detail), 3 consultant read-only controllers, ConsultantApiQueryService facade, ConsultantCompany/Job/Shortlist response mappers, ResourceType.SHORTLIST, FieldAccessPolicy consultant allow rules, ApiSafeResponseBody extension, ApiBoundaryContractRules allowlist expansion, findAllByOrganizationId on Company/Job/Shortlist ports+JDBC+services, leakage and denial tests for all 6 endpoints
 - Task 20: Document Storage and SourceItem v1 ✅ V13 migration (mime_type, file_size_bytes, original_filename, scan_status + unique constraint on intake.source_item), DocumentStore interface + DocumentStoreKey + InMemoryDocumentStore, VirusScanPort + NoOpVirusScanPort, DocumentUploadCommand + DocumentUploadResult, DocumentUploadService (MIME validation, size limits, SHA-256 dedup, idempotent), ConsultantDocumentController (POST upload + GET download), DocumentRetrievalResult, SourceItem record enhancement (4 new fields), JdbcSourceItemPersistencePort/JdbcInformationPacketPersistencePort column updates, API boundary leakage regression updated. No real virus scan (NoOp placeholder), no AI extraction, no client/candidate upload, no presigned URLs, CanonicalWriteGate bypass prevented.
+- Task 21: Real AI Task Runner v1 ✅ V18 migration (`input_payload`, `output_payload`, replay lineage on `governance.ai_task_run`), `AITaskRun` append/update/readback audit model, audited in-process runner, prompt registry, JSON schema validation, task routing, DeepSeek provider adapter, Candidate Profile Parser v1, Authenticity Risk Assessor v1, replay support, authenticity-to-matching request adapter, and focused runner tests. Scope remains audit-only: no ClaimLedger/ReviewEvent/WorkflowEvent/canonical write-back from AI outputs.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -92,6 +93,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 10B adds explicit AI write-back target and human-review status vocabulary plus deterministic `AITaskGovernancePolicy` decisions for metadata validation. It accepts no-write-back and claim-ledger proposal metadata, requires approved human review plus CanonicalWriteGate for canonical targets, requires client-safe boundary semantics for client-visible projection targets, and blocks consent/disclosure/unlock, workflow-action, and commercial/placement targets in this kernel.
 - Task 10C closes the current AI governance backend kernel scope with regression coverage proving AITaskRun persistence stores model/prompt/schema/task version metadata, safe status metadata, write-back target metadata, and human-review metadata only; it does not call AI/model services, execute prompts, route models, queue workers, retry/async work, execute write-back, invoke `CanonicalWriteService`, write canonical facts, mutate CandidateProfile, or append ClaimLedgerItem/ReviewEvent/WorkflowEvent rows.
 - Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract and persistence exist, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back execution, and no canonical mutation.
+- Task 21 adds the first real AI execution baseline: `AITaskRunnerService` now validates task input/output schemas, resolves prompt resources, routes task definitions to a configured model provider, executes against DeepSeek, records input/output/tool-call/cost/trace metadata in `AITaskRun`, and supports audited replay without writing facts.
+- Task 21 ships two first-class audited AI tasks only: `candidate-profile-parser.v1` and `authenticity-risk-assessor.v1`. Their outputs remain non-canonical audited artifacts; they do not append ClaimLedger, ReviewEvent, WorkflowEvent, or canonical CandidateProfile writes.
 - Task 11A adds a backend-only `matching` package with `MatchReport`, opaque match/job/subject references, 1-5 `MatchScore`, required dimension scores, score confidence, bounded evidence coverage, provenance/source-strength/weight placeholders, assertion-strength and authenticity-risk awareness, ontology/industry-pack version placeholders, and generated-at metadata.
 - Task 11A adds deterministic `ScoreCapPolicy` / `ScoreCapDecision` contracts that cap insufficient independent high-trust evidence to max 4, cold industry packs to max 3, keyword-only evidence without project evidence to max 3, weak-signal intent to max 3, stale ontology or stale industry-pack metadata to max 4, and high authenticity risk to max 4 with review/additional-evidence flags. High re-identification risk blocks client delivery pending privacy review.
 - Task 11A regression coverage proves the contract does not expose raw Candidate/Profile, SourceItem/InformationPacket, ClaimLedger/ReviewEvent/WorkflowEvent/AITaskRun internals, raw source text, PII, consultant notes, API/controller/UI, persistence, AI/model calls, canonical fact writes, CandidateProfile mutation, or governance-event writes.
@@ -140,7 +143,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 13A is complete only for the current integrated frontend slice: route-aware five-portal shell exists, Consultant remains one unified portal, the Client route can open anonymous candidate cards through the existing narrow endpoint, and fail-closed safe UI states exist. It does not add raw Candidate/Profile client exposure, identity-disclosed client read behavior, auth/session/Spring Security, or broad product workflow expansion.
 - Task 13B is complete only for a real backend-internal client-safe candidate card query/read-model slice behind the existing endpoint. It does not add broad shortlist service behavior, frontend UI changes, production auth/session, Spring Security, L4 identity disclosure, Consent/Disclosure workflow expansion, workflow engine behavior, or raw Candidate/Profile API exposure.
 - Task 14 is complete only for the current backend kernel scope: the consent/disclosure service and persistence layer are hardened for chain binding, L3/L4 separation, retry-safe final disclosure persistence, organization-scoped linkage, and legacy cross-organization approver denial. It still does not add Consent/Disclosure/Unlock API/controller/UI, consent/disclosure-specific workflow execution, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior.
-- No real AI matching, model routing, prompt execution, AI task queue/worker, matching persistence, matching API/controller/UI, client-facing match report delivery, or real industry ontology calibration exists yet.
+- Real model routing, prompt execution, and audited AI task execution now exist for the Task 21 runner baseline, but no document intelligence/OCR/text extraction, no AI task queue/worker, no AI-triggered ClaimLedger/ReviewEvent/canonical write-back, no matching persistence, no matching API/controller/UI, no client-facing match report delivery, and no real industry ontology calibration exist yet.
 - No outcome-label feedback loop exists yet.
 - No real re-identification risk scorer exists beyond the deterministic Task 7C placeholder.
 - No broad REST controller/API surface or UI yet; only the existing client-safe candidate-card read endpoint exists, now backed by a narrow Task 13B PostgreSQL client-safe projection query slice.
@@ -153,8 +156,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - No identity-disclosed Client access behavior yet.
 - No complete product-wide RBAC/ABAC enforcement yet.
 - No real redaction pipeline or automatic text rewriting yet.
-- No real AI extraction/model wiring yet.
-- No model routing, prompt execution, AI task queue/worker, actual write-back execution, automatic human review workflow, canonical write execution from AI governance, or AI governance API/UI yet.
+- No document intelligence, OCR, PDF parsing, chunking, citation retrieval, or uploaded-document text extraction exists yet; that is the next Task 22 stream.
+- No AI task queue/worker, retry scheduler, multi-provider productization, automatic human review workflow, ClaimLedger/review queue write-back from AI outputs, canonical write execution from AI governance, or AI governance API/UI exists yet.
 - No workflow engine or transition legality validation yet.
 - No stale detection engine.
 - No conflict resolution workflow.
@@ -168,16 +171,17 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Next Recommended Task
 
-Task 21: Real AI Task Runner, using:
+Task 22: Document Intelligence and Evidence Retrieval v1, using:
 
 - `docs/roadmap/productization-roadmap.md`
+- `docs/roadmap/task-20-document-storage-design.md`
 - `docs/roadmap/current-engineering-snapshot.md`
 - `docs/roadmap/implementation-status.md`
 - `docs/roadmap/known-gaps.md`
 
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Future auth work is now longer-horizon backlog rather than the next blocking productization step.
-Task 21 remains the next independent productization stream.
+Task 22 remains the next independent productization stream.
 
 ## Future Prompt Strategy
 

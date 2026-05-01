@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.recruitingtransactionos.dev/ai/candidate-profile-parser-input.schema.json",
+  "type": "object",
+  "properties": {
+    "sourceSummary": {"type": "string"},
+    "resumeText": {"type": "string"},
+    "linkedInText": {"type": "string"},
+    "portfolioText": {"type": "string"},
+    "consultantNotes": {"type": "string"}
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    {"required": ["sourceSummary"]},
+    {"required": ["resumeText"]},
+    {"required": ["linkedInText"]},
+    {"required": ["portfolioText"]},
+    {"required": ["consultantNotes"]}
+  ]
+}

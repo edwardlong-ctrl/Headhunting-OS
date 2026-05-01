@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.recruitingtransactionos.dev/ai/authenticity-risk-assessor-input.schema.json",
+  "type": "object",
+  "properties": {
+    "resumeText": {"type": "string"},
+    "linkedInText": {"type": "string"},
+    "portfolioText": {"type": "string"},
+    "interviewNotes": {"type": "string"}
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    {"required": ["resumeText"]},
+    {"required": ["linkedInText"]},
+    {"required": ["portfolioText"]},
+    {"required": ["interviewNotes"]}
+  ]
+}

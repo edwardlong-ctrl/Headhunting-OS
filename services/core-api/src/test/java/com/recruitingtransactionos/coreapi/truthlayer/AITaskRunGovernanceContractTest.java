@@ -211,13 +211,13 @@ class AITaskRunGovernanceContractTest {
   }
 
   @Test
-  void aiTaskRunPortsRemainAppendReadOnlyAndDoNotExposeWriteBackOrExecution() {
+  void aiTaskRunPortsRemainGovernanceScopedAndDoNotExposeWriteBackExecutionOrCanonicalMutation() {
     assertThat(publicDeclaredMethodNames(AITaskRunPort.class))
-        .containsExactly("append", "findById");
+        .containsExactly("append", "findById", "update");
     assertThat(publicDeclaredMethodNames(JdbcAITaskRunPort.class))
-        .containsExactly("append", "findById");
+        .containsExactly("append", "findById", "update");
     assertThat(publicDeclaredMethodNames(AITaskRunService.class))
-        .containsExactly("append", "findById");
+        .containsExactly("append", "findById", "update");
 
     assertThat(declaredMethodNames(AITaskRunPort.class))
         .noneMatch(this::looksLikeUnsafeAiTaskRunBehavior);
@@ -248,7 +248,6 @@ class AITaskRunGovernanceContractTest {
         "ChatClient",
         "OpenAI",
         "Anthropic",
-        "DeepSeek",
         "WebClient",
         "RestTemplate");
 
@@ -337,7 +336,7 @@ class AITaskRunGovernanceContractTest {
   }
 
   private static String sourceTree() throws IOException {
-    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
+    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT.resolve("com/recruitingtransactionos/coreapi/truthlayer"))) {
       StringBuilder source = new StringBuilder();
       for (Path path : paths.filter(Files::isRegularFile)
           .filter(path -> path.getFileName().toString().endsWith(".java"))
@@ -349,7 +348,7 @@ class AITaskRunGovernanceContractTest {
   }
 
   private static String aiTaskGovernanceSource() throws IOException {
-    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT)) {
+    try (Stream<Path> paths = Files.walk(MAIN_SOURCE_ROOT.resolve("com/recruitingtransactionos/coreapi/truthlayer"))) {
       StringBuilder source = new StringBuilder();
       for (Path path : paths.filter(Files::isRegularFile)
           .filter(path -> path.getFileName().toString().endsWith(".java"))

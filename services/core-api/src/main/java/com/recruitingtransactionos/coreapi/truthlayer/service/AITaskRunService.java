@@ -5,6 +5,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunAppendResult
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunUpdateCommand;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +36,11 @@ public final class AITaskRunService {
       throw new IllegalArgumentException(decision.reasonCode());
     }
     return aiTaskRunPort.append(command);
+  }
+
+  public AITaskRunRecord update(AITaskRunUpdateCommand command) {
+    Objects.requireNonNull(command, "command must not be null");
+    return aiTaskRunPort.update(command);
   }
 
   public Optional<AITaskRunRecord> findById(UUID organizationId, AITaskRunId aiTaskRunId) {

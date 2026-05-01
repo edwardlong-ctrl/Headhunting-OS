@@ -10,6 +10,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import java.util.Objects;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,6 +19,7 @@ public final class ClientSafeCandidateCardApiQueryService {
   private final ClientSafeCandidateCardQueryPort queryPort;
   private final PermissionEnforcer permissionEnforcer;
 
+  @Autowired
   public ClientSafeCandidateCardApiQueryService(ClientSafeCandidateCardQueryPort queryPort) {
     this(queryPort, new PermissionEnforcer(new PermissionEvaluator()));
   }

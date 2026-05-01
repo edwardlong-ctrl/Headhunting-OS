@@ -6,6 +6,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunUpdateCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
@@ -13,6 +14,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ModelRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WriteBackTarget;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Connection;
@@ -73,6 +75,14 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
         target_entity_id,
         write_back_target,
         human_review_status,
+        input_payload,
+        output_payload,
+        tool_calls,
+        cost_units,
+        trace_ref,
+        error_code,
+        metadata,
+        replayed_from_ai_task_run_id,
         started_at,
         completed_at,
         failure_reason,
@@ -82,30 +92,32 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
         causation_id
       )
       VALUES (
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?::governance.actor_role,
-        ?,
-        ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?::jsonb,
+        ?::jsonb,
+        ?::jsonb,
+        ?, ?, ?,
+        ?::jsonb,
+        ?, ?, ?, ?, ?, ?::governance.actor_role, ?, ?
       )
+      """;
+
+  private static final String UPDATE_RUN_SQL = """
+      UPDATE governance.ai_task_run
+      SET
+        status = ?,
+        output_payload = ?::jsonb,
+        tool_calls = ?::jsonb,
+        cost_units = ?,
+        trace_ref = ?,
+        error_code = ?,
+        metadata = ?::jsonb,
+        completed_at = ?,
+        failure_reason = ?,
+        updated_at = now(),
+        version = version + 1
+      WHERE organization_id = ?
+        AND ai_task_run_id = ?
       """;
 
   private static final String FIND_RUN_SQL = """
@@ -123,6 +135,14 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
         run.status,
         run.human_review_status,
         run.write_back_target,
+        run.input_payload,
+        run.output_payload,
+        run.tool_calls,
+        run.cost_units,
+        run.trace_ref,
+        run.error_code,
+        run.metadata,
+        run.replayed_from_ai_task_run_id,
         run.requested_by_user_id,
         run.requested_by_role::text AS requested_by_role,
         run.correlation_id,
@@ -170,6 +190,34 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append AI task run", exception);
     }
+  }
+
+  @Override
+  public AITaskRunRecord update(AITaskRunUpdateCommand command) {
+    Objects.requireNonNull(command, "command must not be null");
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(UPDATE_RUN_SQL)) {
+      statement.setString(1, command.status().wireValue());
+      statement.setString(2, nullableJson(command.outputPayloadJson(), "{}"));
+      statement.setString(3, nullableJson(command.toolCallsJson(), "[]"));
+      setNullableBigDecimal(statement, 4, command.costUnits());
+      setNullableString(statement, 5, command.traceRef());
+      setNullableString(statement, 6, command.errorCode());
+      statement.setString(7, nullableJson(command.metadataJson(), "{}"));
+      setNullableInstant(statement, 8, command.completedAt());
+      setNullableString(statement, 9, command.failureReason());
+      statement.setObject(10, command.organizationId());
+      statement.setObject(11, command.aiTaskRunId().value());
+      if (statement.executeUpdate() != 1) {
+        throw new IllegalStateException("AI task run was not updated");
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update AI task run", exception);
+    }
+
+    return findById(command.organizationId(), command.aiTaskRunId())
+        .orElseThrow(() -> new IllegalStateException("Updated AI task run was not found"));
   }
 
   @Override
@@ -245,13 +293,21 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       statement.setObject(14, command.targetEntity().entityId());
       setNullableString(statement, 15, writeBackTargetValue(command.writeBackTarget()));
       statement.setString(16, humanReviewStatus(command.humanReviewStatus()));
-      statement.setObject(17, OffsetDateTime.ofInstant(command.startedAt(), ZoneOffset.UTC));
-      setNullableInstant(statement, 18, command.completedAt());
-      setNullableString(statement, 19, command.failureReason());
-      setNullableUuid(statement, 20, requestedByUserId(command.requestedBy()));
-      setNullableString(statement, 21, requestedByRole(command.requestedBy()));
-      setNullableUuid(statement, 22, correlationUuid(command.correlationId()));
-      setNullableUuid(statement, 23, causationUuid(command.causationId()));
+      statement.setString(17, command.inputPayloadJson());
+      statement.setString(18, nullableJson(command.outputPayloadJson(), "{}"));
+      statement.setString(19, nullableJson(command.toolCallsJson(), "[]"));
+      setNullableBigDecimal(statement, 20, command.costUnits());
+      setNullableString(statement, 21, command.traceRef());
+      setNullableString(statement, 22, command.errorCode());
+      statement.setString(23, nullableJson(command.metadataJson(), "{}"));
+      setNullableUuid(statement, 24, replayedFromUuid(command.replayedFromAiTaskRunId()));
+      statement.setObject(25, OffsetDateTime.ofInstant(command.startedAt(), ZoneOffset.UTC));
+      setNullableInstant(statement, 26, command.completedAt());
+      setNullableString(statement, 27, command.failureReason());
+      setNullableUuid(statement, 28, requestedByUserId(command.requestedBy()));
+      setNullableString(statement, 29, requestedByRole(command.requestedBy()));
+      setNullableUuid(statement, 30, correlationUuid(command.correlationId()));
+      setNullableUuid(statement, 31, causationUuid(command.causationId()));
       statement.executeUpdate();
     }
   }
@@ -272,6 +328,14 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
         AITaskRunStatus.fromWireValue(resultSet.getString("status")),
         resultSet.getString("human_review_status"),
         writeBackTarget(resultSet.getString("write_back_target")),
+        resultSet.getString("input_payload"),
+        resultSet.getString("output_payload"),
+        resultSet.getString("tool_calls"),
+        resultSet.getBigDecimal("cost_units"),
+        resultSet.getString("trace_ref"),
+        resultSet.getString("error_code"),
+        resultSet.getString("metadata"),
+        replayedFromAiTaskRunId(resultSet.getObject("replayed_from_ai_task_run_id", UUID.class)),
         requestedBy(
             resultSet.getObject("requested_by_user_id", UUID.class),
             resultSet.getString("requested_by_role")),
@@ -365,6 +429,20 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
     return new WorkflowCausationId(value);
   }
 
+  private static UUID replayedFromUuid(AITaskRunId aiTaskRunId) {
+    if (aiTaskRunId == null) {
+      return null;
+    }
+    return aiTaskRunId.value();
+  }
+
+  private static AITaskRunId replayedFromAiTaskRunId(UUID value) {
+    if (value == null) {
+      return null;
+    }
+    return new AITaskRunId(value);
+  }
+
   private static java.util.List<UUID> sourceReferenceIds(Array sourceRefIds) throws SQLException {
     if (sourceRefIds == null) {
       return java.util.List.of();
@@ -396,7 +474,7 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
   private static void setNullableInstant(
       PreparedStatement statement,
       int index,
-      java.time.Instant value) throws SQLException {
+      Instant value) throws SQLException {
     if (value == null) {
       statement.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
       return;
@@ -424,5 +502,23 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       return;
     }
     statement.setString(index, value);
+  }
+
+  private static void setNullableBigDecimal(
+      PreparedStatement statement,
+      int index,
+      BigDecimal value) throws SQLException {
+    if (value == null) {
+      statement.setNull(index, Types.NUMERIC);
+      return;
+    }
+    statement.setBigDecimal(index, value);
+  }
+
+  private static String nullableJson(String value, String fallback) {
+    if (value == null) {
+      return fallback;
+    }
+    return value;
   }
 }
