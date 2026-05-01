@@ -1,6 +1,8 @@
+import { loadAccessToken } from "../auth/accessTokenStorage";
+
 export type ClientSafeCandidateCard = {
   anonymousCardRef: string;
-  anonymousCandidateRef: string;
+  clientAlias: string;
   projectionVersion: string;
   redactionLevel: string;
   generalizedHeadline: string;
@@ -35,13 +37,11 @@ export type ClientSafeCandidateCardResult =
       card: ClientSafeCandidateCard;
     }
   | {
-      status: "invalid_ref" | "unavailable" | "denied" | "failed";
+      status: "invalid_ref" | "unavailable" | "denied" | "failed" | "unauthenticated";
     };
 
 const rawUuidPattern =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-const clientOrganizationId = import.meta.env.VITE_RTO_CLIENT_ORGANIZATION_ID;
 
 export function isAnonymousCardRef(value: string): boolean {
   const normalized = value.trim();
@@ -58,26 +58,25 @@ export async function fetchClientSafeCandidateCard(
   }
 
   try {
-    const headers: Record<string, string> = {
-      "X-RTO-Actor-Role": "client",
-      "X-RTO-Field-Classification": "client_safe",
-      "X-RTO-Identity-Disclosure-Requested": "false",
-    };
-
-    if (isRuntimeOrganizationId(clientOrganizationId)) {
-      headers["X-RTO-Organization-Id"] = clientOrganizationId.trim();
-    }
-
+    const accessToken = loadAccessToken();
     const response = await fetch(
       `/api/client-safe/candidate-cards/${encodeURIComponent(normalizedCardRef)}`,
       {
-        headers,
+        headers: accessToken
+          ? {
+              Authorization: `Bearer ${accessToken}`,
+            }
+          : undefined,
         signal,
       },
     );
 
     if (response.status === 400) {
       return { status: "invalid_ref" };
+    }
+
+    if (response.status === 401) {
+      return { status: "unauthenticated" };
     }
 
     if (response.status === 403) {
@@ -107,8 +106,4 @@ export async function fetchClientSafeCandidateCard(
 
     return { status: "unavailable" };
   }
-}
-
-function isRuntimeOrganizationId(value: string | undefined): value is string {
-  return value !== undefined && rawUuidPattern.test(value.trim());
 }

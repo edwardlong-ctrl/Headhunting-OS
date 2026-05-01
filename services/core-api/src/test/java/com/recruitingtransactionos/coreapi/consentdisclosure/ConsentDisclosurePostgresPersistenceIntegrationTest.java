@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
+import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcCandidateWorkflowStatePort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcDisclosureRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcUnlockDecisionPort;
@@ -20,6 +21,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTran
 import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
+import com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -341,12 +343,11 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         unlockPort,
         disclosurePort,
         new ConsentDisclosureProtectionPolicy(),
-        new WorkflowTransitionAuditService(new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
-          @Override
-          public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
-          @Override
-          public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
-        }),
+        (request, unlockDecision, disclosureRecord) -> request.prerequisites(),
+        new JdbcCandidateWorkflowStatePort(dataSource),
+        new WorkflowTransitionAuditService(
+            new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+            new JdbcWorkflowEntityStatePort(dataSource)),
         transactionBoundary());
 
     ConsentDisclosureServiceRequest request = ConsentDisclosureServiceRequest.builder()
@@ -361,7 +362,7 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         .requestedByRole(PortalRole.CONSULTANT)
         .actor(new ActorRef(consultantId, ActorRole.CONSULTANT))
         .requestedLevel(DisclosureLevel.L4_IDENTITY_DISCLOSED)
-        .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true))
+        .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true, true))
         .reason("consultant released identity after consent, unlock, and disclosure approval")
         .requestedAt(NOW)
         .build();
@@ -376,9 +377,19 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
     assertThat(countRows("privacy.consent_record", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.unlock_decision", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.disclosure_record", organizationId)).isEqualTo(2);
-    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(1);
-    assertThat(countRows("recruiting.candidate", organizationId)).isZero();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isEqualTo(2);
+    assertThat(countRows("recruiting.candidate", organizationId)).isEqualTo(1);
     assertThat(countRows("recruiting.candidate_profile", organizationId)).isZero();
+    assertThat(findCandidateStatus(
+        organizationId,
+        ConsentDisclosureService.candidateEntityId(
+            organizationId,
+            "candidate_ref_task12b_pg_1001")))
+        .isEqualTo("identity_disclosed");
+    assertThat(findDisclosureStatus(
+        organizationId,
+        approvedDisclosure.disclosureRecordRef()))
+        .isEqualTo(DisclosureStatus.IDENTITY_DISCLOSED.wireValue());
     assertThat(findDisclosureStatus(
         organizationId,
         result.resultingDisclosureRecordRef().orElseThrow()))
@@ -434,12 +445,11 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         unlockPort,
         disclosurePort,
         new ConsentDisclosureProtectionPolicy(),
-        new WorkflowTransitionAuditService(new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
-          @Override
-          public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
-          @Override
-          public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
-        }),
+        (request, unlockDecision, disclosureRecord) -> request.prerequisites(),
+        new JdbcCandidateWorkflowStatePort(dataSource),
+        new WorkflowTransitionAuditService(
+            new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+            new JdbcWorkflowEntityStatePort(dataSource)),
         transactionBoundary());
 
     ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(
@@ -455,7 +465,7 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
             .requestedByRole(PortalRole.CONSULTANT)
             .actor(new ActorRef(consultantId, ActorRole.CONSULTANT))
             .requestedLevel(DisclosureLevel.L4_IDENTITY_DISCLOSED)
-            .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true))
+            .prerequisites(new ConsentDisclosurePrerequisites(true, true, true, true, true))
             .reason("legacy cross-org approver must not release identity")
             .requestedAt(NOW)
             .build());
@@ -516,9 +526,9 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationAddsTask12bPrivacyPersistenceTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(20);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20");
     assertThat(tableExists("privacy", "consent_record")).isTrue();
     assertThat(tableExists("privacy", "unlock_decision")).isTrue();
     assertThat(tableExists("privacy", "disclosure_record")).isTrue();
@@ -647,6 +657,26 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
       try (ResultSet resultSet = statement.executeQuery()) {
         if (!resultSet.next()) {
           throw new AssertionError("disclosure record not found");
+        }
+        return resultSet.getString("status");
+      }
+    }
+  }
+
+  private static String findCandidateStatus(UUID organizationId, UUID candidateId)
+      throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT status
+            FROM recruiting.candidate
+            WHERE organization_id = ?
+              AND candidate_id = ?
+            """)) {
+      statement.setObject(1, organizationId);
+      statement.setObject(2, candidateId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          throw new AssertionError("candidate row not found");
         }
         return resultSet.getString("status");
       }

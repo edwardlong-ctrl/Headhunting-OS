@@ -1,5 +1,6 @@
 package com.recruitingtransactionos.coreapi.consentdisclosure.persistence;
 
+import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWorkflowEntityIds;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureRecord;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureStatus;
@@ -11,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
@@ -25,6 +27,7 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
       INSERT INTO privacy.disclosure_record (
         disclosure_record_ref,
         organization_id,
+        workflow_entity_id,
         candidate_ref,
         candidate_profile_ref,
         job_ref,
@@ -37,7 +40,7 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
         workflow_event_id,
         decided_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
   private static final String INSERT_IF_ABSENT_SQL = INSERT_SQL + """
@@ -60,6 +63,15 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
         workflow_event_id,
         decided_at
       FROM privacy.disclosure_record
+      WHERE organization_id = ?
+        AND disclosure_record_ref = ?
+      """;
+
+  private static final String TRANSITION_TO_IDENTITY_DISCLOSED_SQL = """
+      UPDATE privacy.disclosure_record
+      SET status = ?,
+          workflow_event_id = ?,
+          decided_at = ?
       WHERE organization_id = ?
         AND disclosure_record_ref = ?
       """;
@@ -93,21 +105,24 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       statement.setString(1, disclosureRecord.disclosureRecordRef());
       statement.setObject(2, disclosureRecord.organizationId());
-      statement.setString(3, disclosureRecord.candidateRef());
-      statement.setString(4, disclosureRecord.candidateProfileRef());
-      statement.setString(5, disclosureRecord.jobRef());
-      statement.setString(6, disclosureRecord.clientRef());
-      statement.setString(7, disclosureRecord.status().wireValue());
-      statement.setString(8, disclosureRecord.disclosureLevel().wireValue());
-      statement.setString(9, disclosureRecord.redactionLevel().wireValue());
-      statement.setString(10, disclosureRecord.unlockDecisionRef());
-      statement.setString(11, disclosureRecord.consentRecordRef());
+      statement.setObject(3, ConsentDisclosureWorkflowEntityIds.disclosureEntityId(
+          disclosureRecord.organizationId(),
+          disclosureRecord.disclosureRecordRef()));
+      statement.setString(4, disclosureRecord.candidateRef());
+      statement.setString(5, disclosureRecord.candidateProfileRef());
+      statement.setString(6, disclosureRecord.jobRef());
+      statement.setString(7, disclosureRecord.clientRef());
+      statement.setString(8, disclosureRecord.status().wireValue());
+      statement.setString(9, disclosureRecord.disclosureLevel().wireValue());
+      statement.setString(10, disclosureRecord.redactionLevel().wireValue());
+      statement.setString(11, disclosureRecord.unlockDecisionRef());
+      statement.setString(12, disclosureRecord.consentRecordRef());
       if (disclosureRecord.workflowEventId().isPresent()) {
-        statement.setObject(12, disclosureRecord.workflowEventId().orElseThrow().value());
+        statement.setObject(13, disclosureRecord.workflowEventId().orElseThrow().value());
       } else {
-        statement.setNull(12, Types.OTHER);
+        statement.setNull(13, Types.OTHER);
       }
-      statement.setObject(13, OffsetDateTime.ofInstant(disclosureRecord.decidedAt(), ZoneOffset.UTC));
+      statement.setObject(14, OffsetDateTime.ofInstant(disclosureRecord.decidedAt(), ZoneOffset.UTC));
       statement.executeUpdate();
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append disclosure record", exception);
@@ -150,6 +165,35 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find disclosure record", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public DisclosureRecord transitionToIdentityDisclosed(
+      UUID organizationId,
+      String disclosureRecordRef,
+      WorkflowEventId workflowEventId,
+      Instant decidedAt) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(disclosureRecordRef, "disclosureRecordRef must not be null");
+    Objects.requireNonNull(workflowEventId, "workflowEventId must not be null");
+    Objects.requireNonNull(decidedAt, "decidedAt must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement =
+        connection.prepareStatement(TRANSITION_TO_IDENTITY_DISCLOSED_SQL)) {
+      statement.setString(1, DisclosureStatus.IDENTITY_DISCLOSED.wireValue());
+      statement.setObject(2, workflowEventId.value());
+      statement.setObject(3, OffsetDateTime.ofInstant(decidedAt, ZoneOffset.UTC));
+      statement.setObject(4, organizationId);
+      statement.setString(5, disclosureRecordRef);
+      statement.executeUpdate();
+      return findByRefAndOrganizationId(organizationId, disclosureRecordRef)
+          .orElseThrow(() -> new IllegalStateException(
+              "Failed to transition disclosure record to identity_disclosed"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to transition disclosure record", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

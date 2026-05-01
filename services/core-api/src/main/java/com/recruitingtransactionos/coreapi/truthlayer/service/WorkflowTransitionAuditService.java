@@ -48,36 +48,29 @@ public final class WorkflowTransitionAuditService {
 
   public WorkflowEventAppendResult record(WorkflowTransitionAuditRequest request) {
     WorkflowActionPolicy policy = validateRequest(request);
-    
+
     Optional<String> currentStateOpt = entityStatePort.getCurrentStateJson(
         request.organizationId(),
         request.entityNamespace(),
         request.entityType(),
         request.entityId());
-        
-    if (currentStateOpt.isPresent() && request.beforeState() != null && request.beforeState().json() != null && !request.beforeState().json().isBlank()) {
+
+    if (currentStateOpt.isPresent()
+        && request.beforeState() != null
+        && request.beforeState().json() != null
+        && !request.beforeState().json().isBlank()) {
       String currentJson = currentStateOpt.get();
       String beforeJson = request.beforeState().json();
       String currentStatus = extractStatus(currentJson);
       String beforeStatus = extractStatus(beforeJson);
       if (currentStatus != null && beforeStatus != null && !currentStatus.equals(beforeStatus)) {
-        throw new IllegalArgumentException("workflow transition beforeState does not match actual entity state: " + currentStatus + " vs " + beforeStatus);
+        throw new IllegalArgumentException(
+            "workflow transition beforeState does not match actual entity state: "
+                + currentStatus + " vs " + beforeStatus);
       }
     }
 
-    WorkflowEventAppendResult result = workflowEventService.append(toWorkflowEventAppendCommand(request, policy));
-
-    // 同步更新真实实体状态
-    if (request.afterState() != null && request.afterState().json() != null && !request.afterState().json().isBlank()) {
-      entityStatePort.updateStateJson(
-          request.organizationId(),
-          request.entityNamespace(),
-          request.entityType(),
-          request.entityId(),
-          request.afterState().json());
-    }
-
-    return result;
+    return workflowEventService.append(toWorkflowEventAppendCommand(request, policy));
   }
 
   private WorkflowActionPolicy validateRequest(WorkflowTransitionAuditRequest request) {
@@ -135,7 +128,8 @@ public final class WorkflowTransitionAuditService {
 
   private static String extractStatus(String json) {
     try {
-      com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+      com.fasterxml.jackson.databind.JsonNode node =
+          new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
       if (node.has("status")) {
         return node.get("status").asText();
       }

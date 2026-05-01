@@ -314,8 +314,6 @@ public final class DocumentUploadService {
       public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) {
         return Optional.empty();
       }
-      @Override
-      public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
     });
   }
 

@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 
 class AITaskWriteBackPolicyTest {
 
+  private static final ActorRef REQUESTER = new ActorRef(
+      UUID.fromString("00000000-0000-0000-0000-00000010b000"),
+      ActorRole.CONSULTANT);
   private static final ActorRef HUMAN_REVIEWER = new ActorRef(
       UUID.fromString("00000000-0000-0000-0000-00000010b001"),
       ActorRole.CONSULTANT);
@@ -195,7 +198,7 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.allowed()).isFalse();
     assertThat(decision.reasonCode()).isEqualTo("consent_disclosure_gate_required");
     assertThat(decision.consentDisclosureUnlockGateRequired()).isTrue();
   }
@@ -209,7 +212,7 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.allowed()).isFalse();
     assertThat(decision.reasonCode()).isEqualTo("workflow_action_gate_required");
     assertThat(decision.humanReviewRequired()).isTrue();
     assertThat(decision.canonicalGateRequired()).isFalse();
@@ -226,7 +229,7 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.allowed()).isFalse();
     assertThat(decision.reasonCode()).isEqualTo("commercial_placement_gate_required");
     assertThat(decision.humanReviewRequired()).isTrue();
     assertThat(decision.commercialPlacementGateRequired()).isTrue();
@@ -237,6 +240,7 @@ class AITaskWriteBackPolicyTest {
     AITaskGovernanceDecision decision = policy.decide(new AITaskGovernanceRequest(
         "raw_candidate_profile_write",
         AITaskHumanReviewStatus.APPROVED.wireValue(),
+        REQUESTER,
         HUMAN_REVIEWER,
         false,
         false));
@@ -250,6 +254,7 @@ class AITaskWriteBackPolicyTest {
         null,
         AITaskHumanReviewStatus.NOT_REQUIRED.wireValue(),
         null,
+        null,
         false,
         false));
 
@@ -261,6 +266,7 @@ class AITaskWriteBackPolicyTest {
     AITaskGovernanceDecision decision = policy.decide(new AITaskGovernanceRequest(
         AITaskWriteBackTarget.NO_WRITE_BACK.wireValue(),
         "self_approved_by_model",
+        REQUESTER,
         AI_REVIEWER,
         false,
         false));
@@ -285,6 +291,7 @@ class AITaskWriteBackPolicyTest {
     AITaskGovernanceDecision decision = policy.decide(new AITaskGovernanceRequest(
         "java.lang.IllegalStateException: raw stack trace",
         "unknown\n\tat provider.Secret",
+        REQUESTER,
         AI_REVIEWER,
         false,
         false));
@@ -302,12 +309,14 @@ class AITaskWriteBackPolicyTest {
     AITaskGovernanceRequest unknownTarget = new AITaskGovernanceRequest(
         "execute_canonical_write_now",
         AITaskHumanReviewStatus.APPROVED.wireValue(),
+        REQUESTER,
         HUMAN_REVIEWER,
         true,
         false);
     AITaskGovernanceRequest unknownStatus = new AITaskGovernanceRequest(
         AITaskWriteBackTarget.NO_WRITE_BACK.wireValue(),
         "approved_by_model_router",
+        REQUESTER,
         HUMAN_REVIEWER,
         false,
         false);
@@ -324,6 +333,19 @@ class AITaskWriteBackPolicyTest {
     assertDenied(missingDecision, "ai_task_governance_request_required");
   }
 
+  @Test
+  void canonicalTargetRequiresIndependentReviewer() {
+    AITaskGovernanceDecision decision = policy.decide(new AITaskGovernanceRequest(
+        AITaskWriteBackTarget.CANONICAL_CANDIDATE_PROFILE.wireValue(),
+        AITaskHumanReviewStatus.APPROVED.wireValue(),
+        REQUESTER,
+        REQUESTER,
+        false,
+        false));
+
+    assertDenied(decision, "requester_cannot_self_approve_canonical_write_back");
+  }
+
   private static AITaskGovernanceRequest request(
       AITaskWriteBackTarget target,
       AITaskHumanReviewStatus reviewStatus,
@@ -333,6 +355,7 @@ class AITaskWriteBackPolicyTest {
     return new AITaskGovernanceRequest(
         target.wireValue(),
         reviewStatus.wireValue(),
+        REQUESTER,
         reviewActor,
         clientSafeBoundaryApplied,
         bulkApproval);

@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthSession;
+import com.recruitingtransactionos.coreapi.identityauth.IdentityUserAccount;
 import com.recruitingtransactionos.coreapi.identityauth.JwtService;
 import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
@@ -125,10 +127,13 @@ class ApiBoundaryRegressionClosureTest {
   @Test
   void mergedClientPortalFetchHelperNoLongerDependsOnTemporaryAccessHeaders()
       throws IOException {
-    String source = Files.readString(Path.of(System.getProperty("user.dir"))
+    Path webRoot = Path.of(System.getProperty("user.dir"))
         .getParent()
         .getParent()
-        .resolve("apps/web/src/api/clientSafeCandidateCards.ts"));
+        .resolve("apps/web/src");
+    String source = Files.readString(webRoot.resolve("api/clientSafeCandidateCards.ts"));
+    String storage = Files.readString(webRoot.resolve("auth/accessTokenStorage.ts"));
+    String app = Files.readString(webRoot.resolve("App.tsx"));
 
     assertThat(source)
         .doesNotContain("\"X-RTO-Actor-Role\": \"client\"")
@@ -136,7 +141,12 @@ class ApiBoundaryRegressionClosureTest {
         .doesNotContain("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
         .doesNotContain("\"X-RTO-Organization-Id\"")
         .doesNotContain("VITE_RTO_CLIENT_ORGANIZATION_ID")
-        .doesNotContain("00000000-0000-0000-0000-00000013b001");
+        .doesNotContain("00000000-0000-0000-0000-00000013b001")
+        .contains("Authorization")
+        .contains("loadAccessToken");
+    assertThat(storage).contains("replace(/^Bearer\\s+/i, \"\")");
+    assertThat(app).contains("Access token from /api/auth/login")
+        .doesNotContain("Bearer token from /api/auth/login");
   }
 
   @Test
@@ -184,7 +194,7 @@ class ApiBoundaryRegressionClosureTest {
   @Test
   void revokedSessionBearerTokenFailsClosedBeforeController() throws Exception {
     RtoAuthenticatedPrincipal principal = principal("client", UUID.fromString(ORGANIZATION_ID));
-    Instant issuedAt = Instant.parse("2026-05-01T00:00:00Z");
+    Instant issuedAt = Instant.now().minusSeconds(60);
     when(identityAuthenticationPort.findActiveSessionBySessionId(
         eq(principal.sessionId()), any(Instant.class)))
         .thenReturn(Optional.empty());
@@ -196,6 +206,46 @@ class ApiBoundaryRegressionClosureTest {
         .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
         .andExpect(jsonPath("$.error.safeReason").value("invalid_token"));
     assertThat(queryPort.calls).isZero();
+  }
+
+  @Test
+  void activeBearerTokenAuthenticatesClientSafeCardRequest() throws Exception {
+    RtoAuthenticatedPrincipal principal = principal("client", UUID.fromString(ORGANIZATION_ID));
+    Instant issuedAt = Instant.now().minusSeconds(60);
+    when(identityAuthenticationPort.findActiveSessionBySessionId(
+        eq(principal.sessionId()), any(Instant.class)))
+        .thenReturn(Optional.of(new IdentityAuthSession(
+            principal.sessionId(),
+            principal.organizationId(),
+            principal.userAccountId(),
+            principal.portalRole(),
+            "refresh-token-hash",
+            issuedAt.plusSeconds(1800),
+            null,
+            issuedAt,
+            issuedAt,
+            1)));
+    when(identityAuthenticationPort.findByOrganizationIdAndUserAccountId(
+        principal.organizationId(), principal.userAccountId()))
+        .thenReturn(Optional.of(new IdentityUserAccount(
+            principal.userAccountId(),
+            principal.organizationId(),
+            "client@example.test",
+            principal.displayName(),
+            "active",
+            "$2a$10$abcdefghijklmnopqrstuv",
+            issuedAt)));
+    when(identityAuthenticationPort.hasActiveRoleAssignment(
+        principal.organizationId(),
+        principal.userAccountId(),
+        principal.portalRole())).thenReturn(true);
+
+    mockMvc.perform(get(ENDPOINT)
+            .header("Authorization", validBearerToken(principal, issuedAt)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
+    assertThat(queryPort.calls).isEqualTo(1);
+    queryPort.reset();
   }
 
   @Test

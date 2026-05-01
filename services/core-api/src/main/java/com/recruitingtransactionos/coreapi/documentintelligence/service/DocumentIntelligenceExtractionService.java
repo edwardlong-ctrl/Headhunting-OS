@@ -149,8 +149,8 @@ public final class DocumentIntelligenceExtractionService {
         field("parsed_document_unsupported_count", String.valueOf(unsupported), IntakeExtractedFieldStatus.UNSUPPORTED_SOURCE_TYPE),
         field("parsed_document_failed_count", String.valueOf(failed), IntakeExtractedFieldStatus.INVALID_SOURCE_REFERENCE),
         field("parsed_chunk_count", String.valueOf(chunkCount)),
-        field("claim_ledger_append_allowed", "true"),
-        field("canonical_write_allowed", "true"),
+        field("claim_ledger_append_allowed", "false"),
+        field("canonical_write_allowed", "false"),
         field("evidence_retrieval_ready", String.valueOf(succeeded > 0)));
   }
 

@@ -184,8 +184,10 @@ class AITaskRunPostgresPersistenceIntegrationTest {
       throws SQLException {
     UUID organizationId = uuid("00000000-0000-0000-0000-000000110301");
     UUID requestedBy = uuid("00000000-0000-0000-0000-000000110302");
+    UUID reviewerId = uuid("00000000-0000-0000-0000-000000110305");
     UUID candidateId = uuid("00000000-0000-0000-0000-000000110303");
     insertOrganizationAndUser(organizationId, requestedBy);
+    insertOrganizationAndUser(organizationId, reviewerId);
     insertAiTaskDefinition(organizationId);
 
     AITaskRunAppendResult result = service().append(command(
@@ -197,7 +199,10 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         new WriteBackTarget(AITaskWriteBackTarget.CANONICAL_CANDIDATE_PROFILE.wireValue()),
         AITaskHumanReviewStatus.APPROVED,
         STARTED_AT.plusSeconds(20),
-        null));
+        null,
+        """
+        {"review_actor":{"user_id":"%s","role":"CONSULTANT"}}
+        """.formatted(reviewerId)));
 
     AITaskRunRecord persisted = service().findById(organizationId, result.aiTaskRunId())
         .orElseThrow();
@@ -218,9 +223,9 @@ class AITaskRunPostgresPersistenceIntegrationTest {
   @Test
   void migrationAddsOnlyAuditMetadataColumnsAndKeepsAiGovernanceApiOutOfScope()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(20);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
-            "18", "19");
+            "18", "19", "20");
 
     assertThat(columnExists("governance", "ai_task_run", "requested_by_user_id")).isTrue();
     assertThat(columnExists("governance", "ai_task_run", "requested_by_role")).isTrue();
@@ -243,6 +248,30 @@ class AITaskRunPostgresPersistenceIntegrationTest {
       AITaskHumanReviewStatus humanReviewStatus,
       Instant completedAt,
       String failureReason) {
+    return command(
+        organizationId,
+        requestedBy,
+        candidateId,
+        sourceReferenceIds,
+        status,
+        writeBackTarget,
+        humanReviewStatus,
+        completedAt,
+        failureReason,
+        "{}");
+  }
+
+  private static AITaskRunAppendCommand command(
+      UUID organizationId,
+      UUID requestedBy,
+      UUID candidateId,
+      List<UUID> sourceReferenceIds,
+      AITaskRunStatus status,
+      WriteBackTarget writeBackTarget,
+      AITaskHumanReviewStatus humanReviewStatus,
+      Instant completedAt,
+      String failureReason,
+      String metadataJson) {
     return new AITaskRunAppendCommand(
         organizationId,
         "candidate-profile-extraction",
@@ -254,6 +283,14 @@ class AITaskRunPostgresPersistenceIntegrationTest {
         status,
         humanReviewStatus.wireValue(),
         writeBackTarget,
+        "{}",
+        null,
+        null,
+        null,
+        null,
+        null,
+        metadataJson,
+        null,
         new ActorRef(requestedBy, ActorRole.CONSULTANT),
         new WorkflowCorrelationId(uuid("00000000-0000-0000-0000-000000110005")),
         new WorkflowCausationId(uuid("00000000-0000-0000-0000-000000110006")),
@@ -276,6 +313,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
               default_timezone
             )
             VALUES (?, ?, ?, 'active', 'UTC')
+            ON CONFLICT (organization_id) DO NOTHING
             """);
         PreparedStatement user = connection.prepareStatement("""
             INSERT INTO identity.user_account (
@@ -286,6 +324,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
               status
             )
             VALUES (?, ?, ?, ?, 'active')
+            ON CONFLICT (user_account_id) DO NOTHING
             """)) {
       organization.setObject(1, organizationId);
       organization.setString(2, "Task 10A Org " + organizationId);

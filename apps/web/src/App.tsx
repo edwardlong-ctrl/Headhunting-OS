@@ -13,6 +13,7 @@ import {
   fetchClientSafeCandidateCard,
   isAnonymousCardRef,
 } from "./api/clientSafeCandidateCards";
+import { loadAccessToken, saveAccessToken } from "./auth/accessTokenStorage";
 
 type PortalKey = "owner" | "consultant" | "client" | "candidate" | "admin";
 
@@ -130,6 +131,7 @@ function StaticPortal({ portalKey }: { portalKey: PortalKey }) {
 
 function ClientPortal() {
   const [cardRef, setCardRef] = useState("");
+  const [accessToken, setAccessToken] = useState(() => loadAccessToken() ?? "");
   const navigate = useNavigate();
 
   function openClientSafeCard(event: FormEvent<HTMLFormElement>) {
@@ -150,6 +152,18 @@ function ClientPortal() {
           </p>
         </div>
         <form className="card-ref-form" onSubmit={openClientSafeCard}>
+          <label htmlFor="client-access-token">Client access token</label>
+          <textarea
+            id="client-access-token"
+            name="client-access-token"
+            rows={3}
+                placeholder="Access token from /api/auth/login"
+            value={accessToken}
+            onChange={(event) => {
+              const nextToken = event.target.value;
+              saveAccessToken(nextToken);
+            }}
+          />
           <label htmlFor="anonymous-card-ref">Anonymous card ref</label>
           <div className="card-ref-row">
             <input
@@ -248,6 +262,10 @@ function SafeStateForResult({
     return <SafeState title="Access denied for this client-safe view" tone="warning" />;
   }
 
+  if (status === "unauthenticated") {
+    return <SafeState title="Client session required before loading this card" tone="warning" />;
+  }
+
   if (status === "failed") {
     return <SafeState title="Candidate card could not be loaded" tone="warning" />;
   }
@@ -268,6 +286,7 @@ function ClientSafeCard({ card }: { card: ClientSafeCandidateCard }) {
   return (
     <article className="candidate-card">
       <div className="candidate-card-meta" aria-label="Client-safe card metadata">
+        <span>{card.clientAlias}</span>
         <span>{card.redactionLevel}</span>
         <span>{card.projectionVersion}</span>
       </div>

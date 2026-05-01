@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.consentdisclosure;
 
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
+import com.recruitingtransactionos.coreapi.consentdisclosure.port.CandidateWorkflowStatePort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.DisclosureRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.UnlockDecisionPort;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
@@ -26,6 +27,8 @@ public final class ConsentDisclosureService {
   private final UnlockDecisionPort unlockDecisionPort;
   private final DisclosureRecordPort disclosureRecordPort;
   private final ConsentDisclosureProtectionPolicy protectionPolicy;
+  private final ConsentDisclosurePrerequisiteEvaluator prerequisiteEvaluator;
+  private final CandidateWorkflowStatePort candidateWorkflowStatePort;
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final CanonicalWriteTransactionBoundary transactionBoundary;
 
@@ -34,6 +37,8 @@ public final class ConsentDisclosureService {
       UnlockDecisionPort unlockDecisionPort,
       DisclosureRecordPort disclosureRecordPort,
       ConsentDisclosureProtectionPolicy protectionPolicy,
+      ConsentDisclosurePrerequisiteEvaluator prerequisiteEvaluator,
+      CandidateWorkflowStatePort candidateWorkflowStatePort,
       WorkflowTransitionAuditService workflowTransitionAuditService,
       CanonicalWriteTransactionBoundary transactionBoundary) {
     this.consentRecordPort = Objects.requireNonNull(
@@ -48,6 +53,12 @@ public final class ConsentDisclosureService {
     this.protectionPolicy = Objects.requireNonNull(
         protectionPolicy,
         "protectionPolicy must not be null");
+    this.prerequisiteEvaluator = Objects.requireNonNull(
+        prerequisiteEvaluator,
+        "prerequisiteEvaluator must not be null");
+    this.candidateWorkflowStatePort = Objects.requireNonNull(
+        candidateWorkflowStatePort,
+        "candidateWorkflowStatePort must not be null");
     this.workflowTransitionAuditService = Objects.requireNonNull(
         workflowTransitionAuditService,
         "workflowTransitionAuditService must not be null");
@@ -69,6 +80,10 @@ public final class ConsentDisclosureService {
     Optional<DisclosureRecord> disclosureRecord = disclosureRecordPort.findByRefAndOrganizationId(
         request.organizationId(),
         request.approvedDisclosureRecordRef());
+    Optional<ConsentDisclosureServiceResult> idempotentResult = existingAllowedResult(request);
+    if (idempotentResult.isPresent()) {
+      return idempotentResult.orElseThrow();
+    }
 
     UnlockDisclosureDecision decision = protectionPolicy.decide(new UnlockDisclosureRequest(
         request.organizationId(),
@@ -104,7 +119,11 @@ public final class ConsentDisclosureService {
       return ConsentDisclosureServiceResult.denied(chainReasons);
     }
 
-    List<String> gateReasons = blockingGateReasons(request.prerequisites(), request.requestedLevel());
+    ConsentDisclosurePrerequisites prerequisites = prerequisiteEvaluator.evaluate(
+        request,
+        unlockDecision,
+        disclosureRecord);
+    List<String> gateReasons = blockingGateReasons(prerequisites, request.requestedLevel());
     if (!gateReasons.isEmpty()) {
       return ConsentDisclosureServiceResult.denied(gateReasons);
     }
@@ -113,33 +132,62 @@ public final class ConsentDisclosureService {
   }
 
   static UUID disclosureEntityId(UUID organizationId, String disclosureRecordRef) {
-    return uuidFor("disclosure|" + organizationId + "|" + disclosureRecordRef);
+    return ConsentDisclosureWorkflowEntityIds.disclosureEntityId(organizationId, disclosureRecordRef);
+  }
+
+  static UUID candidateEntityId(UUID organizationId, String candidateRef) {
+    return ConsentDisclosureWorkflowEntityIds.candidateEntityId(organizationId, candidateRef);
   }
 
   private ConsentDisclosureServiceResult appendAuditAndDisclosureBoundary(
       ConsentDisclosureServiceRequest request,
       UnlockDisclosureDecision decision) {
-    String resultingDisclosureRecordRef = "disclosure_boundary_release_"
-        + sha256(request.organizationId() + "|" + request.approvedDisclosureRecordRef()
-            + "|" + request.requestedAt()).substring(0, 16);
-    WorkflowEventAppendResult workflowEvent =
+    String resultingDisclosureRecordRef = resultingDisclosureRecordRef(request);
+    WorkflowEventAppendResult disclosureWorkflowEvent =
         workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
             .organizationId(request.organizationId())
             .entityNamespace("workflow")
             .entityType("DISCLOSURE")
-            .entityId(disclosureEntityId(request.organizationId(), resultingDisclosureRecordRef))
+            .entityId(disclosureEntityId(request.organizationId(), request.approvedDisclosureRecordRef()))
             .entityVersion(1)
             .actionCode(WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED.wireValue())
             .actorType(request.actor().role())
             .actorId(request.actor().userId())
             .aiInvolvement(WorkflowAiInvolvement.NONE)
             .beforeState(beforeState(request))
-            .afterState(afterState(request, resultingDisclosureRecordRef))
+            .afterState(afterState(request))
             .reason(request.reason())
             .idempotencyKey(idempotencyKey(request, resultingDisclosureRecordRef))
             .sourceType("consent_disclosure_service")
             .occurredAt(request.requestedAt())
             .build());
+    disclosureRecordPort.transitionToIdentityDisclosed(
+        request.organizationId(),
+        request.approvedDisclosureRecordRef(),
+        disclosureWorkflowEvent.workflowEventId(),
+        request.requestedAt());
+
+    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+        .organizationId(request.organizationId())
+        .entityNamespace("workflow")
+        .entityType("CANDIDATE")
+        .entityId(candidateEntityId(request.organizationId(), request.candidateRef()))
+        .entityVersion(1)
+        .actionCode(WorkflowActionCode.CANDIDATE_IDENTITY_DISCLOSED.wireValue())
+        .actorType(request.actor().role())
+        .actorId(request.actor().userId())
+        .aiInvolvement(WorkflowAiInvolvement.NONE)
+        .beforeState(candidateBeforeState())
+        .afterState(candidateAfterState())
+        .reason(request.reason())
+        .idempotencyKey(candidateDisclosureIdempotencyKey(request, resultingDisclosureRecordRef))
+        .sourceType("consent_disclosure_service")
+        .occurredAt(request.requestedAt())
+        .build());
+    candidateWorkflowStatePort.transitionToIdentityDisclosed(
+        request.organizationId(),
+        request.candidateRef(),
+        request.requestedAt());
 
     DisclosureRecord boundary = new DisclosureRecord(
         resultingDisclosureRecordRef,
@@ -153,14 +201,30 @@ public final class ConsentDisclosureService {
         decision.allowedLevel().orElseThrow().redactionLevel().orElseThrow(),
         request.unlockDecisionRef(),
         request.consentRecordRef(),
-        Optional.of(workflowEvent.workflowEventId()),
+        Optional.of(disclosureWorkflowEvent.workflowEventId()),
         request.requestedAt());
     DisclosureRecord appendedBoundary = appendFinalDisclosureRetrySafely(boundary);
 
     return ConsentDisclosureServiceResult.allowed(
         decision.allowedLevel().orElseThrow(),
-        workflowEvent.workflowEventId(),
+        disclosureWorkflowEvent.workflowEventId(),
         appendedBoundary.disclosureRecordRef());
+  }
+
+  private Optional<ConsentDisclosureServiceResult> existingAllowedResult(
+      ConsentDisclosureServiceRequest request) {
+    return disclosureRecordPort.findByRefAndOrganizationId(
+            request.organizationId(),
+            resultingDisclosureRecordRef(request))
+        .filter(existing -> existing.status() == DisclosureStatus.IDENTITY_DISCLOSED)
+        .filter(existing -> existing.disclosureLevel() == request.requestedLevel())
+        .filter(existing -> existing.redactionLevel()
+            == request.requestedLevel().redactionLevel().orElse(null))
+        .flatMap(existing -> existing.workflowEventId()
+            .map(workflowEventId -> ConsentDisclosureServiceResult.allowed(
+                existing.disclosureLevel(),
+                workflowEventId,
+                existing.disclosureRecordRef())));
   }
 
   private DisclosureRecord appendFinalDisclosureRetrySafely(DisclosureRecord boundary) {
@@ -236,6 +300,9 @@ public final class ConsentDisclosureService {
     if (!prerequisites.priorApplicationCleared()) {
       reasons.add("prior_application_review_required");
     }
+    if (!prerequisites.privacyRiskCleared()) {
+      reasons.add("privacy_risk_gate_required");
+    }
     return reasons;
   }
 
@@ -247,12 +314,10 @@ public final class ConsentDisclosureService {
         + "}";
   }
 
-  private static String afterState(
-      ConsentDisclosureServiceRequest request,
-      String resultingDisclosureRecordRef) {
+  private static String afterState(ConsentDisclosureServiceRequest request) {
     return "{"
         + "\"status\":\"identity_disclosed\","
-        + "\"disclosureRecordRef\":\"" + resultingDisclosureRecordRef + "\","
+        + "\"disclosureRecordRef\":\"" + request.approvedDisclosureRecordRef() + "\","
         + "\"requestedLevel\":\"" + request.requestedLevel().wireValue() + "\""
         + "}";
   }
@@ -265,6 +330,30 @@ public final class ConsentDisclosureService {
             + "|" + request.approvedDisclosureRecordRef()
             + "|" + request.unlockDecisionRef()
             + "|" + resultingDisclosureRecordRef);
+  }
+
+  private static String candidateDisclosureIdempotencyKey(
+      ConsentDisclosureServiceRequest request,
+      String resultingDisclosureRecordRef) {
+    return "candidate-identity-disclosed|"
+        + sha256(request.organizationId()
+            + "|" + request.candidateRef()
+            + "|" + request.unlockDecisionRef()
+            + "|" + resultingDisclosureRecordRef);
+  }
+
+  private static String candidateBeforeState() {
+    return "{\"status\":\"consent_confirmed\"}";
+  }
+
+  private static String candidateAfterState() {
+    return "{\"status\":\"identity_disclosed\"}";
+  }
+
+  private static String resultingDisclosureRecordRef(ConsentDisclosureServiceRequest request) {
+    return "disclosure_boundary_release_"
+        + sha256(request.organizationId() + "|" + request.approvedDisclosureRecordRef()
+            + "|" + request.requestedAt()).substring(0, 16);
   }
 
   private static UUID uuidFor(String value) {

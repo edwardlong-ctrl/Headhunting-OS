@@ -90,25 +90,25 @@ public final class AITaskGovernancePolicy {
       case CANONICAL_CANDIDATE_PROFILE, JOB_PROFILE, COMPANY_PROFILE ->
           decideCanonicalTarget(request, reviewStatus.get());
       case CLIENT_SAFE_PROJECTION -> decideClientSafeProjection(request);
-      case CONSENT_DISCLOSURE -> allow(
+      case CONSENT_DISCLOSURE -> deny(
           "consent_disclosure_gate_required",
-          "Consent and disclosure behavior requires a dedicated gate.",
+          "Consent and disclosure behavior stays blocked until a dedicated gate exists.",
           true,
           false,
           true,
           false,
           false);
-      case WORKFLOW_ACTION -> allow(
+      case WORKFLOW_ACTION -> deny(
           "workflow_action_gate_required",
-          "Workflow action execution requires a workflow gate.",
+          "Workflow action execution stays blocked until a workflow gate exists.",
           true,
           false,
           false,
           true,
           false);
-      case COMMERCIAL_OR_PLACEMENT -> allow(
+      case COMMERCIAL_OR_PLACEMENT -> deny(
           "commercial_placement_gate_required",
-          "Commercial and placement behavior requires a transaction gate.",
+          "Commercial and placement behavior stays blocked until a transaction gate exists.",
           true,
           false,
           false,
@@ -166,6 +166,16 @@ public final class AITaskGovernancePolicy {
       return deny(
           "human_review_approval_actor_required",
           "Approved canonical targets require an explicit human reviewer.",
+          true,
+          true,
+          false,
+          false,
+          false);
+    }
+    if (request.requestedBy() != null && request.requestedBy().equals(request.reviewActor())) {
+      return deny(
+          "requester_cannot_self_approve_canonical_write_back",
+          "Canonical targets require an independent human reviewer.",
           true,
           true,
           false,

@@ -1,8 +1,11 @@
 package com.recruitingtransactionos.coreapi.truthlayer;
 
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcAITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcClaimLedgerPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimLedgerPort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -21,5 +24,17 @@ public class TruthLayerConfiguration {
   @ConditionalOnMissingBean(AITaskRunService.class)
   AITaskRunService aiTaskRunService(AITaskRunPort aiTaskRunPort) {
     return new AITaskRunService(aiTaskRunPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(ClaimLedgerPort.class)
+  ClaimLedgerPort claimLedgerPort(DataSource dataSource) {
+    return new JdbcClaimLedgerPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(ClaimLedgerService.class)
+  ClaimLedgerService claimLedgerService(ClaimLedgerPort claimLedgerPort) {
+    return new ClaimLedgerService(claimLedgerPort);
   }
 }

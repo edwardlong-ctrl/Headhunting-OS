@@ -5,5 +5,4 @@ import java.util.UUID;
 
 public interface WorkflowEntityStatePort {
   Optional<String> getCurrentStateJson(UUID organizationId, String entityNamespace, String entityType, UUID entityId);
-  void updateStateJson(UUID organizationId, String entityNamespace, String entityType, UUID entityId, String newStateJson);
 }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
+import com.recruitingtransactionos.coreapi.consentdisclosure.port.CandidateWorkflowStatePort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.DisclosureRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.UnlockDecisionPort;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
@@ -93,6 +94,7 @@ class ConsentDisclosureServiceTest {
                 false,
                 false,
                 false,
+                false,
                 false))
             .build());
 
@@ -102,7 +104,8 @@ class ConsentDisclosureServiceTest {
             "job_activation_gate_required",
             "fee_agreement_gate_required",
             "prior_contact_review_required",
-            "prior_application_review_required");
+            "prior_application_review_required",
+            "privacy_risk_gate_required");
     assertThat(result.workflowEventId()).isEmpty();
     assertThat(result.resultingDisclosureRecordRef()).isEmpty();
     assertThat(workflowEvents.commands()).isEmpty();
@@ -134,17 +137,28 @@ class ConsentDisclosureServiceTest {
     assertThat(result.allowedLevel()).contains(DisclosureLevel.L4_IDENTITY_DISCLOSED);
     assertThat(result.workflowEventId()).isPresent();
     assertThat(result.resultingDisclosureRecordRef()).isPresent();
-    assertThat(workflowEvents.commands()).hasSize(1);
-    WorkflowEventAppendCommand auditCommand = workflowEvents.commands().getFirst();
-    assertThat(auditCommand.action())
+    assertThat(workflowEvents.commands()).hasSize(2);
+    WorkflowEventAppendCommand disclosureAuditCommand = workflowEvents.commands().get(0);
+    WorkflowEventAppendCommand candidateAuditCommand = workflowEvents.commands().get(1);
+    assertThat(disclosureAuditCommand.action())
         .isEqualTo(WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED.wireValue());
-    assertThat(auditCommand.entity()).isEqualTo(new EntityRef(
+    assertThat(disclosureAuditCommand.entity()).isEqualTo(new EntityRef(
         "DISCLOSURE",
         ConsentDisclosureService.disclosureEntityId(
             ORGANIZATION_ID,
-            result.resultingDisclosureRecordRef().orElseThrow())));
-    assertThat(auditCommand.actor()).isEqualTo(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT));
+            "disclosure_record_task12b_approved_0001")));
+    assertThat(disclosureAuditCommand.actor()).isEqualTo(new ActorRef(ACTOR_ID, ActorRole.CONSULTANT));
+    assertThat(candidateAuditCommand.action())
+        .isEqualTo(WorkflowActionCode.CANDIDATE_IDENTITY_DISCLOSED.wireValue());
+    assertThat(candidateAuditCommand.entity()).isEqualTo(new EntityRef(
+        "CANDIDATE",
+        ConsentDisclosureService.candidateEntityId(ORGANIZATION_ID, CANDIDATE_REF)));
     assertThat(disclosureRecords.appendedRecords()).hasSize(2);
+    assertThat(disclosureRecords.findByRefAndOrganizationId(
+        ORGANIZATION_ID,
+        "disclosure_record_task12b_approved_0001")
+        .map(DisclosureRecord::status))
+        .contains(DisclosureStatus.IDENTITY_DISCLOSED);
     DisclosureRecord appendedBoundary = disclosureRecords.appendedRecords().getLast();
     assertThat(appendedBoundary.disclosureRecordRef())
         .isEqualTo(result.resultingDisclosureRecordRef().orElseThrow());
@@ -326,10 +340,10 @@ class ConsentDisclosureServiceTest {
         service.evaluateDisclosureAttempt(identityDisclosureRequest());
 
     assertThat(second).isEqualTo(first);
-    assertThat(workflowEvents.commands()).hasSize(1);
+    assertThat(workflowEvents.commands()).hasSize(2);
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED, DisclosureStatus.IDENTITY_DISCLOSED);
+        .containsExactly(DisclosureStatus.IDENTITY_DISCLOSED, DisclosureStatus.IDENTITY_DISCLOSED);
   }
 
   @Test
@@ -355,10 +369,10 @@ class ConsentDisclosureServiceTest {
         service.evaluateDisclosureAttempt(identityDisclosureRequest());
 
     assertThat(second).isEqualTo(first);
-    assertThat(workflowEvents.commands()).hasSize(1);
+    assertThat(workflowEvents.commands()).hasSize(2);
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED, DisclosureStatus.IDENTITY_DISCLOSED);
+        .containsExactly(DisclosureStatus.IDENTITY_DISCLOSED, DisclosureStatus.IDENTITY_DISCLOSED);
   }
 
   @Test
@@ -385,11 +399,11 @@ class ConsentDisclosureServiceTest {
         unlockDecisions,
         disclosureRecords,
         new ConsentDisclosureProtectionPolicy(),
+        (request, unlockDecision, disclosureRecord) -> request.prerequisites(),
+        new InMemoryCandidateWorkflowStatePort(),
         new WorkflowTransitionAuditService(new WorkflowEventService(workflowEvents), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
           @Override
           public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return Optional.empty(); }
-          @Override
-          public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
         }),
         CanonicalWriteTransactionBoundary.immediate());
   }
@@ -414,6 +428,7 @@ class ConsentDisclosureServiceTest {
         .requestedAt(NOW)
         .reason("consultant approved identity disclosure after consent and unlock review")
         .prerequisites(new ConsentDisclosurePrerequisites(
+            true,
             true,
             true,
             true,
@@ -595,6 +610,37 @@ class ConsentDisclosureServiceTest {
           .findFirst();
     }
 
+    @Override
+    public DisclosureRecord transitionToIdentityDisclosed(
+        UUID organizationId,
+        String disclosureRecordRef,
+        WorkflowEventId workflowEventId,
+        Instant decidedAt) {
+      for (int index = 0; index < appendedRecords.size(); index++) {
+        DisclosureRecord existing = appendedRecords.get(index);
+        if (existing.organizationId().equals(organizationId)
+            && existing.disclosureRecordRef().equals(disclosureRecordRef)) {
+          DisclosureRecord updated = new DisclosureRecord(
+              existing.disclosureRecordRef(),
+              existing.organizationId(),
+              existing.candidateRef(),
+              existing.candidateProfileRef(),
+              existing.jobRef(),
+              existing.clientRef(),
+              DisclosureStatus.IDENTITY_DISCLOSED,
+              existing.disclosureLevel(),
+              existing.redactionLevel(),
+              existing.unlockDecisionRef(),
+              existing.consentRecordRef(),
+              Optional.of(workflowEventId),
+              decidedAt);
+          appendedRecords.set(index, updated);
+          return updated;
+        }
+      }
+      throw new IllegalStateException("missing disclosure record");
+    }
+
     void simulateIdentityDisclosureDuplicateOnNextAppendAfterMiss() {
       hideNextIdentityDisclosureLookup = true;
       failNextIdentityDisclosureAppendAsDuplicate = true;
@@ -602,6 +648,17 @@ class ConsentDisclosureServiceTest {
 
     List<DisclosureRecord> appendedRecords() {
       return appendedRecords;
+    }
+  }
+
+  private static final class InMemoryCandidateWorkflowStatePort
+      implements CandidateWorkflowStatePort {
+
+    @Override
+    public void transitionToIdentityDisclosed(
+        UUID organizationId,
+        String candidateRef,
+        Instant disclosedAt) {
     }
   }
 }

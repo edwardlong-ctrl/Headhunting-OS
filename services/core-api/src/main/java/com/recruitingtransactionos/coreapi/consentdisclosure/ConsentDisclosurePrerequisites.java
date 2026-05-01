@@ -4,4 +4,5 @@ public record ConsentDisclosurePrerequisites(
     boolean jobActivated,
     boolean feeAgreementActive,
     boolean priorContactCleared,
-    boolean priorApplicationCleared) {}
+    boolean priorApplicationCleared,
+    boolean privacyRiskCleared) {}

@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.consentdisclosure.persistence;
 
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
+import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWorkflowEntityIds;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentStatus;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
@@ -25,6 +26,7 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
       INSERT INTO privacy.consent_record (
         consent_record_ref,
         organization_id,
+        workflow_entity_id,
         candidate_ref,
         candidate_profile_ref,
         job_ref,
@@ -36,7 +38,7 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
         expires_at,
         revoked
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::text[], ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::text[], ?, ?, ?)
       """;
 
   private static final String FIND_SQL = """
@@ -71,24 +73,27 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
     try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       statement.setString(1, consentRecord.consentRecordRef());
       statement.setObject(2, consentRecord.organizationId());
-      statement.setString(3, consentRecord.candidateRef());
-      statement.setString(4, consentRecord.candidateProfileRef());
-      statement.setString(5, consentRecord.jobRef());
-      statement.setString(6, consentRecord.profileVersion());
-      statement.setString(7, consentRecord.consentTextVersion());
-      statement.setString(8, consentRecord.status().wireValue());
-      statement.setArray(9, connection.createArrayOf(
+      statement.setObject(3, ConsentDisclosureWorkflowEntityIds.consentEntityId(
+          consentRecord.organizationId(),
+          consentRecord.consentRecordRef()));
+      statement.setString(4, consentRecord.candidateRef());
+      statement.setString(5, consentRecord.candidateProfileRef());
+      statement.setString(6, consentRecord.jobRef());
+      statement.setString(7, consentRecord.profileVersion());
+      statement.setString(8, consentRecord.consentTextVersion());
+      statement.setString(9, consentRecord.status().wireValue());
+      statement.setArray(10, connection.createArrayOf(
           "text",
           consentRecord.permittedDisclosureLevels().stream()
               .map(DisclosureLevel::wireValue)
               .toArray(String[]::new)));
-      statement.setObject(10, OffsetDateTime.ofInstant(consentRecord.confirmedAt(), ZoneOffset.UTC));
+      statement.setObject(11, OffsetDateTime.ofInstant(consentRecord.confirmedAt(), ZoneOffset.UTC));
       if (consentRecord.expiresAt() == null) {
-        statement.setNull(11, Types.TIMESTAMP_WITH_TIMEZONE);
+        statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
       } else {
-        statement.setObject(11, OffsetDateTime.ofInstant(consentRecord.expiresAt(), ZoneOffset.UTC));
+        statement.setObject(12, OffsetDateTime.ofInstant(consentRecord.expiresAt(), ZoneOffset.UTC));
       }
-      statement.setBoolean(12, consentRecord.revoked());
+      statement.setBoolean(13, consentRecord.revoked());
       statement.executeUpdate();
       return consentRecord;
     } catch (SQLException exception) {

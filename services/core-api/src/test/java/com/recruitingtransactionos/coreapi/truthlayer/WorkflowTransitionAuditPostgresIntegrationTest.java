@@ -184,8 +184,6 @@ class WorkflowTransitionAuditPostgresIntegrationTest {
         new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
           @Override
           public java.util.Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return java.util.Optional.empty(); }
-          @Override
-          public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
         });
   }
 

@@ -144,8 +144,6 @@ class DocumentUploadPostgresIntegrationTest {
             new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
               @Override
               public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
-              @Override
-              public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
             }));
   }
 

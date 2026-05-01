@@ -16,6 +16,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.ClaimType;
 import com.recruitingtransactionos.coreapi.truthlayer.AssertionStrength;
 import com.recruitingtransactionos.coreapi.truthlayer.VerificationStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.ClientShareability;
+import java.util.Locale;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -58,7 +59,9 @@ public final class CandidateProfileParserTaskService {
         
     CandidateProfileParserOutput parsed = objectMapper.convertValue(execution.outputPayload(), CandidateProfileParserOutput.class);
 
-    if (claimLedgerService != null && targetEntity != null && "candidate".equals(targetEntity.entityType())) {
+    if (claimLedgerService != null
+        && targetEntity != null
+        && "candidate".equals(normalizeEntityType(targetEntity.entityType()))) {
       UUID sourceItemId = sourceReferenceIds != null && !sourceReferenceIds.isEmpty() ? sourceReferenceIds.getFirst() : null;
       SourceSpanRef span = new SourceSpanRef("ai_task:" + execution.runRecord().aiTaskRunId().value());
       
@@ -92,5 +95,9 @@ public final class CandidateProfileParserTaskService {
     }
 
     return new CandidateProfileParserResult(execution, parsed);
+  }
+
+  private static String normalizeEntityType(String entityType) {
+    return entityType == null ? "" : entityType.trim().toLowerCase(Locale.ROOT);
   }
 }

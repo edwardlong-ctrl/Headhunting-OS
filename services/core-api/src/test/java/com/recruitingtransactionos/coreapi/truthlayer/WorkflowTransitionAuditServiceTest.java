@@ -263,8 +263,6 @@ class WorkflowTransitionAuditServiceTest {
     return new WorkflowTransitionAuditService(new WorkflowEventService(workflowEventPort), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
       @Override
       public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return Optional.empty(); }
-      @Override
-      public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
     });
   }
 

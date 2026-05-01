@@ -1,19 +1,19 @@
 package com.recruitingtransactionos.coreapi.workflowaudit.persistence;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 
 public class JdbcWorkflowEntityStatePort implements WorkflowEntityStatePort {
-  
+
   private final DataSource dataSource;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -37,53 +37,49 @@ public class JdbcWorkflowEntityStatePort implements WorkflowEntityStatePort {
           return Optional.of(objectMapper.writeValueAsString(new StateWrapper(status)));
         }
       }
-    } catch (SQLException | JsonProcessingException e) {
+    } catch (SQLException | com.fasterxml.jackson.core.JsonProcessingException e) {
       throw new RuntimeException("Failed to read entity state", e);
     }
     return Optional.empty();
   }
 
-  @Override
-  public void updateStateJson(UUID organizationId, String entityNamespace, String entityType, UUID entityId, String newStateJson) {
-    String update = updateFor(entityNamespace, entityType);
-    if (update == null) {
-      return;
-    }
-    try {
-      StateWrapper wrapper = objectMapper.readValue(newStateJson, StateWrapper.class);
-      if (wrapper.status == null) {
-        return;
-      }
-      try (Connection connection = dataSource.getConnection();
-           PreparedStatement statement = connection.prepareStatement(update)) {
-        statement.setString(1, wrapper.status);
-        statement.setObject(2, organizationId);
-        statement.setObject(3, entityId);
-        statement.executeUpdate();
-      }
-    } catch (SQLException | JsonProcessingException e) {
-      throw new RuntimeException("Failed to update entity state", e);
-    }
-  }
-
   private String queryFor(String namespace, String type) {
-    return switch (namespace + ":" + type) {
-      case "job:job" -> "SELECT status FROM job.job WHERE organization_id = ? AND job_id = ?";
-      case "shortlist:shortlist" -> "SELECT status FROM shortlist.shortlist WHERE organization_id = ? AND shortlist_id = ?";
-      case "consent:consent" -> "SELECT status FROM consent_disclosure.consent WHERE organization_id = ? AND consent_id = ?";
-      case "disclosure:disclosure" -> "SELECT status FROM consent_disclosure.disclosure WHERE organization_id = ? AND disclosure_id = ?";
+    return switch (normalizedKey(namespace, type)) {
+      case "recruiting:job", "job:job" -> """
+          SELECT status
+          FROM recruiting.job
+          WHERE organization_id = ? AND job_id = ?
+          """;
+      case "recruiting:shortlist", "shortlist:shortlist" -> """
+          SELECT status
+          FROM recruiting.shortlist
+          WHERE organization_id = ? AND shortlist_id = ?
+          """;
+      case "recruiting:candidate", "workflow:candidate", "candidate:candidate" -> """
+          SELECT status
+          FROM recruiting.candidate
+          WHERE organization_id = ? AND candidate_id = ?
+          """;
+      case "consent:consent", "workflow:consent" -> """
+          SELECT status
+          FROM privacy.consent_record
+          WHERE organization_id = ? AND workflow_entity_id = ?
+          """;
+      case "disclosure:disclosure", "workflow:disclosure" -> """
+          SELECT status
+          FROM privacy.disclosure_record
+          WHERE organization_id = ? AND workflow_entity_id = ?
+          """;
       default -> null;
     };
   }
 
-  private String updateFor(String namespace, String type) {
-    return switch (namespace + ":" + type) {
-      case "job:job" -> "UPDATE job.job SET status = ? WHERE organization_id = ? AND job_id = ?";
-      case "shortlist:shortlist" -> "UPDATE shortlist.shortlist SET status = ? WHERE organization_id = ? AND shortlist_id = ?";
-      case "consent:consent" -> "UPDATE consent_disclosure.consent SET status = ? WHERE organization_id = ? AND consent_id = ?";
-      case "disclosure:disclosure" -> "UPDATE consent_disclosure.disclosure SET status = ? WHERE organization_id = ? AND disclosure_id = ?";
-      default -> null;
-    };
+  private static String normalizedKey(String namespace, String type) {
+    return normalize(namespace) + ":" + normalize(type);
+  }
+
+  private static String normalize(String value) {
+    return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
   }
 
   private static class StateWrapper {
