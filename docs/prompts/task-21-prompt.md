@@ -2,7 +2,7 @@
 
 ## Branch / Worktree Hygiene
 - repo path: /Users/edwardlong/Documents/New project
-- current main HEAD: d463426
+- current main HEAD: da06438
 - mode: worktree (do NOT modify main directly)
 - commit allowed: yes (single focused commit in worktree after validation)
 - merge: no (merge will be done from the main session after review)
@@ -13,7 +13,7 @@ Read `docs/roadmap/current-engineering-snapshot.md` for current baseline.
 
 ---
 
-## Confirmed Repo Facts (verified on main d463426)
+## Confirmed Repo Facts (verified on current main baseline)
 
 ### AITaskRun Metadata/Goverance (Task 10A/B/C — DONE)
 
@@ -40,35 +40,42 @@ Read `docs/roadmap/current-engineering-snapshot.md` for current baseline.
 
 6. **ModelRef** (`truthlayer/port/ModelRef.java`): record with `provider`, `name`, `version`. Currently always `("metadata-only", "no-model-call", "v0")` in tests.
 
-### Database (PostgreSQL, Flyway at V13 — DO NOT ADD MIGRATION)
+### Auth / Product Controller Baseline (Task 19A/19B/19C — MERGED)
 
-7. **`governance.ai_task_run`** (V2 + V7):
+7. **Auth/session baseline now exists on main:**
+   - Spring Security stateless filter chain, JWT issuance/validation, and persisted `identity.session` checks are already merged.
+   - Product controllers no longer use header-only temporary auth as the active path.
+   - Task 21 must remain compatible with the current JWT-backed baseline and must NOT reintroduce header-only auth assumptions into active code or docs.
+
+### Database (PostgreSQL, Flyway at V15 — DO NOT ADD MIGRATION)
+
+8. **`governance.ai_task_run`** (V2 + V7):
    - Columns present in schema but NOT in Java: `tool_calls` (jsonb), `cost_units` (bigint), `trace_ref` (text), `error_code` (text).
    - `model_routing_policy` (jsonb) in `ai_task_definition` — never populated.
    - FK from `ai_task_run` to `ai_task_definition`.
    - FK from `claim_ledger_item` to `ai_task_run` (already exists).
    - FK from `workflow_event` to `ai_task_run` (already exists).
 
-8. **Latest migration is V13** (Task 20). V14 exists? → CHECK. **Task 21 must NOT add a migration unless a new column is strictly required. Prefer using existing columns.**
+9. **Latest merged migration baseline is V15** (Task 19A; Task 20's V13 is already merged). **Task 21 must NOT add a migration unless a new column is strictly required. Prefer using existing columns.**
 
 ### Governed Intake / Extraction
 
-9. **DeterministicIntakeExtractionService** (`governedintake/service/`):
+10. **DeterministicIntakeExtractionService** (`governedintake/service/`):
    - Only mode: `DETERMINISTIC_PLACEHOLDER`. Output envelope explicitly states `real_ai_extraction_performed: false`.
    - Provides the **contract shape** for what a real extraction would produce.
 
-10. **IntakeExtractionMode**: single value `DETERMINISTIC_PLACEHOLDER`. Needs at least an `AI` mode added.
+11. **IntakeExtractionMode**: single value `DETERMINISTIC_PLACEHOLDER`. Needs at least an `AI` mode added.
 
-11. **Intake bridge chain exists**: extraction → `IntakeClaimLedgerBridgeService` → `IntakeReviewBridgeService` → `IntakeCanonicalWriteBridgeService`. Task 21's AI output feeds into this chain.
+12. **Intake bridge chain exists**: extraction → `IntakeClaimLedgerBridgeService` → `IntakeReviewBridgeService` → `IntakeCanonicalWriteBridgeService`. Task 21's AI output feeds into this chain.
 
 ### Contracts
 
-12. **`packages/contracts/schemas/ai-task-run.schema.json`**: includes `tool_calls`, `cost_units`, `trace_ref`, `error_code`. Ahead of Java code.
+13. **`packages/contracts/schemas/ai-task-run.schema.json`**: includes `tool_calls`, `cost_units`, `trace_ref`, `error_code`. Ahead of Java code.
 
 ### Tests
 
-13. **Current test count**: 652 tests, 0 failures, 1 existing skip (from Task 18C baseline). **Task 21 must NOT reduce this count — only increase it.**
-14. **Regression closure tests exist**: `AITaskGovernanceRegressionClosureTest`, `AITaskRunGovernanceContractTest`, `AITaskRunPostgresPersistenceIntegrationTest`, `AITaskWriteBackPolicyTest`. All must continue to pass.
+14. **Current documented backend test baseline**: 667 tests, 0 failures/errors, 1 existing skip after Task 19C. **Task 21 must NOT reduce this count — only increase it.**
+15. **Regression closure tests exist**: `AITaskGovernanceRegressionClosureTest`, `AITaskRunGovernanceContractTest`, `AITaskRunPostgresPersistenceIntegrationTest`, `AITaskWriteBackPolicyTest`. All must continue to pass.
 
 ---
 
@@ -153,7 +160,7 @@ Read `docs/roadmap/current-engineering-snapshot.md` for current baseline.
 - No AI self-approval for human-review-required targets (existing policy check; must be preserved).
 - No frontend changes.
 - No Client/Candidate/Owner/Admin endpoints.
-- No real auth/session — header-based temporary access context remains the only mechanism.
+- Do NOT revert, bypass, or reintroduce the old header-only auth model in active code or live status docs; Task 21 must remain compatible with the merged JWT/session baseline.
 - Do NOT touch files in `consentdisclosure/` or `identityaccess/` packages.
 - Do NOT add async queue infrastructure (RabbitMQ, SQS, etc.) — v1 is sync.
 - Do NOT add new model providers beyond Anthropic-compatible (the one DeepSeek uses).
@@ -168,7 +175,7 @@ docker info
 PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 ```
 
-Full Maven test suite must pass. Report exact test count. **Must not reduce from 652.**
+Full Maven test suite must pass. Report exact test count. **Must not reduce from 667.**
 
 ---
 
