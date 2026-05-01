@@ -155,8 +155,7 @@ public final class JdbcDocumentIntelligencePersistencePort
     try (PreparedStatement statement = connection.prepareStatement(INSERT_PARSED_DOCUMENT_SQL)) {
       bindParsedDocument(statement, parsedDocument);
       statement.executeUpdate();
-      return findLatestParsedDocumentBySourceItem(
-          parsedDocument.organizationId(), parsedDocument.sourceItemId()).orElseThrow();
+      return parsedDocument;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to save parsed document", exception);
     } finally {
@@ -199,8 +198,7 @@ public final class JdbcDocumentIntelligencePersistencePort
       if (!transactional) {
         connection.commit();
       }
-      return findLatestParsedDocumentBySourceItem(
-          parsedDocument.organizationId(), parsedDocument.sourceItemId()).orElseThrow();
+      return parsedDocument;
     } catch (SQLException exception) {
       rollbackIfNecessary(connection, transactional);
       throw new IllegalStateException("Failed to save parsed document with artifacts", exception);
@@ -221,10 +219,16 @@ public final class JdbcDocumentIntelligencePersistencePort
     Objects.requireNonNull(chunks, "chunks must not be null");
     Objects.requireNonNull(spans, "spans must not be null");
     Connection connection = DataSourceUtils.getConnection(dataSource);
+    boolean transactional = DataSourceUtils.isConnectionTransactional(connection, dataSource);
+    boolean originalAutoCommit = true;
     try (PreparedStatement deleteSpans = connection.prepareStatement(DELETE_SPANS_SQL);
         PreparedStatement deleteChunks = connection.prepareStatement(DELETE_CHUNKS_SQL);
         PreparedStatement insertChunk = connection.prepareStatement(INSERT_CHUNK_SQL);
         PreparedStatement insertSpan = connection.prepareStatement(INSERT_SPAN_SQL)) {
+      if (!transactional) {
+        originalAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+      }
       deleteSpans.setObject(1, organizationId);
       deleteSpans.setObject(2, parsedDocumentId);
       deleteSpans.executeUpdate();
@@ -241,9 +245,14 @@ public final class JdbcDocumentIntelligencePersistencePort
         insertSpan.addBatch();
       }
       insertSpan.executeBatch();
+      if (!transactional) {
+        connection.commit();
+      }
     } catch (SQLException exception) {
+      rollbackIfNecessary(connection, transactional);
       throw new IllegalStateException("Failed to replace parsed document chunks and spans", exception);
     } finally {
+      restoreAutoCommit(connection, transactional, originalAutoCommit);
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }

@@ -180,7 +180,13 @@ class WorkflowTransitionAuditPostgresIntegrationTest {
 
   private static WorkflowTransitionAuditService transitionService() {
     return new WorkflowTransitionAuditService(
-        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)));
+        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public java.util.Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return java.util.Optional.empty(); }
+          @Override
+          public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
+        });
   }
 
   private static WorkflowAuditQueryService queryService() {

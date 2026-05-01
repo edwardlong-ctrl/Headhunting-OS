@@ -309,7 +309,14 @@ public final class DocumentUploadService {
       public WorkflowEventAppendResult append(WorkflowEventAppendCommand command) {
         return new WorkflowEventAppendResult(new WorkflowEventId(UUID.randomUUID()));
       }
-    }));
+    }), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+      @Override
+      public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) {
+        return Optional.empty();
+      }
+      @Override
+      public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
+    });
   }
 
   private static void validateMimeType(String mimeType) {

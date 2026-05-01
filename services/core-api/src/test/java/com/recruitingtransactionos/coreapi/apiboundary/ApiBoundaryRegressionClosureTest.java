@@ -67,9 +67,6 @@ class ApiBoundaryRegressionClosureTest {
   private static final String ENDPOINT =
       "/api/client-safe/candidate-cards/card_task9c_0001";
   private static final String ROLE_HEADER = "X-RTO-Actor-Role";
-  private static final String FIELD_HEADER = "X-RTO-Field-Classification";
-  private static final String IDENTITY_DISCLOSURE_HEADER =
-      "X-RTO-Identity-Disclosure-Requested";
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009c0003";
@@ -114,7 +111,6 @@ class ApiBoundaryRegressionClosureTest {
   void requestPathUsesAnonymousCardRefOnly() throws Exception {
     mockMvc.perform(get(ENDPOINT)
             .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
             )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
@@ -127,7 +123,7 @@ class ApiBoundaryRegressionClosureTest {
   }
 
   @Test
-  void mergedClientPortalFetchHelperSendsTemporaryOrganizationScopeHeader()
+  void mergedClientPortalFetchHelperNoLongerDependsOnTemporaryAccessHeaders()
       throws IOException {
     String source = Files.readString(Path.of(System.getProperty("user.dir"))
         .getParent()
@@ -135,11 +131,11 @@ class ApiBoundaryRegressionClosureTest {
         .resolve("apps/web/src/api/clientSafeCandidateCards.ts"));
 
     assertThat(source)
-        .contains("\"X-RTO-Actor-Role\": \"client\"")
-        .contains("\"X-RTO-Field-Classification\": \"client_safe\"")
-        .contains("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
-        .contains("\"X-RTO-Organization-Id\"")
-        .contains("VITE_RTO_CLIENT_ORGANIZATION_ID")
+        .doesNotContain("\"X-RTO-Actor-Role\": \"client\"")
+        .doesNotContain("\"X-RTO-Field-Classification\": \"client_safe\"")
+        .doesNotContain("\"X-RTO-Identity-Disclosure-Requested\": \"false\"")
+        .doesNotContain("\"X-RTO-Organization-Id\"")
+        .doesNotContain("VITE_RTO_CLIENT_ORGANIZATION_ID")
         .doesNotContain("00000000-0000-0000-0000-00000013b001");
   }
 
@@ -155,7 +151,6 @@ class ApiBoundaryRegressionClosureTest {
       MvcResult result = mockMvc.perform(get(
               "/api/client-safe/candidate-cards/" + unsafeRef)
               .with(authentication(auth("client")))
-              .header(FIELD_HEADER, "client_safe")
               )
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
@@ -169,7 +164,7 @@ class ApiBoundaryRegressionClosureTest {
   }
 
   @Test
-  void temporaryAccessContextAdapterFailsClosedForMissingUnknownOrUnsupportedHeaders()
+  void clientSafeEndpointDefaultsToPrincipalContextAndRejectsInvalidRoles()
       throws Exception {
     MvcResult missing = mockMvc.perform(get(ENDPOINT))
         .andExpect(status().isUnauthorized())
@@ -179,43 +174,11 @@ class ApiBoundaryRegressionClosureTest {
     assertSanitizedApiBody(missing.getResponse().getContentAsString());
 
     mockMvc.perform(get(ENDPOINT)
-            .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe"))
+            .with(authentication(auth("client"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9c_0001"));
     assertThat(queryPort.calls).isEqualTo(1);
     queryPort.reset();
-
-    for (String role : List.of("owner-plus", "client")) {
-      queryPort.reset();
-      String field = role.equals("client") ? "identity" : "client_safe";
-      String expectedReason = role.equals("client")
-          ? "api_access_context_invalid"
-          : "unknown_access_denied_by_default";
-      MvcResult invalid = mockMvc.perform(get(ENDPOINT)
-              .with(authentication(auth(role)))
-              .header(FIELD_HEADER, field)
-              )
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.safeReason").value(expectedReason))
-          .andReturn();
-
-      assertSanitizedApiBody(invalid.getResponse().getContentAsString());
-      assertThat(queryPort.calls).isZero();
-    }
-
-    MvcResult malformedDisclosure = mockMvc.perform(get(ENDPOINT)
-            .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
-            
-            .header(IDENTITY_DISCLOSURE_HEADER, "yes"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_invalid"))
-        .andReturn();
-
-    assertSanitizedApiBody(malformedDisclosure.getResponse().getContentAsString());
-    assertThat(queryPort.calls).isZero();
-
   }
 
   @Test
@@ -228,7 +191,7 @@ class ApiBoundaryRegressionClosureTest {
 
     mockMvc.perform(get(ENDPOINT)
             .header("Authorization", validBearerToken(principal, issuedAt))
-            .header(FIELD_HEADER, "client_safe"))
+            )
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
         .andExpect(jsonPath("$.error.safeReason").value("invalid_token"));
@@ -238,46 +201,16 @@ class ApiBoundaryRegressionClosureTest {
   @Test
   void clientAccessIsLimitedToSafeOrGeneralizedCardOutputWithoutL4Disclosure()
       throws Exception {
-    for (String allowedField : List.of("client_safe", "generalized")) {
-      queryPort.reset();
-      MvcResult result = mockMvc.perform(get(ENDPOINT)
-              .with(authentication(auth("client")))
-              .header(FIELD_HEADER, allowedField)
-              )
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.data.redactionLevel").value("l2_client_safe"))
-          .andReturn();
-
-      assertSuccessEnvelopeHasOnlyClientSafeCardResponse(result.getResponse().getContentAsString());
-      assertThat(queryPort.calls).isEqualTo(1);
-    }
-
-    for (String unsafeField : List.of("pii", "raw_source", "consultant_private",
-        "consent_disclosure", "system_governance")) {
-      queryPort.reset();
-      MvcResult result = mockMvc.perform(get(ENDPOINT)
-              .with(authentication(auth("client")))
-              .header(FIELD_HEADER, unsafeField)
-              )
-          .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
-          .andReturn();
-
-      assertSanitizedApiBody(result.getResponse().getContentAsString());
-      assertThat(queryPort.calls).isZero();
-    }
-
-    MvcResult identityDisclosure = mockMvc.perform(get(ENDPOINT)
+    queryPort.reset();
+    MvcResult result = mockMvc.perform(get(ENDPOINT)
             .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
-            
-            .header(IDENTITY_DISCLOSURE_HEADER, "true"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
+            )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.redactionLevel").value("l2_client_safe"))
         .andReturn();
 
-    assertSanitizedApiBody(identityDisclosure.getResponse().getContentAsString());
-    assertThat(queryPort.calls).isZero();
+    assertSuccessEnvelopeHasOnlyClientSafeCardResponse(result.getResponse().getContentAsString());
+    assertThat(queryPort.calls).isEqualTo(1);
   }
 
   @Test
@@ -287,7 +220,6 @@ class ApiBoundaryRegressionClosureTest {
 
       MvcResult result = mockMvc.perform(get(ENDPOINT)
               .with(authentication(auth(role)))
-              .header(FIELD_HEADER, "client_safe")
               )
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
@@ -304,7 +236,6 @@ class ApiBoundaryRegressionClosureTest {
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
             )
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.errorCode").value("not_found"))
@@ -328,7 +259,6 @@ class ApiBoundaryRegressionClosureTest {
 
     MvcResult result = mockMvc.perform(get(ENDPOINT)
             .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
             )
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.error.errorCode").value("internal_error"))
@@ -366,7 +296,7 @@ class ApiBoundaryRegressionClosureTest {
     for (String unsafeText : unsafeExternalTextExamples()) {
       assertThatThrownBy(() -> new ClientSafeCandidateCardResponse(
           "card_task9c_unsafe",
-          "anon_candidate_task9c_unsafe",
+          "alias-aa",
           "projection-v1",
           "l2_client_safe",
           "Senior verification leader in advanced-chip programs",
@@ -474,7 +404,8 @@ class ApiBoundaryRegressionClosureTest {
             "HealthController.java",
             "ConsultantCompanyController.java",
             "ConsultantJobController.java",
-            "ConsultantShortlistController.java",
+        "ConsultantMatchingController.java",
+        "ConsultantShortlistController.java",
             "ConsultantDocumentController.java",
         "AuthenticationController.java");
 
@@ -502,6 +433,7 @@ class ApiBoundaryRegressionClosureTest {
       boolean isConsultantWriteController =
           "ConsultantCompanyController.java".equals(fileName)
               || "ConsultantJobController.java".equals(fileName)
+              || "ConsultantMatchingController.java".equals(fileName)
               || "ConsultantShortlistController.java".equals(fileName);
       boolean isDocumentController =
           "ConsultantDocumentController.java".equals(fileName);
@@ -544,7 +476,7 @@ class ApiBoundaryRegressionClosureTest {
     assertThat(root.get("data").fieldNames()).toIterable()
         .containsExactlyInAnyOrder(
             "anonymousCardRef",
-            "anonymousCandidateRef",
+            "clientAlias",
             "projectionVersion",
             "redactionLevel",
             "generalizedHeadline",

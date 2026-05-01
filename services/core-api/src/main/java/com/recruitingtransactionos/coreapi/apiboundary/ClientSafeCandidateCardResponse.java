@@ -4,7 +4,7 @@ import java.util.List;
 
 public record ClientSafeCandidateCardResponse(
     String anonymousCardRef,
-    String anonymousCandidateRef,
+    String clientAlias,
     String projectionVersion,
     String redactionLevel,
     String generalizedHeadline,
@@ -19,9 +19,7 @@ public record ClientSafeCandidateCardResponse(
   public ClientSafeCandidateCardResponse {
     anonymousCardRef =
         ApiBoundaryContractRules.requireNonBlank(anonymousCardRef, "anonymousCardRef");
-    anonymousCandidateRef =
-        ApiBoundaryContractRules.requireNonBlank(
-            anonymousCandidateRef, "anonymousCandidateRef");
+    clientAlias = ApiBoundaryContractRules.requireApiSafeExternalText(clientAlias, "clientAlias");
     projectionVersion =
         ApiBoundaryContractRules.requireNonBlank(projectionVersion, "projectionVersion");
     redactionLevel =

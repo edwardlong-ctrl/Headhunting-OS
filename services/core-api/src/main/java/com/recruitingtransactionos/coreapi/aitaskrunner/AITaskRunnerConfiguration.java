@@ -10,6 +10,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
 import java.time.Duration;
 import java.util.List;
+import javax.sql.DataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,8 +31,8 @@ public class AITaskRunnerConfiguration {
             "/ai/prompts/candidate-profile-parser-v1.txt",
             "/ai/schemas/candidate-profile-parser-input.schema.json",
             "/ai/schemas/candidate-profile-parser-output.schema.json",
-            AITaskWriteBackTarget.NO_WRITE_BACK,
-            AITaskHumanReviewStatus.NOT_REQUIRED),
+            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
+            AITaskHumanReviewStatus.REQUIRED),
         new AITaskDefinition(
             "authenticity-risk-assessor",
             "authenticity-risk-assessor.v1",
@@ -59,6 +60,13 @@ public class AITaskRunnerConfiguration {
   }
 
   @Bean
+  AITaskDefinitionCatalog aiTaskDefinitionCatalog(
+      DataSource dataSource,
+      ObjectMapper objectMapper) {
+    return new JdbcAITaskDefinitionCatalog(dataSource, objectMapper);
+  }
+
+  @Bean
   RestClient deepSeekRestClient(AITaskRunnerProperties properties) {
     SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
     requestFactory.setConnectTimeout(Duration.ofSeconds(properties.getDeepseek().getConnectTimeoutSeconds()));
@@ -80,6 +88,7 @@ public class AITaskRunnerConfiguration {
   @Bean
   AITaskRunnerService aiTaskRunnerService(
       AITaskRunService aiTaskRunService,
+      AITaskDefinitionCatalog definitionCatalog,
       AITaskDefinitionRegistry definitionRegistry,
       AITaskPromptRegistry promptRegistry,
       AITaskSchemaValidator schemaValidator,
@@ -88,6 +97,7 @@ public class AITaskRunnerConfiguration {
       ObjectMapper objectMapper) {
     return new AITaskRunnerService(
         aiTaskRunService,
+        definitionCatalog,
         definitionRegistry,
         promptRegistry,
         schemaValidator,
@@ -107,8 +117,10 @@ public class AITaskRunnerConfiguration {
   @Bean
   CandidateProfileParserTaskService candidateProfileParserTaskService(
       AITaskRunnerService aiTaskRunnerService,
-      ObjectMapper objectMapper) {
-    return new CandidateProfileParserTaskService(aiTaskRunnerService, objectMapper);
+      ObjectMapper objectMapper,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+      com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService claimLedgerService) {
+    return new CandidateProfileParserTaskService(aiTaskRunnerService, objectMapper, claimLedgerService);
   }
 
   @Bean

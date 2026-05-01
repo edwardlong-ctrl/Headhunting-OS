@@ -14,6 +14,10 @@ public final class CanonicalWriteGate {
     List<String> reviewReasons = new ArrayList<>();
     List<String> allowReasons = new ArrayList<>();
 
+    if (!request.canonicalWriteAllowed()) {
+      blockReasons.add("claim_not_allowed_for_canonical_write");
+    }
+
     if (claim.verificationStatus() == VerificationStatus.SYSTEM_INFERENCE
         || claim.type() == ClaimType.INFERENCE) {
       blockReasons.add("system_inference_cannot_be_canonical_fact");

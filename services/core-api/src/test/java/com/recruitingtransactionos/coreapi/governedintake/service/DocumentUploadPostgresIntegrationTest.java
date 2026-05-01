@@ -140,7 +140,13 @@ class DocumentUploadPostgresIntegrationTest {
         new NoOpVirusScanPort(),
         new SpringCanonicalWriteTransactionBoundary(new DataSourceTransactionManager(dataSource)),
         new WorkflowTransitionAuditService(
-            new WorkflowEventService(new JdbcWorkflowEventPort(dataSource))));
+            new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+            new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+              @Override
+              public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
+              @Override
+              public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
+            }));
   }
 
   private static DocumentUploadCommand uploadCommand() {

@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId
 import com.recruitingtransactionos.coreapi.truthlayer.port.WriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -73,6 +74,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
     UUID candidateId = uuid("00000000-0000-0000-0000-000000110003");
     UUID sourceRefId = uuid("00000000-0000-0000-0000-000000110004");
     insertOrganizationAndUser(organizationId, requestedBy);
+    insertAiTaskDefinition(organizationId);
 
     AITaskRunAppendCommand command = command(
         organizationId,
@@ -121,6 +123,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
     UUID requestedBy = uuid("00000000-0000-0000-0000-000000110102");
     UUID candidateId = uuid("00000000-0000-0000-0000-000000110103");
     insertOrganizationAndUser(organizationId, requestedBy);
+    insertAiTaskDefinition(organizationId);
 
     AITaskRunAppendResult result = service().append(command(
         organizationId,
@@ -154,6 +157,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
     UUID requestedBy = uuid("00000000-0000-0000-0000-000000110202");
     UUID candidateId = uuid("00000000-0000-0000-0000-000000110203");
     insertOrganizationAndUser(organizationId, requestedBy);
+    insertAiTaskDefinition(organizationId);
 
     AITaskRunAppendResult result = service().append(command(
         organizationId,
@@ -182,6 +186,7 @@ class AITaskRunPostgresPersistenceIntegrationTest {
     UUID requestedBy = uuid("00000000-0000-0000-0000-000000110302");
     UUID candidateId = uuid("00000000-0000-0000-0000-000000110303");
     insertOrganizationAndUser(organizationId, requestedBy);
+    insertAiTaskDefinition(organizationId);
 
     AITaskRunAppendResult result = service().append(command(
         organizationId,
@@ -292,6 +297,35 @@ class AITaskRunPostgresPersistenceIntegrationTest {
       user.setString(3, "task10a-requester-" + userId + "@example.test");
       user.setString(4, "Task 10A Requester");
       user.executeUpdate();
+    }
+  }
+
+  private static void insertAiTaskDefinition(UUID organizationId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO governance.ai_task_definition (
+              ai_task_definition_id,
+              organization_id,
+              task_key,
+              task_version,
+              status,
+              input_schema_version,
+              output_schema_version,
+              human_review_policy,
+              write_back_target,
+              metadata
+            )
+            VALUES (
+              ?, ?, 'candidate-profile-extraction', 'candidate-profile-extraction.v1',
+              'active', 'candidate-profile-input.v1', 'candidate-profile-output.v1',
+              '{"status":"not_required"}'::jsonb, 'claim_ledger_proposal', '{}'::jsonb
+            )
+            ON CONFLICT (organization_id, task_key, task_version) DO NOTHING
+            """)) {
+      statement.setObject(1, UUID.nameUUIDFromBytes(
+          ("ai-task-definition:" + organizationId).getBytes(StandardCharsets.UTF_8)));
+      statement.setObject(2, organizationId);
+      statement.executeUpdate();
     }
   }
 

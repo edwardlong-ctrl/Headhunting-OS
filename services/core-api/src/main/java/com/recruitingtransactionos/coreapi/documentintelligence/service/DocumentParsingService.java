@@ -413,12 +413,18 @@ public final class DocumentParsingService {
   }
 
   private static String safeFailureReason(RuntimeException exception) {
+    if (exception instanceof DocumentParsingException parsingException
+        && parsingException.getMessage() != null
+        && !parsingException.getMessage().isBlank()) {
+      String safeCode = parsingException.getMessage().strip().toLowerCase(Locale.ROOT);
+      if (safeCode.matches("[a-z0-9_.-]+")) {
+        return safeCode;
+      }
+    }
     if (exception.getMessage() == null || exception.getMessage().isBlank()) {
       return "document_parse_failed";
     }
-    String normalized = exception.getMessage().strip().toLowerCase(Locale.ROOT)
-        .replaceAll("[^a-z0-9_.-]+", "_");
-    return normalized.length() > 80 ? normalized.substring(0, 80) : normalized;
+    return "document_parse_failed";
   }
 
   private static String normalizeText(String value) {

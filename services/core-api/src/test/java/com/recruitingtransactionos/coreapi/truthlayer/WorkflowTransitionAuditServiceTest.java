@@ -228,7 +228,7 @@ class WorkflowTransitionAuditServiceTest {
   }
 
   @Test
-  void serviceDoesNotValidateTransitionLegality() {
+  void serviceRejectsIllegalTransitionStatusSequence() {
     RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
     WorkflowTransitionAuditRequest oddButAuditableRequest = requestBuilder()
         .actionCode("CANDIDATE_CONSULTANT_REVIEW_STARTED")
@@ -238,11 +238,10 @@ class WorkflowTransitionAuditServiceTest {
         .idempotencyKey("transition-audit-legality-not-checked")
         .build();
 
-    service(port).record(oddButAuditableRequest);
-
-    assertThat(port.commands).hasSize(1);
-    assertThat(port.commands.getFirst().beforeState().json()).contains("placed");
-    assertThat(port.commands.getFirst().afterState().json()).contains("unreviewed_surprise_state");
+    assertThatThrownBy(() -> service(port).record(oddButAuditableRequest))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("illegal workflow transition");
+    assertThat(port.commands).isEmpty();
   }
 
   @Test
@@ -253,11 +252,20 @@ class WorkflowTransitionAuditServiceTest {
         .filter(field -> !Modifier.isStatic(field.getModifiers()))
         .map(field -> field.getType().getSimpleName())
         .toList())
-        .containsExactlyInAnyOrder("WorkflowActionRegistry", "WorkflowEventService");
+        .containsExactlyInAnyOrder(
+            "WorkflowActionRegistry",
+            "WorkflowTransitionLegalityPolicy",
+            "WorkflowEventService",
+            "WorkflowEntityStatePort");
   }
 
   private static WorkflowTransitionAuditService service(WorkflowEventPort workflowEventPort) {
-    return new WorkflowTransitionAuditService(new WorkflowEventService(workflowEventPort));
+    return new WorkflowTransitionAuditService(new WorkflowEventService(workflowEventPort), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+      @Override
+      public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return Optional.empty(); }
+      @Override
+      public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
+    });
   }
 
   private static WorkflowTransitionAuditRequest.Builder requestBuilder() {

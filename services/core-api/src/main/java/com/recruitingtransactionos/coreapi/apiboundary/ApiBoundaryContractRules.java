@@ -11,7 +11,7 @@ public final class ApiBoundaryContractRules {
   private static final Set<String> CLIENT_SAFE_CANDIDATE_CARD_RESPONSE_FIELDS =
       Set.of(
           "anonymousCardRef",
-          "anonymousCandidateRef",
+          "clientAlias",
           "projectionVersion",
           "redactionLevel",
           "generalizedHeadline",
@@ -67,8 +67,6 @@ public final class ApiBoundaryContractRules {
 
   private static final Set<String> CONSULTANT_PARSED_DOCUMENT_RESPONSE_FIELDS =
       Set.of(
-          "sourceItemId",
-          "parsedDocumentId",
           "processingStatus",
           "parserName",
           "parserVersion",
@@ -80,7 +78,7 @@ public final class ApiBoundaryContractRules {
           "failureReason");
 
   private static final Set<String> CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS =
-      Set.of("sourceItemId", "parsedDocumentId", "processingStatus", "query", "totalHits", "hits");
+      Set.of("processingStatus", "query", "totalHits", "hits");
 
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
@@ -284,12 +282,34 @@ public final class ApiBoundaryContractRules {
     return normalized;
   }
 
+  static String sanitizeApiSafeReasonCode(String reasonCode, String fallback) {
+    String normalized = sanitizeReasonCode(reasonCode, fallback);
+    if (normalized == null) {
+      return null;
+    }
+    if (containsInternalLeakage(normalized)) {
+      return fallback;
+    }
+    return normalized;
+  }
+
   static String sanitizeExternalText(String value, String fallback) {
     if (value == null || value.isBlank()) {
       return fallback;
     }
     String stripped = value.strip();
     if (containsInternalLeakage(stripped)) {
+      return fallback;
+    }
+    return stripped;
+  }
+
+  static String sanitizeConsultantVisibleText(String value, String fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
+    }
+    String stripped = value.strip();
+    if (containsConsultantInternalLeakage(stripped)) {
       return fallback;
     }
     return stripped;
@@ -328,6 +348,33 @@ public final class ApiBoundaryContractRules {
         || lower.contains("consultant-only")
         || lower.contains("consultant internal")
         || lower.contains("current employer")
+        || lower.contains("stack trace")
+        || lower.contains("stacktrace")
+        || lower.contains("exception")
+        || lower.contains("\tat ")
+        || lower.contains("\n at ")
+        || lower.contains("java.");
+  }
+
+  private static boolean containsConsultantInternalLeakage(String value) {
+    String lower = value.toLowerCase();
+    return lower.contains("com.recruitingtransactionos")
+        || lower.contains("candidateprofile")
+        || lower.contains("candidate profile")
+        || lower.contains("raw candidate")
+        || lower.contains("raw profile")
+        || lower.contains("sourceitem")
+        || lower.contains("source item")
+        || lower.contains("informationpacket")
+        || lower.contains("information packet")
+        || lower.contains("claimledger")
+        || lower.contains("claim ledger")
+        || lower.contains("reviewevent")
+        || lower.contains("review event")
+        || lower.contains("workflowevent")
+        || lower.contains("workflow event")
+        || lower.contains("consentrecord")
+        || lower.contains("disclosurerecord")
         || lower.contains("stack trace")
         || lower.contains("stacktrace")
         || lower.contains("exception")

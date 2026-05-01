@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.governedintake;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.FailClosedVirusScanPort;
 import com.recruitingtransactionos.coreapi.documentstorage.LocalFilesystemDocumentStore;
+import com.recruitingtransactionos.coreapi.documentstorage.NoOpVirusScanPort;
 import com.recruitingtransactionos.coreapi.documentstorage.VirusScanPort;
 import com.recruitingtransactionos.coreapi.documentintelligence.DocumentIntelligencePersistencePort;
 import com.recruitingtransactionos.coreapi.documentintelligence.persistence.JdbcDocumentIntelligencePersistencePort;
@@ -66,8 +67,8 @@ public class GovernedIntakeConfiguration {
 
   @Bean
   WorkflowTransitionAuditService workflowTransitionAuditService(
-      WorkflowEventService workflowEventService) {
-    return new WorkflowTransitionAuditService(workflowEventService);
+      WorkflowEventService workflowEventService, DataSource dataSource) {
+    return new WorkflowTransitionAuditService(workflowEventService, new com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort(dataSource));
   }
 
   @Bean
@@ -84,8 +85,15 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  VirusScanPort virusScanPort() {
-    return new FailClosedVirusScanPort();
+  VirusScanPort virusScanPort(
+      @Value("${rto.document-storage.virus-scan.mode:noop}")
+      String virusScanMode) {
+    return switch (virusScanMode.strip().toLowerCase()) {
+      case "noop" -> new NoOpVirusScanPort();
+      case "fail_closed" -> new FailClosedVirusScanPort();
+      default -> throw new IllegalStateException(
+          "rto.document-storage.virus-scan.mode must be noop or fail_closed");
+    };
   }
 
   @Bean

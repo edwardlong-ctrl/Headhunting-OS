@@ -121,7 +121,6 @@ public final class ConsultantDocumentController {
           result.sourceItemId().value().toString(),
           result.informationPacketId() != null
               ? result.informationPacketId().toString() : null,
-          result.contentHash(),
           result.scanStatus());
 
       return ResponseEntity.status(HttpStatus.CREATED)
@@ -193,19 +192,16 @@ public final class ConsultantDocumentController {
     DocumentEvidenceRetrievalResult result =
         documentParsingService.retrieveDocumentEvidence(orgId, sid, query, limit);
     return ResponseEntity.ok(ApiResponseEnvelope.success(new ConsultantDocumentEvidenceResponse(
-        sid.toString(),
-        result.parsedDocument().parsedDocumentId().toString(),
         result.parsedDocument().processingStatus().wireValue(),
         query == null ? null : query.strip(),
         result.hits().size(),
         result.hits().stream().map(hit -> new ConsultantDocumentEvidenceResponse.Hit(
-            hit.parsedDocumentChunkId().toString(),
             hit.chunkIndex(),
             hit.pageNumber(),
             hit.startOffset(),
             hit.endOffset(),
             hit.score(),
-            hit.excerpt())).toList())));
+            evidenceLocator(hit.pageNumber(), hit.startOffset(), hit.endOffset()))).toList())));
   }
 
   @ExceptionHandler(AccessDeniedException.class)
@@ -264,8 +260,6 @@ public final class ConsultantDocumentController {
       ParsedDocument parsedDocument,
       UUID organizationId) {
     return new ConsultantParsedDocumentResponse(
-        sourceItemId.toString(),
-        parsedDocument.parsedDocumentId().toString(),
         parsedDocument.processingStatus().wireValue(),
         parsedDocument.parserName(),
         parsedDocument.parserVersion(),
@@ -275,6 +269,16 @@ public final class ConsultantDocumentController {
         parsedDocument.createdAt().toString(),
         parsedDocument.completedAt().map(Instant::toString).orElse(null),
         parsedDocument.failureReason().orElse(null));
+  }
+
+  private static String evidenceLocator(
+      Integer pageNumber,
+      int startOffset,
+      int endOffset) {
+    if (pageNumber != null) {
+      return "page " + pageNumber + " offsets " + startOffset + "-" + endOffset;
+    }
+    return "offsets " + startOffset + "-" + endOffset;
   }
 
 

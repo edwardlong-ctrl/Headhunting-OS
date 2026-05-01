@@ -29,5 +29,17 @@ public record ConsultantShortlistDetailResponse(
       String anonymousCandidateCardId,
       int sortOrder,
       String status,
-      String matchReportId) {}
+      String matchReportId) {
+
+    public Card {
+      cardId = ApiBoundaryContractRules.requireNonBlank(cardId, "cardId");
+      anonymousCandidateCardId =
+          ApiBoundaryContractRules.requireNonBlank(anonymousCandidateCardId, "anonymousCandidateCardId");
+      if (sortOrder < 0) {
+        throw new IllegalArgumentException("sortOrder must be >= 0");
+      }
+      status = ApiBoundaryContractRules.requireNonBlank(status, "status");
+      matchReportId = ApiBoundaryContractRules.sanitizeConsultantVisibleText(matchReportId, null);
+    }
+  }
 }

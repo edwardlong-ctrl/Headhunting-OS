@@ -15,7 +15,6 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WriteBackTarget;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,24 +29,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcAITaskRunPort implements AITaskRunPort {
-
-  private static final String INSERT_DEFINITION_SQL = """
-      INSERT INTO governance.ai_task_definition (
-        ai_task_definition_id,
-        organization_id,
-        task_key,
-        task_version,
-        status,
-        input_schema_version,
-        output_schema_version,
-        human_review_policy,
-        write_back_target
-      )
-      VALUES (?, ?, ?, ?, 'active', ?, ?, '{}'::jsonb, ?)
-      ON CONFLICT (organization_id, task_key, task_version) DO NOTHING
-      """;
 
   private static final String FIND_DEFINITION_SQL = """
       SELECT ai_task_definition_id
@@ -55,6 +39,7 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       WHERE organization_id = ?
         AND task_key = ?
         AND task_version = ?
+        AND status = 'active'
       """;
 
   private static final String INSERT_RUN_SQL = """
@@ -172,23 +157,31 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
     Objects.requireNonNull(command, "command must not be null");
     AITaskRunId aiTaskRunId = new AITaskRunId(UUID.randomUUID());
 
-    try (Connection connection = dataSource.getConnection()) {
-      boolean previousAutoCommit = connection.getAutoCommit();
-      connection.setAutoCommit(false);
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    boolean transactional = DataSourceUtils.isConnectionTransactional(connection, dataSource);
+    boolean previousAutoCommit = true;
+    try {
+      if (!transactional) {
+        previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+      }
       try {
-        insertTaskDefinitionIfAbsent(connection, command);
         UUID definitionId = findTaskDefinitionId(connection, command);
         insertRun(connection, aiTaskRunId, definitionId, command);
-        connection.commit();
+        if (!transactional) {
+          connection.commit();
+        }
         return new AITaskRunAppendResult(aiTaskRunId);
       } catch (SQLException | RuntimeException exception) {
-        connection.rollback();
+        rollbackIfNecessary(connection, transactional);
         throw exception;
       } finally {
-        connection.setAutoCommit(previousAutoCommit);
+        restoreAutoCommit(connection, transactional, previousAutoCommit);
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append AI task run", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -196,8 +189,8 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
   public AITaskRunRecord update(AITaskRunUpdateCommand command) {
     Objects.requireNonNull(command, "command must not be null");
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(UPDATE_RUN_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_RUN_SQL)) {
       statement.setString(1, command.status().wireValue());
       statement.setString(2, nullableJson(command.outputPayloadJson(), "{}"));
       statement.setString(3, nullableJson(command.toolCallsJson(), "[]"));
@@ -214,6 +207,8 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to update AI task run", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
 
     return findById(command.organizationId(), command.aiTaskRunId())
@@ -225,8 +220,8 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(aiTaskRunId, "aiTaskRunId must not be null");
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(FIND_RUN_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_RUN_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, aiTaskRunId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -237,21 +232,8 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find AI task run", exception);
-    }
-  }
-
-  private static void insertTaskDefinitionIfAbsent(
-      Connection connection,
-      AITaskRunAppendCommand command) throws SQLException {
-    try (PreparedStatement statement = connection.prepareStatement(INSERT_DEFINITION_SQL)) {
-      statement.setObject(1, deterministicDefinitionId(command));
-      statement.setObject(2, command.organizationId());
-      statement.setString(3, command.taskName());
-      statement.setString(4, command.taskVersion());
-      statement.setString(5, command.inputSchemaVersion());
-      statement.setString(6, command.outputSchemaVersion());
-      setNullableString(statement, 7, writeBackTargetValue(command.writeBackTarget()));
-      statement.executeUpdate();
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -264,7 +246,7 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       statement.setString(3, command.taskVersion());
       try (ResultSet resultSet = statement.executeQuery()) {
         if (!resultSet.next()) {
-          throw new IllegalStateException("AI task definition was not created");
+          throw new IllegalStateException("active_ai_task_definition_required");
         }
         return resultSet.getObject("ai_task_definition_id", UUID.class);
       }
@@ -349,11 +331,6 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
         nullableInstant(resultSet, "completed_at"),
         resultSet.getString("failure_reason"),
         resultSet.getObject("created_at", OffsetDateTime.class).toInstant());
-  }
-
-  private static UUID deterministicDefinitionId(AITaskRunAppendCommand command) {
-    String source = command.organizationId() + ":" + command.taskName() + ":" + command.taskVersion();
-    return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8));
   }
 
   private static String humanReviewStatus(String value) {
@@ -520,5 +497,32 @@ public final class JdbcAITaskRunPort implements AITaskRunPort {
       return fallback;
     }
     return value;
+  }
+
+  private static void rollbackIfNecessary(
+      Connection connection,
+      boolean transactional) {
+    if (transactional) {
+      return;
+    }
+    try {
+      connection.rollback();
+    } catch (SQLException rollbackException) {
+      throw new IllegalStateException("Failed to rollback AI task run transaction", rollbackException);
+    }
+  }
+
+  private static void restoreAutoCommit(
+      Connection connection,
+      boolean transactional,
+      boolean previousAutoCommit) {
+    if (transactional) {
+      return;
+    }
+    try {
+      connection.setAutoCommit(previousAutoCommit);
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to restore JDBC auto-commit", exception);
+    }
   }
 }

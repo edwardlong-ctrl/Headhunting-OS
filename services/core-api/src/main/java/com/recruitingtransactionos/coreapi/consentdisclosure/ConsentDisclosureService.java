@@ -3,15 +3,13 @@ package com.recruitingtransactionos.coreapi.consentdisclosure;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.DisclosureRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.UnlockDecisionPort;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
-import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
-import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
-import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
-import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
-import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -28,7 +26,7 @@ public final class ConsentDisclosureService {
   private final UnlockDecisionPort unlockDecisionPort;
   private final DisclosureRecordPort disclosureRecordPort;
   private final ConsentDisclosureProtectionPolicy protectionPolicy;
-  private final WorkflowEventService workflowEventService;
+  private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final CanonicalWriteTransactionBoundary transactionBoundary;
 
   public ConsentDisclosureService(
@@ -36,7 +34,7 @@ public final class ConsentDisclosureService {
       UnlockDecisionPort unlockDecisionPort,
       DisclosureRecordPort disclosureRecordPort,
       ConsentDisclosureProtectionPolicy protectionPolicy,
-      WorkflowEventService workflowEventService,
+      WorkflowTransitionAuditService workflowTransitionAuditService,
       CanonicalWriteTransactionBoundary transactionBoundary) {
     this.consentRecordPort = Objects.requireNonNull(
         consentRecordPort,
@@ -50,9 +48,9 @@ public final class ConsentDisclosureService {
     this.protectionPolicy = Objects.requireNonNull(
         protectionPolicy,
         "protectionPolicy must not be null");
-    this.workflowEventService = Objects.requireNonNull(
-        workflowEventService,
-        "workflowEventService must not be null");
+    this.workflowTransitionAuditService = Objects.requireNonNull(
+        workflowTransitionAuditService,
+        "workflowTransitionAuditService must not be null");
     this.transactionBoundary = Objects.requireNonNull(
         transactionBoundary,
         "transactionBoundary must not be null");
@@ -106,9 +104,9 @@ public final class ConsentDisclosureService {
       return ConsentDisclosureServiceResult.denied(chainReasons);
     }
 
-    List<String> reviewReasons = deferredReviewReasons(request.prerequisites(), request.requestedLevel());
-    if (!reviewReasons.isEmpty()) {
-      return ConsentDisclosureServiceResult.requiresReview(reviewReasons);
+    List<String> gateReasons = blockingGateReasons(request.prerequisites(), request.requestedLevel());
+    if (!gateReasons.isEmpty()) {
+      return ConsentDisclosureServiceResult.denied(gateReasons);
     }
 
     return transactionBoundary.run(() -> appendAuditAndDisclosureBoundary(request, decision));
@@ -124,24 +122,24 @@ public final class ConsentDisclosureService {
     String resultingDisclosureRecordRef = "disclosure_boundary_release_"
         + sha256(request.organizationId() + "|" + request.approvedDisclosureRecordRef()
             + "|" + request.requestedAt()).substring(0, 16);
-    WorkflowEventAppendResult workflowEvent = workflowEventService.append(new WorkflowEventAppendCommand(
-        request.organizationId(),
-        "workflow",
-        new EntityRef("DISCLOSURE", disclosureEntityId(request.organizationId(), resultingDisclosureRecordRef)),
-        1,
-        WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED.wireValue(),
-        new WorkflowStateSnapshot(beforeState(request)),
-        new WorkflowStateSnapshot(afterState(request, resultingDisclosureRecordRef)),
-        request.actor(),
-        "consent_disclosure_service",
-        null,
-        null,
-        null,
-        request.reason(),
-        new WorkflowIdempotencyKey(idempotencyKey(request, resultingDisclosureRecordRef)),
-        null,
-        null,
-        request.requestedAt()));
+    WorkflowEventAppendResult workflowEvent =
+        workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+            .organizationId(request.organizationId())
+            .entityNamespace("workflow")
+            .entityType("DISCLOSURE")
+            .entityId(disclosureEntityId(request.organizationId(), resultingDisclosureRecordRef))
+            .entityVersion(1)
+            .actionCode(WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED.wireValue())
+            .actorType(request.actor().role())
+            .actorId(request.actor().userId())
+            .aiInvolvement(WorkflowAiInvolvement.NONE)
+            .beforeState(beforeState(request))
+            .afterState(afterState(request, resultingDisclosureRecordRef))
+            .reason(request.reason())
+            .idempotencyKey(idempotencyKey(request, resultingDisclosureRecordRef))
+            .sourceType("consent_disclosure_service")
+            .occurredAt(request.requestedAt())
+            .build());
 
     DisclosureRecord boundary = new DisclosureRecord(
         resultingDisclosureRecordRef,
@@ -219,7 +217,7 @@ public final class ConsentDisclosureService {
         Optional.empty());
   }
 
-  private static List<String> deferredReviewReasons(
+  private static List<String> blockingGateReasons(
       ConsentDisclosurePrerequisites prerequisites,
       DisclosureLevel requestedLevel) {
     if (!requestedLevel.requiresUnlockAndDisclosure()) {
@@ -227,16 +225,16 @@ public final class ConsentDisclosureService {
     }
     List<String> reasons = new ArrayList<>();
     if (!prerequisites.jobActivated()) {
-      reasons.add("future_job_activation_gate_required");
+      reasons.add("job_activation_gate_required");
     }
     if (!prerequisites.feeAgreementActive()) {
-      reasons.add("future_fee_agreement_gate_required");
+      reasons.add("fee_agreement_gate_required");
     }
     if (!prerequisites.priorContactCleared()) {
-      reasons.add("future_prior_contact_review_required");
+      reasons.add("prior_contact_review_required");
     }
     if (!prerequisites.priorApplicationCleared()) {
-      reasons.add("future_prior_application_review_required");
+      reasons.add("prior_application_review_required");
     }
     return reasons;
   }

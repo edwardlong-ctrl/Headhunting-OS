@@ -80,7 +80,7 @@ class AITaskWriteBackPolicyTest {
     assertThat(decision.reasonCode()).isEqualTo("no_write_back_metadata_only");
     assertThat(decision.humanReviewRequired()).isFalse();
     assertThat(decision.canonicalGateRequired()).isFalse();
-    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+    assertThat(decision.consentDisclosureUnlockGateRequired()).isFalse();
   }
 
   @Test
@@ -96,7 +96,7 @@ class AITaskWriteBackPolicyTest {
     assertThat(decision.reasonCode()).isEqualTo("no_write_back_metadata_only");
     assertThat(decision.humanReviewRequired()).isFalse();
     assertThat(decision.canonicalGateRequired()).isFalse();
-    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+    assertThat(decision.consentDisclosureUnlockGateRequired()).isFalse();
   }
 
   @Test
@@ -129,7 +129,7 @@ class AITaskWriteBackPolicyTest {
         .isEqualTo("canonical_target_metadata_requires_canonical_write_gate");
     assertThat(decision.humanReviewRequired()).isTrue();
     assertThat(decision.canonicalGateRequired()).isTrue();
-    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+    assertThat(decision.consentDisclosureUnlockGateRequired()).isFalse();
   }
 
   @Test
@@ -195,8 +195,9 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertDenied(decision, "future_consent_disclosure_gate_required");
-    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isTrue();
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("consent_disclosure_gate_required");
+    assertThat(decision.consentDisclosureUnlockGateRequired()).isTrue();
   }
 
   @Test
@@ -208,10 +209,12 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertDenied(decision, "future_workflow_action_gate_required");
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("workflow_action_gate_required");
     assertThat(decision.humanReviewRequired()).isTrue();
     assertThat(decision.canonicalGateRequired()).isFalse();
-    assertThat(decision.futureConsentDisclosureUnlockGateRequired()).isFalse();
+    assertThat(decision.consentDisclosureUnlockGateRequired()).isFalse();
+    assertThat(decision.workflowActionGateRequired()).isTrue();
   }
 
   @Test
@@ -223,8 +226,10 @@ class AITaskWriteBackPolicyTest {
         false,
         false));
 
-    assertDenied(decision, "future_commercial_placement_gate_required");
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("commercial_placement_gate_required");
     assertThat(decision.humanReviewRequired()).isTrue();
+    assertThat(decision.commercialPlacementGateRequired()).isTrue();
   }
 
   @Test

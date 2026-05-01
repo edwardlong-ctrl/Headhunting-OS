@@ -44,11 +44,31 @@ public record ConsultantJobDetailResponse(
       String label,
       String importance,
       String detail,
-      int sortOrder) {}
+      int sortOrder) {
+
+    public Requirement {
+      requirementId = ApiBoundaryContractRules.requireNonBlank(requirementId, "requirementId");
+      requirementType = ApiBoundaryContractRules.requireNonBlank(requirementType, "requirementType");
+      label = ApiBoundaryContractRules.requireNonBlank(label, "label");
+      importance = ApiBoundaryContractRules.requireNonBlank(importance, "importance");
+      detail = ApiBoundaryContractRules.sanitizeConsultantVisibleText(detail, null);
+      if (sortOrder < 0) {
+        throw new IllegalArgumentException("sortOrder must be >= 0");
+      }
+    }
+  }
 
   public record Scorecard(
       String scorecardId,
       String dimensions,
       String scoringGuidance,
-      String status) {}
+      String status) {
+
+    public Scorecard {
+      scorecardId = ApiBoundaryContractRules.requireNonBlank(scorecardId, "scorecardId");
+      dimensions = ApiBoundaryContractRules.sanitizeConsultantVisibleText(dimensions, null);
+      scoringGuidance = ApiBoundaryContractRules.sanitizeConsultantVisibleText(scoringGuidance, null);
+      status = ApiBoundaryContractRules.requireNonBlank(status, "status");
+    }
+  }
 }

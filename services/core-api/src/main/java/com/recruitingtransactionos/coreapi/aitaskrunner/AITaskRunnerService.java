@@ -20,6 +20,7 @@ import java.util.Objects;
 public final class AITaskRunnerService {
 
   private final AITaskRunService aiTaskRunService;
+  private final AITaskDefinitionCatalog definitionCatalog;
   private final AITaskDefinitionRegistry definitionRegistry;
   private final AITaskPromptRegistry promptRegistry;
   private final AITaskSchemaValidator schemaValidator;
@@ -29,6 +30,7 @@ public final class AITaskRunnerService {
 
   public AITaskRunnerService(
       AITaskRunService aiTaskRunService,
+      AITaskDefinitionCatalog definitionCatalog,
       AITaskDefinitionRegistry definitionRegistry,
       AITaskPromptRegistry promptRegistry,
       AITaskSchemaValidator schemaValidator,
@@ -36,6 +38,7 @@ public final class AITaskRunnerService {
       List<AITaskProvider> providers,
       ObjectMapper objectMapper) {
     this.aiTaskRunService = Objects.requireNonNull(aiTaskRunService, "aiTaskRunService must not be null");
+    this.definitionCatalog = Objects.requireNonNull(definitionCatalog, "definitionCatalog must not be null");
     this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry must not be null");
     this.promptRegistry = Objects.requireNonNull(promptRegistry, "promptRegistry must not be null");
     this.schemaValidator = Objects.requireNonNull(schemaValidator, "schemaValidator must not be null");
@@ -54,6 +57,7 @@ public final class AITaskRunnerService {
     AITaskDefinition definition = definitionRegistry.findRequired(request.taskKey(), request.taskVersion());
     schemaValidator.validate(definition.inputSchemaResourcePath(), request.inputPayload(), "input");
     AITaskModelRoute modelRoute = modelRouter.routeFor(definition.taskKey());
+    definitionCatalog.ensureRegistered(request.organizationId(), definition, modelRoute);
     AITaskProvider provider = requireProvider(modelRoute.providerKey());
     String prompt = promptRegistry.loadPrompt(definition);
     ObjectNode metadata = objectMapper.createObjectNode();

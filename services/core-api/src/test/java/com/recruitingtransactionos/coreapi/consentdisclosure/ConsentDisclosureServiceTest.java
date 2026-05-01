@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventIdempote
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.lang.reflect.RecordComponent;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -71,7 +72,7 @@ class ConsentDisclosureServiceTest {
   }
 
   @Test
-  void requiresReviewWhenDeferredDisclosurePrerequisitesAreNotExplicitlySatisfied() {
+  void deniesWhenBlockingDisclosurePrerequisitesAreNotExplicitlySatisfied() {
     RecordingWorkflowEventPort workflowEvents = new RecordingWorkflowEventPort();
     InMemoryConsentRecordPort consentRecords = new InMemoryConsentRecordPort();
     InMemoryUnlockDecisionPort unlockDecisions = new InMemoryUnlockDecisionPort();
@@ -95,13 +96,13 @@ class ConsentDisclosureServiceTest {
                 false))
             .build());
 
-    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.REQUIRES_REVIEW);
+    assertThat(result.status()).isEqualTo(ConsentDisclosureServiceStatus.DENIED);
     assertThat(result.reasonCodes())
         .containsExactlyInAnyOrder(
-            "future_job_activation_gate_required",
-            "future_fee_agreement_gate_required",
-            "future_prior_contact_review_required",
-            "future_prior_application_review_required");
+            "job_activation_gate_required",
+            "fee_agreement_gate_required",
+            "prior_contact_review_required",
+            "prior_application_review_required");
     assertThat(result.workflowEventId()).isEmpty();
     assertThat(result.resultingDisclosureRecordRef()).isEmpty();
     assertThat(workflowEvents.commands()).isEmpty();
@@ -384,7 +385,12 @@ class ConsentDisclosureServiceTest {
         unlockDecisions,
         disclosureRecords,
         new ConsentDisclosureProtectionPolicy(),
-        new WorkflowEventService(workflowEvents),
+        new WorkflowTransitionAuditService(new WorkflowEventService(workflowEvents), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) { return Optional.empty(); }
+          @Override
+          public void updateStateJson(UUID orgId, String ns, String type, UUID id, String state) {}
+        }),
         CanonicalWriteTransactionBoundary.immediate());
   }
 

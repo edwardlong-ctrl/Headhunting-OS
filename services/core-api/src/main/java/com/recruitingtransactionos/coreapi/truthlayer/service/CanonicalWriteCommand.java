@@ -24,6 +24,7 @@ public record CanonicalWriteCommand(
     CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget,
     ClaimId claimId,
     ClaimInput claim,
+    boolean canonicalWriteAllowed,
     CanonicalWriteReviewEvidence reviewEvidence,
     VerificationStatus targetVerificationStatus,
     RiskTier targetRiskTier,
@@ -86,6 +87,7 @@ public record CanonicalWriteCommand(
     private CandidateProfileCanonicalWriteTarget candidateProfileWriteTarget;
     private ClaimId claimId;
     private ClaimInput claim;
+    private boolean canonicalWriteAllowed;
     private CanonicalWriteReviewEvidence reviewEvidence;
     private VerificationStatus targetVerificationStatus;
     private RiskTier targetRiskTier;
@@ -145,6 +147,11 @@ public record CanonicalWriteCommand(
 
     public Builder claim(ClaimInput claim) {
       this.claim = claim;
+      return this;
+    }
+
+    public Builder canonicalWriteAllowed(boolean canonicalWriteAllowed) {
+      this.canonicalWriteAllowed = canonicalWriteAllowed;
       return this;
     }
 
@@ -240,6 +247,7 @@ public record CanonicalWriteCommand(
           candidateProfileWriteTarget,
           claimId,
           claim,
+          canonicalWriteAllowed,
           reviewEvidence,
           targetVerificationStatus,
           targetRiskTier,

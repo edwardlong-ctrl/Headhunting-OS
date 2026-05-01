@@ -175,6 +175,7 @@ class TruthLayerAlignmentTest {
     CanonicalWriteDecision decision = gate().decide(new CanonicalWriteRequest(
         claim(ClaimType.INFERENCE, AssertionStrength.IMPLIED, VerificationStatus.SYSTEM_INFERENCE,
             ClientShareability.INTERNAL_ONLY, false),
+        true,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T1_LOW_RISK,
         false,
@@ -193,6 +194,7 @@ class TruthLayerAlignmentTest {
 
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
+        true,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T1_LOW_RISK,
         false,
@@ -201,6 +203,7 @@ class TruthLayerAlignmentTest {
 
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
+        true,
         VerificationStatus.CANDIDATE_CONFIRMED,
         RiskTier.T1_LOW_RISK,
         false,
@@ -209,6 +212,7 @@ class TruthLayerAlignmentTest {
 
     assertThat(gate.decide(new CanonicalWriteRequest(
         bulkAcknowledged,
+        true,
         VerificationStatus.EXTERNAL_VERIFIED,
         RiskTier.T1_LOW_RISK,
         false,
@@ -218,6 +222,7 @@ class TruthLayerAlignmentTest {
     assertThat(gate.decide(new CanonicalWriteRequest(
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.INTERNAL_ONLY, false),
+        true,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T1_LOW_RISK,
         true,
@@ -227,6 +232,7 @@ class TruthLayerAlignmentTest {
     assertThat(gate.decide(new CanonicalWriteRequest(
         claim(ClaimType.FACT, AssertionStrength.EXPLICIT, VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CONSENT_REQUIRED, false),
+        true,
         VerificationStatus.HUMAN_ACKNOWLEDGED,
         RiskTier.T1_LOW_RISK,
         true,

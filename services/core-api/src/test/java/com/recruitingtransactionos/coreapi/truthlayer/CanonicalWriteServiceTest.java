@@ -470,6 +470,7 @@ class CanonicalWriteServiceTest {
             VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE,
             false))
+        .canonicalWriteAllowed(true)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
             ReviewDecision.APPROVED,

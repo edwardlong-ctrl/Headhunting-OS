@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -340,7 +341,12 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         unlockPort,
         disclosurePort,
         new ConsentDisclosureProtectionPolicy(),
-        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        new WorkflowTransitionAuditService(new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
+          @Override
+          public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
+        }),
         transactionBoundary());
 
     ConsentDisclosureServiceRequest request = ConsentDisclosureServiceRequest.builder()
@@ -428,7 +434,12 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         unlockPort,
         disclosurePort,
         new ConsentDisclosureProtectionPolicy(),
-        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        new WorkflowTransitionAuditService(new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)), new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public java.util.Optional<String> getCurrentStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id) { return java.util.Optional.empty(); }
+          @Override
+          public void updateStateJson(java.util.UUID orgId, String ns, String type, java.util.UUID id, String state) {}
+        }),
         transactionBoundary());
 
     ConsentDisclosureServiceResult result = service.evaluateDisclosureAttempt(

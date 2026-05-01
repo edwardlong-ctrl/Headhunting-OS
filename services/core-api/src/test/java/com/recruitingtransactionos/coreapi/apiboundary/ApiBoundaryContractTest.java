@@ -51,7 +51,7 @@ class ApiBoundaryContractTest {
         ClientSafeCandidateCardResponseMapper.from(card);
 
     assertThat(response.anonymousCardRef()).isEqualTo("card_api_20260428_0001");
-    assertThat(response.anonymousCandidateRef()).isEqualTo("anon_candidate_api_20260428_0001");
+    assertThat(response.clientAlias()).startsWith("alias-");
     assertThat(response.projectionVersion()).isEqualTo("projection-v1");
     assertThat(response.redactionLevel()).isEqualTo("l2_client_safe");
     assertThat(response.generalizedHeadline())
@@ -68,12 +68,36 @@ class ApiBoundaryContractTest {
   }
 
   @Test
+  void clientAliasIsStableAndNotCollapsedIntoTinyAliasSpace() {
+    ClientSafeCandidateCardResponse first = ClientSafeCandidateCardResponseMapper.from(clientSafeCard());
+    ClientSafeCandidateCardResponse second = ClientSafeCandidateCardResponseMapper.from(new ClientSafeCandidateCard(
+        AnonymousCandidateCardId.of("card_api_20260428_0002"),
+        AnonymousCandidateRef.of("anon_candidate_api_20260428_0002"),
+        "projection-v1",
+        RedactionLevel.L2_CLIENT_SAFE,
+        "Senior verification leader in advanced-chip programs",
+        "semiconductor_verification",
+        "senior_ic",
+        "greater_china",
+        "Has led verification work for complex chip programs without disclosing employer or code names.",
+        "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
+        List.of("Evidence summary withheld pending redaction pipeline."),
+        List.of("Match narrative withheld pending shortlist generator.")));
+
+    assertThat(ClientSafeCandidateCardResponseMapper.from(clientSafeCard()).clientAlias())
+        .isEqualTo(first.clientAlias());
+    assertThat(first.clientAlias()).startsWith("alias-");
+    assertThat(first.clientAlias()).hasSize("alias-".length() + 8);
+    assertThat(second.clientAlias()).isNotEqualTo(first.clientAlias());
+  }
+
+  @Test
   void clientSafeCandidateCardResponseContainsOnlyAllowedApiSafeFields() {
     assertThat(ClientSafeCandidateCardResponse.class.getRecordComponents())
         .extracting(RecordComponent::getName)
         .containsExactly(
             "anonymousCardRef",
-            "anonymousCandidateRef",
+            "clientAlias",
             "projectionVersion",
             "redactionLevel",
             "generalizedHeadline",
@@ -114,7 +138,7 @@ class ApiBoundaryContractTest {
 
     assertThatThrownBy(() -> new ClientSafeCandidateCardResponse(
         "card_api_20260428_0002",
-        "anon_api_20260428_0002",
+        "alias-aa",
         "projection-v1",
         "l4_identity_disclosed",
         "Identity disclosed profile",
@@ -137,6 +161,8 @@ class ApiBoundaryContractTest {
         ApiAccessDeniedResponse.class,
         ApiValidationErrorResponse.class,
         ClientSafeCandidateCardResponse.class,
+        ConsultantParsedDocumentResponse.class,
+        ConsultantDocumentEvidenceResponse.class,
         AuthSessionResponse.class,
         AuthLogoutResponse.class);
 
@@ -151,6 +177,82 @@ class ApiBoundaryContractTest {
           .extracting(RecordComponent::getName)
           .noneMatch(ApiBoundaryContractTest::isForbiddenApiFieldName);
     }
+  }
+
+  @Test
+  void consultantDocumentDtosContainOnlyCurrentApiSafeFields() {
+    assertThat(ConsultantDocumentUploadResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly("sourceItemId", "informationPacketId", "scanStatus");
+
+    assertThat(ConsultantParsedDocumentResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "processingStatus",
+            "parserName",
+            "parserVersion",
+            "mediaType",
+            "ocrRequired",
+            "chunkCount",
+            "createdAt",
+            "completedAt",
+            "failureReason");
+    for (RecordComponent component : ConsultantParsedDocumentResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedConsultantParsedDocumentResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+
+    assertThat(ConsultantDocumentEvidenceResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly("processingStatus", "query", "totalHits", "hits");
+    for (RecordComponent component : ConsultantDocumentEvidenceResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedConsultantDocumentEvidenceResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+  }
+
+  @Test
+  void consultantNestedDtosDropInternalLeakageTextButPreserveBusinessFields() {
+    ConsultantCompanyDetailResponse.Contact contact = new ConsultantCompanyDetailResponse.Contact(
+        "contact-1",
+        "Alice Zhang",
+        "com.recruitingtransactionos.coreapi.SecretTitle",
+        "alice@example.com",
+        "+86 138 0000 1234",
+        "primary",
+        true,
+        "java.lang.Exception");
+    assertThat(contact.name()).isEqualTo("Alice Zhang");
+    assertThat(contact.email()).isEqualTo("alice@example.com");
+    assertThat(contact.phone()).isEqualTo("+86 138 0000 1234");
+    assertThat(contact.title()).isNull();
+    assertThat(contact.status()).isEqualTo("active");
+
+    ConsultantJobDetailResponse.Requirement requirement =
+        new ConsultantJobDetailResponse.Requirement(
+            "req-1",
+            "skill",
+            "Java",
+            "must_have",
+            "stack trace leaked from com.recruitingtransactionos.coreapi.Parser",
+            0);
+    ConsultantJobDetailResponse.Scorecard scorecard =
+        new ConsultantJobDetailResponse.Scorecard(
+            "scorecard-1",
+            "technical_fit",
+            "java.lang.IllegalStateException: bad",
+            "draft");
+    ConsultantShortlistDetailResponse.Card card = new ConsultantShortlistDetailResponse.Card(
+        "card-1",
+        "anon-card-1",
+        0,
+        "draft",
+        "workflowEvent leaked");
+
+    assertThat(requirement.detail()).isNull();
+    assertThat(scorecard.dimensions()).isEqualTo("technical_fit");
+    assertThat(scorecard.scoringGuidance()).isNull();
+    assertThat(card.matchReportId()).isNull();
   }
 
   @Test

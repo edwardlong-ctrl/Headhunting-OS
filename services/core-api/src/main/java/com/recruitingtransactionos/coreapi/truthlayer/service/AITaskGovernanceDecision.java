@@ -10,7 +10,9 @@ public record AITaskGovernanceDecision(
     String safeExplanation,
     boolean humanReviewRequired,
     boolean canonicalGateRequired,
-    boolean futureConsentDisclosureUnlockGateRequired) {
+    boolean consentDisclosureUnlockGateRequired,
+    boolean workflowActionGateRequired,
+    boolean commercialPlacementGateRequired) {
 
   private static final Pattern SAFE_REASON_CODE = Pattern.compile("[a-z0-9_.-]+");
 
@@ -24,14 +26,18 @@ public record AITaskGovernanceDecision(
       String safeExplanation,
       boolean humanReviewRequired,
       boolean canonicalGateRequired,
-      boolean futureConsentDisclosureUnlockGateRequired) {
+      boolean consentDisclosureUnlockGateRequired,
+      boolean workflowActionGateRequired,
+      boolean commercialPlacementGateRequired) {
     return new AITaskGovernanceDecision(
         true,
         reasonCode,
         safeExplanation,
         humanReviewRequired,
         canonicalGateRequired,
-        futureConsentDisclosureUnlockGateRequired);
+        consentDisclosureUnlockGateRequired,
+        workflowActionGateRequired,
+        commercialPlacementGateRequired);
   }
 
   static AITaskGovernanceDecision deny(
@@ -39,14 +45,18 @@ public record AITaskGovernanceDecision(
       String safeExplanation,
       boolean humanReviewRequired,
       boolean canonicalGateRequired,
-      boolean futureConsentDisclosureUnlockGateRequired) {
+      boolean consentDisclosureUnlockGateRequired,
+      boolean workflowActionGateRequired,
+      boolean commercialPlacementGateRequired) {
     return new AITaskGovernanceDecision(
         false,
         reasonCode,
         safeExplanation,
         humanReviewRequired,
         canonicalGateRequired,
-        futureConsentDisclosureUnlockGateRequired);
+        consentDisclosureUnlockGateRequired,
+        workflowActionGateRequired,
+        commercialPlacementGateRequired);
   }
 
   private static String requireSafeReasonCode(String reasonCode) {

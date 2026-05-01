@@ -55,9 +55,6 @@ class ClientSafeCandidateCardControllerTest {
 
   private static final String ENDPOINT =
       "/api/client-safe/candidate-cards/card_task9b_0001";
-  private static final String FIELD_HEADER = "X-RTO-Field-Classification";
-  private static final String IDENTITY_DISCLOSURE_HEADER =
-      "X-RTO-Identity-Disclosure-Requested";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009b0003";
 
@@ -95,12 +92,10 @@ class ClientSafeCandidateCardControllerTest {
   @Test
   void successfulControllerResponseReturnsOnlyClientSafeDtoEnvelope() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
-        .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe"))
+        .with(authentication(auth("client"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"))
-        .andExpect(jsonPath("$.data.anonymousCandidateRef")
-            .value("anon_candidate_task9b_0001"))
+        .andExpect(jsonPath("$.data.clientAlias").value(org.hamcrest.Matchers.startsWith("alias-")))
         .andExpect(jsonPath("$.data.redactionLevel").value("l2_client_safe"))
         .andExpect(jsonPath("$.data.generalizedHeadline")
             .value("Senior verification leader in advanced-chip programs"))
@@ -143,57 +138,43 @@ class ClientSafeCandidateCardControllerTest {
         ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
   }
 
-  
-
   @Test
-  void missingAccessContextFailsClosedWithoutQueryingCard() throws Exception {
+  void clientPrincipalDefaultsToClientSafeReadContext() throws Exception {
     MvcResult result = mockMvc.perform(get(ENDPOINT)
         .with(authentication(auth("client"))))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
-        .andExpect(jsonPath("$.error.safeReason").value("api_access_context_required"))
-        .andExpect(jsonPath("$.error.safeMessage").value("Access context is required."))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.anonymousCardRef").value("card_task9b_0001"))
         .andReturn();
 
-    assertSanitizedDenial(result);
-    assertThat(queryPort.calls).isZero();
-  }
-
-  
-
-  @Test
-  void clientDeniedPathIsSanitizedAndDoesNotLeakInternalDetails() throws Exception {
-    MvcResult result = mockMvc.perform(get(ENDPOINT)
-        .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "raw_source"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.errorCode").value("access_denied"))
-        .andExpect(jsonPath("$.error.safeReason").value("client_unsafe_field_denied"))
-        .andReturn();
-
-    assertSanitizedDenial(result);
-    assertThat(queryPort.calls).isZero();
+    String body = result.getResponse().getContentAsString();
+    assertThat(body).doesNotContain(RAW_CANDIDATE_ID, RAW_CANDIDATE_PROFILE_ID, FULL_NAME);
+    assertThat(queryPort.calls).isEqualTo(1);
   }
 
   @Test
-  void nonClientOrIdentityDisclosedAccessCannotUseEndpointToGetInternalData() throws Exception {
+  void missingAuthenticationFailsClosedWithoutQueryingCard() throws Exception {
+    MvcResult result = mockMvc.perform(get(ENDPOINT))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"))
+        .andExpect(jsonPath("$.error.safeReason").value("authentication_required"))
+        .andReturn();
+
+    String body = result.getResponse().getContentAsString();
+    assertThat(body).doesNotContain(RAW_CANDIDATE_ID, RAW_CANDIDATE_PROFILE_ID, FULL_NAME);
+    assertThat(queryPort.calls).isZero();
+    assertSanitizedDenial(result);
+  }
+
+
+  @Test
+  void nonClientAccessCannotUseEndpointToGetInternalData() throws Exception {
     MvcResult nonClientResult = mockMvc.perform(get(ENDPOINT)
-        .with(authentication(auth("consultant")))
-            .header(FIELD_HEADER, "client_safe"))
+        .with(authentication(auth("consultant"))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
         .andReturn();
 
-    MvcResult disclosureAttemptResult = mockMvc.perform(get(ENDPOINT)
-        .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe")
-            .header(IDENTITY_DISCLOSURE_HEADER, "true"))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.safeReason").value("identity_disclosure_not_implemented"))
-        .andReturn();
-
     assertSanitizedDenial(nonClientResult);
-    assertSanitizedDenial(disclosureAttemptResult);
     assertThat(queryPort.calls).isZero();
   }
 
@@ -201,8 +182,7 @@ class ClientSafeCandidateCardControllerTest {
   void rawUuidPathIsRejectedAsNonAnonymousCardReference() throws Exception {
     MvcResult result = mockMvc.perform(get(
             "/api/client-safe/candidate-cards/" + RAW_CANDIDATE_ID)
-        .with(authentication(auth("client")))
-            .header(FIELD_HEADER, "client_safe"))
+        .with(authentication(auth("client"))))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
         .andExpect(jsonPath("$.error.safeReason")

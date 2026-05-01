@@ -1,8 +1,6 @@
 package com.recruitingtransactionos.coreapi.apiboundary;
 
 public record ConsultantParsedDocumentResponse(
-    String sourceItemId,
-    String parsedDocumentId,
     String processingStatus,
     String parserName,
     String parserVersion,
@@ -14,8 +12,6 @@ public record ConsultantParsedDocumentResponse(
     String failureReason) implements ApiSafeResponseBody {
 
   public ConsultantParsedDocumentResponse {
-    sourceItemId = ApiBoundaryContractRules.requireNonBlank(sourceItemId, "sourceItemId");
-    parsedDocumentId = ApiBoundaryContractRules.requireNonBlank(parsedDocumentId, "parsedDocumentId");
     processingStatus = ApiBoundaryContractRules.requireNonBlank(processingStatus, "processingStatus");
     parserName = ApiBoundaryContractRules.requireNonBlank(parserName, "parserName");
     parserVersion = ApiBoundaryContractRules.requireNonBlank(parserVersion, "parserVersion");
@@ -25,6 +21,6 @@ public record ConsultantParsedDocumentResponse(
     }
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
     completedAt = completedAt == null || completedAt.isBlank() ? null : completedAt.strip();
-    failureReason = failureReason == null || failureReason.isBlank() ? null : failureReason.strip();
+    failureReason = ApiBoundaryContractRules.sanitizeApiSafeReasonCode(failureReason, null);
   }
 }

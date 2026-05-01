@@ -36,8 +36,23 @@ class GovernedIntakeConfigurationTest {
           assertThat(context).hasSingleBean(DocumentUploadService.class);
           assertThat(context).hasSingleBean(ConsultantDocumentController.class);
           assertThat(context.getBean(VirusScanPort.class).scan(new ByteArrayInputStream(new byte[0])))
-              .isEqualTo(VirusScanPort.ScanResult.ERROR);
+              .isEqualTo(VirusScanPort.ScanResult.CLEAN);
         });
+  }
+
+  @Test
+  void configurationSupportsExplicitFailClosedVirusScanMode() throws Exception {
+    Path tempDirectory = Files.createTempDirectory("governed-intake-config-test-fail-closed");
+
+    new ApplicationContextRunner()
+        .withPropertyValues(
+            "rto.document-storage.root-dir=" + tempDirectory,
+            "rto.document-storage.virus-scan.mode=fail_closed")
+        .withUserConfiguration(GovernedIntakeConfiguration.class, WiringProbeConfiguration.class)
+        .withBean(DataSource.class, () -> mock(DataSource.class))
+        .withBean(PlatformTransactionManager.class, () -> mock(PlatformTransactionManager.class))
+        .run(context -> assertThat(context.getBean(VirusScanPort.class)
+            .scan(new ByteArrayInputStream(new byte[0]))).isEqualTo(VirusScanPort.ScanResult.ERROR));
   }
 
   @Test

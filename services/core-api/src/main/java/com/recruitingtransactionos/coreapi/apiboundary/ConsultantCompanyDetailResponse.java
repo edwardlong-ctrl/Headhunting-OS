@@ -46,5 +46,16 @@ public record ConsultantCompanyDetailResponse(
       String phone,
       String roleType,
       boolean isPrimary,
-      String status) {}
+      String status) {
+
+    public Contact {
+      contactId = ApiBoundaryContractRules.requireNonBlank(contactId, "contactId");
+      name = ApiBoundaryContractRules.requireNonBlank(name, "name");
+      title = ApiBoundaryContractRules.sanitizeConsultantVisibleText(title, null);
+      email = ApiBoundaryContractRules.sanitizeConsultantVisibleText(email, null);
+      phone = ApiBoundaryContractRules.sanitizeConsultantVisibleText(phone, null);
+      roleType = ApiBoundaryContractRules.sanitizeConsultantVisibleText(roleType, null);
+      status = ApiBoundaryContractRules.sanitizeConsultantVisibleText(status, "active");
+    }
+  }
 }

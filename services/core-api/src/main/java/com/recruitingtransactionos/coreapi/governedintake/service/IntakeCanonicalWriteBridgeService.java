@@ -146,6 +146,7 @@ public final class IntakeCanonicalWriteBridgeService {
             claim.verificationStatus(),
             claim.clientShareability(),
             review.bulkApproval()))
+        .canonicalWriteAllowed(claim.canonicalWriteAllowed())
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             request.reviewEventId(),
             review.decision(),

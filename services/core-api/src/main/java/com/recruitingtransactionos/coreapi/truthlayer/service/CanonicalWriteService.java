@@ -70,6 +70,7 @@ public final class CanonicalWriteService {
     Objects.requireNonNull(command, "command must not be null");
     CanonicalWriteDecision decision = gate.decide(new CanonicalWriteRequest(
         claimWithReviewBulkFlag(command),
+        command.canonicalWriteAllowed(),
         command.targetVerificationStatus(),
         command.targetRiskTier(),
         command.clientVisible(),

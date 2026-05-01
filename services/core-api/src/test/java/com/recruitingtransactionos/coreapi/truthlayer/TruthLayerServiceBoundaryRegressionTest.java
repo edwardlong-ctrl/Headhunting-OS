@@ -292,7 +292,6 @@ class TruthLayerServiceBoundaryRegressionTest {
 
     assertThat(insertedTables)
         .containsExactly(
-            "governance.ai_task_definition",
             "governance.ai_task_run",
             "governance.canonical_write_attempt",
             "governance.claim_ledger_item",
@@ -386,6 +385,7 @@ class TruthLayerServiceBoundaryRegressionTest {
             VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE,
             false))
+        .canonicalWriteAllowed(true)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(REVIEW_EVENT_ID),
             ReviewDecision.APPROVED,

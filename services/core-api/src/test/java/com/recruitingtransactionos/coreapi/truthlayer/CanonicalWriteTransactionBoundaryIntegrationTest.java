@@ -563,6 +563,7 @@ class CanonicalWriteTransactionBoundaryIntegrationTest {
             VerificationStatus.HUMAN_ACKNOWLEDGED,
             ClientShareability.CLIENT_SAFE,
             false))
+        .canonicalWriteAllowed(true)
         .reviewEvidence(new CanonicalWriteReviewEvidence(
             new ReviewEventId(reviewEventId),
             ReviewDecision.APPROVED,

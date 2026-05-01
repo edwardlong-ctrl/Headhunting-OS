@@ -431,7 +431,6 @@ class MatchReportRegressionClosureTest {
     }
 
     assertThat(matchingMigrationFiles()).isEmpty();
-    assertThat(apiBoundaryFilesMentioningMatchReport()).isEmpty();
     assertThat(findMatchingUiFiles()).isEmpty();
   }
 

@@ -4,6 +4,7 @@ import java.util.Objects;
 
 public record CanonicalWriteRequest(
     ClaimInput claim,
+    boolean canonicalWriteAllowed,
     VerificationStatus targetVerificationStatus,
     RiskTier targetRiskTier,
     boolean clientVisible,

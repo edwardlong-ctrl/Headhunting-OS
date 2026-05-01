@@ -32,7 +32,6 @@ class ReidentificationRiskAssessmentServiceTest {
             ReidentificationRiskFeature.SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM,
             ReidentificationRiskFeature.OVERLY_SPECIFIC_IDENTIFYING_ACHIEVEMENT_NUMBER));
 
-    assertThat(service.placeholderOnly()).isTrue();
     assertThat(assessment.cardId().value()).isEqualTo("card_task7c_0001");
     assertThat(assessment.redactionLevel()).isEqualTo(RedactionLevel.L2_CLIENT_SAFE);
     assertThat(assessment.riskLevel()).isEqualTo(ReidentificationRiskLevel.HIGH);
@@ -48,8 +47,9 @@ class ReidentificationRiskAssessmentServiceTest {
             ReidentificationRiskFeature.SMALL_TEAM_UNIQUE_OWNERSHIP_CLAIM,
             ReidentificationRiskFeature.OVERLY_SPECIFIC_IDENTIFYING_ACHIEVEMENT_NUMBER);
     assertThat(assessment.explanation())
-        .contains("deterministic placeholder")
-        .contains("not a real scorer");
+        .contains("projected payload triggers re-identification safeguards")
+        .contains("exact_current_employer")
+        .contains("direct_contact_or_profile_url");
     assertThat(assessment.isSafeAnonymousClientOutput()).isFalse();
 
     assertThat(ReidentificationRiskFeature.EXACT_COMPANY_RARE_TITLE_EXACT_YEAR
@@ -105,7 +105,7 @@ class ReidentificationRiskAssessmentServiceTest {
   @Test
   void snapshotAssessmentFlagsObviousRawEmployerProjectAndContactSignals() {
     ReidentificationRiskAssessment assessment =
-        service.assess(snapshotWithCardId("card_task7c_0005"));
+        service.assess(leakySnapshotWithCardId("card_task7c_0005"));
 
     assertThat(assessment.riskLevel()).isEqualTo(ReidentificationRiskLevel.HIGH);
     assertThat(assessment.decision()).isEqualTo(ReidentificationRiskDecision.BLOCK);
@@ -133,6 +133,8 @@ class ReidentificationRiskAssessmentServiceTest {
     assertThat(card).isInstanceOf(ClientSafeCandidateCard.class);
     assertThat(card.cardId().value()).isEqualTo("card_task7c_0004");
     assertThat(lowRiskAssessment.isSafeAnonymousClientOutput()).isTrue();
+    assertThat(lowRiskAssessment.explanation())
+        .isEqualTo("no direct re-identification signals were detected in the projected client-visible payload");
   }
 
   private static InternalCandidateProjectionSnapshot snapshotWithCardId(String cardId) {
@@ -159,6 +161,33 @@ class ReidentificationRiskAssessmentServiceTest {
         "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
         List.of("Evidence generalized from approved profile signals."),
         List.of("Strong fit based on generalized capability evidence."),
+        ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
+  }
+
+  private static InternalCandidateProjectionSnapshot leakySnapshotWithCardId(String cardId) {
+    return new InternalCandidateProjectionSnapshot(
+        "00000000-0000-0000-0000-0000007c1001",
+        "00000000-0000-0000-0000-0000007c1002",
+        "Jane Alpha Candidate",
+        "jane.alpha@example.com",
+        "+86 138 0000 7C7C",
+        "https://www.linkedin.com/in/jane-alpha-candidate",
+        "NebulaChip Systems",
+        List.of("Orion-X7 NPU"),
+        "Jane Alpha Candidate led Orion-X7 NPU verification at NebulaChip Systems in 2024.",
+        "Do not share negotiation notes with client.",
+        AnonymousCandidateCardId.of(cardId),
+        AnonymousCandidateRef.of("anon_candidate_" + cardId),
+        "projection-v1",
+        RedactionLevel.L2_CLIENT_SAFE,
+        "Principal verification lead at NebulaChip Systems",
+        "semiconductor_verification",
+        "senior_ic",
+        "greater_china",
+        "Led Orion-X7 NPU verification at NebulaChip Systems in 2024 with 97% coverage closure.",
+        "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
+        List.of("Contact: jane.alpha@example.com"),
+        List.of("Strong fit based on Orion-X7 NPU program ownership."),
         ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
   }
 

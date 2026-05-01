@@ -265,6 +265,7 @@ class TruthLayerNegativePolicyTest {
       boolean explicitReviewApproved) {
     return gate.decide(new CanonicalWriteRequest(
         claim,
+        true,
         targetVerificationStatus,
         targetRiskTier,
         clientVisible,

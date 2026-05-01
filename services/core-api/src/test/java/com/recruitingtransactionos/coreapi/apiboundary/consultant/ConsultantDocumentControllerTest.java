@@ -95,6 +95,7 @@ class ConsultantDocumentControllerTest {
             .with(authentication(auth(PortalRole.CONSULTANT))))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.data.sourceItemId").value(SOURCE_ITEM_ID.toString()))
+        .andExpect(jsonPath("$.data.informationPacketId").value("00000000-0000-0000-0000-000000200034"))
         .andExpect(jsonPath("$.data.scanStatus").value("clean"));
 
     verify(documentUploadService).upload(any(), any());
@@ -159,9 +160,24 @@ class ConsultantDocumentControllerTest {
     mockMvc.perform(post("/api/consultant/documents/{sourceItemId}/parse", SOURCE_ITEM_ID)
             .with(authentication(auth(PortalRole.CONSULTANT))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.sourceItemId").value(SOURCE_ITEM_ID.toString()))
         .andExpect(jsonPath("$.data.processingStatus").value("SUCCEEDED"))
         .andExpect(jsonPath("$.data.chunkCount").value(3));
+  }
+
+  @Test
+  void parseSummarySanitizesUnsafeFailureReason() throws Exception {
+    when(documentParsingService.findLatestParsedDocumentByDocumentId(ORGANIZATION_ID, SOURCE_ITEM_ID))
+        .thenReturn(Optional.of(parsedDocument(
+            DocumentProcessingStatus.FAILED,
+            Optional.of("com.recruitingtransactionos.coreapi.Parser exploded"))));
+    when(documentParsingService.countChunksForDocument(ORGANIZATION_ID, SOURCE_ITEM_ID))
+        .thenReturn(0);
+
+    mockMvc.perform(get("/api/consultant/documents/{sourceItemId}/parsed", SOURCE_ITEM_ID)
+            .with(authentication(auth(PortalRole.CONSULTANT))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.processingStatus").value("FAILED"))
+        .andExpect(jsonPath("$.data.failureReason").value(org.hamcrest.Matchers.nullValue()));
   }
 
   @Test
@@ -188,7 +204,33 @@ class ConsultantDocumentControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.processingStatus").value("SUCCEEDED"))
         .andExpect(jsonPath("$.data.totalHits").value(1))
-        .andExpect(jsonPath("$.data.hits[0].excerpt").value("Nebula evidence excerpt"));
+        .andExpect(jsonPath("$.data.hits[0].locator").value("page 1 offsets 0-42"));
+  }
+
+  @Test
+  void evidenceResponseSanitizesUnsafeQueryEcho() throws Exception {
+    ParsedDocument parsedDocument = parsedDocument(DocumentProcessingStatus.SUCCEEDED, Optional.empty());
+    when(documentParsingService.retrieveDocumentEvidence(
+        ORGANIZATION_ID,
+        SOURCE_ITEM_ID,
+        "qa@example.com",
+        5)).thenReturn(new DocumentEvidenceRetrievalResult(
+            parsedDocument,
+            List.of(new DocumentEvidenceHit(
+                UUID.fromString("00000000-0000-0000-0000-000000200036"),
+                0,
+                1,
+                0,
+                42,
+                2.0d,
+                "Nebula evidence excerpt"))));
+
+    mockMvc.perform(get("/api/consultant/documents/{sourceItemId}/evidence", SOURCE_ITEM_ID)
+            .param("query", "qa@example.com")
+            .with(authentication(auth(PortalRole.CONSULTANT))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.query").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.data.hits[0].locator").value("page 1 offsets 0-42"));
   }
 
   @Test

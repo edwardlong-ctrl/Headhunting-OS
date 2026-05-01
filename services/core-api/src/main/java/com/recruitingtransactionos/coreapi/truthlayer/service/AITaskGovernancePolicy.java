@@ -15,6 +15,8 @@ public final class AITaskGovernancePolicy {
           "AI task governance metadata is required.",
           false,
           false,
+          false,
+          false,
           false);
     }
 
@@ -26,6 +28,8 @@ public final class AITaskGovernancePolicy {
           "Unknown human review status is denied by default.",
           false,
           false,
+          false,
+          false,
           false);
     }
 
@@ -33,6 +37,8 @@ public final class AITaskGovernancePolicy {
       return deny(
           "write_back_target_required",
           "AI task write-back target metadata is required.",
+          false,
+          false,
           false,
           false,
           false);
@@ -46,6 +52,8 @@ public final class AITaskGovernancePolicy {
           "Unknown AI write-back target is denied by default.",
           false,
           false,
+          false,
+          false,
           false);
     }
 
@@ -56,7 +64,9 @@ public final class AITaskGovernancePolicy {
           "AI and system actors cannot approve AI output by role alone.",
           true,
           isCanonicalTarget(target.get()),
-          isConsentDisclosureUnlockTarget(target.get()));
+          isConsentDisclosureUnlockTarget(target.get()),
+          isWorkflowActionTarget(target.get()),
+          isCommercialOrPlacementTarget(target.get()));
     }
 
     return switch (target.get()) {
@@ -65,10 +75,14 @@ public final class AITaskGovernancePolicy {
           "AI task output is recorded as metadata only.",
           false,
           false,
+          false,
+          false,
           false);
       case CLAIM_LEDGER_PROPOSAL -> allow(
           "claim_ledger_proposal_metadata_only",
           "AI task output remains a claim-ledger proposal and does not write canonical data.",
+          false,
+          false,
           false,
           false,
           false);
@@ -76,24 +90,30 @@ public final class AITaskGovernancePolicy {
       case CANONICAL_CANDIDATE_PROFILE, JOB_PROFILE, COMPANY_PROFILE ->
           decideCanonicalTarget(request, reviewStatus.get());
       case CLIENT_SAFE_PROJECTION -> decideClientSafeProjection(request);
-      case CONSENT_DISCLOSURE -> deny(
-          "future_consent_disclosure_gate_required",
-          "Consent and disclosure behavior requires a future dedicated gate.",
+      case CONSENT_DISCLOSURE -> allow(
+          "consent_disclosure_gate_required",
+          "Consent and disclosure behavior requires a dedicated gate.",
           true,
+          false,
+          true,
+          false,
+          false);
+      case WORKFLOW_ACTION -> allow(
+          "workflow_action_gate_required",
+          "Workflow action execution requires a workflow gate.",
+          true,
+          false,
+          false,
+          true,
+          false);
+      case COMMERCIAL_OR_PLACEMENT -> allow(
+          "commercial_placement_gate_required",
+          "Commercial and placement behavior requires a transaction gate.",
+          true,
+          false,
+          false,
           false,
           true);
-      case WORKFLOW_ACTION -> deny(
-          "future_workflow_action_gate_required",
-          "Workflow action execution requires a future workflow gate.",
-          true,
-          false,
-          false);
-      case COMMERCIAL_OR_PLACEMENT -> deny(
-          "future_commercial_placement_gate_required",
-          "Commercial and placement behavior requires a future transaction gate.",
-          true,
-          false,
-          false);
     };
   }
 
@@ -105,12 +125,16 @@ public final class AITaskGovernancePolicy {
           "Human review targets require required or pending review metadata.",
           true,
           false,
+          false,
+          false,
           false);
     }
     return allow(
         "human_review_queue_metadata_only",
         "AI task output is routed as human-review metadata only.",
         true,
+        false,
+        false,
         false,
         false);
   }
@@ -124,6 +148,8 @@ public final class AITaskGovernancePolicy {
           "Canonical targets require approved human review before any future gate.",
           true,
           true,
+          false,
+          false,
           false);
     }
     if (request.bulkApproval()) {
@@ -132,6 +158,8 @@ public final class AITaskGovernancePolicy {
           "Bulk approval cannot approve canonical AI write-back metadata.",
           true,
           true,
+          false,
+          false,
           false);
     }
     if (request.reviewActor() == null) {
@@ -140,6 +168,8 @@ public final class AITaskGovernancePolicy {
           "Approved canonical targets require an explicit human reviewer.",
           true,
           true,
+          false,
+          false,
           false);
     }
     return allow(
@@ -147,6 +177,8 @@ public final class AITaskGovernancePolicy {
         "Canonical target metadata is accepted only with a required canonical write gate.",
         true,
         true,
+        false,
+        false,
         false);
   }
 
@@ -158,11 +190,15 @@ public final class AITaskGovernancePolicy {
           "Client-visible output requires the client-safe projection boundary.",
           true,
           false,
+          false,
+          false,
           false);
     }
     return allow(
         "client_safe_projection_boundary_metadata_only",
         "Client-safe projection target metadata is accepted only after the safe boundary.",
+        false,
+        false,
         false,
         false,
         false);
@@ -182,18 +218,30 @@ public final class AITaskGovernancePolicy {
     return target == AITaskWriteBackTarget.CONSENT_DISCLOSURE;
   }
 
+  private static boolean isWorkflowActionTarget(AITaskWriteBackTarget target) {
+    return target == AITaskWriteBackTarget.WORKFLOW_ACTION;
+  }
+
+  private static boolean isCommercialOrPlacementTarget(AITaskWriteBackTarget target) {
+    return target == AITaskWriteBackTarget.COMMERCIAL_OR_PLACEMENT;
+  }
+
   private static AITaskGovernanceDecision allow(
       String reasonCode,
       String safeExplanation,
       boolean humanReviewRequired,
       boolean canonicalGateRequired,
-      boolean futureConsentDisclosureUnlockGateRequired) {
+      boolean consentDisclosureUnlockGateRequired,
+      boolean workflowActionGateRequired,
+      boolean commercialPlacementGateRequired) {
     return AITaskGovernanceDecision.allow(
         reasonCode,
         safeExplanation,
         humanReviewRequired,
         canonicalGateRequired,
-        futureConsentDisclosureUnlockGateRequired);
+        consentDisclosureUnlockGateRequired,
+        workflowActionGateRequired,
+        commercialPlacementGateRequired);
   }
 
   private static AITaskGovernanceDecision deny(
@@ -201,12 +249,16 @@ public final class AITaskGovernancePolicy {
       String safeExplanation,
       boolean humanReviewRequired,
       boolean canonicalGateRequired,
-      boolean futureConsentDisclosureUnlockGateRequired) {
+      boolean consentDisclosureUnlockGateRequired,
+      boolean workflowActionGateRequired,
+      boolean commercialPlacementGateRequired) {
     return AITaskGovernanceDecision.deny(
         reasonCode,
         safeExplanation,
         humanReviewRequired,
         canonicalGateRequired,
-        futureConsentDisclosureUnlockGateRequired);
+        consentDisclosureUnlockGateRequired,
+        workflowActionGateRequired,
+        commercialPlacementGateRequired);
   }
 }

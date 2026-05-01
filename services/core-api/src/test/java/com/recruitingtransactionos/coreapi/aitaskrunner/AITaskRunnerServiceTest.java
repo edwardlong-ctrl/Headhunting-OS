@@ -140,6 +140,8 @@ class AITaskRunnerServiceTest {
 
     return new AITaskRunnerService(
         new AITaskRunService(port),
+        (organizationId, definition, modelRoute) -> {
+        },
         new AITaskRunnerConfiguration().aiTaskDefinitionRegistry(),
         new AITaskPromptRegistry(),
         new AITaskSchemaValidator(OBJECT_MAPPER),

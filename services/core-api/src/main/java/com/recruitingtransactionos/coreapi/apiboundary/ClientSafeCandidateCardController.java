@@ -29,21 +29,9 @@ public final class ClientSafeCandidateCardController {
   @GetMapping("/{anonymousCardRef}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> readClientSafeCandidateCard(
       @PathVariable String anonymousCardRef,
-      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
-      @RequestHeader(
-              name = ClientSafeCandidateCardApiAccessContextAdapter.FIELD_CLASSIFICATION_HEADER,
-              required = false)
-          String fieldClassification,
-      @RequestHeader(
-              name =
-                  ClientSafeCandidateCardApiAccessContextAdapter.IDENTITY_DISCLOSURE_HEADER,
-              required = false)
-          String identityDisclosureRequested) {
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
     AnonymousCandidateCardId cardId = AnonymousCandidateCardId.of(anonymousCardRef);
-    AccessRequest accessRequest = ClientSafeCandidateCardApiAccessContextAdapter.fromPrincipal(
-        principal,
-        fieldClassification,
-        identityDisclosureRequested);
+    AccessRequest accessRequest = ClientSafeCandidateCardApiAccessContextAdapter.fromPrincipal(principal);
     ClientSafeCandidateCardQueryScope queryScope =
         ClientSafeCandidateCardApiAccessContextAdapter.queryScopeFromPrincipal(principal);
 

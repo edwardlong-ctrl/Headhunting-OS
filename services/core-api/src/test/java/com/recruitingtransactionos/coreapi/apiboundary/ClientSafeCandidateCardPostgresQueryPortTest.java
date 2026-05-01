@@ -148,9 +148,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             "card_task13b_success_0001",
-            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()),
-            "client_safe",
-            null);
+            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -158,7 +156,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ClientSafeCandidateCardResponse data =
         (ClientSafeCandidateCardResponse) response.getBody().data();
     assertThat(data.anonymousCardRef()).isEqualTo("card_task13b_success_0001");
-    assertThat(data.anonymousCandidateRef()).isEqualTo("anon_candidate_task13b_success_0001");
+    assertThat(data.clientAlias()).startsWith("alias-");
     assertThat(data.redactionLevel()).isEqualTo("l2_client_safe");
     assertThat(data.toString())
         .doesNotContain(
@@ -209,9 +207,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             otherOrgOnlyCardRef,
-            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()),
-            "client_safe",
-            null);
+            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
