@@ -1,7 +1,8 @@
 package com.recruitingtransactionos.coreapi.governedintake;
 
 public enum IntakeExtractionMode {
-  DETERMINISTIC_PLACEHOLDER("DETERMINISTIC_PLACEHOLDER");
+  DETERMINISTIC_PLACEHOLDER("DETERMINISTIC_PLACEHOLDER"),
+  DOCUMENT_INTELLIGENCE_V1("DOCUMENT_INTELLIGENCE_V1");
 
   private final String wireValue;
 

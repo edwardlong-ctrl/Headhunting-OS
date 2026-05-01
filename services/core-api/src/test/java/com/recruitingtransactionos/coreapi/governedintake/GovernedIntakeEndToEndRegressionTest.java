@@ -113,9 +113,9 @@ class GovernedIntakeEndToEndRegressionTest {
   @Test
   void minimalSliceRunsThroughCanonicalGateWithoutCanonicalPersistence()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(18);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
-            "18");
+            "18", "19");
     int candidateRowsBefore = countRows("recruiting.candidate", ORG_A);
     int candidateProfileRowsBefore = countRows("recruiting.candidate_profile", ORG_A);
 

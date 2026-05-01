@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -35,7 +36,7 @@ import org.testcontainers.utility.DockerImageName;
 class IdentityAuthPostgresIntegrationTest {
 
   private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
-  private static final Instant NOW = Instant.parse("2026-05-01T08:00:00Z");
+  private static final Instant NOW = Instant.now().plus(Duration.ofMinutes(5));
   private static final String TEST_SECRET = "0123456789abcdef0123456789abcdef";
 
   @Container
@@ -61,9 +62,9 @@ class IdentityAuthPostgresIntegrationTest {
 
   @Test
   void migrationAddsPasswordHashAndIdentitySessionTable() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(18);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19");
     assertThat(columnExists("identity", "user_account", "password_hash")).isTrue();
     assertThat(tableExists("identity", "session")).isTrue();
   }

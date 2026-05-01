@@ -48,20 +48,23 @@
 - No `FieldAccessPolicy` entries for DOCUMENT resource type or UPLOAD action exist.
 - No MinIO instance is configured in `docker-compose.yml` for production use.
 
-## Task 21 Real AI Task Runner v1 Complete; Document Intelligence and AI Write-back Deferred
+## Task 22 Document Intelligence v1 Complete; OCR/STT, AI Claiming, and UI Productization Deferred
 
-- Task 21 adds the first real audited AI task runner baseline through `AITaskRunnerService`, `AITaskReplayService`, task-definition routing, prompt loading, JSON-schema validation, and a DeepSeek-backed provider adapter.
-- `governance.ai_task_run` now stores validated `input_payload`, `output_payload`, tool-call metadata, cost units, trace refs, and replay lineage. `AITaskRunService` now supports append, update, and readback of these audited runs.
-- The first audited executable tasks now exist:
-  - `candidate-profile-parser.v1`
-  - `authenticity-risk-assessor.v1`
-- `AuthenticityAwareMatchRequestFactory` provides the first bounded bridge from audited authenticity output into matching request assembly.
+- Task 22 adds the first document-intelligence baseline through `DocumentParsingService`, `DocumentIntelligenceExtractionService`, `JdbcDocumentIntelligencePersistencePort`, and `ConsultantDocumentController` parse/evidence endpoints.
+- `intake.parsed_document`, `intake.parsed_document_chunk`, and `intake.parsed_document_span` now persist evidence artifacts derived from uploaded documents.
+- The current real parsing surface now exists for:
+  - TXT
+  - PDF
+  - DOCX
+- Image/OCR/STT inputs now fail closed into explicit non-success states instead of silently pretending parsing succeeded.
 - Remaining gaps:
-  - No document intelligence, OCR, PDF parsing, chunking, citation retrieval, or uploaded-document text extraction yet. Task 22 remains next.
+  - No real OCR/STT/file-conversion execution worker yet; images remain `PENDING_EXTERNAL_PROCESSING`.
   - No AI task queue/worker, retry scheduler, or long-running execution orchestration yet.
-  - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from AI outputs yet.
+  - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from document parsing outputs yet.
+  - No client-safe evidence exposure or frontend review UI yet.
+  - No semantic claim generation over parsed chunks yet; Task 23 is now next.
   - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
-  - No multi-provider product routing; the current real provider baseline is DeepSeek only.
+  - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
 
 ## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Matching Engine Deferred
 

@@ -5,7 +5,13 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiValidationErrorResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantDocumentEvidenceResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantDocumentUploadResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantParsedDocumentResponse;
+import com.recruitingtransactionos.coreapi.documentintelligence.DocumentEvidenceRetrievalResult;
+import com.recruitingtransactionos.coreapi.documentintelligence.ParsedDocument;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentResourceNotFoundException;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentParsingService;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStoreKey;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentRetrievalResult;
 import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadCommand;
@@ -25,6 +31,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -54,18 +61,27 @@ public final class ConsultantDocumentController {
 
 
   private final DocumentUploadService documentUploadService;
+  private final DocumentParsingService documentParsingService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
-  public ConsultantDocumentController(DocumentUploadService documentUploadService) {
-    this(documentUploadService, new PermissionEnforcer(new PermissionEvaluator()));
+  public ConsultantDocumentController(
+      DocumentUploadService documentUploadService,
+      DocumentParsingService documentParsingService) {
+    this(
+        documentUploadService,
+        documentParsingService,
+        new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   private ConsultantDocumentController(
       DocumentUploadService documentUploadService,
+      DocumentParsingService documentParsingService,
       PermissionEnforcer permissionEnforcer) {
     this.documentUploadService = Objects.requireNonNull(
         documentUploadService, "documentUploadService must not be null");
+    this.documentParsingService = Objects.requireNonNull(
+        documentParsingService, "documentParsingService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(
         permissionEnforcer, "permissionEnforcer must not be null");
   }
@@ -142,6 +158,56 @@ public final class ConsultantDocumentController {
         .body(new InputStreamResource(result.content()));
   }
 
+  @PostMapping("/{sourceItemId}/parse")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> parseDocument(
+      @PathVariable String sourceItemId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireRawSourceAccess(principal.portalRole(), AccessAction.UPDATE);
+    UUID orgId = principal.organizationId();
+    UUID sid = parseDocumentId(sourceItemId);
+    ParsedDocument parsedDocument = documentParsingService.parseDocument(orgId, sid);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(toParsedDocumentResponse(sid, parsedDocument, orgId)));
+  }
+
+  @GetMapping("/{sourceItemId}/parsed")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> parsedDocument(
+      @PathVariable String sourceItemId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireRawSourceAccess(principal.portalRole(), AccessAction.READ);
+    UUID orgId = principal.organizationId();
+    UUID sid = parseDocumentId(sourceItemId);
+    ParsedDocument parsedDocument = documentParsingService.findLatestParsedDocumentByDocumentId(orgId, sid)
+        .orElseThrow(() -> new DocumentResourceNotFoundException("parsed document unavailable"));
+    return ResponseEntity.ok(ApiResponseEnvelope.success(toParsedDocumentResponse(sid, parsedDocument, orgId)));
+  }
+
+  @GetMapping("/{sourceItemId}/evidence")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> evidence(
+      @PathVariable String sourceItemId,
+      @RequestParam(value = "query", required = false) String query,
+      @RequestParam(value = "limit", required = false, defaultValue = "5") int limit,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireRawSourceAccess(principal.portalRole(), AccessAction.READ);
+    UUID orgId = principal.organizationId();
+    UUID sid = parseDocumentId(sourceItemId);
+    DocumentEvidenceRetrievalResult result =
+        documentParsingService.retrieveDocumentEvidence(orgId, sid, query, limit);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(new ConsultantDocumentEvidenceResponse(
+        sid.toString(),
+        result.parsedDocument().parsedDocumentId().toString(),
+        result.parsedDocument().processingStatus().wireValue(),
+        query == null ? null : query.strip(),
+        result.hits().size(),
+        result.hits().stream().map(hit -> new ConsultantDocumentEvidenceResponse.Hit(
+            hit.parsedDocumentChunkId().toString(),
+            hit.chunkIndex(),
+            hit.pageNumber(),
+            hit.startOffset(),
+            hit.endOffset(),
+            hit.score(),
+            hit.excerpt())).toList())));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(
       AccessDeniedException exception) {
@@ -159,6 +225,17 @@ public final class ConsultantDocumentController {
             "invalid_request",
             List.of("Invalid request: " + exception.getMessage()))
             .toErrorResponse());
+  }
+
+  @ExceptionHandler(DocumentResourceNotFoundException.class)
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> documentResourceNotFound(
+      DocumentResourceNotFoundException exception) {
+    return error(
+        HttpStatus.NOT_FOUND,
+        new ApiErrorResponse(
+            "not_found",
+            "document_unavailable",
+            "Document is unavailable."));
   }
 
   @ExceptionHandler(RuntimeException.class)
@@ -180,6 +257,24 @@ public final class ConsultantDocumentController {
         FieldClassification.RAW_SOURCE,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
         false));
+  }
+
+  private ConsultantParsedDocumentResponse toParsedDocumentResponse(
+      UUID sourceItemId,
+      ParsedDocument parsedDocument,
+      UUID organizationId) {
+    return new ConsultantParsedDocumentResponse(
+        sourceItemId.toString(),
+        parsedDocument.parsedDocumentId().toString(),
+        parsedDocument.processingStatus().wireValue(),
+        parsedDocument.parserName(),
+        parsedDocument.parserVersion(),
+        parsedDocument.mediaType(),
+        parsedDocument.ocrRequired(),
+        documentParsingService.countChunksForDocument(organizationId, sourceItemId),
+        parsedDocument.createdAt().toString(),
+        parsedDocument.completedAt().map(Instant::toString).orElse(null),
+        parsedDocument.failureReason().orElse(null));
   }
 
 

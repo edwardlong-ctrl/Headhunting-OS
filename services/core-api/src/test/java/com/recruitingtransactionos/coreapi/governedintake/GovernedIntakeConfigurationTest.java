@@ -59,8 +59,9 @@ class GovernedIntakeConfigurationTest {
 
     @Bean
     ConsultantDocumentController consultantDocumentController(
-        DocumentUploadService documentUploadService) {
-      return new ConsultantDocumentController(documentUploadService);
+        DocumentUploadService documentUploadService,
+        com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentParsingService documentParsingService) {
+      return new ConsultantDocumentController(documentUploadService, documentParsingService);
     }
   }
 }

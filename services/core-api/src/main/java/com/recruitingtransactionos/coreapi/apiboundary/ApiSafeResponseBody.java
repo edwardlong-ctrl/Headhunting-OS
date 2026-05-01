@@ -14,4 +14,6 @@ public sealed interface ApiSafeResponseBody
         ConsultantShortlistSummaryResponse,
         ConsultantShortlistDetailResponse,
         ConsultantDocumentUploadResponse,
+        ConsultantParsedDocumentResponse,
+        ConsultantDocumentEvidenceResponse,
         PagedResult {}

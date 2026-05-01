@@ -65,6 +65,23 @@ public final class ApiBoundaryContractRules {
   private static final Set<String> AUTH_LOGOUT_RESPONSE_FIELDS =
       Set.of("status", "loggedOutAt");
 
+  private static final Set<String> CONSULTANT_PARSED_DOCUMENT_RESPONSE_FIELDS =
+      Set.of(
+          "sourceItemId",
+          "parsedDocumentId",
+          "processingStatus",
+          "parserName",
+          "parserVersion",
+          "mediaType",
+          "ocrRequired",
+          "chunkCount",
+          "createdAt",
+          "completedAt",
+          "failureReason");
+
+  private static final Set<String> CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS =
+      Set.of("sourceItemId", "parsedDocumentId", "processingStatus", "query", "totalHits", "hits");
+
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
           "l0_teaser",
@@ -186,6 +203,28 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> authLogoutResponseFieldNames() {
     return new LinkedHashSet<>(AUTH_LOGOUT_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantParsedDocumentResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_PARSED_DOCUMENT_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantParsedDocumentResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_PARSED_DOCUMENT_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantDocumentEvidenceResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantDocumentEvidenceResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS);
   }
 
   public static String requireNonBlank(String value, String fieldName) {

@@ -174,6 +174,14 @@ public final class FieldAccessPolicy {
             "consultant_write_allowed",
             "Consultant role may create and update company and job resources.");
       }
+      if (request.action() == AccessAction.UPDATE
+          && request.resourceType() == ResourceType.SOURCE_ITEM
+          && request.fieldClassification() == FieldClassification.RAW_SOURCE
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_source_item_update_allowed",
+            "Consultant role may operate on same-organization raw source items.");
+      }
       if (request.action() == AccessAction.CREATE
           && request.resourceType() == ResourceType.SOURCE_ITEM
           && request.fieldClassification() == FieldClassification.RAW_SOURCE

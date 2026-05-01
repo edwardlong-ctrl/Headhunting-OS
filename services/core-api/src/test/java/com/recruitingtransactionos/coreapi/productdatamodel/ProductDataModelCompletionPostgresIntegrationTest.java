@@ -695,7 +695,7 @@ class ProductDataModelCompletionPostgresIntegrationTest {
 
   @Test
   void v10MigrationCreatesAllExpectedTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(18);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
     assertThat(tableExists("recruiting", "profile_field_lineage")).isTrue();
     assertThat(tableExists("recruiting", "company")).isTrue();
     assertThat(tableExists("recruiting", "company_contact")).isTrue();

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -22,7 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 class JwtAuthenticationFilterTest {
 
-  private static final Instant NOW = Instant.parse("2026-05-01T09:00:00Z");
+  private static final Instant NOW = Instant.now().plus(Duration.ofMinutes(5));
   private static final UUID ORGANIZATION_ID = UUID.fromString("00000000-0000-0000-0000-000000190401");
   private static final UUID USER_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000190402");
   private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000190403");

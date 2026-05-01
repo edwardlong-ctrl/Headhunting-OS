@@ -4,9 +4,17 @@ import com.recruitingtransactionos.coreapi.documentstorage.DocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.FailClosedVirusScanPort;
 import com.recruitingtransactionos.coreapi.documentstorage.LocalFilesystemDocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.VirusScanPort;
+import com.recruitingtransactionos.coreapi.documentintelligence.DocumentIntelligencePersistencePort;
+import com.recruitingtransactionos.coreapi.documentintelligence.persistence.JdbcDocumentIntelligencePersistencePort;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentConversionWorkerPort;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentIntelligenceExtractionService;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentParsingService;
+import com.recruitingtransactionos.coreapi.documentintelligence.service.NoOpDocumentConversionWorkerPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcInformationPacketPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcIntakeExtractionRunPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcSourceItemPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.port.InformationPacketPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.port.IntakeExtractionRunPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.SourceItemPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
 import com.recruitingtransactionos.coreapi.governedintake.service.GovernedIntakeService;
@@ -34,6 +42,16 @@ public class GovernedIntakeConfiguration {
   @Bean
   InformationPacketPersistencePort informationPacketPersistencePort(DataSource dataSource) {
     return new JdbcInformationPacketPersistencePort(dataSource);
+  }
+
+  @Bean
+  IntakeExtractionRunPort intakeExtractionRunPort(DataSource dataSource) {
+    return new JdbcIntakeExtractionRunPort(dataSource);
+  }
+
+  @Bean
+  DocumentIntelligencePersistencePort documentIntelligencePersistencePort(DataSource dataSource) {
+    return new JdbcDocumentIntelligencePersistencePort(dataSource);
   }
 
   @Bean
@@ -71,6 +89,11 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
+  DocumentConversionWorkerPort documentConversionWorkerPort() {
+    return new NoOpDocumentConversionWorkerPort();
+  }
+
+  @Bean
   GovernedIntakeService governedIntakeService(
       SourceItemPersistencePort sourceItemPersistencePort,
       InformationPacketPersistencePort informationPacketPersistencePort) {
@@ -92,6 +115,32 @@ public class GovernedIntakeConfiguration {
         virusScanPort,
         transactionBoundary,
         workflowTransitionAuditService);
+  }
+
+  @Bean
+  DocumentParsingService documentParsingService(
+      GovernedIntakeService governedIntakeService,
+      DocumentStore documentStore,
+      DocumentIntelligencePersistencePort documentIntelligencePersistencePort,
+      DocumentConversionWorkerPort documentConversionWorkerPort) {
+    return new DocumentParsingService(
+        governedIntakeService,
+        documentStore,
+        documentIntelligencePersistencePort,
+        documentConversionWorkerPort);
+  }
+
+  @Bean
+  DocumentIntelligenceExtractionService documentIntelligenceExtractionService(
+      InformationPacketPersistencePort informationPacketPersistencePort,
+      IntakeExtractionRunPort intakeExtractionRunPort,
+      DocumentParsingService documentParsingService,
+      DocumentIntelligencePersistencePort documentIntelligencePersistencePort) {
+    return new DocumentIntelligenceExtractionService(
+        informationPacketPersistencePort,
+        intakeExtractionRunPort,
+        documentParsingService,
+        documentIntelligencePersistencePort);
   }
 
   private static String requireConfiguredStorageRoot(String rootDirectory) {
