@@ -1,4 +1,4 @@
-import { loadAccessToken } from "../auth/accessTokenStorage";
+import { type AccessTokenScope, loadAccessToken } from "../auth/accessTokenStorage";
 
 export type ApiError = {
   errorCode: string;
@@ -27,9 +27,10 @@ function mapStatus(status: number): ErrorStatus {
 export async function apiRequest<T>(
   input: string,
   init?: RequestInit,
+  scope: AccessTokenScope = "consultant",
 ): Promise<ApiResult<T>> {
   try {
-    const accessToken = loadAccessToken("consultant");
+    const accessToken = loadAccessToken(scope);
     const response = await fetch(input, {
       ...init,
       headers: {

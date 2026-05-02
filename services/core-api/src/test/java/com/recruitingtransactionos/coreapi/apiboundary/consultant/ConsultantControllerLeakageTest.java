@@ -435,7 +435,7 @@ class ConsultantControllerLeakageTest {
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
             JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
-            null, null, null, null, "draft",
+            null, null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
 
@@ -703,7 +703,7 @@ class ConsultantControllerLeakageTest {
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
             JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
-            null, null, null, null, "draft",
+            null, null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
 
@@ -760,7 +760,7 @@ class ConsultantControllerLeakageTest {
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
             JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
-            null, null, null, null, "draft",
+            null, null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
 

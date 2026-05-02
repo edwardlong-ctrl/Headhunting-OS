@@ -5,6 +5,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiValidationErrorResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobActivationGateResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.PagedQuery;
@@ -150,6 +151,37 @@ public final class ConsultantJobController {
         commandService.createJobScorecard(accessRequest, orgId, jid, request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponseEnvelope.success(result));
+  }
+
+  @GetMapping("/{jobId}/activation-gate")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> getJobActivationGate(
+      @PathVariable String jobId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
+    JobId jid = parseJobId(jobId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.READ);
+    ConsultantJobActivationGateResponse result =
+        queryService.getJobActivationGate(accessRequest, orgId, jid);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
+  }
+
+  @PostMapping("/{jobId}/activate")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> activateJob(
+      @PathVariable String jobId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestBody(required = false) JobActivationRequest request) {
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
+    JobId jid = parseJobId(jobId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.JOB, AccessAction.UPDATE);
+    ConsultantJobDetailResponse result = commandService.activateJob(
+        accessRequest,
+        orgId,
+        principal.userAccountId(),
+        jid,
+        request != null ? request.reason() : null);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

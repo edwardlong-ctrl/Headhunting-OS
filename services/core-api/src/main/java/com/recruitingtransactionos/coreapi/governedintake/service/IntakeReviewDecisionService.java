@@ -5,6 +5,8 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
+import com.recruitingtransactionos.coreapi.company.CompanyId;
+import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketId;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgePolicy;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgeRequest;
@@ -14,6 +16,8 @@ import com.recruitingtransactionos.coreapi.governedintake.IntakeReviewBridgeRequ
 import com.recruitingtransactionos.coreapi.governedintake.IntakeReviewBridgeResult;
 import com.recruitingtransactionos.coreapi.governedintake.IntendedEntityType;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventForCanonicalWrite;
+import com.recruitingtransactionos.coreapi.job.JobId;
+import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
@@ -30,12 +34,30 @@ public final class IntakeReviewDecisionService {
   private final IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService;
   private final IntakeReviewQueryService intakeReviewQueryService;
   private final CandidateProfileService candidateProfileService;
+  private final CompanyIntakeApplicationService companyIntakeApplicationService;
+  private final JobIntakeApplicationService jobIntakeApplicationService;
 
   public IntakeReviewDecisionService(
       IntakeReviewBridgeService intakeReviewBridgeService,
       IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
       IntakeReviewQueryService intakeReviewQueryService,
       CandidateProfileService candidateProfileService) {
+    this(
+        intakeReviewBridgeService,
+        intakeCanonicalWriteBridgeService,
+        intakeReviewQueryService,
+        candidateProfileService,
+        null,
+        null);
+  }
+
+  public IntakeReviewDecisionService(
+      IntakeReviewBridgeService intakeReviewBridgeService,
+      IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
+      IntakeReviewQueryService intakeReviewQueryService,
+      CandidateProfileService candidateProfileService,
+      CompanyIntakeApplicationService companyIntakeApplicationService,
+      JobIntakeApplicationService jobIntakeApplicationService) {
     this.intakeReviewBridgeService = Objects.requireNonNull(
         intakeReviewBridgeService, "intakeReviewBridgeService must not be null");
     this.intakeCanonicalWriteBridgeService = Objects.requireNonNull(
@@ -44,6 +66,8 @@ public final class IntakeReviewDecisionService {
         intakeReviewQueryService, "intakeReviewQueryService must not be null");
     this.candidateProfileService = Objects.requireNonNull(
         candidateProfileService, "candidateProfileService must not be null");
+    this.companyIntakeApplicationService = companyIntakeApplicationService;
+    this.jobIntakeApplicationService = jobIntakeApplicationService;
   }
 
   public IntakeReviewBridgeResult decide(
@@ -81,10 +105,34 @@ public final class IntakeReviewDecisionService {
     IntendedEntityType intendedEntityType =
         view.run().outputEnvelope().orElseThrow().intendedEntityType();
     if (intendedEntityType == IntendedEntityType.COMPANY) {
-      throw new IllegalArgumentException("company_publish_requires_future_governed_canonical_write_path");
+      if (companyIntakeApplicationService == null) {
+        throw new IllegalArgumentException("company_publish_requires_future_governed_canonical_write_path");
+      }
+      CompanyId companyId = request.companyId() == null ? null : new CompanyId(request.companyId());
+      companyIntakeApplicationService.applyReviewedFacts(
+          organizationId,
+          actorId,
+          companyId == null ? java.util.Optional.empty() : java.util.Optional.of(companyId),
+          view.facts(),
+          request.reason());
+      directWrites.add("company:" + (companyId != null ? companyId.value() : "created"));
+      return new PublishResult(canonicalWrites, directWrites);
     }
     if (intendedEntityType == IntendedEntityType.JOB) {
-      throw new IllegalArgumentException("job_publish_requires_future_governed_canonical_write_path");
+      if (jobIntakeApplicationService == null) {
+        throw new IllegalArgumentException("job_publish_requires_future_governed_canonical_write_path");
+      }
+      JobId jobId = request.jobId() == null ? null : new JobId(request.jobId());
+      CompanyId companyId = request.jobCompanyId() == null ? null : new CompanyId(request.jobCompanyId());
+      jobIntakeApplicationService.applyReviewedFacts(
+          organizationId,
+          actorId,
+          jobId == null ? java.util.Optional.empty() : java.util.Optional.of(jobId),
+          companyId == null ? java.util.Optional.empty() : java.util.Optional.of(companyId),
+          view.facts(),
+          request.reason());
+      directWrites.add("job:" + (jobId != null ? jobId.value() : "created"));
+      return new PublishResult(canonicalWrites, directWrites);
     }
     CandidateProfileId candidateProfileId = null;
     if (intendedEntityType == IntendedEntityType.CANDIDATE) {

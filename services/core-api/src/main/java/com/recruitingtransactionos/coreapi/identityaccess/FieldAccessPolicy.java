@@ -90,6 +90,20 @@ public final class FieldAccessPolicy {
           "client_safe_candidate_card_read_allowed",
           "Client role may read anonymous client-safe candidate cards at safe field levels.");
     }
+    if ((request.resourceType() == ResourceType.COMPANY || request.resourceType() == ResourceType.JOB)
+        && CLIENT_SAFE_FIELD_LEVELS.contains(request.fieldClassification())
+        && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+      if (request.action() == AccessAction.READ) {
+        return AccessDecision.allow(
+            "client_same_org_safe_read_allowed",
+            "Client role may read same-organization client-safe company and job intake surfaces.");
+      }
+      if (request.action() == AccessAction.CREATE || request.action() == AccessAction.UPDATE) {
+        return AccessDecision.allow(
+            "client_same_org_safe_write_allowed",
+            "Client role may submit same-organization client-safe company and job intake data.");
+      }
+    }
     return deny(
         "access_denied_by_default",
         "No client allow rule exists for this request.");

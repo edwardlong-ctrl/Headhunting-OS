@@ -26,6 +26,7 @@ export type ConsultantJobDetail = {
   roleFamily: string | null;
   employmentType: string | null;
   compensation: string | null;
+  commercialTerms: string | null;
   status: string;
   ownerConsultantId: string | null;
   activatedAt: string | null;
@@ -35,6 +36,16 @@ export type ConsultantJobDetail = {
   updatedAt: string;
   requirements: Array<{ requirementId: string; requirementType: string; label: string; importance: string; detail: string | null; sortOrder: number }>;
   scorecard: null | { scorecardId: string; dimensions: string | null; scoringGuidance: string | null; status: string };
+};
+
+export type ConsultantJobActivationGate = {
+  jobId: string;
+  activationAllowed: boolean;
+  clarificationQuestions: string[];
+  blockerReasons: string[];
+  hasScorecard: boolean;
+  hasRequirements: boolean;
+  hasCommercialTermsPlaceholder: boolean;
 };
 
 export type ConsultantJobCreatePayload = {
@@ -53,6 +64,7 @@ export type ConsultantJobUpdatePayload = {
   roleFamily?: string | null;
   employmentType?: string | null;
   compensation?: string | null;
+  commercialTerms?: string | null;
   status: string;
 };
 
@@ -119,5 +131,18 @@ export function createConsultantJobScorecard(jobId: string, payload: ConsultantJ
   return apiRequest<ConsultantJobDetail>(
     `/api/consultant/jobs/${encodeURIComponent(jobId)}/scorecard`,
     asJson(payload),
+  );
+}
+
+export function fetchConsultantJobActivationGate(jobId: string) {
+  return apiRequest<ConsultantJobActivationGate>(
+    `/api/consultant/jobs/${encodeURIComponent(jobId)}/activation-gate`,
+  );
+}
+
+export function activateConsultantJob(jobId: string, reason?: string | null) {
+  return apiRequest<ConsultantJobDetail>(
+    `/api/consultant/jobs/${encodeURIComponent(jobId)}/activate`,
+    asJson({ reason: reason ?? null }),
   );
 }

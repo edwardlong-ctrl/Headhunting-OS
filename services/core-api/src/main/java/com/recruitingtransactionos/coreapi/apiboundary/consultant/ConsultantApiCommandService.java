@@ -27,6 +27,7 @@ import com.recruitingtransactionos.coreapi.job.JobRequirementImportance;
 import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobScorecardId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
+import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
@@ -46,6 +47,7 @@ public final class ConsultantApiCommandService {
 
   private final CompanyService companyService;
   private final JobService jobService;
+  private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
   private final PermissionEnforcer permissionEnforcer;
 
@@ -53,17 +55,37 @@ public final class ConsultantApiCommandService {
   public ConsultantApiCommandService(
       CompanyService companyService,
       JobService jobService,
+      JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService) {
-    this(companyService, jobService, shortlistService, new PermissionEnforcer(new PermissionEvaluator()));
+    this(
+        companyService,
+        jobService,
+        jobIntakeApplicationService,
+        shortlistService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+  }
+
+  public ConsultantApiCommandService(
+      CompanyService companyService,
+      JobService jobService,
+      ShortlistService shortlistService) {
+    this(
+        companyService,
+        jobService,
+        null,
+        shortlistService,
+        new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   ConsultantApiCommandService(
       CompanyService companyService,
       JobService jobService,
+      JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
+    this.jobIntakeApplicationService = jobIntakeApplicationService;
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
@@ -386,6 +408,25 @@ public final class ConsultantApiCommandService {
     Optional<JobScorecard> scorecard = jobService.findActiveScorecardByJobIdAndOrganizationId(
         organizationId, jobId);
     return ConsultantJobResponseMapper.toDetail(job,
+        requirements != null ? requirements : Collections.emptyList(), scorecard);
+  }
+
+  public ConsultantJobDetailResponse activateJob(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      UUID actorId,
+      JobId jobId,
+      String reason) {
+    requireConsultantJobWrite(accessRequest, AccessAction.UPDATE);
+    if (jobIntakeApplicationService == null) {
+      throw new IllegalStateException("jobIntakeApplicationService_not_configured");
+    }
+    Job activated = jobIntakeApplicationService.activateJob(organizationId, actorId, jobId, reason);
+    List<JobRequirement> requirements = jobService.findRequirementsByJobIdAndOrganizationId(
+        organizationId, jobId);
+    Optional<JobScorecard> scorecard = jobService.findActiveScorecardByJobIdAndOrganizationId(
+        organizationId, jobId);
+    return ConsultantJobResponseMapper.toDetail(activated,
         requirements != null ? requirements : Collections.emptyList(), scorecard);
   }
 

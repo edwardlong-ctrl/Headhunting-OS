@@ -32,11 +32,13 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.C
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.companyintake.CompanyIntakeTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.jobintake.JobIntakeTaskService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
+import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerSourceReferenceLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventSourceReferenceLookupPort;
+import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
@@ -279,18 +281,24 @@ public class GovernedIntakeConfiguration {
     CandidateProfileService.class,
     IntakeReviewBridgeService.class,
     IntakeCanonicalWriteBridgeService.class,
-    IntakeReviewQueryService.class
+    IntakeReviewQueryService.class,
+    CompanyIntakeApplicationService.class,
+    JobIntakeApplicationService.class
   })
   IntakeReviewDecisionService intakeReviewDecisionService(
       IntakeReviewBridgeService intakeReviewBridgeService,
       IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
       IntakeReviewQueryService intakeReviewQueryService,
-      CandidateProfileService candidateProfileService) {
+      CandidateProfileService candidateProfileService,
+      CompanyIntakeApplicationService companyIntakeApplicationService,
+      JobIntakeApplicationService jobIntakeApplicationService) {
     return new IntakeReviewDecisionService(
         intakeReviewBridgeService,
         intakeCanonicalWriteBridgeService,
         intakeReviewQueryService,
-        candidateProfileService);
+        candidateProfileService,
+        companyIntakeApplicationService,
+        jobIntakeApplicationService);
   }
 
   private static String requireConfiguredStorageRoot(String rootDirectory) {

@@ -477,11 +477,99 @@ main {
   align-items: stretch;
 }
 
+.client-auth-shell {
+  width: min(1180px, 100%);
+}
+
+.client-auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
 .consultant-frame {
   display: grid;
   grid-template-columns: 196px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+}
+
+.client-portal-shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 18px 0 32px;
+}
+
+.client-shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.client-shell-header h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 34px;
+  line-height: 1.15;
+}
+
+.client-shell-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.client-shell-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.client-sidebar {
+  display: grid;
+  gap: 12px;
+  align-self: start;
+  position: sticky;
+  top: 12px;
+}
+
+.client-sidebar-block {
+  display: grid;
+  gap: 10px;
+}
+
+.client-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.client-nav a {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.client-nav a.active {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.client-content {
+  display: grid;
+  gap: 14px;
 }
 
 .consultant-sidebar {
@@ -772,9 +860,15 @@ main {
 .consultant-shell input,
 .consultant-shell select,
 .consultant-shell textarea,
+.client-portal-shell input,
+.client-portal-shell select,
+.client-portal-shell textarea,
 .consultant-auth-shell input,
 .consultant-auth-shell select,
-.consultant-auth-shell textarea {
+.consultant-auth-shell textarea,
+.client-auth-shell input,
+.client-auth-shell select,
+.client-auth-shell textarea {
   min-height: 40px;
   width: 100%;
   border: 1px solid #cfd7e6;
@@ -785,7 +879,9 @@ main {
 }
 
 .consultant-shell textarea,
-.consultant-auth-shell textarea {
+.client-portal-shell textarea,
+.consultant-auth-shell textarea,
+.client-auth-shell textarea {
   min-height: 96px;
   resize: vertical;
 }
@@ -810,9 +906,13 @@ main {
 }
 
 .consultant-shell button,
+.client-portal-shell button,
 .consultant-auth-shell button,
+.client-auth-shell button,
 .consultant-shell .secondary-button,
-.consultant-auth-shell .secondary-button {
+.client-portal-shell .secondary-button,
+.consultant-auth-shell .secondary-button,
+.client-auth-shell .secondary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -829,9 +929,13 @@ main {
 }
 
 .consultant-shell .secondary-button,
+.client-portal-shell .secondary-button,
 .consultant-auth-shell .secondary-button,
+.client-auth-shell .secondary-button,
 .consultant-shell .text-link,
-.consultant-auth-shell .text-link {
+.client-portal-shell .text-link,
+.consultant-auth-shell .text-link,
+.client-auth-shell .text-link {
   border-color: #e0e5f1;
   background: #ffffff;
   color: #4d5a76;
@@ -850,9 +954,13 @@ main {
 }
 
 .consultant-shell button:disabled,
+.client-portal-shell button:disabled,
 .consultant-auth-shell button:disabled,
+.client-auth-shell button:disabled,
 .consultant-shell .secondary-button:disabled,
-.consultant-auth-shell .secondary-button:disabled {
+.client-portal-shell .secondary-button:disabled,
+.consultant-auth-shell .secondary-button:disabled,
+.client-auth-shell .secondary-button:disabled {
   border-color: #d7ddec;
   background: #eceff6;
   color: #8a98a8;
@@ -1196,6 +1304,19 @@ main {
   gap: 16px;
 }
 
+.client-action-grid,
+.client-commercial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.client-nested-panel {
+  padding: 16px;
+  border-style: dashed;
+  background: linear-gradient(180deg, #fcfcff 0%, #f8fafc 100%);
+}
+
 .highlight-block {
   background: linear-gradient(180deg, #fcfcff 0%, #f8fafc 100%);
 }
@@ -1337,11 +1458,14 @@ main {
 
 @media (max-width: 1080px) {
   .consultant-auth-grid,
-  .consultant-frame {
+  .consultant-frame,
+  .client-auth-grid,
+  .client-shell-grid {
     grid-template-columns: 1fr;
   }
 
-  .consultant-sidebar {
+  .consultant-sidebar,
+  .client-sidebar {
     position: static;
   }
 
@@ -1354,7 +1478,9 @@ main {
   .consultant-board-grid,
   .control-lane-grid,
   .intake-quick-actions,
-  .fact-card-main {
+  .fact-card-main,
+  .client-action-grid,
+  .client-commercial-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1397,6 +1523,7 @@ main {
   .card-row,
   .button-row,
   .consultant-shell-header,
+  .client-shell-header,
   .consultant-brand-lockup {
     flex-direction: column;
     align-items: stretch;

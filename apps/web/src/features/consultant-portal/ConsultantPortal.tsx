@@ -30,12 +30,15 @@ import {
   type ConsultantCompanySummary,
 } from "../../api/consultantCompanies";
 import {
+  activateConsultantJob,
   createConsultantJobRequirement,
   createConsultantJobScorecard,
   createConsultantJob,
   createConsultantJobUpdatePayload,
+  fetchConsultantJobActivationGate,
   fetchConsultantJob,
   listConsultantJobs,
+  type ConsultantJobActivationGate,
   type ConsultantJobListFilters,
   updateConsultantJob,
   type ConsultantJobDetail,
@@ -212,6 +215,22 @@ type BoardContext = {
   subtitle: string;
 };
 
+type CommercialTermsDraft = {
+  feeModel: string;
+  feeRangeOrRate: string;
+  paymentTerms: string;
+  contractStatus: string;
+  notes: string;
+};
+
+const EMPTY_COMMERCIAL_TERMS: CommercialTermsDraft = {
+  feeModel: "",
+  feeRangeOrRate: "",
+  paymentTerms: "",
+  contractStatus: "",
+  notes: "",
+};
+
 function resolveBoardContext(pathname: string): BoardContext {
   if (
     pathname.includes("/consultant/intake")
@@ -287,15 +306,75 @@ function formatDate(value?: string | null): string {
   }
 }
 
+function parseCommercialTerms(value?: string | null): CommercialTermsDraft {
+  if (!value || !value.trim()) {
+    return { ...EMPTY_COMMERCIAL_TERMS };
+  }
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return {
+      feeModel: typeof parsed.feeModel === "string" ? parsed.feeModel : "",
+      feeRangeOrRate: typeof parsed.feeRangeOrRate === "string" ? parsed.feeRangeOrRate : "",
+      paymentTerms: typeof parsed.paymentTerms === "string" ? parsed.paymentTerms : "",
+      contractStatus: typeof parsed.contractStatus === "string" ? parsed.contractStatus : "",
+      notes: typeof parsed.notes === "string" ? parsed.notes : "",
+    };
+  } catch {
+    return {
+      ...EMPTY_COMMERCIAL_TERMS,
+      notes: value,
+    };
+  }
+}
+
+function serializeCommercialTerms(draft: CommercialTermsDraft): string | null {
+  const payload = {
+    feeModel: draft.feeModel.trim(),
+    feeRangeOrRate: draft.feeRangeOrRate.trim(),
+    paymentTerms: draft.paymentTerms.trim(),
+    contractStatus: draft.contractStatus.trim(),
+    notes: draft.notes.trim(),
+  };
+  if (!Object.values(payload).some((item) => item.length > 0)) {
+    return null;
+  }
+  return JSON.stringify(payload);
+}
+
+function commercialTermsSummary(value?: string | null): string[] {
+  const parsed = parseCommercialTerms(value);
+  return [
+    parsed.feeModel ? `Fee model: ${parsed.feeModel}` : null,
+    parsed.feeRangeOrRate ? `Fee range or rate: ${parsed.feeRangeOrRate}` : null,
+    parsed.paymentTerms ? `Payment terms: ${parsed.paymentTerms}` : null,
+    parsed.contractStatus ? `Contract status: ${parsed.contractStatus}` : null,
+    parsed.notes ? `Notes: ${parsed.notes}` : null,
+  ].filter((item): item is string => item !== null);
+}
+
+function publishSurfaceLabel(review: ConsultantIntakeReview): string {
+  switch (review.intendedEntityType) {
+    case "COMPANY":
+      return "company";
+    case "JOB":
+      return "job";
+    default:
+      return "candidate";
+  }
+}
+
 function publishTargetLabel(review: ConsultantIntakeReview): string {
   const existingMatch = review.cleanFacts.find((fact) => fact.resolvedEntityId);
   if (existingMatch?.resolvedEntityId) {
-    return `Existing candidate ${existingMatch.resolvedEntityId}`;
+    return `Existing ${publishSurfaceLabel(review)} ${existingMatch.resolvedEntityId}`;
   }
-  if (review.intendedEntityType === "CANDIDATE") {
-    return "New candidate profile will be created";
+  if (review.intendedEntityType === "COMPANY") {
+    return "A governed company write-back will be created";
   }
-  return "Governed candidate publish is not available for this entity type";
+  if (review.intendedEntityType === "JOB") {
+    return "A governed job write-back will be created";
+  }
+  return "A governed candidate profile will be created";
 }
 
 function reviewReadyForPublish(review: ConsultantIntakeReview): boolean {
@@ -1108,7 +1187,7 @@ function ReviewContent({ review, packetId }: { review: ConsultantIntakeReview; p
         <div className="section-header">
           <div>
             <span className="portal-eyebrow">Publish gate</span>
-            <h2>Governed candidate write-back</h2>
+            <h2>Governed {publishSurfaceLabel(currentReview)} write-back</h2>
           </div>
         </div>
         <form className="stack-form" onSubmit={onPublish}>
@@ -1126,9 +1205,13 @@ function ReviewContent({ review, packetId }: { review: ConsultantIntakeReview; p
             Reason
             <input value={reason} onChange={(event) => setReason(event.target.value)} />
           </label>
-          <button type="submit" disabled={!reviewReadyForPublish(currentReview)}>Publish candidate path</button>
+          <button type="submit" disabled={!reviewReadyForPublish(currentReview)}>
+            Publish {publishSurfaceLabel(currentReview)} path
+          </button>
         </form>
-        <p className="helper-copy">Company and job publish remain governed and are intentionally not presented here as a completed write path.</p>
+        <p className="helper-copy">
+          Approved {publishSurfaceLabel(currentReview)} facts stay inside the governed review-to-write path and only land in canonical records after this gate passes.
+        </p>
         {publish.status === "ready" && (
           <article className="data-card compact-card">
             <h3>Publish result</h3>
@@ -1629,64 +1712,155 @@ function JobIntakePage() {
   const { jobId = "" } = useParams();
   const state = useLoadable(() => fetchConsultantJob(jobId), [jobId]);
   return renderLoadable(state, (job) => {
-    const clarificationItems = [
-      !job.description ? "Missing AI-parsed job description." : null,
-      job.requirements.length === 0 ? "No requirements captured yet." : null,
-      !job.scorecard?.dimensions ? "Scorecard dimensions still need confirmation." : null,
-      !job.location ? "Location is not confirmed." : null,
-    ].filter((item): item is string => item !== null);
-    const activationChecklist = [
-      job.description ? "Role brief is present." : "Role brief is still missing.",
-      job.requirements.length > 0 ? "At least one requirement exists." : "Requirements are still empty.",
-      job.scorecard ? "Scorecard has been created." : "Scorecard has not been created yet.",
-      job.status === "open" ? "Job is in an active state." : "Job is not active yet.",
-    ];
-    return (
-      <DetailPageShell title={`${job.title} intake`} eyebrow="Job intake review">
-        <section className="portal-panel">
-          <h2>AI parsed profile</h2>
+    return <JobIntakeWorkspace initialJob={job} />;
+  });
+}
+
+function JobIntakeWorkspace({ initialJob }: { initialJob: ConsultantJobDetail }) {
+  const [job, setJob] = useState(initialJob);
+  const [gateState, setGateState] = useState<Loadable<ConsultantJobActivationGate>>({ status: "idle" });
+  const [activateState, setActivateState] = useState<Loadable<ConsultantJobDetail>>({ status: "idle" });
+  const [activationReason, setActivationReason] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setGateState({ status: "loading" });
+    void fetchConsultantJobActivationGate(initialJob.jobId).then((next) => {
+      if (!cancelled) {
+        setGateState(next);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialJob.jobId, job.updatedAt]);
+
+  async function onActivate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setActivateState({ status: "loading" });
+    const next = await activateConsultantJob(job.jobId, emptyToNull(activationReason));
+    setActivateState(next);
+    if (next.status === "ready") {
+      setJob(next.data);
+      setActivationReason("");
+    }
+  }
+
+  const fallbackClarifications = [
+    !job.description ? "Missing AI-parsed job description." : null,
+    job.requirements.length === 0 ? "No requirements captured yet." : null,
+    !job.scorecard?.dimensions ? "Scorecard dimensions still need confirmation." : null,
+    !job.location ? "Location is not confirmed." : null,
+    !job.commercialTerms ? "Commercial terms placeholder has not been recorded." : null,
+  ].filter((item): item is string => item !== null);
+
+  const activationChecklist = [
+    job.description ? "Role brief is present." : "Role brief is still missing.",
+    job.requirements.length > 0 ? "At least one requirement exists." : "Requirements are still empty.",
+    job.scorecard ? "Scorecard has been created." : "Scorecard has not been created yet.",
+    job.commercialTerms ? "Commercial placeholder has been captured." : "Commercial placeholder is still missing.",
+    job.status === "activated" ? "Job is activated." : `Current status is ${job.status}.`,
+  ];
+
+  const gate = gateState.status === "ready" ? gateState.data : null;
+  const clarificationItems = gate?.clarificationQuestions?.length
+    ? gate.clarificationQuestions
+    : fallbackClarifications;
+
+  return (
+    <DetailPageShell title={`${job.title} intake`} eyebrow="Job intake review">
+      <section className="portal-panel">
+        <h2>AI parsed profile</h2>
+        <KeyValueList
+          items={[
+            ["Title", job.title],
+            ["Description", job.description],
+            ["Location", job.location],
+            ["Seniority", job.seniorityBand],
+            ["Role family", job.roleFamily],
+            ["Employment", job.employmentType],
+            ["Compensation", job.compensation],
+            ["Commercial terms", job.commercialTerms ? "Structured placeholder captured" : null],
+          ]}
+        />
+        <SafeList title="Commercial placeholder" items={commercialTermsSummary(job.commercialTerms)} />
+      </section>
+      <section className="portal-panel">
+        <h2>Scorecard</h2>
+        {job.scorecard ? (
           <KeyValueList
             items={[
-              ["Title", job.title],
-              ["Description", job.description],
-              ["Location", job.location],
-              ["Seniority", job.seniorityBand],
-              ["Role family", job.roleFamily],
-              ["Employment", job.employmentType],
-              ["Compensation", job.compensation],
+              ["Status", job.scorecard.status],
+              ["Dimensions", job.scorecard.dimensions],
+              ["Guidance", job.scorecard.scoringGuidance],
             ]}
           />
-        </section>
-        <section className="portal-panel">
-          <h2>Scorecard</h2>
-          {job.scorecard ? (
+        ) : <EmptyState title="No scorecard created for this job" />}
+      </section>
+      <section className="portal-panel">
+        <h2>Clarification</h2>
+        <SafeList title="Missing or uncertain items" items={clarificationItems} />
+        {clarificationItems.length === 0 ? <EmptyState title="No clarification blockers for this job" /> : null}
+      </section>
+      <section className="portal-panel">
+        <h2>Activation gate</h2>
+        {gateState.status === "ready" && gate ? (
+          <>
             <KeyValueList
               items={[
-                ["Status", job.scorecard.status],
-                ["Dimensions", job.scorecard.dimensions],
-                ["Guidance", job.scorecard.scoringGuidance],
+                ["Activation allowed", gate.activationAllowed ? "Yes" : "No"],
+                ["Requirements captured", gate.hasRequirements ? "Yes" : "No"],
+                ["Scorecard captured", gate.hasScorecard ? "Yes" : "No"],
+                ["Commercial placeholder", gate.hasCommercialTermsPlaceholder ? "Yes" : "No"],
               ]}
             />
-          ) : <EmptyState title="No scorecard created for this job" />}
-        </section>
-        <section className="portal-panel">
-          <h2>Clarification</h2>
-          <SafeList title="Missing or uncertain items" items={clarificationItems} />
-          {clarificationItems.length === 0 ? <EmptyState title="No clarification blockers for this job" /> : null}
-        </section>
-        <section className="portal-panel">
-          <h2>Activation checklist</h2>
-          <SafeList title="Checklist" items={activationChecklist} />
-        </section>
-        <div className="button-row">
-          <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}`}>Back to detail</NavLink>
-          <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}/matching`}>Open matching</NavLink>
-          <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}/outreach`}>Open outreach</NavLink>
-        </div>
-        <AuditDrawerButton entityType="job" entityId={job.jobId} />
-      </DetailPageShell>
-    );
-  });
+            <SafeList title="Blocker reasons" items={gate.blockerReasons} />
+          </>
+        ) : gateState.status === "loading" ? (
+          <EmptyState title="Checking activation gate..." />
+        ) : (
+          <EmptyState title="Activation gate is unavailable right now" />
+        )}
+      </section>
+      <section className="portal-panel">
+        <h2>Activation checklist</h2>
+        <SafeList title="Checklist" items={activationChecklist} />
+        <form className="stack-form" onSubmit={onActivate}>
+          <label>
+            Activation note
+            <textarea
+              rows={3}
+              value={activationReason}
+              onChange={(event) => setActivationReason(event.target.value)}
+              placeholder="Record why this job is ready to activate"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={
+              gateState.status !== "ready"
+              || !gateState.data.activationAllowed
+              || activateState.status === "loading"
+            }
+          >
+            Activate job
+          </button>
+        </form>
+        {activateState.status !== "idle" && activateState.status !== "loading" && activateState.status !== "ready" ? (
+          <ApiState status={activateState.status} error={loadableError(activateState)} />
+        ) : null}
+        {activateState.status === "ready" ? (
+          <p className="helper-copy">Job activated and workflow transition recorded.</p>
+        ) : null}
+      </section>
+      <div className="button-row">
+        <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}`}>Back to detail</NavLink>
+        <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}/matching`}>Open matching</NavLink>
+        <NavLink className="secondary-link" to={`/consultant/jobs/${job.jobId}/outreach`}>Open outreach</NavLink>
+      </div>
+      <AuditDrawerButton entityType="job" entityId={job.jobId} />
+    </DetailPageShell>
+  );
 }
 
 function MatchingPage() {
@@ -2085,6 +2259,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
   const [roleFamily, setRoleFamily] = useState(initialJob.roleFamily ?? "");
   const [employmentType, setEmploymentType] = useState(initialJob.employmentType ?? "");
   const [compensation, setCompensation] = useState(initialJob.compensation ?? "");
+  const [commercialTerms, setCommercialTerms] = useState<CommercialTermsDraft>(() => parseCommercialTerms(initialJob.commercialTerms));
   const [status, setStatus] = useState(initialJob.status);
   const [requirementLabel, setRequirementLabel] = useState("");
   const [requirementType, setRequirementType] = useState("must_have");
@@ -2104,6 +2279,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
       roleFamily: emptyToNull(roleFamily),
       employmentType: emptyToNull(employmentType),
       compensation: emptyToNull(compensation),
+      commercialTerms: serializeCommercialTerms(commercialTerms),
       status,
     }));
     setUpdateState(next);
@@ -2154,6 +2330,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
           ["Seniority", job.seniorityBand],
           ["Role family", job.roleFamily],
           ["Employment", job.employmentType],
+          ["Commercial terms", job.commercialTerms ? "Structured placeholder captured" : null],
         ]}
       />
       <section className="portal-panel">
@@ -2166,6 +2343,16 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
           <label>Role family<input value={roleFamily} onChange={(event) => setRoleFamily(event.target.value)} /></label>
           <label>Employment type<input value={employmentType} onChange={(event) => setEmploymentType(event.target.value)} /></label>
           <label>Compensation<input value={compensation} onChange={(event) => setCompensation(event.target.value)} /></label>
+          <div className="portal-panel client-nested-panel">
+            <div className="section-header">
+              <div>
+                <span className="portal-eyebrow">Commercial placeholder</span>
+                <h3>Activation-gate contract minimum</h3>
+              </div>
+            </div>
+            <CommercialTermsEditor value={commercialTerms} onChange={setCommercialTerms} />
+            <SafeList title="Current structured terms" items={commercialTermsSummary(serializeCommercialTerms(commercialTerms))} />
+          </div>
           <label>
             Status
             <select value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -2696,6 +2883,67 @@ function KeyValueList({ items }: { items: Array<[string, string | null | undefin
         </div>
       ))}
     </dl>
+  );
+}
+
+function CommercialTermsEditor({
+  value,
+  onChange,
+}: {
+  value: CommercialTermsDraft;
+  onChange: (next: CommercialTermsDraft) => void;
+}) {
+  function update<K extends keyof CommercialTermsDraft>(key: K, nextValue: CommercialTermsDraft[K]) {
+    onChange({
+      ...value,
+      [key]: nextValue,
+    });
+  }
+
+  return (
+    <div className="client-commercial-grid">
+      <label>
+        Fee model
+        <input
+          value={value.feeModel}
+          onChange={(event) => update("feeModel", event.target.value)}
+          placeholder="retained / contingent"
+        />
+      </label>
+      <label>
+        Fee range or rate
+        <input
+          value={value.feeRangeOrRate}
+          onChange={(event) => update("feeRangeOrRate", event.target.value)}
+          placeholder="20%-25% annual base"
+        />
+      </label>
+      <label>
+        Payment terms
+        <input
+          value={value.paymentTerms}
+          onChange={(event) => update("paymentTerms", event.target.value)}
+          placeholder="30 days from invoice"
+        />
+      </label>
+      <label>
+        Contract status
+        <input
+          value={value.contractStatus}
+          onChange={(event) => update("contractStatus", event.target.value)}
+          placeholder="placeholder_confirmed"
+        />
+      </label>
+      <label className="wide-field">
+        Notes
+        <textarea
+          rows={3}
+          value={value.notes}
+          onChange={(event) => update("notes", event.target.value)}
+          placeholder="Optional commercial notes kept in the consultant-safe surface"
+        />
+      </label>
+    </div>
   );
 }
 

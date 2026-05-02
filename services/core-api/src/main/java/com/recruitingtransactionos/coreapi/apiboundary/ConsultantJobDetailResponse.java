@@ -13,6 +13,7 @@ public record ConsultantJobDetailResponse(
     String roleFamily,
     String employmentType,
     String compensation,
+    String commercialTerms,
     String status,
     String ownerConsultantId,
     String activatedAt,
@@ -36,6 +37,7 @@ public record ConsultantJobDetailResponse(
     roleFamily = ApiBoundaryContractRules.sanitizeExternalText(roleFamily, null);
     employmentType = ApiBoundaryContractRules.sanitizeExternalText(employmentType, null);
     compensation = ApiBoundaryContractRules.sanitizeExternalText(compensation, null);
+    commercialTerms = ApiBoundaryContractRules.sanitizeConsultantVisibleText(commercialTerms, null);
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
     updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");

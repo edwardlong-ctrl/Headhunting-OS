@@ -2,6 +2,7 @@ package com.recruitingtransactionos.coreapi.apiboundary.consultant;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCompanyDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCompanySummaryResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobActivationGateResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantShortlistDetailResponse;
@@ -29,6 +30,7 @@ import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
 import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
+import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
@@ -47,6 +49,7 @@ public final class ConsultantApiQueryService {
 
   private final CompanyService companyService;
   private final JobService jobService;
+  private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
   private final PermissionEnforcer permissionEnforcer;
 
@@ -54,17 +57,37 @@ public final class ConsultantApiQueryService {
   public ConsultantApiQueryService(
       CompanyService companyService,
       JobService jobService,
+      JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService) {
-    this(companyService, jobService, shortlistService, new PermissionEnforcer(new PermissionEvaluator()));
+    this(
+        companyService,
+        jobService,
+        jobIntakeApplicationService,
+        shortlistService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+  }
+
+  public ConsultantApiQueryService(
+      CompanyService companyService,
+      JobService jobService,
+      ShortlistService shortlistService) {
+    this(
+        companyService,
+        jobService,
+        null,
+        shortlistService,
+        new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   ConsultantApiQueryService(
       CompanyService companyService,
       JobService jobService,
+      JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
+    this.jobIntakeApplicationService = jobIntakeApplicationService;
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
@@ -148,6 +171,23 @@ public final class ConsultantApiQueryService {
               jobService.findActiveScorecardByJobIdAndOrganizationId(organizationId, jobId);
           return ConsultantJobResponseMapper.toDetail(job, requirements, scorecard);
         });
+  }
+
+  public ConsultantJobActivationGateResponse getJobActivationGate(
+      AccessRequest accessRequest, UUID organizationId, JobId jobId) {
+    requireConsultantJobRead(accessRequest);
+    if (jobIntakeApplicationService == null) {
+      throw new IllegalStateException("jobIntakeApplicationService_not_configured");
+    }
+    var gate = jobIntakeApplicationService.activationGate(organizationId, jobId);
+    return new ConsultantJobActivationGateResponse(
+        jobId.value().toString(),
+        gate.activationAllowed(),
+        gate.clarificationQuestions(),
+        gate.blockerReasons(),
+        gate.hasScorecard(),
+        gate.hasRequirements(),
+        gate.hasCommercialTermsPlaceholder());
   }
 
   // ── Shortlists ──────────────────────────────────────────────────────────────

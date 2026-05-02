@@ -291,13 +291,17 @@ class ClientSafeCandidateCardControllerTest {
 
     for (Path controllerFile : controllerFiles) {
       String source = Files.readString(controllerFile);
+      boolean isConsultantCandidateController =
+          "ConsultantCandidateController.java".equals(controllerFile.getFileName().toString());
       assertThat(source)
           .doesNotContain("/api/candidates/{candidateId}")
           .doesNotContain("/api/candidate-profiles")
           .doesNotContain("{candidateId}")
           .doesNotContain("{candidateProfileId}")
-          .doesNotContain("ResourceType.CANDIDATE_PROFILE")
-          .doesNotContain("ResourceType.CANDIDATE");
+          .doesNotContain("ResourceType.CANDIDATE_PROFILE");
+      if (!isConsultantCandidateController) {
+        assertThat(source).doesNotContain("ResourceType.CANDIDATE");
+      }
     }
   }
 

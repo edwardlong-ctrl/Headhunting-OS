@@ -51,6 +51,7 @@ public final class ConsultantJobResponseMapper {
         job.roleFamily(),
         job.employmentType(),
         job.compensation(),
+        job.commercialTerms(),
         job.status().wireValue(),
         job.ownerConsultantId() != null
             ? job.ownerConsultantId().toString() : null,

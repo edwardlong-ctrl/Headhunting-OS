@@ -12,6 +12,7 @@ import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPrefer
 import com.recruitingtransactionos.coreapi.company.port.CompanyContactPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyPreferencePersistencePort;
+import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobRequirementPersistencePort;
@@ -19,12 +20,15 @@ import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobScorecardPersi
 import com.recruitingtransactionos.coreapi.job.port.JobPersistencePort;
 import com.recruitingtransactionos.coreapi.job.port.JobRequirementPersistencePort;
 import com.recruitingtransactionos.coreapi.job.port.JobScorecardPersistencePort;
+import com.recruitingtransactionos.coreapi.job.service.JobActivationGateService;
+import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -85,6 +89,32 @@ public class RecruitingDomainConfiguration {
       JobRequirementPersistencePort requirementPort,
       JobScorecardPersistencePort scorecardPort) {
     return new JobService(jobPort, requirementPort, scorecardPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(JobActivationGateService.class)
+  JobActivationGateService jobActivationGateService() {
+    return new JobActivationGateService();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CompanyIntakeApplicationService.class)
+  CompanyIntakeApplicationService companyIntakeApplicationService(CompanyService companyService) {
+    return new CompanyIntakeApplicationService(companyService);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(JobIntakeApplicationService.class)
+  JobIntakeApplicationService jobIntakeApplicationService(
+      JobService jobService,
+      CompanyService companyService,
+      JobActivationGateService jobActivationGateService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
+    return new JobIntakeApplicationService(
+        jobService,
+        companyService,
+        jobActivationGateService,
+        workflowTransitionAuditService);
   }
 
   @Bean

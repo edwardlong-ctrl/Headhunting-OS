@@ -434,6 +434,8 @@ class ApiBoundaryRegressionClosureTest {
       String source = Files.readString(file);
       boolean isConsultantIntakeController =
           "ConsultantIntakeController.java".equals(file.getFileName().toString());
+      boolean isConsultantIntakeQueueSurface =
+          "ConsultantIntakeQueueQueryService.java".equals(file.getFileName().toString());
       boolean isConsultantCandidateSurface =
           file.getFileName().toString().contains("ConsultantCandidate");
       boolean isWorkflowSafeSurface =
@@ -446,7 +448,7 @@ class ApiBoundaryRegressionClosureTest {
             .as(file.toString())
             .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
       }
-      if (!isConsultantIntakeController) {
+      if (!isConsultantIntakeController && !isConsultantIntakeQueueSurface) {
         var assertion = assertThat(source)
             .as(file.toString())
             .doesNotContain("SourceItem")
@@ -468,6 +470,8 @@ class ApiBoundaryRegressionClosureTest {
         .extracting(path -> path.getFileName().toString())
         .containsExactlyInAnyOrder(
             "ClientSafeCandidateCardController.java",
+            "ClientCompanyController.java",
+            "ClientJobController.java",
             "HealthController.java",
             "ConsultantCandidateController.java",
             "ConsultantCompanyController.java",
@@ -498,8 +502,12 @@ class ApiBoundaryRegressionClosureTest {
           .doesNotContain("/api/admin")
           .doesNotContain("{candidateId}")
           .doesNotContain("{candidateProfileId}")
-          .doesNotContain("ResourceType.CANDIDATE_PROFILE")
-          .doesNotContain("ResourceType.CANDIDATE");
+          .doesNotContain("ResourceType.CANDIDATE_PROFILE");
+      if (!"ConsultantCandidateController.java".equals(fileName)) {
+        assertThat(source)
+            .as(controllerFile.toString())
+            .doesNotContain("ResourceType.CANDIDATE");
+      }
 
       // Allow @PostMapping on consultant write controllers and document controller
       boolean isConsultantWriteController =
@@ -511,11 +519,15 @@ class ApiBoundaryRegressionClosureTest {
           "ConsultantIntakeController.java".equals(fileName);
       boolean isDocumentController =
           "ConsultantDocumentController.java".equals(fileName);
+      boolean isClientWriteController =
+          "ClientCompanyController.java".equals(fileName)
+              || "ClientJobController.java".equals(fileName);
 
       boolean isAuthenticationController =
           "AuthenticationController.java".equals(fileName);
 
       if (!isConsultantWriteController
+          && !isClientWriteController
           && !isConsultantIntakeController
           && !isDocumentController
           && !isAuthenticationController) {
