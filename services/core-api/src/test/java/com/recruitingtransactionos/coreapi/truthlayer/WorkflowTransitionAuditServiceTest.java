@@ -16,6 +16,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
+import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionDecision;
 import java.lang.reflect.Modifier;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -247,7 +248,7 @@ class WorkflowTransitionAuditServiceTest {
   @Test
   void serviceDoesNotExposeTargetEntityStateMutationOrLookupDependencies() {
     assertThat(publicDeclaredMethodNames(WorkflowTransitionAuditService.class))
-        .containsExactly("record");
+        .containsExactly("preview", "record");
     assertThat(Stream.of(WorkflowTransitionAuditService.class.getDeclaredFields())
         .filter(field -> !Modifier.isStatic(field.getModifiers()))
         .map(field -> field.getType().getSimpleName())
@@ -257,6 +258,25 @@ class WorkflowTransitionAuditServiceTest {
             "WorkflowTransitionLegalityPolicy",
             "WorkflowEventService",
             "WorkflowEntityStatePort");
+  }
+
+  @Test
+  void previewReturnsBlockerWhenActualStateNoLongerMatchesBeforeState() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+    WorkflowTransitionAuditService service = new WorkflowTransitionAuditService(
+        new WorkflowEventService(port),
+        new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) {
+            return Optional.of("{\"status\":\"available\"}");
+          }
+        });
+
+    WorkflowTransitionDecision decision = service.preview(requestBuilder().build());
+
+    assertThat(decision.allowed()).isFalse();
+    assertThat(decision.hasBlocker("before_state_mismatch")).isTrue();
+    assertThat(port.commands).isEmpty();
   }
 
   private static WorkflowTransitionAuditService service(WorkflowEventPort workflowEventPort) {

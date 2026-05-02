@@ -541,6 +541,16 @@ class ConsentDisclosureServiceTest {
           .filter(record -> record.consentRecordRef().equals(consentRecordRef))
           .findFirst();
     }
+
+    @Override
+    public Optional<ConsentRecord> findByWorkflowEntityId(UUID organizationId, UUID workflowEntityId) {
+      return appendedRecords.stream()
+          .filter(record -> record.organizationId().equals(organizationId))
+          .filter(record -> ConsentDisclosureWorkflowEntityIds.consentEntityId(
+              organizationId,
+              record.consentRecordRef()).equals(workflowEntityId))
+          .findFirst();
+    }
   }
 
   private static final class InMemoryUnlockDecisionPort implements UnlockDecisionPort {
@@ -607,6 +617,18 @@ class ConsentDisclosureServiceTest {
       return appendedRecords.stream()
           .filter(record -> record.organizationId().equals(organizationId))
           .filter(record -> record.disclosureRecordRef().equals(disclosureRecordRef))
+          .findFirst();
+    }
+
+    @Override
+    public Optional<DisclosureRecord> findByWorkflowEntityId(
+        UUID organizationId,
+        UUID workflowEntityId) {
+      return appendedRecords.stream()
+          .filter(record -> record.organizationId().equals(organizationId))
+          .filter(record -> ConsentDisclosureWorkflowEntityIds.disclosureEntityId(
+              organizationId,
+              record.disclosureRecordRef()).equals(workflowEntityId))
           .findFirst();
     }
 

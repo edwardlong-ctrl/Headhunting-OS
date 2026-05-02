@@ -70,6 +70,16 @@ public class JdbcWorkflowEntityStatePort implements WorkflowEntityStatePort {
           FROM privacy.disclosure_record
           WHERE organization_id = ? AND workflow_entity_id = ?
           """;
+      case "recruiting:placement", "placement:placement" -> """
+          SELECT status
+          FROM recruiting.placement
+          WHERE organization_id = ? AND placement_id = ?
+          """;
+      case "recruiting:commission", "commission:commission" -> """
+          SELECT status
+          FROM recruiting.commission
+          WHERE organization_id = ? AND commission_id = ?
+          """;
       default -> null;
     };
   }

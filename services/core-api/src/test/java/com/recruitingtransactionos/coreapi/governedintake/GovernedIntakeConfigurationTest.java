@@ -7,6 +7,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.consultant.ConsultantDocu
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.VirusScanPort;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
@@ -32,6 +33,7 @@ class GovernedIntakeConfigurationTest {
         .run(context -> {
           assertThat(context).hasSingleBean(DocumentStore.class);
           assertThat(context).hasSingleBean(VirusScanPort.class);
+          assertThat(context).hasSingleBean(WorkflowEntityStatePort.class);
           assertThat(context).hasSingleBean(WorkflowTransitionAuditService.class);
           assertThat(context).hasSingleBean(DocumentUploadService.class);
           assertThat(context).hasSingleBean(ConsultantDocumentController.class);

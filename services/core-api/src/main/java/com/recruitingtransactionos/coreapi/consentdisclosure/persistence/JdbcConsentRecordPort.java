@@ -60,6 +60,25 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
         AND consent_record_ref = ?
       """;
 
+  private static final String FIND_BY_WORKFLOW_ENTITY_ID_SQL = """
+      SELECT
+        consent_record_ref,
+        organization_id,
+        candidate_ref,
+        candidate_profile_ref,
+        job_ref,
+        profile_version,
+        consent_text_version,
+        status,
+        permitted_disclosure_levels,
+        confirmed_at,
+        expires_at,
+        revoked
+      FROM privacy.consent_record
+      WHERE organization_id = ?
+        AND workflow_entity_id = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcConsentRecordPort(DataSource dataSource) {
@@ -115,27 +134,52 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
         if (!resultSet.next()) {
           return Optional.empty();
         }
-        return Optional.of(new ConsentRecord(
-            resultSet.getString("consent_record_ref"),
-            resultSet.getObject("organization_id", UUID.class),
-            resultSet.getString("candidate_ref"),
-            resultSet.getString("candidate_profile_ref"),
-            resultSet.getString("job_ref"),
-            resultSet.getString("profile_version"),
-            resultSet.getString("consent_text_version"),
-            ConsentStatus.fromWireValue(resultSet.getString("status")),
-            Arrays.stream((String[]) resultSet.getArray("permitted_disclosure_levels").getArray())
-                .map(DisclosureLevel::fromWireValue)
-                .collect(java.util.stream.Collectors.toSet()),
-            resultSet.getObject("confirmed_at", OffsetDateTime.class).toInstant(),
-            optionalInstant(resultSet, "expires_at"),
-            resultSet.getBoolean("revoked")));
+        return Optional.of(mapConsentRecord(resultSet));
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find consent record", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
+  }
+
+  @Override
+  public Optional<ConsentRecord> findByWorkflowEntityId(UUID organizationId, UUID workflowEntityId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(workflowEntityId, "workflowEntityId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_WORKFLOW_ENTITY_ID_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setObject(2, workflowEntityId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(mapConsentRecord(resultSet));
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find consent record by workflow entity id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  private static ConsentRecord mapConsentRecord(ResultSet resultSet) throws SQLException {
+    return new ConsentRecord(
+        resultSet.getString("consent_record_ref"),
+        resultSet.getObject("organization_id", UUID.class),
+        resultSet.getString("candidate_ref"),
+        resultSet.getString("candidate_profile_ref"),
+        resultSet.getString("job_ref"),
+        resultSet.getString("profile_version"),
+        resultSet.getString("consent_text_version"),
+        ConsentStatus.fromWireValue(resultSet.getString("status")),
+        Arrays.stream((String[]) resultSet.getArray("permitted_disclosure_levels").getArray())
+            .map(DisclosureLevel::fromWireValue)
+            .collect(java.util.stream.Collectors.toSet()),
+        resultSet.getObject("confirmed_at", OffsetDateTime.class).toInstant(),
+        optionalInstant(resultSet, "expires_at"),
+        resultSet.getBoolean("revoked"));
   }
 
   private static java.time.Instant optionalInstant(ResultSet resultSet, String column)

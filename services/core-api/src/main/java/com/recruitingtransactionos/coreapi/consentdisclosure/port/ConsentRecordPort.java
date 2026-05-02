@@ -9,4 +9,6 @@ public interface ConsentRecordPort {
   ConsentRecord append(ConsentRecord consentRecord);
 
   Optional<ConsentRecord> findByRefAndOrganizationId(UUID organizationId, String consentRecordRef);
+
+  Optional<ConsentRecord> findByWorkflowEntityId(UUID organizationId, UUID workflowEntityId);
 }

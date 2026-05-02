@@ -64,8 +64,10 @@ import {
 import {
   fetchConsultantWorkflow,
   fetchConsultantAuditDrawer,
+  fetchConsultantWorkflowEntityState,
   type ConsultantWorkflowFilters,
   type ConsultantAuditDrawer,
+  type ConsultantWorkflowEntityState,
   type ConsultantWorkflowEvent,
   type ConsultantWorkflowTimeline,
 } from "../../api/consultantWorkflow";
@@ -304,6 +306,21 @@ function formatDate(value?: string | null): string {
   } catch {
     return value;
   }
+}
+
+function describeWorkflowTransition(item: ConsultantWorkflowEvent): string {
+  const before = item.beforeStatus ?? "unknown";
+  const after = item.afterStatus ?? "unknown";
+  return `${before} -> ${after}`;
+}
+
+function describeTransitionOption(option: ConsultantWorkflowEntityState["transitionOptions"][number]): string {
+  const target = option.targetStatus ?? "unknown";
+  if (option.allowed) {
+    return `${option.actionCode} -> ${target}`;
+  }
+  const blocker = option.blockers[0];
+  return `${option.actionCode} blocked -> ${target}${blocker?.safeReason ? ` (${blocker.safeReason})` : ""}`;
 }
 
 function parseCommercialTerms(value?: string | null): CommercialTermsDraft {
@@ -2594,6 +2611,23 @@ function WorkflowPage() {
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
   const [entityIdFilter, setEntityIdFilter] = useState("");
   const [offset, setOffset] = useState(0);
+  const entityState = useLoadable(
+    () => {
+      if (!entityTypeFilter || !entityIdFilter.trim()) {
+        return Promise.resolve({
+          status: "ready" as const,
+          data: {
+            entityType: entityTypeFilter,
+            entityId: entityIdFilter.trim(),
+            currentStatus: null,
+            transitionOptions: [],
+          },
+        });
+      }
+      return fetchConsultantWorkflowEntityState(entityTypeFilter, entityIdFilter.trim());
+    },
+    [entityTypeFilter, entityIdFilter],
+  );
   const filters: ConsultantWorkflowFilters = {
     entityType: entityTypeFilter || undefined,
     entityId: entityIdFilter.trim() || undefined,
@@ -2640,11 +2674,35 @@ function WorkflowPage() {
       <p className="helper-copy pagination-summary">
         {describeWorkflowPageWindow(result.items.length, result.offset)}
       </p>
+      {entityTypeFilter && entityIdFilter.trim() ? (
+        renderLoadable(entityState, (entityWorkflow) => (
+          <section className="portal-panel">
+            <div className="section-header">
+              <div>
+                <span className="portal-eyebrow">Workflow state</span>
+                <h3>{entityWorkflow.entityType}:{entityWorkflow.entityId}</h3>
+              </div>
+              <StatusBadge value={entityWorkflow.currentStatus ?? "unknown"} />
+            </div>
+            {entityWorkflow.transitionOptions.length > 0 ? (
+              <SafeList
+                title="Legal next actions"
+                items={entityWorkflow.transitionOptions.map((option) => describeTransitionOption(option))}
+              />
+            ) : (
+              <p className="helper-copy">Enter both entity type and entity id to preview allowed workflow actions.</p>
+            )}
+          </section>
+        ))
+      ) : (
+        <p className="helper-copy">Add both entity type and entity id to preview current workflow state and blockers.</p>
+      )}
       <DataTable
-        headers={["Action", "Entity", "Risk", "Occurred"]}
+        headers={["Action", "Entity", "Transition", "Risk", "Occurred"]}
         rows={result.items.map((item) => [
           item.actionCode,
           `${item.entityType}:${item.entityId}`,
+          describeWorkflowTransition(item),
           <StatusBadge value={item.riskTier} />,
           formatDate(item.occurredAt),
         ])}
@@ -2714,6 +2772,7 @@ function SettingsPage({ session }: { session: AuthSession }) {
 function AuditDrawerButton({ entityType, entityId }: { entityType: string; entityId: string }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<Loadable<ConsultantAuditDrawer>>({ status: "idle" });
+  const [entityState, setEntityState] = useState<Loadable<ConsultantWorkflowEntityState>>({ status: "idle" });
 
   useEffect(() => {
     let active = true;
@@ -2723,9 +2782,15 @@ function AuditDrawerButton({ entityType, entityId }: { entityType: string; entit
       };
     }
     setState({ status: "loading" });
+    setEntityState({ status: "loading" });
     fetchConsultantAuditDrawer(entityType, entityId).then((next) => {
       if (active) {
         setState(next);
+      }
+    });
+    fetchConsultantWorkflowEntityState(entityType, entityId).then((next) => {
+      if (active) {
+        setEntityState(next);
       }
     });
     return () => {
@@ -2747,10 +2812,16 @@ function AuditDrawerButton({ entityType, entityId }: { entityType: string; entit
       {!open ? <p className="helper-copy">Open the drawer to inspect workflow events and reasons for this entity.</p> : null}
       {open ? renderLoadable(state, (drawer) => (
         <div className="portal-panel">
+          {renderLoadable(entityState, (entityWorkflow) => (
+            <SafeList
+              title={`Current state: ${entityWorkflow.currentStatus ?? "unknown"}`}
+              items={entityWorkflow.transitionOptions.map((option) => describeTransitionOption(option))}
+            />
+          ))}
           {drawer.items.length === 0 ? (
             <EmptyState title="No audit events for this entity" />
           ) : (
-            <SafeList title="Recent workflow events" items={drawer.items.map((item) => `${item.actionCode} · ${formatDate(item.occurredAt)} · ${item.reason}`)} />
+            <SafeList title="Recent workflow events" items={drawer.items.map((item) => `${describeWorkflowTransition(item)} · ${item.actionCode} · ${formatDate(item.occurredAt)} · ${item.reason}`)} />
           )}
         </div>
       )) : null}

@@ -61,6 +61,16 @@ public final class ConsultantWorkflowController {
         buildAccessRequest(), principal.organizationId(), entityType, parseUuid(entityId), limit)));
   }
 
+  @GetMapping("/entity-state")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> entityState(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestParam String entityType,
+      @RequestParam String entityId) {
+    requireConsultantRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(workflowSurfaceService.entityState(
+        buildAccessRequest(), principal.organizationId(), entityType, parseUuid(entityId))));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(AccessDeniedException exception) {
     return ResponseEntity.status(HttpStatus.FORBIDDEN)

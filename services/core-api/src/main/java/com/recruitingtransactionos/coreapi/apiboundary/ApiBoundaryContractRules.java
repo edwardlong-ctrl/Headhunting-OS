@@ -89,7 +89,16 @@ public final class ApiBoundaryContractRules {
           "occurredAt");
 
   private static final Set<String> CONSULTANT_WORKFLOW_TIMELINE_RESPONSE_FIELDS =
-      Set.of("items", "limit", "offset", "hasMore");
+      Set.of("items", "entityStates", "limit", "offset", "hasMore");
+
+  private static final Set<String> CONSULTANT_WORKFLOW_BLOCKER_RESPONSE_FIELDS =
+      Set.of("code", "safeReason");
+
+  private static final Set<String> CONSULTANT_WORKFLOW_TRANSITION_OPTION_RESPONSE_FIELDS =
+      Set.of("actionCode", "currentStatus", "targetStatus", "allowed", "blockers");
+
+  private static final Set<String> CONSULTANT_WORKFLOW_ENTITY_STATE_RESPONSE_FIELDS =
+      Set.of("entityType", "entityId", "currentStatus", "transitionOptions");
 
   private static final Set<String> CONSULTANT_AUDIT_DRAWER_RESPONSE_FIELDS =
       Set.of("entityType", "entityId", "items");
@@ -339,6 +348,40 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantWorkflowTimelineResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_WORKFLOW_TIMELINE_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantWorkflowBlockerResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_WORKFLOW_BLOCKER_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantWorkflowBlockerResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_WORKFLOW_BLOCKER_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantWorkflowTransitionOptionResponseField(
+      String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_WORKFLOW_TRANSITION_OPTION_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantWorkflowTransitionOptionResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_WORKFLOW_TRANSITION_OPTION_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantWorkflowEntityStateResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_WORKFLOW_ENTITY_STATE_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantWorkflowEntityStateResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_WORKFLOW_ENTITY_STATE_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedConsultantAuditDrawerResponseField(String fieldName) {

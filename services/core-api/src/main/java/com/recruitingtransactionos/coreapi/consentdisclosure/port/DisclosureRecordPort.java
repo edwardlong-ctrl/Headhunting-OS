@@ -14,6 +14,10 @@ public interface DisclosureRecordPort {
       UUID organizationId,
       String disclosureRecordRef);
 
+  Optional<DisclosureRecord> findByWorkflowEntityId(
+      UUID organizationId,
+      UUID workflowEntityId);
+
   DisclosureRecord transitionToIdentityDisclosed(
       UUID organizationId,
       String disclosureRecordRef,

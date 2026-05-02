@@ -67,6 +67,26 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
         AND disclosure_record_ref = ?
       """;
 
+  private static final String FIND_BY_WORKFLOW_ENTITY_ID_SQL = """
+      SELECT
+        disclosure_record_ref,
+        organization_id,
+        candidate_ref,
+        candidate_profile_ref,
+        job_ref,
+        client_ref,
+        status,
+        disclosure_level,
+        redaction_level,
+        unlock_decision_ref,
+        consent_record_ref,
+        workflow_event_id,
+        decided_at
+      FROM privacy.disclosure_record
+      WHERE organization_id = ?
+        AND workflow_entity_id = ?
+      """;
+
   private static final String TRANSITION_TO_IDENTITY_DISCLOSED_SQL = """
       UPDATE privacy.disclosure_record
       SET status = ?,
@@ -146,25 +166,34 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
           return Optional.empty();
         }
         UUID workflowEventId = resultSet.getObject("workflow_event_id", UUID.class);
-        return Optional.of(new DisclosureRecord(
-            resultSet.getString("disclosure_record_ref"),
-            resultSet.getObject("organization_id", UUID.class),
-            resultSet.getString("candidate_ref"),
-            resultSet.getString("candidate_profile_ref"),
-            resultSet.getString("job_ref"),
-            resultSet.getString("client_ref"),
-            DisclosureStatus.fromWireValue(resultSet.getString("status")),
-            DisclosureLevel.fromWireValue(resultSet.getString("disclosure_level")),
-            RedactionLevel.fromWireValue(resultSet.getString("redaction_level")),
-            resultSet.getString("unlock_decision_ref"),
-            resultSet.getString("consent_record_ref"),
-            workflowEventId == null
-                ? Optional.empty()
-                : Optional.of(new WorkflowEventId(workflowEventId)),
-            resultSet.getObject("decided_at", OffsetDateTime.class).toInstant()));
+        return Optional.of(mapDisclosureRecord(resultSet, workflowEventId));
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find disclosure record", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Optional<DisclosureRecord> findByWorkflowEntityId(
+      UUID organizationId,
+      UUID workflowEntityId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(workflowEntityId, "workflowEntityId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_WORKFLOW_ENTITY_ID_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setObject(2, workflowEntityId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        UUID workflowEventId = resultSet.getObject("workflow_event_id", UUID.class);
+        return Optional.of(mapDisclosureRecord(resultSet, workflowEventId));
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find disclosure record by workflow entity id", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
@@ -197,5 +226,25 @@ public final class JdbcDisclosureRecordPort implements DisclosureRecordPort {
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
+  }
+
+  private static DisclosureRecord mapDisclosureRecord(ResultSet resultSet, UUID workflowEventId)
+      throws SQLException {
+    return new DisclosureRecord(
+        resultSet.getString("disclosure_record_ref"),
+        resultSet.getObject("organization_id", UUID.class),
+        resultSet.getString("candidate_ref"),
+        resultSet.getString("candidate_profile_ref"),
+        resultSet.getString("job_ref"),
+        resultSet.getString("client_ref"),
+        DisclosureStatus.fromWireValue(resultSet.getString("status")),
+        DisclosureLevel.fromWireValue(resultSet.getString("disclosure_level")),
+        RedactionLevel.fromWireValue(resultSet.getString("redaction_level")),
+        resultSet.getString("unlock_decision_ref"),
+        resultSet.getString("consent_record_ref"),
+        workflowEventId == null
+            ? Optional.empty()
+            : Optional.of(new WorkflowEventId(workflowEventId)),
+        resultSet.getObject("decided_at", OffsetDateTime.class).toInstant());
   }
 }

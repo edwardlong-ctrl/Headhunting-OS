@@ -38,7 +38,9 @@ import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemCa
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventSourceReferenceLookupPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
+import com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
@@ -100,9 +102,15 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
+  WorkflowEntityStatePort workflowEntityStatePort(DataSource dataSource) {
+    return new JdbcWorkflowEntityStatePort(dataSource);
+  }
+
+  @Bean
   WorkflowTransitionAuditService workflowTransitionAuditService(
-      WorkflowEventService workflowEventService, DataSource dataSource) {
-    return new WorkflowTransitionAuditService(workflowEventService, new com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort(dataSource));
+      WorkflowEventService workflowEventService,
+      WorkflowEntityStatePort workflowEntityStatePort) {
+    return new WorkflowTransitionAuditService(workflowEventService, workflowEntityStatePort);
   }
 
   @Bean

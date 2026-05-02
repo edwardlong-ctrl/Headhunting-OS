@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowAuditReadPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
+import com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditQuery;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditRecord;
@@ -23,6 +24,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -153,6 +155,42 @@ class WorkflowTransitionAuditPostgresIntegrationTest {
         .doesNotContain(otherOrg);
   }
 
+  @Test
+  void workflowEntityStatePortReadsPlacementAndCommissionStatuses() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-0000000d0401");
+    UUID actorId = uuid("00000000-0000-0000-0000-0000000d0402");
+    UUID companyId = uuid("00000000-0000-0000-0000-0000000d0403");
+    UUID jobId = uuid("00000000-0000-0000-0000-0000000d0404");
+    UUID candidateId = uuid("00000000-0000-0000-0000-0000000d0405");
+    UUID placementId = uuid("00000000-0000-0000-0000-0000000d0406");
+    UUID commissionId = uuid("00000000-0000-0000-0000-0000000d0407");
+    insertOrganizationAndUser(organizationId, actorId);
+    insertWorkflowStateFixtures(
+        organizationId,
+        actorId,
+        companyId,
+        jobId,
+        candidateId,
+        placementId,
+        commissionId);
+
+    JdbcWorkflowEntityStatePort statePort = new JdbcWorkflowEntityStatePort(dataSource);
+
+    Optional<String> placementState = statePort.getCurrentStateJson(
+        organizationId,
+        "recruiting",
+        "PLACEMENT",
+        placementId);
+    Optional<String> commissionState = statePort.getCurrentStateJson(
+        organizationId,
+        "recruiting",
+        "COMMISSION",
+        commissionId);
+
+    assertThat(placementState).hasValue("{\"status\":\"invoice_sent\"}");
+    assertThat(commissionState).hasValue("{\"status\":\"pending\"}");
+  }
+
   private static WorkflowTransitionAuditRequest request(
       UUID organizationId,
       UUID candidateId,
@@ -189,6 +227,79 @@ class WorkflowTransitionAuditPostgresIntegrationTest {
 
   private static WorkflowAuditQueryService queryService() {
     return new WorkflowAuditQueryService(new JdbcWorkflowAuditReadPort(dataSource));
+  }
+
+  private static void insertWorkflowStateFixtures(
+      UUID organizationId,
+      UUID actorId,
+      UUID companyId,
+      UUID jobId,
+      UUID candidateId,
+      UUID placementId,
+      UUID commissionId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement company = connection.prepareStatement("""
+            INSERT INTO recruiting.company (
+              company_id, organization_id, name, status, owner_consultant_id
+            )
+            VALUES (?, ?, ?, 'active', ?)
+            """);
+        PreparedStatement job = connection.prepareStatement("""
+            INSERT INTO recruiting.job (
+              job_id, organization_id, company_id, title, status, owner_consultant_id
+            )
+            VALUES (?, ?, ?, ?, 'activated', ?)
+            """);
+        PreparedStatement candidate = connection.prepareStatement("""
+            INSERT INTO recruiting.candidate (
+              candidate_id, organization_id, status, privacy_status, owner_consultant_id
+            )
+            VALUES (?, ?, 'available', 'internal_only', ?)
+            """);
+        PreparedStatement placement = connection.prepareStatement("""
+            INSERT INTO recruiting.placement (
+              placement_id, organization_id, job_id, candidate_id, company_id, status, metadata
+            )
+            VALUES (?, ?, ?, ?, ?, 'invoice_sent', '{}'::jsonb)
+            """);
+        PreparedStatement commission = connection.prepareStatement("""
+            INSERT INTO recruiting.commission (
+              commission_id, organization_id, placement_id, consultant_id,
+              status, commission_type, metadata
+            )
+            VALUES (?, ?, ?, ?, 'pending', 'full_fee', '{}'::jsonb)
+            """)) {
+      company.setObject(1, companyId);
+      company.setObject(2, organizationId);
+      company.setString(3, "Workflow State Fixtures Co");
+      company.setObject(4, actorId);
+      company.executeUpdate();
+
+      job.setObject(1, jobId);
+      job.setObject(2, organizationId);
+      job.setObject(3, companyId);
+      job.setString(4, "Workflow State Fixtures Job");
+      job.setObject(5, actorId);
+      job.executeUpdate();
+
+      candidate.setObject(1, candidateId);
+      candidate.setObject(2, organizationId);
+      candidate.setObject(3, actorId);
+      candidate.executeUpdate();
+
+      placement.setObject(1, placementId);
+      placement.setObject(2, organizationId);
+      placement.setObject(3, jobId);
+      placement.setObject(4, candidateId);
+      placement.setObject(5, companyId);
+      placement.executeUpdate();
+
+      commission.setObject(1, commissionId);
+      commission.setObject(2, organizationId);
+      commission.setObject(3, placementId);
+      commission.setObject(4, actorId);
+      commission.executeUpdate();
+    }
   }
 
   private static void insertOrganizationAndUser(UUID organizationId, UUID userId)

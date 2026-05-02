@@ -10,6 +10,7 @@ public sealed interface ApiSafeResponseBody
         ConsultantCandidateSummaryResponse,
         ConsultantCandidateDetailResponse,
         ConsultantDashboardResponse,
+        ConsultantWorkflowEntityStateResponse,
         ConsultantWorkflowTimelineResponse,
         ConsultantAuditDrawerResponse,
         ConsultantBlockedActionResponse,

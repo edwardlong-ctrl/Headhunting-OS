@@ -9,6 +9,10 @@ export const CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS = [
   { value: "CANDIDATE", label: "candidate" },
   { value: "JOB", label: "job" },
   { value: "SHORTLIST", label: "shortlist" },
+  { value: "CONSENT", label: "consent" },
+  { value: "DISCLOSURE", label: "disclosure" },
+  { value: "PLACEMENT", label: "placement" },
+  { value: "COMMISSION", label: "commission" },
   { value: "INFORMATION_PACKET", label: "information_packet" },
   { value: "SOURCE_ITEM", label: "source_item" },
 ] as const;

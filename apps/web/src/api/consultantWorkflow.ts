@@ -21,8 +21,29 @@ export type ConsultantWorkflowEvent = {
   occurredAt: string;
 };
 
+export type ConsultantWorkflowBlocker = {
+  code: string;
+  safeReason: string | null;
+};
+
+export type ConsultantWorkflowTransitionOption = {
+  actionCode: string;
+  currentStatus: string | null;
+  targetStatus: string | null;
+  allowed: boolean;
+  blockers: ConsultantWorkflowBlocker[];
+};
+
+export type ConsultantWorkflowEntityState = {
+  entityType: string;
+  entityId: string;
+  currentStatus: string | null;
+  transitionOptions: ConsultantWorkflowTransitionOption[];
+};
+
 export type ConsultantWorkflowTimeline = {
   items: ConsultantWorkflowEvent[];
+  entityStates: ConsultantWorkflowEntityState[];
   limit: number;
   offset: number;
   hasMore: boolean;
@@ -33,6 +54,16 @@ export type ConsultantAuditDrawer = {
   entityId: string;
   items: ConsultantWorkflowEvent[];
 };
+
+export function fetchConsultantWorkflowEntityState(
+  entityType: string,
+  entityId: string,
+): Promise<ApiResult<ConsultantWorkflowEntityState>> {
+  const params = new URLSearchParams({ entityType, entityId });
+  return apiRequest<ConsultantWorkflowEntityState>(
+    `/api/consultant/workflow/entity-state?${params.toString()}`,
+  );
+}
 
 export function fetchConsultantWorkflow(
   filters: ConsultantWorkflowFilters = {},

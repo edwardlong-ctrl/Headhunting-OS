@@ -10,6 +10,8 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
+import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionBlocker;
+import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionDecision;
 import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionLegalityPolicy;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,33 +49,42 @@ public final class WorkflowTransitionAuditService {
   }
 
   public WorkflowEventAppendResult record(WorkflowTransitionAuditRequest request) {
-    WorkflowActionPolicy policy = validateRequest(request);
-
-    Optional<String> currentStateOpt = entityStatePort.getCurrentStateJson(
-        request.organizationId(),
-        request.entityNamespace(),
-        request.entityType(),
-        request.entityId());
-
-    if (currentStateOpt.isPresent()
-        && request.beforeState() != null
-        && request.beforeState().json() != null
-        && !request.beforeState().json().isBlank()) {
-      String currentJson = currentStateOpt.get();
-      String beforeJson = request.beforeState().json();
-      String currentStatus = extractStatus(currentJson);
-      String beforeStatus = extractStatus(beforeJson);
-      if (currentStatus != null && beforeStatus != null && !currentStatus.equals(beforeStatus)) {
-        throw new IllegalArgumentException(
-            "workflow transition beforeState does not match actual entity state: "
-                + currentStatus + " vs " + beforeStatus);
-      }
+    WorkflowActionPolicy policy = validateRequest(request, true);
+    Optional<WorkflowTransitionBlocker> stateMismatchBlocker = validateCurrentState(request);
+    if (stateMismatchBlocker.isPresent()) {
+      String currentStatus = extractStatus(entityStatePort.getCurrentStateJson(
+          request.organizationId(),
+          request.entityNamespace(),
+          request.entityType(),
+          request.entityId()).orElse(null));
+      String beforeStatus = extractStatus(request.beforeState().json());
+      throw new IllegalArgumentException(
+          "workflow transition beforeState does not match actual entity state: "
+              + currentStatus + " vs " + beforeStatus);
     }
 
     return workflowEventService.append(toWorkflowEventAppendCommand(request, policy));
   }
 
-  private WorkflowActionPolicy validateRequest(WorkflowTransitionAuditRequest request) {
+  public WorkflowTransitionDecision preview(WorkflowTransitionAuditRequest request) {
+    WorkflowActionPolicy policy = validateRequest(request, false);
+    Optional<WorkflowTransitionBlocker> stateMismatchBlocker = validateCurrentState(request);
+    if (stateMismatchBlocker.isPresent()) {
+      return WorkflowTransitionDecision.blocked(
+          policy.actionCode().wireValue(),
+          extractStatus(request.beforeState().json()),
+          extractStatus(request.afterState().json()),
+          java.util.List.of(stateMismatchBlocker.get()));
+    }
+    return legalityPolicy.evaluate(
+        policy.actionCode(),
+        request.beforeState(),
+        request.afterState());
+  }
+
+  private WorkflowActionPolicy validateRequest(
+      WorkflowTransitionAuditRequest request,
+      boolean enforceLegality) {
     Objects.requireNonNull(request, "request must not be null");
     WorkflowActionCode actionCode = WorkflowActionCode.fromWireValue(request.actionCode());
     WorkflowEntityType entityType = WorkflowEntityType.fromWireValue(request.entityType());
@@ -90,8 +101,32 @@ public final class WorkflowTransitionAuditService {
         request.beforeState(),
         request.afterState(),
         request.reason()));
-    legalityPolicy.enforce(actionCode, request.beforeState(), request.afterState());
+    if (enforceLegality) {
+      legalityPolicy.enforce(actionCode, request.beforeState(), request.afterState());
+    }
     return policy;
+  }
+
+  private Optional<WorkflowTransitionBlocker> validateCurrentState(
+      WorkflowTransitionAuditRequest request) {
+    Optional<String> currentStateOpt = entityStatePort.getCurrentStateJson(
+        request.organizationId(),
+        request.entityNamespace(),
+        request.entityType(),
+        request.entityId());
+    if (currentStateOpt.isPresent()
+        && request.beforeState() != null
+        && request.beforeState().json() != null
+        && !request.beforeState().json().isBlank()) {
+      String currentStatus = extractStatus(currentStateOpt.get());
+      String beforeStatus = extractStatus(request.beforeState().json());
+      if (currentStatus != null && beforeStatus != null && !currentStatus.equals(beforeStatus)) {
+        return Optional.of(new WorkflowTransitionBlocker(
+            "before_state_mismatch",
+            "Current entity state no longer matches the requested workflow transition."));
+      }
+    }
+    return Optional.empty();
   }
 
   private static WorkflowEventAppendCommand toWorkflowEventAppendCommand(
@@ -127,6 +162,9 @@ public final class WorkflowTransitionAuditService {
   }
 
   private static String extractStatus(String json) {
+    if (json == null || json.isBlank()) {
+      return null;
+    }
     try {
       com.fasterxml.jackson.databind.JsonNode node =
           new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
