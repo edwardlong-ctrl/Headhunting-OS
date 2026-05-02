@@ -100,6 +100,9 @@ public final class AuthenticationController {
   }
 
   private static UUID parseOrganizationId(String organizationId) {
+    if (organizationId == null || organizationId.isBlank()) {
+      return null;
+    }
     try {
       return UUID.fromString(organizationId);
     } catch (IllegalArgumentException exception) {

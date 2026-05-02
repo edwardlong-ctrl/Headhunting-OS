@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantIntakeQueueItemResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantIntakeQueueResponse;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketId;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketType;
 import com.recruitingtransactionos.coreapi.governedintake.IntakeCanonicalWriteBridgeResult;
@@ -26,6 +28,8 @@ import com.recruitingtransactionos.coreapi.governedintake.IntakeExtractionStatus
 import com.recruitingtransactionos.coreapi.governedintake.IntendedEntityType;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemId;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemType;
+import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemReviewLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.port.InformationPacketPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventForCanonicalWrite;
 import com.recruitingtransactionos.coreapi.governedintake.service.GovernedAiIntakeOrchestrator;
 import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewDecisionService;
@@ -101,6 +105,15 @@ class ConsultantIntakeControllerTest {
   private IntakeReviewDecisionService intakeReviewDecisionService;
 
   @MockBean
+  private ConsultantIntakeQueueQueryService consultantIntakeQueueQueryService;
+
+  @MockBean
+  private InformationPacketPersistencePort informationPacketPersistencePort;
+
+  @MockBean
+  private ClaimLedgerItemReviewLookupPort claimLedgerItemReviewLookupPort;
+
+  @MockBean
   private IdentityAuthenticationPort identityAuthenticationPort;
 
   @Test
@@ -159,6 +172,28 @@ class ConsultantIntakeControllerTest {
         .andExpect(jsonPath("$.data.cleanFacts[0].latestDecisionId").value(REVIEW_EVENT_ID.toString()))
         .andExpect(jsonPath("$.data.cleanFacts[0].sourceHighlight.sourceItemId").value(SOURCE_ITEM_ID.toString()))
         .andExpect(jsonPath("$.data.cleanFacts[0].sourceHighlight.locator").value("page 1 offsets 5-32"));
+  }
+
+  @Test
+  void queueReturnsPortalBackedItems() throws Exception {
+    when(consultantIntakeQueueQueryService.listQueue(eq(ORG_ID), eq(12)))
+        .thenReturn(new ConsultantIntakeQueueResponse(List.of(
+            new ConsultantIntakeQueueItemResponse(
+                PACKET_ID.toString(),
+                "resume.pdf",
+                "CV",
+                "CANDIDATE",
+                "ready_for_publish",
+                "All current facts are approved.",
+                "2026-05-02T01:00:00Z",
+                "2026-05-02T02:00:00Z"))));
+
+    mockMvc.perform(get("/api/consultant/intake/queue?limit=12")
+            .with(authentication(auth("consultant"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].informationPacketId").value(PACKET_ID.toString()))
+        .andExpect(jsonPath("$.data.items[0].title").value("resume.pdf"))
+        .andExpect(jsonPath("$.data.items[0].stage").value("ready_for_publish"));
   }
 
   @Test

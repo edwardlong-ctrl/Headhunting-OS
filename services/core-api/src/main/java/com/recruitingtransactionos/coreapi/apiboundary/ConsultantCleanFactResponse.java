@@ -11,9 +11,12 @@ public record ConsultantCleanFactResponse(
     String suggestedVerificationStatus,
     String suggestedRiskTier,
     String entityResolutionStatus,
+    String resolvedEntityId,
     String latestReviewDecision,
     String latestDecisionId,
     boolean conflictsWithCanonical,
+    String canonicalWriteStatus,
+    String publishBlockedReason,
     String rationale,
     ConsultantSourceHighlightResponse sourceHighlight) {
 

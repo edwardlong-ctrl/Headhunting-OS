@@ -2,12 +2,15 @@ package com.recruitingtransactionos.coreapi.identityauth;
 
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface IdentityAuthenticationPort {
 
   Optional<IdentityUserAccount> findByOrganizationIdAndEmail(UUID organizationId, String email);
+
+  List<IdentityUserAccount> findActiveAccountsByEmail(String email);
 
   Optional<IdentityUserAccount> findByOrganizationIdAndUserAccountId(
       UUID organizationId,

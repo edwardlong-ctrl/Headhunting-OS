@@ -42,6 +42,7 @@ public final class ConsultantJobResponseMapper {
 
     return new ConsultantJobDetailResponse(
         job.jobId().value().toString(),
+        job.version(),
         job.companyId().value().toString(),
         job.title(),
         job.description(),

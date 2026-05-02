@@ -10,10 +10,18 @@ public record LoginRequest(
     String portalRole) {
 
   public LoginRequest {
-    organizationId = ApiBoundaryContractRules.requireNonBlank(organizationId, "organizationId");
+    organizationId = optionalNonBlank(organizationId);
     email = ApiBoundaryContractRules.requireNonBlank(email, "email").toLowerCase(Locale.ROOT);
     password = ApiBoundaryContractRules.requireNonBlank(password, "password");
     portalRole = ApiBoundaryContractRules.requireNonBlank(portalRole, "portalRole")
         .toLowerCase(Locale.ROOT);
+  }
+
+  private static String optionalNonBlank(String value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = value.strip();
+    return normalized.isEmpty() ? null : normalized;
   }
 }

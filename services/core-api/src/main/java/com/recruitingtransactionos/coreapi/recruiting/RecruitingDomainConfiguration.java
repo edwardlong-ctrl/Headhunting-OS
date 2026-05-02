@@ -3,6 +3,9 @@ package com.recruitingtransactionos.coreapi.recruiting;
 import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.port.CandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
+import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.port.CandidateProfilePersistencePort;
+import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyContactPersistencePort;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPreferencePersistencePort;
@@ -115,5 +118,18 @@ public class RecruitingDomainConfiguration {
   @ConditionalOnMissingBean(CandidateService.class)
   CandidateService candidateService(CandidatePersistencePort candidatePort) {
     return new CandidateService(candidatePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateProfilePersistencePort.class)
+  CandidateProfilePersistencePort candidateProfilePersistencePort(DataSource dataSource) {
+    return new JdbcCandidateProfilePersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateProfileService.class)
+  CandidateProfileService candidateProfileService(
+      CandidateProfilePersistencePort candidateProfilePersistencePort) {
+    return new CandidateProfileService(candidateProfilePersistencePort);
   }
 }

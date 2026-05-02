@@ -4,6 +4,7 @@ import java.util.List;
 
 public record ConsultantShortlistDetailResponse(
     String shortlistId,
+    long version,
     String jobId,
     String title,
     String status,
@@ -16,6 +17,9 @@ public record ConsultantShortlistDetailResponse(
 
   public ConsultantShortlistDetailResponse {
     shortlistId = ApiBoundaryContractRules.requireNonBlank(shortlistId, "shortlistId");
+    if (version < 0) {
+      throw new IllegalArgumentException("version must be >= 0");
+    }
     jobId = ApiBoundaryContractRules.requireNonBlank(jobId, "jobId");
     title = ApiBoundaryContractRules.requireApiSafeExternalText(title, "title");
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");

@@ -249,7 +249,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantCompanyDetailResponse COMPANY_DETAIL =
         new ConsultantCompanyDetailResponse(
-            COMPANY_ID, "testcorp", null, "tech", null,
+            COMPANY_ID, 1L, "testcorp", null, "tech", null,
             "asia", "medium", "active", "high", null,
             "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), 0);
@@ -361,7 +361,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
-            JOB_ID, COMPANY_ID, "engineer", null, null,
+            JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
             null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
@@ -476,7 +476,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantShortlistDetailResponse SHORTLIST_DETAIL =
         new ConsultantShortlistDetailResponse(
-            SHORTLIST_ID, JOB_ID, "test-shortlist", "draft",
+            SHORTLIST_ID, 1L, JOB_ID, "test-shortlist", "draft",
             null, null, null,
             "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList());
@@ -575,7 +575,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantCompanyDetailResponse COMPANY_DETAIL =
         new ConsultantCompanyDetailResponse(
-            COMPANY_ID, "testcorp", null, "tech", null,
+            COMPANY_ID, 1L, "testcorp", null, "tech", null,
             "asia", "medium", "active", "high", null,
             "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), 0);
@@ -629,7 +629,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
-            JOB_ID, COMPANY_ID, "engineer", null, null,
+            JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
             null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
@@ -686,7 +686,7 @@ class ConsultantControllerLeakageTest {
 
     private static final ConsultantJobDetailResponse JOB_DETAIL =
         new ConsultantJobDetailResponse(
-            JOB_ID, COMPANY_ID, "engineer", null, null,
+            JOB_ID, 1L, COMPANY_ID, "engineer", null, null,
             null, null, null, null, "draft",
             null, null, null, null, "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
             Collections.emptyList(), null);
@@ -751,8 +751,9 @@ class ConsultantControllerLeakageTest {
     Set<String> fields = ApiBoundaryContractRules.consultantCandidateDetailResponseFieldNames();
     assertThat(fields).containsExactlyInAnyOrder(
         "candidateId", "status", "privacyStatus", "currentProfileId",
-        "ownerConsultantId", "lastActivityAt", "doNotContactReason",
-        "mergedIntoCandidateId", "defaultIndustryPackId", "createdAt", "updatedAt");
+        "profileVersion", "ownerConsultantId", "lastActivityAt", "doNotContactReason",
+        "mergedIntoCandidateId", "defaultIndustryPackId", "createdAt", "updatedAt",
+        "overview", "evidence", "conflicts", "staleInfo", "followUps", "history");
   }
 
   @Test
@@ -766,7 +767,7 @@ class ConsultantControllerLeakageTest {
   void consultantCompanyDetailResponseFieldsMatchAllowlist() {
     Set<String> fields = ApiBoundaryContractRules.consultantCompanyDetailResponseFieldNames();
     assertThat(fields).containsExactlyInAnyOrder(
-        "companyId", "name", "displayName", "industry", "website", "headquartersLocation",
+        "companyId", "version", "name", "displayName", "industry", "website", "headquartersLocation",
         "sizeBand", "status", "paymentReliability", "ownerConsultantId", "createdAt",
         "updatedAt", "contacts", "jobCount");
   }
@@ -782,7 +783,7 @@ class ConsultantControllerLeakageTest {
   void consultantJobDetailResponseFieldsMatchAllowlist() {
     Set<String> fields = ApiBoundaryContractRules.consultantJobDetailResponseFieldNames();
     assertThat(fields).containsExactlyInAnyOrder(
-        "jobId", "companyId", "title", "description", "location", "seniorityBand",
+        "jobId", "version", "companyId", "title", "description", "location", "seniorityBand",
         "roleFamily", "employmentType", "compensation", "status", "ownerConsultantId",
         "activatedAt", "closedAt", "closeReason", "createdAt", "updatedAt",
         "requirements", "scorecard");
@@ -799,7 +800,7 @@ class ConsultantControllerLeakageTest {
   void consultantShortlistDetailResponseFieldsMatchAllowlist() {
     Set<String> fields = ApiBoundaryContractRules.consultantShortlistDetailResponseFieldNames();
     assertThat(fields).containsExactlyInAnyOrder(
-        "shortlistId", "jobId", "title", "status", "sentAt", "clientViewedAt",
+        "shortlistId", "version", "jobId", "title", "status", "sentAt", "clientViewedAt",
         "ownerConsultantId", "createdAt", "updatedAt", "cards");
   }
 

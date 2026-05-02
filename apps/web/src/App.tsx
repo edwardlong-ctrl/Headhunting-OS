@@ -4,6 +4,7 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -14,6 +15,7 @@ import {
   isAnonymousCardRef,
 } from "./api/clientSafeCandidateCards";
 import { loadAccessToken, saveAccessToken } from "./auth/accessTokenStorage";
+import { ConsultantPortal } from "./features/consultant-portal/ConsultantPortal";
 
 type PortalKey = "owner" | "consultant" | "client" | "candidate" | "admin";
 
@@ -161,6 +163,7 @@ function ClientPortal() {
             value={accessToken}
             onChange={(event) => {
               const nextToken = event.target.value;
+              setAccessToken(nextToken);
               saveAccessToken(nextToken);
             }}
           />
@@ -337,25 +340,30 @@ function SafeList({ title, items }: { title: string; items: string[] }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const consultantRouteActive = location.pathname.startsWith("/consultant");
+
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <NavLink to="/consultant" className="brand">
-          Recruiting Transaction OS
-        </NavLink>
-        <nav className="portal-nav" aria-label="Portals">
-          {portalRoutes.map((route) => (
-            <NavLink key={route.path} to={route.path}>
-              {route.label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
+    <div className={`app-shell${consultantRouteActive ? " app-shell-consultant" : ""}`}>
+      {consultantRouteActive ? null : (
+        <header className="app-header">
+          <NavLink to="/consultant" className="brand">
+            Recruiting Transaction OS
+          </NavLink>
+          <nav className="portal-nav" aria-label="Portals">
+            {portalRoutes.map((route) => (
+              <NavLink key={route.path} to={route.path}>
+                {route.label}
+              </NavLink>
+            ))}
+          </nav>
+        </header>
+      )}
       <main>
         <Routes>
           <Route path="/" element={<Navigate to="/consultant" replace />} />
           <Route path="/owner/*" element={<StaticPortal portalKey="owner" />} />
-          <Route path="/consultant/*" element={<StaticPortal portalKey="consultant" />} />
+          <Route path="/consultant/*" element={<ConsultantPortal />} />
           <Route path="/client" element={<ClientPortal />} />
           <Route
             path="/client/candidate-cards/:anonymousCardRef"

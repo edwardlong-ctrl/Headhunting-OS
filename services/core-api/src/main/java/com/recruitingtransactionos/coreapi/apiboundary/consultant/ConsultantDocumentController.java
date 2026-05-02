@@ -91,6 +91,8 @@ public final class ConsultantDocumentController {
       @RequestParam("file") MultipartFile file,
       @RequestParam("sourceType") String sourceType,
       @RequestParam("origin") String origin,
+      @RequestParam(value = "packetType", required = false) String packetType,
+      @RequestParam(value = "intendedEntityType", required = false) String intendedEntityType,
       @RequestParam(value = "title", required = false) String title,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
@@ -102,6 +104,8 @@ public final class ConsultantDocumentController {
           orgId,
           sourceType,
           origin,
+          packetType,
+          intendedEntityType,
           title,
           ActorRole.CONSULTANT,
           principal.userAccountId(),

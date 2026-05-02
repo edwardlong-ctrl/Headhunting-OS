@@ -35,6 +35,7 @@ public final class ConsultantShortlistResponseMapper {
 
     return new ConsultantShortlistDetailResponse(
         shortlist.shortlistId().value().toString(),
+        shortlist.version(),
         shortlist.jobId().value().toString(),
         shortlist.title(),
         shortlist.status().wireValue(),

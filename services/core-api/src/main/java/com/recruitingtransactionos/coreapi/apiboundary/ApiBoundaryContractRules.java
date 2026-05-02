@@ -29,16 +29,17 @@ public final class ApiBoundaryContractRules {
 
   private static final Set<String> CONSULTANT_CANDIDATE_DETAIL_RESPONSE_FIELDS =
       Set.of("candidateId", "status", "privacyStatus", "currentProfileId",
-          "ownerConsultantId", "lastActivityAt", "doNotContactReason",
+          "profileVersion", "ownerConsultantId", "lastActivityAt", "doNotContactReason",
           "mergedIntoCandidateId", "defaultIndustryPackId", "createdAt",
-          "updatedAt");
+          "updatedAt", "overview", "evidence", "conflicts", "staleInfo",
+          "followUps", "history");
 
   private static final Set<String> CONSULTANT_COMPANY_SUMMARY_RESPONSE_FIELDS =
       Set.of("companyId", "name", "status", "contactCount", "jobCount", "createdAt");
 
   private static final Set<String> CONSULTANT_COMPANY_DETAIL_RESPONSE_FIELDS =
       Set.of(
-          "companyId", "name", "displayName", "industry", "website", "headquartersLocation",
+          "companyId", "version", "name", "displayName", "industry", "website", "headquartersLocation",
           "sizeBand", "status", "paymentReliability", "ownerConsultantId", "createdAt",
           "updatedAt", "contacts", "jobCount");
 
@@ -47,7 +48,7 @@ public final class ApiBoundaryContractRules {
 
   private static final Set<String> CONSULTANT_JOB_DETAIL_RESPONSE_FIELDS =
       Set.of(
-          "jobId", "companyId", "title", "description", "location", "seniorityBand",
+          "jobId", "version", "companyId", "title", "description", "location", "seniorityBand",
           "roleFamily", "employmentType", "compensation", "status", "ownerConsultantId",
           "activatedAt", "closedAt", "closeReason", "createdAt", "updatedAt",
           "requirements", "scorecard");
@@ -57,8 +58,52 @@ public final class ApiBoundaryContractRules {
 
   private static final Set<String> CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS =
       Set.of(
-          "shortlistId", "jobId", "title", "status", "sentAt", "clientViewedAt",
+          "shortlistId", "version", "jobId", "title", "status", "sentAt", "clientViewedAt",
           "ownerConsultantId", "createdAt", "updatedAt", "cards");
+
+  private static final Set<String> CONSULTANT_BLOCKED_ACTION_RESPONSE_FIELDS =
+      Set.of("entityType", "entityId", "title", "reasonCode", "safeReason", "severity", "route");
+
+  private static final Set<String> CONSULTANT_DASHBOARD_RESPONSE_FIELDS =
+      Set.of(
+          "candidateCount",
+          "activeJobCount",
+          "companyCount",
+          "shortlistCount",
+          "pendingFollowUpCount",
+          "recentTimelineCount",
+          "blockedActions");
+
+  private static final Set<String> CONSULTANT_WORKFLOW_EVENT_RESPONSE_FIELDS =
+      Set.of(
+          "workflowEventId",
+          "entityType",
+          "entityId",
+          "actionCode",
+          "actorType",
+          "aiInvolvement",
+          "riskTier",
+          "beforeStatus",
+          "afterStatus",
+          "reason",
+          "occurredAt");
+
+  private static final Set<String> CONSULTANT_WORKFLOW_TIMELINE_RESPONSE_FIELDS =
+      Set.of("items", "limit", "offset", "hasMore");
+
+  private static final Set<String> CONSULTANT_AUDIT_DRAWER_RESPONSE_FIELDS =
+      Set.of("entityType", "entityId", "items");
+
+  private static final Set<String> CONSULTANT_FOLLOW_UP_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "followUpType",
+          "entityType",
+          "entityId",
+          "title",
+          "status",
+          "safeReason",
+          "route",
+          "occurredAt");
 
   private static final Set<String> AUTH_SESSION_RESPONSE_FIELDS =
       Set.of(
@@ -99,6 +144,20 @@ public final class ApiBoundaryContractRules {
           "outputSchemaVersion",
           "cleanFactCount",
           "aiTaskRunIds");
+
+  private static final Set<String> CONSULTANT_INTAKE_QUEUE_RESPONSE_FIELDS =
+      Set.of("items");
+
+  private static final Set<String> CONSULTANT_INTAKE_QUEUE_ITEM_RESPONSE_FIELDS =
+      Set.of(
+          "informationPacketId",
+          "title",
+          "sourceType",
+          "intendedEntityType",
+          "stage",
+          "stageDetail",
+          "createdAt",
+          "updatedAt");
 
   private static final Set<String> CONSULTANT_INTAKE_REVIEW_RESPONSE_FIELDS =
       Set.of(
@@ -238,6 +297,72 @@ public final class ApiBoundaryContractRules {
     return new LinkedHashSet<>(CONSULTANT_SHORTLIST_DETAIL_RESPONSE_FIELDS);
   }
 
+  public static boolean isAllowedConsultantBlockedActionResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_BLOCKED_ACTION_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantBlockedActionResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_BLOCKED_ACTION_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantDashboardResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_DASHBOARD_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantDashboardResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_DASHBOARD_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantWorkflowEventResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_WORKFLOW_EVENT_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantWorkflowEventResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_WORKFLOW_EVENT_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantWorkflowTimelineResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_WORKFLOW_TIMELINE_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantWorkflowTimelineResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_WORKFLOW_TIMELINE_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantAuditDrawerResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_AUDIT_DRAWER_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantAuditDrawerResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_AUDIT_DRAWER_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantFollowUpSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_FOLLOW_UP_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantFollowUpSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_FOLLOW_UP_SUMMARY_RESPONSE_FIELDS);
+  }
+
   public static boolean isAllowedAuthSessionResponseField(String fieldName) {
     if (fieldName == null || fieldName.isBlank()) {
       return false;
@@ -291,6 +416,28 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantIntakeRunResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_INTAKE_RUN_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantIntakeQueueResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_INTAKE_QUEUE_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantIntakeQueueResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_INTAKE_QUEUE_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantIntakeQueueItemResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_INTAKE_QUEUE_ITEM_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantIntakeQueueItemResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_INTAKE_QUEUE_ITEM_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedConsultantIntakeReviewResponseField(String fieldName) {

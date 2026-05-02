@@ -53,6 +53,14 @@ public final class AuthenticationFailureException extends RuntimeException {
         "Access denied.");
   }
 
+  public static AuthenticationFailureException organizationSelectionRequired() {
+    return new AuthenticationFailureException(
+        HttpStatus.CONFLICT,
+        "organization_selection_required",
+        "organization_selection_required",
+        "Multiple organizations match this account. Organization selection is required.");
+  }
+
   public HttpStatus httpStatus() {
     return httpStatus;
   }

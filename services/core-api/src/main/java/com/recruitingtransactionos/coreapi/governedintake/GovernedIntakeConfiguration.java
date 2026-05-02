@@ -11,6 +11,7 @@ import com.recruitingtransactionos.coreapi.documentintelligence.service.Document
 import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentIntelligenceExtractionService;
 import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentParsingService;
 import com.recruitingtransactionos.coreapi.documentintelligence.service.NoOpDocumentConversionWorkerPort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcLatestReviewEventLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcInformationPacketPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcIntakeExtractionRunPort;
@@ -22,13 +23,23 @@ import com.recruitingtransactionos.coreapi.governedintake.port.SourceItemPersist
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
 import com.recruitingtransactionos.coreapi.governedintake.service.GovernedAiIntakeOrchestrator;
 import com.recruitingtransactionos.coreapi.governedintake.service.GovernedIntakeService;
+import com.recruitingtransactionos.coreapi.governedintake.service.IntakeCanonicalWriteBridgeService;
+import com.recruitingtransactionos.coreapi.governedintake.service.IntakeClaimLedgerBridgeService;
 import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewDecisionService;
 import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewQueryService;
+import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewBridgeService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.CandidateProfileParserTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.companyintake.CompanyIntakeTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.jobintake.JobIntakeTaskService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerSourceReferenceLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemCanonicalWriteLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemReviewLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventCanonicalWriteLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventSourceReferenceLookupPort;
+import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
+import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
@@ -64,6 +75,11 @@ public class GovernedIntakeConfiguration {
   @Bean
   LatestReviewEventLookupPort latestReviewEventLookupPort(DataSource dataSource) {
     return new JdbcLatestReviewEventLookupPort(dataSource);
+  }
+
+  @Bean
+  ClaimLedgerItemReviewLookupPort claimLedgerItemReviewLookupPort(DataSource dataSource) {
+    return new JdbcClaimLedgerItemReviewLookupPort(dataSource);
   }
 
   @Bean
@@ -171,7 +187,60 @@ public class GovernedIntakeConfiguration {
   @ConditionalOnBean({
     CandidateProfileParserTaskService.class,
     CompanyIntakeTaskService.class,
-    JobIntakeTaskService.class
+    JobIntakeTaskService.class,
+    ClaimLedgerService.class,
+    ClaimLedgerSourceReferenceLookupPort.class
+  })
+  IntakeClaimLedgerBridgeService intakeClaimLedgerBridgeService(
+      IntakeExtractionRunPort intakeExtractionRunPort,
+      InformationPacketPersistencePort informationPacketPersistencePort,
+      ClaimLedgerService claimLedgerService,
+      ClaimLedgerSourceReferenceLookupPort claimLedgerSourceReferenceLookupPort) {
+    return new IntakeClaimLedgerBridgeService(
+        intakeExtractionRunPort,
+        informationPacketPersistencePort,
+        claimLedgerService,
+        claimLedgerSourceReferenceLookupPort);
+  }
+
+  @Bean
+  @ConditionalOnBean({
+    ClaimLedgerItemReviewLookupPort.class,
+    ReviewEventService.class,
+    ReviewEventSourceReferenceLookupPort.class
+  })
+  IntakeReviewBridgeService intakeReviewBridgeService(
+      ClaimLedgerItemReviewLookupPort claimLedgerItemReviewLookupPort,
+      ReviewEventService reviewEventService,
+      ReviewEventSourceReferenceLookupPort reviewEventSourceReferenceLookupPort) {
+    return new IntakeReviewBridgeService(
+        claimLedgerItemReviewLookupPort,
+        reviewEventService,
+        reviewEventSourceReferenceLookupPort);
+  }
+
+  @Bean
+  @ConditionalOnBean({
+    ClaimLedgerItemCanonicalWriteLookupPort.class,
+    ReviewEventCanonicalWriteLookupPort.class,
+    CanonicalWriteService.class
+  })
+  IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService(
+      ClaimLedgerItemCanonicalWriteLookupPort claimLedgerItemLookupPort,
+      ReviewEventCanonicalWriteLookupPort reviewEventLookupPort,
+      CanonicalWriteService canonicalWriteService) {
+    return new IntakeCanonicalWriteBridgeService(
+        claimLedgerItemLookupPort,
+        reviewEventLookupPort,
+        canonicalWriteService);
+  }
+
+  @Bean
+  @ConditionalOnBean({
+    CandidateProfileParserTaskService.class,
+    CompanyIntakeTaskService.class,
+    JobIntakeTaskService.class,
+    IntakeClaimLedgerBridgeService.class
   })
   GovernedAiIntakeOrchestrator governedAiIntakeOrchestrator(
       InformationPacketPersistencePort informationPacketPersistencePort,
@@ -181,8 +250,7 @@ public class GovernedIntakeConfiguration {
       CandidateProfileParserTaskService candidateProfileParserTaskService,
       CompanyIntakeTaskService companyIntakeTaskService,
       JobIntakeTaskService jobIntakeTaskService,
-      com.recruitingtransactionos.coreapi.governedintake.service.IntakeClaimLedgerBridgeService
-          intakeClaimLedgerBridgeService) {
+      IntakeClaimLedgerBridgeService intakeClaimLedgerBridgeService) {
     return new GovernedAiIntakeOrchestrator(
         informationPacketPersistencePort,
         intakeExtractionRunPort,
@@ -208,13 +276,14 @@ public class GovernedIntakeConfiguration {
 
   @Bean
   @ConditionalOnBean({
-    CandidateProfileService.class
+    CandidateProfileService.class,
+    IntakeReviewBridgeService.class,
+    IntakeCanonicalWriteBridgeService.class,
+    IntakeReviewQueryService.class
   })
   IntakeReviewDecisionService intakeReviewDecisionService(
-      com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewBridgeService
-          intakeReviewBridgeService,
-      com.recruitingtransactionos.coreapi.governedintake.service.IntakeCanonicalWriteBridgeService
-          intakeCanonicalWriteBridgeService,
+      IntakeReviewBridgeService intakeReviewBridgeService,
+      IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
       IntakeReviewQueryService intakeReviewQueryService,
       CandidateProfileService candidateProfileService) {
     return new IntakeReviewDecisionService(

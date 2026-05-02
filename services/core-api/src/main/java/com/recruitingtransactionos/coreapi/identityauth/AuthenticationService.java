@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,13 +37,14 @@ public final class AuthenticationService {
       String email,
       String password,
       PortalRole requestedRole) {
-    Objects.requireNonNull(organizationId, "organizationId must not be null");
     String normalizedEmail = requireNonBlank(email, "email").toLowerCase();
     String normalizedPassword = requireNonBlank(password, "password");
     PortalRole role = requireLoginRole(requestedRole);
 
-    IdentityUserAccount account = port.findByOrganizationIdAndEmail(organizationId, normalizedEmail)
-        .orElseThrow(AuthenticationFailureException::invalidCredentials);
+    IdentityUserAccount account = organizationId == null
+        ? resolveAccountWithoutOrganization(normalizedEmail, normalizedPassword, role)
+        : port.findByOrganizationIdAndEmail(organizationId, normalizedEmail)
+            .orElseThrow(AuthenticationFailureException::invalidCredentials);
     if (!account.isActiveForLogin()) {
       throw AuthenticationFailureException.accountInactive();
     }
@@ -50,7 +52,7 @@ public final class AuthenticationService {
         || !passwordEncoder.matches(normalizedPassword, account.passwordHash())) {
       throw AuthenticationFailureException.invalidCredentials();
     }
-    if (!port.hasActiveRoleAssignment(organizationId, account.userAccountId(), role)) {
+    if (!port.hasActiveRoleAssignment(account.organizationId(), account.userAccountId(), role)) {
       throw AuthenticationFailureException.roleAssignmentRequired();
     }
 
@@ -60,7 +62,7 @@ public final class AuthenticationService {
     String refreshTokenHash = hashToken(refreshToken);
     IdentityAuthSession session = new IdentityAuthSession(
         sessionId,
-        organizationId,
+        account.organizationId(),
         account.userAccountId(),
         role,
         refreshTokenHash,
@@ -70,16 +72,16 @@ public final class AuthenticationService {
         now,
         1);
     port.createSession(session);
-    port.updateLastLoginAt(organizationId, account.userAccountId(), now);
+    port.updateLastLoginAt(account.organizationId(), account.userAccountId(), now);
 
     RtoAuthenticatedPrincipal principal = new RtoAuthenticatedPrincipal(
         account.userAccountId(),
-        organizationId,
+        account.organizationId(),
         role,
         account.displayName(),
         sessionId);
     return new AuthenticatedSession(
-        organizationId,
+        account.organizationId(),
         account.userAccountId(),
         account.displayName(),
         role,
@@ -87,6 +89,24 @@ public final class AuthenticationService {
         refreshToken,
         jwtService.accessTokenExpiresAt(now),
         session.expiresAt());
+  }
+
+  private IdentityUserAccount resolveAccountWithoutOrganization(
+      String normalizedEmail,
+      String normalizedPassword,
+      PortalRole role) {
+    List<IdentityUserAccount> matches = port.findActiveAccountsByEmail(normalizedEmail).stream()
+        .filter(IdentityUserAccount::hasPasswordHash)
+        .filter(account -> passwordEncoder.matches(normalizedPassword, account.passwordHash()))
+        .filter(account -> port.hasActiveRoleAssignment(account.organizationId(), account.userAccountId(), role))
+        .toList();
+    if (matches.isEmpty()) {
+      throw AuthenticationFailureException.invalidCredentials();
+    }
+    if (matches.size() > 1) {
+      throw AuthenticationFailureException.organizationSelectionRequired();
+    }
+    return matches.get(0);
   }
 
   public AuthenticatedSession refresh(String refreshToken) {
