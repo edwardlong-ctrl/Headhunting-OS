@@ -236,7 +236,7 @@
 - No default-placeholder business ClaimLedger append from intake exists.
 - Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
-- Candidate publish now fails closed unless an existing candidate/profile target is supplied, and company/job publish remains blocked until a governed canonical write plus audit path is designed.
+- Candidate publish now fails closed unless an existing candidate/profile target is supplied; the current Task 23 candidate path supports only the mapped stable AI keys that land on canonical CandidateProfile field paths (`profile.headline`, `profile.summary`, `skills.primary_skills`, `experience.projects`, `experience.timeline_highlights`), requires matchable evidence quotes during extraction, and company/job publish remains blocked until a governed canonical write plus audit path is designed.
 - Consultant intake API exposure now exists for backend/API scope (`extract`, `review`, `decide`, `publish`), but no frontend review UI exists yet.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection API/UI, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
@@ -324,13 +324,13 @@
 ## UI / AI / Access Boundaries Not Implemented
 
 - No UI integration exists for WorkflowEvent audit guardrails.
-- No real AI model wiring exists for workflow actions.
+- No broad real AI model wiring exists for workflow actions outside the current governed-intake task path.
 - API/controller integration now exists for governed intake through `ConsultantIntakeController`, but no governed-intake frontend UI exists yet.
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
 - No broad client-safe product UI or real redaction behavior exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, and Task 9B/13B together provide only the existing narrow endpoint behind it.
-- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the Task 6D explicit single-field write and Task 6E metadata hardening for that field.
+- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the narrowed Task 23 existing-target candidate publish path and Task 6E metadata hardening; broad profile CRUD/update surfaces still do not exist.
 
 ## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening RESOLVED (V12)
 
