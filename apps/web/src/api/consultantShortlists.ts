@@ -1,5 +1,11 @@
 import { ApiResult, PagedResult, apiRequest, asJson, asMethodJson } from "./http";
 
+export type ConsultantShortlistListFilters = {
+  jobId?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type ConsultantShortlistSummary = {
   shortlistId: string;
   title: string;
@@ -30,14 +36,30 @@ export type ConsultantShortlistCreatePayload = {
 };
 
 export type ConsultantShortlistUpdatePayload = {
+  jobId: string;
   version: number;
   title: string;
   status: string;
 };
 
-export function listConsultantShortlists(jobId?: string): Promise<ApiResult<PagedResult<ConsultantShortlistSummary>>> {
+export function createConsultantShortlistUpdatePayload(
+  shortlist: Pick<ConsultantShortlistDetail, "jobId" | "version">,
+  fields: Omit<ConsultantShortlistUpdatePayload, "jobId" | "version">,
+): ConsultantShortlistUpdatePayload {
+  return {
+    jobId: shortlist.jobId,
+    version: shortlist.version,
+    ...fields,
+  };
+}
+
+export function listConsultantShortlists(
+  filters: ConsultantShortlistListFilters = {},
+): Promise<ApiResult<PagedResult<ConsultantShortlistSummary>>> {
   const params = new URLSearchParams();
-  if (jobId) params.set("jobId", jobId);
+  if (filters.jobId) params.set("jobId", filters.jobId);
+  if (typeof filters.limit === "number") params.set("limit", String(filters.limit));
+  if (typeof filters.offset === "number") params.set("offset", String(filters.offset));
   const suffix = params.size ? `?${params.toString()}` : "";
   return apiRequest<PagedResult<ConsultantShortlistSummary>>(`/api/consultant/shortlists${suffix}`);
 }

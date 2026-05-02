@@ -1,5 +1,11 @@
 import { ApiResult, PagedResult, apiRequest, asJson, asMethodJson } from "./http";
 
+export type ConsultantCompanyListFilters = {
+  status?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type ConsultantCompanySummary = {
   companyId: string;
   name: string;
@@ -54,8 +60,15 @@ export type ConsultantCompanyContactCreatePayload = {
   status?: string | null;
 };
 
-export function listConsultantCompanies(): Promise<ApiResult<PagedResult<ConsultantCompanySummary>>> {
-  return apiRequest<PagedResult<ConsultantCompanySummary>>("/api/consultant/companies");
+export function listConsultantCompanies(
+  filters: ConsultantCompanyListFilters = {},
+): Promise<ApiResult<PagedResult<ConsultantCompanySummary>>> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (typeof filters.limit === "number") params.set("limit", String(filters.limit));
+  if (typeof filters.offset === "number") params.set("offset", String(filters.offset));
+  const suffix = params.size ? `?${params.toString()}` : "";
+  return apiRequest<PagedResult<ConsultantCompanySummary>>(`/api/consultant/companies${suffix}`);
 }
 
 export function fetchConsultantCompany(companyId: string): Promise<ApiResult<ConsultantCompanyDetail>> {

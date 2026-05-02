@@ -1,5 +1,12 @@
 import { ApiResult, PagedResult, apiRequest, asJson, asMethodJson } from "./http";
 
+export type ConsultantJobListFilters = {
+  status?: string;
+  companyId?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type ConsultantJobSummary = {
   jobId: string;
   title: string;
@@ -37,6 +44,7 @@ export type ConsultantJobCreatePayload = {
 };
 
 export type ConsultantJobUpdatePayload = {
+  companyId: string;
   version: number;
   title: string;
   description?: string | null;
@@ -47,6 +55,17 @@ export type ConsultantJobUpdatePayload = {
   compensation?: string | null;
   status: string;
 };
+
+export function createConsultantJobUpdatePayload(
+  job: Pick<ConsultantJobDetail, "companyId" | "version">,
+  fields: Omit<ConsultantJobUpdatePayload, "companyId" | "version">,
+): ConsultantJobUpdatePayload {
+  return {
+    companyId: job.companyId,
+    version: job.version,
+    ...fields,
+  };
+}
 
 export type ConsultantJobRequirementCreatePayload = {
   requirementType: string;
@@ -62,8 +81,16 @@ export type ConsultantJobScorecardCreatePayload = {
   status: string;
 };
 
-export function listConsultantJobs(): Promise<ApiResult<PagedResult<ConsultantJobSummary>>> {
-  return apiRequest<PagedResult<ConsultantJobSummary>>("/api/consultant/jobs");
+export function listConsultantJobs(
+  filters: ConsultantJobListFilters = {},
+): Promise<ApiResult<PagedResult<ConsultantJobSummary>>> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.companyId) params.set("companyId", filters.companyId);
+  if (typeof filters.limit === "number") params.set("limit", String(filters.limit));
+  if (typeof filters.offset === "number") params.set("offset", String(filters.offset));
+  const suffix = params.size ? `?${params.toString()}` : "";
+  return apiRequest<PagedResult<ConsultantJobSummary>>(`/api/consultant/jobs${suffix}`);
 }
 
 export function fetchConsultantJob(jobId: string): Promise<ApiResult<ConsultantJobDetail>> {

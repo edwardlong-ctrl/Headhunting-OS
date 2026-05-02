@@ -17,13 +17,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ApiBoundaryContractRules;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCandidateDetailResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCandidateSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCompanyDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCompanySummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantShortlistDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantShortlistSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
+import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +54,7 @@ import org.springframework.test.web.servlet.MvcResult;
 })
 @org.springframework.test.context.TestPropertySource(properties = {"rto.auth.jwt.secret=0123456789abcdef0123456789abcdef", "rto.auth.jwt.issuer=test"})
 @WebMvcTest({
+    ConsultantCandidateController.class,
     ConsultantCompanyController.class,
     ConsultantJobController.class,
     ConsultantShortlistController.class
@@ -54,6 +62,7 @@ import org.springframework.test.web.servlet.MvcResult;
 class ConsultantControllerLeakageTest {
 
   private static final String ORG_ID = "00000000-0000-0000-0000-0000000018a1";
+  private static final String CANDIDATE_ID = "00000000-0000-0000-0000-0000000018aa";
   private static final String COMPANY_ID = "00000000-0000-0000-0000-0000000018a2";
   private static final String JOB_ID = "00000000-0000-0000-0000-0000000018a3";
   private static final String SHORTLIST_ID = "00000000-0000-0000-0000-0000000018a4";
@@ -68,7 +77,71 @@ class ConsultantControllerLeakageTest {
   private ConsultantApiCommandService commandService;
 
   @MockBean
+  private ConsultantCandidateQueryService consultantCandidateQueryService;
+
+  @MockBean
   private IdentityAuthenticationPort identityAuthenticationPort;
+
+  @BeforeEach
+  void resetCandidateControllerDefaults() {
+    when(consultantCandidateQueryService.listCandidates(any(), any(), eq(null))).thenAnswer(invocation -> {
+      AccessRequest accessRequest = invocation.getArgument(0);
+      if (accessRequest.resourceType() != ResourceType.CANDIDATE || accessRequest.action() != AccessAction.READ) {
+        throw new IllegalArgumentException("candidate controller must request candidate read access");
+      }
+      ConsultantCandidateSummaryResponse item = new ConsultantCandidateSummaryResponse(
+          CANDIDATE_ID, "active", "internal", null, null, null, "2025-01-01T00:00:00Z");
+      return PagedResult.of(List.of(item), 1, 20, 0);
+    });
+    when(consultantCandidateQueryService.getCandidateDetail(any(), any(), any())).thenAnswer(invocation -> {
+      AccessRequest accessRequest = invocation.getArgument(0);
+      if (accessRequest.resourceType() != ResourceType.CANDIDATE || accessRequest.action() != AccessAction.READ) {
+        throw new IllegalArgumentException("candidate controller must request candidate read access");
+      }
+      return Optional.of(new ConsultantCandidateDetailResponse(
+          CANDIDATE_ID,
+          "active",
+          "internal",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "2025-01-01T00:00:00Z",
+          "2025-01-01T00:00:00Z",
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList()));
+    });
+  }
+
+  // ── Candidate Controller ───────────────────────────────────────────────────
+
+  @Nested
+  class CandidateController {
+
+    @Test
+    void listCandidatesSuccessUsesCandidateReadContext() throws Exception {
+      mockMvc.perform(get("/api/consultant/candidates")
+              .with(authentication(auth("consultant"))))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.items[0].candidateId").value(CANDIDATE_ID))
+          .andExpect(jsonPath("$.data.totalCount").value(1));
+    }
+
+    @Test
+    void getCandidateDetailSuccessUsesCandidateReadContext() throws Exception {
+      mockMvc.perform(get("/api/consultant/candidates/" + CANDIDATE_ID)
+              .with(authentication(auth("consultant"))))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.candidateId").value(CANDIDATE_ID));
+    }
+  }
 
   // ── Company Controller ────────────────────────────────────────────────────
 

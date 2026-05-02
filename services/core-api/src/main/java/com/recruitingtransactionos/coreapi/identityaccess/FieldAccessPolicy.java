@@ -150,6 +150,13 @@ public final class FieldAccessPolicy {
 
   private static AccessDecision decideConsultantAccess(AccessRequest request) {
     if (request.action() == AccessAction.READ) {
+      if (request.resourceType() == ResourceType.CANDIDATE
+          && request.fieldClassification() == FieldClassification.INTERNAL
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_candidate_read_allowed",
+            "Consultant role may read same-organization candidate resources.");
+      }
       if (request.resourceType() == ResourceType.COMPANY
           || request.resourceType() == ResourceType.JOB
           || request.resourceType() == ResourceType.SHORTLIST) {

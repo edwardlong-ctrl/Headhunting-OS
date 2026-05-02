@@ -29,7 +29,7 @@ export async function apiRequest<T>(
   init?: RequestInit,
 ): Promise<ApiResult<T>> {
   try {
-    const accessToken = loadAccessToken();
+    const accessToken = loadAccessToken("consultant");
     const response = await fetch(input, {
       ...init,
       headers: {

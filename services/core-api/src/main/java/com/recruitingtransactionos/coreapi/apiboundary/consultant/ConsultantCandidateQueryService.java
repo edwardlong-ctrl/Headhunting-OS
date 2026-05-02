@@ -17,6 +17,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
+import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -80,7 +81,8 @@ public final class ConsultantCandidateQueryService {
 
   private void requireCandidateRead(AccessRequest accessRequest) {
     permissionEnforcer.requireAllowed(accessRequest);
-    if (accessRequest.action() != AccessAction.READ
+    if (accessRequest.resourceType() != ResourceType.CANDIDATE
+        || accessRequest.action() != AccessAction.READ
         || accessRequest.fieldClassification() != FieldClassification.INTERNAL) {
       throw new AccessDeniedException(new AccessDecision(
           false,

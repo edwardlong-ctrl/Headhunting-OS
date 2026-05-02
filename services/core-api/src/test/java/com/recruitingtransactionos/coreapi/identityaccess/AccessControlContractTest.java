@@ -206,6 +206,29 @@ class AccessControlContractTest {
   }
 
   @Test
+  void consultantCandidateReadsRequireCandidateResourceType() {
+    AccessDecision allowed = evaluator.evaluate(new AccessRequest(
+        PortalRole.CONSULTANT,
+        ResourceType.CANDIDATE,
+        AccessAction.READ,
+        FieldClassification.INTERNAL,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false));
+
+    assertAllowed(allowed, "consultant_candidate_read_allowed");
+
+    AccessDecision denied = evaluator.evaluate(new AccessRequest(
+        PortalRole.CONSULTANT,
+        ResourceType.WORKFLOW_EVENT,
+        AccessAction.READ,
+        FieldClassification.INTERNAL,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false));
+
+    assertAllowed(denied, "consultant_workflow_event_read_allowed");
+  }
+
+  @Test
   void consultantCanReadAndCreateSameOrganizationRawSourceItemsOnly() {
     for (AccessAction action : List.of(AccessAction.READ, AccessAction.CREATE)) {
       AccessDecision allowed = evaluator.evaluate(new AccessRequest(

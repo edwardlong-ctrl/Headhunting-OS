@@ -24,6 +24,7 @@ import {
   createConsultantCompany,
   fetchConsultantCompany,
   listConsultantCompanies,
+  type ConsultantCompanyListFilters,
   updateConsultantCompany,
   type ConsultantCompanyDetail,
   type ConsultantCompanySummary,
@@ -32,8 +33,10 @@ import {
   createConsultantJobRequirement,
   createConsultantJobScorecard,
   createConsultantJob,
+  createConsultantJobUpdatePayload,
   fetchConsultantJob,
   listConsultantJobs,
+  type ConsultantJobListFilters,
   updateConsultantJob,
   type ConsultantJobDetail,
   type ConsultantJobSummary,
@@ -41,13 +44,16 @@ import {
 import {
   fetchConsultantCandidate,
   listConsultantCandidates,
+  type ConsultantCandidateListFilters,
   type ConsultantCandidateDetail,
   type ConsultantCandidateSummary,
 } from "../../api/consultantCandidates";
 import {
+  createConsultantShortlistUpdatePayload,
   createConsultantShortlist,
   fetchConsultantShortlist,
   listConsultantShortlists,
+  type ConsultantShortlistListFilters,
   updateConsultantShortlist,
   type ConsultantShortlistDetail,
   type ConsultantShortlistSummary,
@@ -55,11 +61,18 @@ import {
 import {
   fetchConsultantWorkflow,
   fetchConsultantAuditDrawer,
+  type ConsultantWorkflowFilters,
   type ConsultantAuditDrawer,
+  type ConsultantWorkflowEvent,
   type ConsultantWorkflowTimeline,
 } from "../../api/consultantWorkflow";
 import { listConsultantFollowUps, type ConsultantFollowUp } from "../../api/consultantFollowUps";
-import { generateConsultantMatch, type ConsultantMatchReport } from "../../api/consultantMatching";
+import {
+  CONSULTANT_MATCH_DIMENSIONS,
+  createConsultantMatchGenerationPayload,
+  generateConsultantMatch,
+  type ConsultantMatchReport,
+} from "../../api/consultantMatching";
 import {
   extractConsultantIntake,
   fetchConsultantIntakeReview,
@@ -79,22 +92,30 @@ import {
   type ConsultantParsedDocument,
 } from "../../api/consultantDocuments";
 import { type ApiResult } from "../../api/http";
+import {
+  SHORTLIST_BUILDER_INITIAL_STATUS,
+  CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS,
+  canSaveShortlistBuilder,
+  describeWorkflowPageWindow,
+  isShortlistBuilderEditable,
+} from "./consultantPortalUtils";
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 
 type NavItem = { to: string; label: string };
 type IntakeLane = "candidate" | "company" | "job" | "call-note" | "feedback";
+const DEFAULT_PAGE_SIZE = 10;
 
 const navItems: NavItem[] = [
-  { to: "/consultant/dashboard", label: "Home" },
+  { to: "/consultant/dashboard", label: "Dashboard" },
   { to: "/consultant/intake", label: "AI Intake" },
   { to: "/consultant/talent", label: "Talent Pool" },
-  { to: "/consultant/companies", label: "Company Pool" },
+  { to: "/consultant/companies", label: "Companies" },
   { to: "/consultant/jobs", label: "Jobs" },
   { to: "/consultant/matching", label: "Matching" },
   { to: "/consultant/outreach", label: "Outreach" },
-  { to: "/consultant/shortlists", label: "Shortlist" },
-  { to: "/consultant/follow-ups", label: "Follow-up" },
+  { to: "/consultant/shortlists", label: "Shortlists" },
+  { to: "/consultant/follow-ups", label: "Follow-ups" },
   { to: "/consultant/workflow", label: "Workflow" },
   { to: "/consultant/placements", label: "Placements" },
   { to: "/consultant/commission", label: "Commission" },
@@ -396,8 +417,6 @@ function ConsultantSignInPage({
   const signInError = result.status === "ready" || result.status === "idle" || result.status === "loading"
     ? undefined
     : loadableError(result);
-  const requiresOrganizationSelection = signInError?.toLowerCase().includes("organization selection")
-    || signInError?.toLowerCase().includes("multiple organizations match");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -454,16 +473,14 @@ function ConsultantSignInPage({
             <StatusBadge value="consultant" />
           </div>
           <form className="stack-form sign-in-form" onSubmit={onSubmit}>
-            {requiresOrganizationSelection ? (
-              <label>
-                Organization ID
-                <input
-                  value={organizationId}
-                  onChange={(event) => setOrganizationId(event.target.value)}
-                  placeholder="Organization UUID"
-                />
-              </label>
-            ) : null}
+            <label>
+              Organization ID
+              <input
+                value={organizationId}
+                onChange={(event) => setOrganizationId(event.target.value)}
+                placeholder="Optional unless your account needs an org context"
+              />
+            </label>
             <label>
               Work email
               <input
@@ -483,14 +500,17 @@ function ConsultantSignInPage({
             </label>
             <button
               type="submit"
-              disabled={!email.trim() || !password || (requiresOrganizationSelection && !organizationId.trim())}
+              disabled={!email.trim() || !password}
             >
               Enter Consultant Portal
             </button>
           </form>
           <p className="helper-copy">
-            If the same email belongs to multiple organizations, the backend will fail closed and request
-            explicit organization selection.
+            Leave organization blank for single-org accounts. If local dev login fails closed, enter the
+            consultant org UUID explicitly.
+          </p>
+          <p className="helper-copy">
+            Local consultant dev org: <code>00000000-0000-0000-0000-000000240001</code>
           </p>
           {result.status !== "idle" && result.status !== "loading" && result.status !== "ready" ? (
             <ApiState status={result.status} error={loadableError(result)} />
@@ -505,11 +525,17 @@ function DashboardPage() {
   const state = useLoadable(fetchConsultantDashboard, []);
   const queue = useLoadable(() => listConsultantIntakeQueue(6), []);
   const followUps = useLoadable(listConsultantFollowUps, []);
+  const candidates = useLoadable(listConsultantCandidates, []);
+  const jobs = useLoadable(listConsultantJobs, []);
+  const workflow = useLoadable(fetchConsultantWorkflow, []);
   return renderLoadable(state, (dashboard) => (
     <DashboardContent
       dashboard={dashboard}
       queueItems={queue.status === "ready" ? queue.data.items : []}
       followUps={followUps.status === "ready" ? followUps.data.items : []}
+      candidateItems={candidates.status === "ready" ? candidates.data.items : []}
+      jobItems={jobs.status === "ready" ? jobs.data.items : []}
+      workflowItems={workflow.status === "ready" ? workflow.data.items : []}
     />
   ));
 }
@@ -518,15 +544,25 @@ function DashboardContent({
   dashboard,
   queueItems,
   followUps,
+  candidateItems,
+  jobItems,
+  workflowItems,
 }: {
   dashboard: ConsultantDashboard;
   queueItems: ConsultantIntakeQueueItem[];
   followUps: ConsultantFollowUp[];
+  candidateItems: ConsultantCandidateSummary[];
+  jobItems: ConsultantJobSummary[];
+  workflowItems: ConsultantWorkflowEvent[];
 }) {
   const reviewCount = queueItems.filter((item) => item.stage === "in_review" || item.stage === "extracted").length;
   const readyCount = queueItems.filter((item) => item.stage === "ready_for_publish").length;
   const focusItems = dashboard.blockedActions.slice(0, 4);
   const nextFollowUps = followUps.slice(0, 4);
+  const candidatePreview = candidateItems.slice(0, 4);
+  const jobPreview = jobItems.slice(0, 4);
+  const workflowPreview = workflowItems.slice(0, 5);
+  const queuePreview = queueItems.slice(0, 4);
   const funnelTotal = Math.max(
     dashboard.pendingFollowUpCount,
     dashboard.shortlistCount,
@@ -537,11 +573,15 @@ function DashboardContent({
 
   return (
     <div className="workspace-stack">
-      <section className="portal-panel dashboard-panel">
+      <section className="portal-panel board-hero-panel">
         <div className="section-header">
           <div>
             <span className="portal-eyebrow">Consultant dashboard</span>
-            <h2>Welcome back, Consultant</h2>
+            <h2>Unified operating board</h2>
+            <p className="helper-copy shell-description">
+              Intake, review, talent, jobs, matching, shortlist, and workflow stay inside one
+              consultant workspace and follow the v2.0 board language.
+            </p>
           </div>
           <StatusBadge value="This week" />
         </div>
@@ -552,7 +592,7 @@ function DashboardContent({
           <MetricCard label="Talent pool" value={dashboard.candidateCount} />
         </div>
         <div className="dashboard-insight-grid">
-          <article className="data-card compact-card">
+          <article className="data-card compact-card emphasis-card">
             <div className="section-header">
               <div>
                 <span className="portal-eyebrow">Intake funnel</span>
@@ -622,14 +662,146 @@ function DashboardContent({
         </div>
       </section>
 
-      <section className="portal-panel">
-        <div className="section-header">
-          <div>
-            <span className="portal-eyebrow">Operating surface</span>
-            <h2>Daily control lanes</h2>
+      <section className="consultant-board-grid">
+        <BoardPreviewPanel
+          number={2}
+          eyebrow="AI Intake Center"
+          title="Governed queue"
+          action={<NavLink className="text-link" to="/consultant/intake">Open intake</NavLink>}
+        >
+          <div className="portal-chip-row">
+            {Object.values(intakeLaneConfig).slice(0, 5).map((lane) => (
+              <span key={lane.route} className="portal-chip">
+                {lane.label}
+              </span>
+            ))}
           </div>
-        </div>
-        <div className="control-lane-grid">
+          {queuePreview.length > 0 ? (
+            <MiniDataTable
+              columns={["Packet", "Stage"]}
+              rows={queuePreview.map((item) => [
+                <Link
+                  key={item.informationPacketId}
+                  to={`/consultant/intake/review/${encodeURIComponent(item.informationPacketId)}`}
+                  className="text-link"
+                >
+                  {item.title}
+                </Link>,
+                <StatusBadge value={item.stage} />,
+              ])}
+            />
+          ) : (
+            <EmptyState title="No intake packets in queue" />
+          )}
+        </BoardPreviewPanel>
+
+        <BoardPreviewPanel
+          number={3}
+          eyebrow="Talent Pool"
+          title="Structured profiles"
+          action={<NavLink className="text-link" to="/consultant/talent">View pool</NavLink>}
+        >
+          {candidatePreview.length > 0 ? (
+            <MiniDataTable
+              columns={["Candidate", "Status", "Privacy"]}
+              rows={candidatePreview.map((item) => [
+                <Link key={item.candidateId} to={`/consultant/talent/${item.candidateId}`} className="text-link">
+                  {item.candidateId}
+                </Link>,
+                <StatusBadge value={item.status} />,
+                item.privacyStatus,
+              ])}
+            />
+          ) : (
+            <EmptyState title="No talent profiles available" />
+          )}
+        </BoardPreviewPanel>
+
+        <BoardPreviewPanel
+          number={4}
+          eyebrow="Review Control"
+          title="Approval discipline"
+        >
+          <SafeList
+            title="Gate rules"
+            items={[
+              "Clean facts and source highlight stay visible in the same review surface.",
+              "Bulk approve is allowed only for low-risk fields and remains auditable.",
+              "Client-visible changes stay blocked until canonical write readiness is true.",
+            ]}
+          />
+        </BoardPreviewPanel>
+
+        <BoardPreviewPanel
+          number={5}
+          eyebrow="Jobs List"
+          title="Open roles and matching entry"
+          action={<NavLink className="text-link" to="/consultant/jobs">Open jobs</NavLink>}
+        >
+          {jobPreview.length > 0 ? (
+            <MiniDataTable
+              columns={["Job", "Status", "Company"]}
+              rows={jobPreview.map((item) => [
+                <Link key={item.jobId} to={`/consultant/jobs/${item.jobId}`} className="text-link">
+                  {item.title}
+                </Link>,
+                <StatusBadge value={item.status} />,
+                item.companyId,
+              ])}
+            />
+          ) : (
+            <EmptyState title="No jobs open yet" />
+          )}
+        </BoardPreviewPanel>
+
+        <BoardPreviewPanel
+          number={6}
+          eyebrow="Follow-up Center"
+          title="Recovery and reminders"
+          action={<NavLink className="text-link" to="/consultant/follow-ups">View queue</NavLink>}
+        >
+          {nextFollowUps.length > 0 ? (
+            <MiniDataTable
+              columns={["Title", "Type", "Status"]}
+              rows={nextFollowUps.map((item) => [
+                <Link key={`${item.entityId}-${item.followUpType}`} to={item.route} className="text-link">
+                  {item.title}
+                </Link>,
+                item.followUpType,
+                <StatusBadge value={item.status} />,
+              ])}
+            />
+          ) : (
+            <EmptyState title="No follow-up items waiting" />
+          )}
+        </BoardPreviewPanel>
+
+        <BoardPreviewPanel
+          number={7}
+          eyebrow="Workflow Timeline"
+          title="Recent governed actions"
+          action={<NavLink className="text-link" to="/consultant/workflow">Open timeline</NavLink>}
+        >
+          {workflowPreview.length > 0 ? (
+            <div className="workflow-preview-list">
+              {workflowPreview.map((item) => (
+                <div key={`${item.entityType}-${item.entityId}-${item.occurredAt}`} className="workflow-preview-item">
+                  <div>
+                    <strong>{item.actionCode}</strong>
+                    <p>{item.entityType}:{item.entityId}</p>
+                  </div>
+                  <span>{formatDate(item.occurredAt)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No workflow events yet" />
+          )}
+        </BoardPreviewPanel>
+      </section>
+
+      <section className="portal-panel board-footer-panel">
+        <div className="board-footer-grid">
           <BoardActionCard
             title="Manage Companies"
             description="Grow and maintain client relationships."
@@ -1070,7 +1242,14 @@ function FactCard({ fact, onSubmitted }: { fact: ConsultantCleanFact; onSubmitte
 }
 
 function TalentListPage() {
-  const state = useLoadable(() => listConsultantCandidates(), []);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [offset, setOffset] = useState(0);
+  const filters: ConsultantCandidateListFilters = {
+    status: statusFilter || undefined,
+    limit: DEFAULT_PAGE_SIZE,
+    offset,
+  };
+  const state = useLoadable(() => listConsultantCandidates(filters), [statusFilter, offset]);
   return renderLoadable(state, (result) => (
     <ListPageShell
       title="Talent Pool"
@@ -1078,6 +1257,25 @@ function TalentListPage() {
       description="Structured candidate profiles that already passed the governed intake boundary."
       actions={<NavLink className="secondary-link" to="/consultant/intake/upload/candidate">Add Profile</NavLink>}
     >
+      <ListToolbar>
+        <label>
+          Status
+          <select
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setOffset(0);
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="active">active</option>
+            <option value="draft">draft</option>
+            <option value="merged">merged</option>
+            <option value="archived">archived</option>
+          </select>
+        </label>
+      </ListToolbar>
+      <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
       <DataTable
         headers={["Candidate", "Status", "Privacy", "Created"]}
         rows={result.items.map((item) => [
@@ -1086,6 +1284,13 @@ function TalentListPage() {
           item.privacyStatus,
           formatDate(item.createdAt),
         ])}
+      />
+      <PaginationControls
+        hasMore={result.hasMore}
+        offset={result.offset}
+        limit={result.limit}
+        onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+        onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
       />
     </ListPageShell>
   ));
@@ -1223,7 +1428,14 @@ function TalentDetailPage() {
 }
 
 function CompaniesPage() {
-  const state = useLoadable(listConsultantCompanies, []);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [offset, setOffset] = useState(0);
+  const filters: ConsultantCompanyListFilters = {
+    status: statusFilter || undefined,
+    limit: DEFAULT_PAGE_SIZE,
+    offset,
+  };
+  const state = useLoadable(() => listConsultantCompanies(filters), [statusFilter, offset]);
   const [result, setResult] = useState<Loadable<ConsultantCompanyDetail>>({ status: "idle" });
   const [name, setName] = useState("");
 
@@ -1241,6 +1453,24 @@ function CompaniesPage() {
           eyebrow="Consultant company workspace"
           description="Target accounts, relationship health, and company-level detail stay inside the same board."
         >
+          <ListToolbar>
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setOffset(0);
+                }}
+              >
+                <option value="">All statuses</option>
+                <option value="active">active</option>
+                <option value="prospect">prospect</option>
+                <option value="inactive">inactive</option>
+              </select>
+            </label>
+          </ListToolbar>
+          <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
           <DataTable
             headers={["Name", "Status", "Contacts", "Jobs"]}
             rows={result.items.map((item) => [
@@ -1249,6 +1479,13 @@ function CompaniesPage() {
               item.contactCount,
               item.jobCount,
             ])}
+          />
+          <PaginationControls
+            hasMore={result.hasMore}
+            offset={result.offset}
+            limit={result.limit}
+            onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+            onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
           />
         </ListPageShell>
       ))}
@@ -1274,8 +1511,17 @@ function CompanyDetailPage() {
 }
 
 function JobsPage() {
-  const jobs = useLoadable(listConsultantJobs, []);
-  const companies = useLoadable(listConsultantCompanies, []);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [offset, setOffset] = useState(0);
+  const jobFilters: ConsultantJobListFilters = {
+    status: statusFilter || undefined,
+    companyId: companyFilter || undefined,
+    limit: DEFAULT_PAGE_SIZE,
+    offset,
+  };
+  const jobs = useLoadable(() => listConsultantJobs(jobFilters), [statusFilter, companyFilter, offset]);
+  const companies = useLoadable(() => listConsultantCompanies({ limit: 100, offset: 0 }), []);
   const [companyId, setCompanyId] = useState("");
   const [title, setTitle] = useState("");
   const [result, setResult] = useState<Loadable<ConsultantJobDetail>>({ status: "idle" });
@@ -1294,6 +1540,41 @@ function JobsPage() {
           eyebrow="Consultant job workspace"
           description="Track open roles, matching readiness, and shortlist entry from one table."
         >
+          <ListToolbar>
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value);
+                  setOffset(0);
+                }}
+              >
+                <option value="">All statuses</option>
+                <option value="submitted">submitted</option>
+                <option value="open">open</option>
+                <option value="closed">closed</option>
+              </select>
+            </label>
+            {companies.status === "ready" ? (
+              <label>
+                Company
+                <select
+                  value={companyFilter}
+                  onChange={(event) => {
+                    setCompanyFilter(event.target.value);
+                    setOffset(0);
+                  }}
+                >
+                  <option value="">All companies</option>
+                  {companies.data.items.map((company) => (
+                    <option key={company.companyId} value={company.companyId}>{company.name}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </ListToolbar>
+          <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
           <DataTable
             headers={["Title", "Status", "Company", "Matching"]}
             rows={result.items.map((item) => [
@@ -1302,6 +1583,13 @@ function JobsPage() {
               item.companyId,
               <Link to={`/consultant/jobs/${item.jobId}/matching`} className="text-link">Open matching</Link>,
             ])}
+          />
+          <PaginationControls
+            hasMore={result.hasMore}
+            offset={result.offset}
+            limit={result.limit}
+            onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+            onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
           />
         </ListPageShell>
       ))}
@@ -1403,9 +1691,9 @@ function JobIntakePage() {
 
 function MatchingPage() {
   const { jobId = "" } = useParams();
-  const candidates = useLoadable(() => listConsultantCandidates(), []);
+  const candidates = useLoadable(() => listConsultantCandidates({ limit: 50, offset: 0 }), []);
   const shortlistCards = useLoadable(async () => {
-    const shortlists = await listConsultantShortlists(jobId);
+    const shortlists = await listConsultantShortlists({ jobId, limit: 50, offset: 0 });
     if (shortlists.status !== "ready") {
       return {
         status: shortlists.status,
@@ -1444,22 +1732,10 @@ function MatchingPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResult({ status: "loading" });
-    setResult(await generateConsultantMatch(jobId, {
+    setResult(await generateConsultantMatch(jobId, createConsultantMatchGenerationPayload({
       candidateId: selectionMode === "talent" ? candidateId : undefined,
       anonymousCandidateCardId: selectionMode === "shortlist" ? anonymousCandidateCardId : undefined,
-      requestedOverallScore: 80,
-      requestedDimensionScores: { skills: 80, experience: 78 },
-      industryPackMaturity: "MATURE",
-      keywordOnlyEvidence: false,
-      projectEvidencePresent: true,
-      candidateIntentSignalStrength: "MEDIUM",
-      ontologyStale: false,
-      industryPackVersionStale: false,
-      authenticityRisk: "LOW",
-      reidentificationRiskSignal: "LOW",
-      ontologyVersion: "v2.1",
-      industryPackVersion: "default",
-    }));
+    })));
   }
 
   return (
@@ -1518,6 +1794,17 @@ function MatchingPage() {
               return detailLinks.length > 0 ? <div className="link-row">{detailLinks}</div> : <EmptyState title="No shortlists for this job yet" />;
             })
           ) : null}
+          <div className="portal-chip-row">
+            {CONSULTANT_MATCH_DIMENSIONS.map((dimension) => (
+              <span key={dimension} className="portal-chip">
+                {dimension}
+              </span>
+            ))}
+          </div>
+          <p className="helper-copy">
+            Matching requests now send the full backend-required dimension set, so report generation
+            stays aligned with the `MatchDimension` contract.
+          </p>
           <button type="submit" disabled={selectionMode === "talent" ? !candidateId : !anonymousCandidateCardId}>
             Generate report
           </button>
@@ -1563,13 +1850,34 @@ function MatchingHubPage() {
 }
 
 function ShortlistsPage() {
-  const state = useLoadable(listConsultantShortlists, []);
+  const [jobIdFilter, setJobIdFilter] = useState("");
+  const [offset, setOffset] = useState(0);
+  const filters: ConsultantShortlistListFilters = {
+    jobId: jobIdFilter.trim() || undefined,
+    limit: DEFAULT_PAGE_SIZE,
+    offset,
+  };
+  const state = useLoadable(() => listConsultantShortlists(filters), [jobIdFilter, offset]);
   return renderLoadable(state, (result) => (
     <ListPageShell
       title="Shortlist Builder"
       eyebrow="Consultant shortlist workspace"
       description="Review shortlist drafts, candidate counts, and client-send readiness."
     >
+      <ListToolbar>
+        <label>
+          Job ID
+          <input
+            value={jobIdFilter}
+            onChange={(event) => {
+              setJobIdFilter(event.target.value);
+              setOffset(0);
+            }}
+            placeholder="Filter by job id"
+          />
+        </label>
+      </ListToolbar>
+      <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
       <DataTable
         headers={["Title", "Status", "Candidates", "Job"]}
         rows={result.items.map((item) => [
@@ -1578,6 +1886,13 @@ function ShortlistsPage() {
           item.candidateCount,
           item.jobId,
         ])}
+      />
+      <PaginationControls
+        hasMore={result.hasMore}
+        offset={result.offset}
+        limit={result.limit}
+        onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+        onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
       />
     </ListPageShell>
   ));
@@ -1593,12 +1908,15 @@ function ShortlistBuilderPage() {
   const { jobId = "" } = useParams();
   const [title, setTitle] = useState("");
   const [result, setResult] = useState<Loadable<ConsultantShortlistDetail>>({ status: "idle" });
-  const existing = useLoadable(() => listConsultantShortlists(jobId), [jobId]);
+  const existing = useLoadable(
+    () => listConsultantShortlists({ jobId, limit: DEFAULT_PAGE_SIZE, offset: 0 }),
+    [jobId],
+  );
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResult({ status: "loading" });
-    setResult(await createConsultantShortlist({ jobId, title, status: "ready_for_review" }));
+    setResult(await createConsultantShortlist({ jobId, title, status: SHORTLIST_BUILDER_INITIAL_STATUS }));
   }
 
   return (
@@ -1739,7 +2057,18 @@ function CompanyDetailWorkspace({ initialCompany }: { initialCompany: Consultant
         <SafeList title="Contacts" items={company.contacts.map((contact) => `${contact.name} · ${contact.title ?? "Unknown title"} · ${contact.email ?? "No email"}`)} />
         {contactState.status !== "idle" && contactState.status !== "loading" && contactState.status !== "ready" ? <ApiState status={contactState.status} error={loadableError(contactState)} /> : null}
       </section>
-      <AuditDrawerButton entityType="company" entityId={company.companyId} />
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Audit coverage</span>
+            <h2>Workflow-backed drawer availability</h2>
+          </div>
+        </div>
+        <p className="helper-copy">
+          Workflow audit drawers currently open from candidate, job, shortlist, and intake-backed
+          entities that have supported workflow entity types in the backend read model.
+        </p>
+      </section>
     </DetailPageShell>
   );
 }
@@ -1767,8 +2096,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
   async function onSaveJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUpdateState({ status: "loading" });
-    const next = await updateConsultantJob(job.jobId, {
-      version: job.version,
+    const next = await updateConsultantJob(job.jobId, createConsultantJobUpdatePayload(job, {
       title,
       description: emptyToNull(description),
       location: emptyToNull(location),
@@ -1777,7 +2105,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
       employmentType: emptyToNull(employmentType),
       compensation: emptyToNull(compensation),
       status,
-    });
+    }));
     setUpdateState(next);
     if (next.status === "ready") {
       setJob(next.data);
@@ -1893,15 +2221,16 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
   const [updateState, setUpdateState] = useState<Loadable<ConsultantShortlistDetail>>({ status: "idle" });
   const [title, setTitle] = useState(initialShortlist.title);
   const [status, setStatus] = useState(initialShortlist.status);
+  const statusIsEditable = isShortlistBuilderEditable(status);
+  const currentStatusIsBeyondBuilder = !isShortlistBuilderEditable(shortlist.status);
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUpdateState({ status: "loading" });
-    const next = await updateConsultantShortlist(shortlist.shortlistId, {
-      version: shortlist.version,
+    const next = await updateConsultantShortlist(shortlist.shortlistId, createConsultantShortlistUpdatePayload(shortlist, {
       title,
       status,
-    });
+    }));
     setUpdateState(next);
     if (next.status === "ready") {
       setShortlist(next.data);
@@ -1910,9 +2239,11 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
 
   const preSendChecks = [
     shortlist.cards.length > 0 ? "Candidate cards present" : "No candidate cards attached",
-    shortlist.status === "ready_for_review" || shortlist.status === "ready_to_send"
-      ? "Status is send-capable"
-      : "Status not yet ready to send",
+    shortlist.status === "ready_for_review"
+      ? "Status is ready for consultant review."
+      : shortlist.status === "sent_to_client"
+        ? "Shortlist has already moved beyond builder scope."
+        : "Status is still inside pre-send builder work.",
   ];
 
   return (
@@ -1931,15 +2262,25 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
           <label>Title<input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
           <label>
             Status
-            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <select value={status} onChange={(event) => setStatus(event.target.value)} disabled={currentStatusIsBeyondBuilder}>
               <option value="draft">draft</option>
               <option value="ready_for_review">ready_for_review</option>
-              <option value="ready_to_send">ready_to_send</option>
-              <option value="sent">sent</option>
+              {currentStatusIsBeyondBuilder ? (
+                <option value={shortlist.status}>{shortlist.status}</option>
+              ) : null}
             </select>
           </label>
-          <button type="submit" disabled={!title.trim()}>Save shortlist</button>
+          <button
+            type="submit"
+            disabled={!canSaveShortlistBuilder(shortlist.status, status, title) || !statusIsEditable || currentStatusIsBeyondBuilder}
+          >
+            Save shortlist
+          </button>
         </form>
+        <p className="helper-copy">
+          Task 24 only supports shortlist builder states. Client send/view transitions remain outside
+          this page and are not simulated here.
+        </p>
       </section>
       <SafeList title="Cards" items={shortlist.cards.map((card) => `${card.anonymousCandidateCardId} · ${card.status}`)} />
       <SafeList title="Pre-send checks" items={preSendChecks} />
@@ -2063,13 +2404,55 @@ function OutreachPage() {
 }
 
 function WorkflowPage() {
-  const state = useLoadable(() => fetchConsultantWorkflow(), []);
+  const [entityTypeFilter, setEntityTypeFilter] = useState("");
+  const [entityIdFilter, setEntityIdFilter] = useState("");
+  const [offset, setOffset] = useState(0);
+  const filters: ConsultantWorkflowFilters = {
+    entityType: entityTypeFilter || undefined,
+    entityId: entityIdFilter.trim() || undefined,
+    limit: DEFAULT_PAGE_SIZE,
+    offset,
+  };
+  const state = useLoadable(() => fetchConsultantWorkflow(filters), [entityTypeFilter, entityIdFilter, offset]);
   return renderLoadable(state, (result) => (
     <ListPageShell
       title="Workflow Timeline"
       eyebrow="Workflow audit read model"
       description="Every governed action stays visible here as a consultant-safe event trail."
     >
+      <ListToolbar>
+        <label>
+          Entity type
+          <select
+            value={entityTypeFilter}
+            onChange={(event) => {
+              setEntityTypeFilter(event.target.value);
+              setOffset(0);
+            }}
+          >
+            <option value="">All entities</option>
+            {CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Entity ID
+          <input
+            value={entityIdFilter}
+            onChange={(event) => {
+              setEntityIdFilter(event.target.value);
+              setOffset(0);
+            }}
+            placeholder="Filter by entity id"
+          />
+        </label>
+      </ListToolbar>
+      <p className="helper-copy pagination-summary">
+        {describeWorkflowPageWindow(result.items.length, result.offset)}
+      </p>
       <DataTable
         headers={["Action", "Entity", "Risk", "Occurred"]}
         rows={result.items.map((item) => [
@@ -2078,6 +2461,13 @@ function WorkflowPage() {
           <StatusBadge value={item.riskTier} />,
           formatDate(item.occurredAt),
         ])}
+      />
+      <PaginationControls
+        hasMore={result.hasMore}
+        offset={result.offset}
+        limit={result.limit}
+        onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+        onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
       />
     </ListPageShell>
   ));
@@ -2195,8 +2585,8 @@ function ListPageShell({
   children: React.ReactNode;
 }) {
   return (
-    <section className="portal-panel">
-      <div className="section-header">
+    <section className="portal-panel shell-header-panel">
+      <div className="section-header shell-header-row">
         <div>
           <span className="portal-eyebrow">{eyebrow}</span>
           <h2>{title}</h2>
@@ -2222,7 +2612,7 @@ function DetailPageShell({
 }) {
   return (
     <div className="workspace-stack">
-      <section className="portal-panel">
+      <section className="portal-panel shell-header-panel">
         <span className="portal-eyebrow">{eyebrow}</span>
         <h2>{title}</h2>
         {description ? <p className="helper-copy shell-description">{description}</p> : null}
@@ -2284,7 +2674,7 @@ function BoardActionCard({
 }
 
 function StatusBadge({ value, tone }: { value: string; tone?: "warning" | "neutral" }) {
-  return <span className={`status-badge ${tone ? `status-badge-${tone}` : ""}`}>{value}</span>;
+  return <span className={`status-badge ${tone ? `status-badge-${tone}` : badgeToneForValue(value)}`}>{value}</span>;
 }
 
 function QueueStageBadge({ item }: { item: ConsultantIntakeQueueItem }) {
@@ -2309,7 +2699,13 @@ function KeyValueList({ items }: { items: Array<[string, string | null | undefin
   );
 }
 
-function DataTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
+function DataTable({
+  headers,
+  rows,
+}: {
+  headers: string[];
+  rows: React.ReactNode[][];
+}) {
   if (rows.length === 0) {
     return <EmptyState title="No rows returned" />;
   }
@@ -2334,6 +2730,109 @@ function DataTable({ headers, rows }: { headers: string[]; rows: React.ReactNode
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ListToolbar({ children }: { children: React.ReactNode }) {
+  return <div className="list-toolbar">{children}</div>;
+}
+
+function PaginationSummary({
+  totalCount,
+  limit,
+  offset,
+}: {
+  totalCount: number;
+  limit: number;
+  offset: number;
+}) {
+  const start = totalCount === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + limit, totalCount);
+  return (
+    <p className="helper-copy pagination-summary">
+      Showing {start}-{end} of {totalCount}
+    </p>
+  );
+}
+
+function PaginationControls({
+  hasMore,
+  offset,
+  limit,
+  onPrevious,
+  onNext,
+}: {
+  hasMore: boolean;
+  offset: number;
+  limit: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="pagination-controls">
+      <button type="button" className="secondary-button" onClick={onPrevious} disabled={offset === 0}>
+        Previous
+      </button>
+      <span className="pagination-chip">Page {Math.floor(offset / limit) + 1}</span>
+      <button type="button" className="secondary-button" onClick={onNext} disabled={!hasMore}>
+        Next
+      </button>
+    </div>
+  );
+}
+
+function MiniDataTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
+  return (
+    <div className="mini-table" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+      <div className="mini-table-head" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+        {columns.map((column) => (
+          <span key={column}>{column}</span>
+        ))}
+      </div>
+      <div className="mini-table-body">
+        {rows.map((row, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="mini-table-row"
+            style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+          >
+            {row.map((cell, cellIndex) => (
+              <div key={`${rowIndex}-${cellIndex}`}>{cell}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoardPreviewPanel({
+  number,
+  eyebrow,
+  title,
+  action,
+  children,
+}: {
+  number: number;
+  eyebrow: string;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="portal-panel board-preview-panel">
+      <div className="section-header board-preview-header">
+        <div className="board-preview-title">
+          <span className="board-preview-number">{number}</span>
+          <div>
+            <span className="portal-eyebrow">{eyebrow}</span>
+            <h2>{title}</h2>
+          </div>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -2377,6 +2876,50 @@ function SafeList({ title, items }: { title: string; items: string[] }) {
       </ul>
     </section>
   );
+}
+
+function badgeToneForValue(value: string): string {
+  const normalized = value.toLowerCase();
+  if (
+    normalized.includes("approved")
+    || normalized.includes("active")
+    || normalized.includes("ready")
+    || normalized.includes("strong")
+    || normalized.includes("open")
+    || normalized.includes("sent")
+  ) {
+    return "status-badge-positive";
+  }
+  if (
+    normalized.includes("review")
+    || normalized.includes("pending")
+    || normalized.includes("submitted")
+    || normalized.includes("draft")
+    || normalized.includes("loading")
+    || normalized.includes("medium")
+  ) {
+    return "status-badge-accent";
+  }
+  if (
+    normalized.includes("failed")
+    || normalized.includes("blocked")
+    || normalized.includes("warning")
+    || normalized.includes("conflict")
+    || normalized.includes("denied")
+    || normalized.includes("stale")
+    || normalized.includes("high")
+  ) {
+    return "status-badge-warning";
+  }
+  if (
+    normalized.includes("inactive")
+    || normalized.includes("closed")
+    || normalized.includes("archived")
+    || normalized.includes("unknown")
+  ) {
+    return "status-badge-neutral";
+  }
+  return "";
 }
 
 export function ConsultantPortal() {

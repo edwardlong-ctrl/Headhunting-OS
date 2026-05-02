@@ -1,5 +1,12 @@
 import { ApiResult, apiRequest } from "./http";
 
+export type ConsultantWorkflowFilters = {
+  entityType?: string;
+  entityId?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type ConsultantWorkflowEvent = {
   workflowEventId: string;
   entityType: string;
@@ -27,10 +34,14 @@ export type ConsultantAuditDrawer = {
   items: ConsultantWorkflowEvent[];
 };
 
-export function fetchConsultantWorkflow(entityType?: string, entityId?: string): Promise<ApiResult<ConsultantWorkflowTimeline>> {
+export function fetchConsultantWorkflow(
+  filters: ConsultantWorkflowFilters = {},
+): Promise<ApiResult<ConsultantWorkflowTimeline>> {
   const params = new URLSearchParams();
-  if (entityType) params.set("entityType", entityType);
-  if (entityId) params.set("entityId", entityId);
+  if (filters.entityType) params.set("entityType", filters.entityType);
+  if (filters.entityId) params.set("entityId", filters.entityId);
+  if (typeof filters.limit === "number") params.set("limit", String(filters.limit));
+  if (typeof filters.offset === "number") params.set("offset", String(filters.offset));
   const suffix = params.size ? `?${params.toString()}` : "";
   return apiRequest<ConsultantWorkflowTimeline>(`/api/consultant/workflow${suffix}`);
 }

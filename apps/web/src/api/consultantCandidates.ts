@@ -1,5 +1,11 @@
 import { ApiResult, PagedResult, apiRequest } from "./http";
 
+export type ConsultantCandidateListFilters = {
+  status?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type ConsultantCandidateSummary = {
   candidateId: string;
   status: string;
@@ -61,9 +67,13 @@ export type ConsultantCandidateDetail = ConsultantCandidateSummary & {
   }>;
 };
 
-export function listConsultantCandidates(status?: string): Promise<ApiResult<PagedResult<ConsultantCandidateSummary>>> {
+export function listConsultantCandidates(
+  filters: ConsultantCandidateListFilters = {},
+): Promise<ApiResult<PagedResult<ConsultantCandidateSummary>>> {
   const params = new URLSearchParams();
-  if (status) params.set("status", status);
+  if (filters.status) params.set("status", filters.status);
+  if (typeof filters.limit === "number") params.set("limit", String(filters.limit));
+  if (typeof filters.offset === "number") params.set("offset", String(filters.offset));
   const suffix = params.size ? `?${params.toString()}` : "";
   return apiRequest<PagedResult<ConsultantCandidateSummary>>(`/api/consultant/candidates${suffix}`);
 }

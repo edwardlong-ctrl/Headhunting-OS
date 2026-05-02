@@ -105,7 +105,7 @@ public final class ConsultantCandidateController {
   private static AccessRequest buildAccessRequest(AccessAction action) {
     return new AccessRequest(
         PortalRole.CONSULTANT,
-        ResourceType.WORKFLOW_EVENT,
+        ResourceType.CANDIDATE,
         action,
         FieldClassification.INTERNAL,
         Set.of(RelationshipScope.SAME_ORGANIZATION),

@@ -133,7 +133,7 @@ function StaticPortal({ portalKey }: { portalKey: PortalKey }) {
 
 function ClientPortal() {
   const [cardRef, setCardRef] = useState("");
-  const [accessToken, setAccessToken] = useState(() => loadAccessToken() ?? "");
+  const [accessToken, setAccessToken] = useState(() => loadAccessToken("client") ?? "");
   const navigate = useNavigate();
 
   function openClientSafeCard(event: FormEvent<HTMLFormElement>) {
@@ -164,7 +164,7 @@ function ClientPortal() {
             onChange={(event) => {
               const nextToken = event.target.value;
               setAccessToken(nextToken);
-              saveAccessToken(nextToken);
+              saveAccessToken(nextToken, "client");
             }}
           />
           <label htmlFor="anonymous-card-ref">Anonymous card ref</label>

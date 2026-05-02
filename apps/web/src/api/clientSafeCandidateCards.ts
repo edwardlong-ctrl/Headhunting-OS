@@ -58,7 +58,7 @@ export async function fetchClientSafeCandidateCard(
   }
 
   try {
-    const accessToken = loadAccessToken();
+    const accessToken = loadAccessToken("client");
     const response = await fetch(
       `/api/client-safe/candidate-cards/${encodeURIComponent(normalizedCardRef)}`,
       {

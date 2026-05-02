@@ -10,13 +10,15 @@ export type PortalSession = {
   refreshTokenExpiresAt: string;
 };
 
-const SESSION_STORAGE_KEY = "rto.portalSession";
+const CONSULTANT_SESSION_STORAGE_KEY = "rto.consultantSession";
+const LEGACY_SESSION_STORAGE_KEY = "rto.portalSession";
 
 export function loadPortalSession(): PortalSession | null {
   if (typeof window === "undefined") {
     return null;
   }
-  const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  const raw = window.localStorage.getItem(CONSULTANT_SESSION_STORAGE_KEY)
+    ?? window.localStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
   if (!raw) {
     return null;
   }
@@ -45,13 +47,14 @@ export function savePortalSession(session: PortalSession): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  window.localStorage.setItem(CONSULTANT_SESSION_STORAGE_KEY, JSON.stringify(session));
+  window.localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
 
 export function clearPortalSession(): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(CONSULTANT_SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
-
