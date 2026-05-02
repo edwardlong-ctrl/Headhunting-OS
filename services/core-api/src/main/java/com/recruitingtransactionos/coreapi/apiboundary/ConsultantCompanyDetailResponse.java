@@ -4,6 +4,7 @@ import java.util.List;
 
 public record ConsultantCompanyDetailResponse(
     String companyId,
+    long version,
     String name,
     String displayName,
     String industry,
@@ -20,6 +21,9 @@ public record ConsultantCompanyDetailResponse(
 
   public ConsultantCompanyDetailResponse {
     companyId = ApiBoundaryContractRules.requireNonBlank(companyId, "companyId");
+    if (version < 0) {
+      throw new IllegalArgumentException("version must be >= 0");
+    }
     name = ApiBoundaryContractRules.requireApiSafeExternalText(name, "name");
     displayName = ApiBoundaryContractRules.sanitizeExternalText(displayName, null);
     industry = ApiBoundaryContractRules.sanitizeExternalText(industry, null);

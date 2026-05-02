@@ -229,7 +229,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
   -> `WorkflowEvent` audit + minimal `CandidateProfile` field write
   -> lineage/source-span and CandidateProfile metadata preserved.
 - Task 6F confirms ClaimLedgerItem remains claim input, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate remains mandatory, gate-blocked attempts still write no CandidateProfile field, and a separate persisted blocked-attempt audit ledger was deferred at Task 6F time (delivered by Task 17 V11 `governance.canonical_write_attempt`).
-- Task 23 now adds backend/API wiring for governed intake through `ConsultantIntakeController`, review/query/decision services, and governed AI extraction orchestration. Frontend review UI and broader product workflow remain future work.
+- Task 23 now adds backend/API wiring for governed intake through `ConsultantIntakeController`, review/query/decision services, and governed AI extraction orchestration. The former frontend review/UI gap is now closed by Task 24.
+- Task 24 now adds the first complete Consultant Portal v1 surface: unified `/consultant` routing in `apps/web`, dashboard and blocked-action panel, upload/intake/review/publish flow, talent/company/job/shortlist views, job intake, job outreach, matching review, workflow timeline, audit drawer, and real follow-up queue. Candidate detail now exposes consultant-safe `overview`, `evidence`, `conflicts`, `staleInfo`, `followUps`, and `history` sections instead of a placeholder-only detail card. It also pulls forward consultant-safe backend APIs for dashboard, candidate summaries/details, workflow/audit, and follow-up data so the portal runs on real contracts instead of mock-only UI.
 
 ## Current Client-safe Projection Contract Capabilities
 
@@ -291,8 +292,8 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - CandidateProfile table writes to `recruiting.candidate_profile` exist only through backend-internal explicit `CandidateProfileService` / `JdbcCandidateProfilePersistencePort` calls.
 - No raw Candidate writes to `recruiting.candidate`.
 - No generic CandidateProfile repository/search/list surface beyond the narrow Task 6B port methods.
-- No CandidateProfile API/controller/DTO/UI.
-- No CandidateProfile API/controller/DTO/UI exposure or real redaction pipeline.
+- No generic raw CandidateProfile API/controller/DTO/UI.
+- No raw CandidateProfile API/controller/DTO exposure or real redaction pipeline. Task 24 does add consultant-safe candidate summary/detail APIs and portal UI on top of candidate/profile read models.
 - No raw Candidate/Profile exposure to Client.
 - No broad or arbitrary AI extraction from SourceItem or InformationPacket outside the audited Task 21/22/23 path.
 - No unrestricted semantic extraction across all source types; current document intelligence covers TXT/PDF/DOCX parsing and governed AI publish remains limited to the supported candidate field-path mapping.
@@ -305,9 +306,9 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
 - No transition legality validation; WorkflowEvent policy validation is audit request validation only.
 - No legal `from_state -> to_state` validation in the Task 4D transition audit skeleton.
 - No target entity lookup or state mutation in `WorkflowTransitionAuditService`.
-- No broad REST controller, raw Candidate/Profile endpoint, or general API runtime layer.
-- No broad product UI integration beyond the Task 13A five-portal shell and narrow client-safe candidate-card flow.
-- No document intelligence, OCR, uploaded-document text extraction, citation retrieval, or evidence chunking exists yet.
+- No broad raw Candidate/Profile endpoint exists, and no fully generic public API runtime layer exists beyond the current auth, consultant, document, workflow/audit, follow-up, governed-intake, and narrow client-safe product surfaces.
+- No broad product UI integration beyond the current client-safe card flow plus the Task 24 unified Consultant Portal surfaces.
+- No OCR/STT execution worker exists yet. Document intelligence, uploaded-document parsing, citation retrieval, and evidence chunking do exist for the current consultant-facing baseline.
 - No AI task queue/worker, retry scheduler, multi-provider production routing, actual write-back execution, automatic human review workflow, or AI governance API/UI exists yet.
 - No Consent/Disclosure API/controller/UI or broad workflow surface beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad client-safe product UI exists beyond the current Task 13A route-aware portal shell and narrow client-safe candidate-card read flow. Task 13B only backs that existing narrow endpoint with a PostgreSQL safe-projection query slice.

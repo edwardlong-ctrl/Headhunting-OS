@@ -61,8 +61,8 @@
   - No real OCR/STT/file-conversion execution worker yet; images remain `PENDING_EXTERNAL_PROCESSING`.
   - No AI task queue/worker, retry scheduler, or long-running execution orchestration yet.
   - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from document parsing outputs yet.
-  - No client-safe evidence exposure or frontend review UI yet.
-  - Task 23 backend/API now adds governed AI extraction and clean-fact generation, but broader productization still remains: no frontend review UI, no async worker orchestration, and no automatic reviewer workflow.
+  - No client-safe evidence exposure yet.
+  - Task 23 backend/API plus Task 24 now add governed AI extraction, clean-fact generation, and the first consultant-facing upload/review/publish UI, but broader productization still remains: no async worker orchestration, no automatic reviewer workflow, and no broader company/job canonical publish path.
   - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
   - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
 
@@ -90,7 +90,7 @@
 - Task 11C adds matching/evidence regression closure coverage proving MatchReport and generation contracts remain opaque-ref-only, non-canonical, not client-safe API output, free of raw Candidate/Profile/source/governance leakage, deterministic across score/evidence/provenance metadata, and bounded by score-cap policy before return.
 - Task 11C proves Task 11 code adds no real AI/model service call, prompt execution, model routing, worker queue, persistence, database migration, canonical write, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, WorkflowEvent append, API/controller, or UI surface.
 - Task 11 is complete only for the current backend kernel scope: MatchReport contracts exist, 1-5 score and dimension vocabularies exist, score confidence and evidence coverage metadata exist, provenance weighting placeholder exists, deterministic ScoreCapPolicy exists, MatchReportGenerationService placeholder exists, and regression tests prove no AI execution, no persistence, no canonical mutation, and no client/API exposure.
-- Broader gaps remain: no real AI matching, no real industry ontology calibration, no model routing, no prompt execution, no matching persistence, no client-facing match report delivery, no matching API/controller/UI, and no outcome-label feedback loop.
+- Broader gaps remain: no real AI matching, no real industry ontology calibration, no matching persistence, no client-facing match report delivery, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline now exists for internal evidence-aware review only.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
@@ -237,7 +237,7 @@
 - Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
 - Candidate publish now fails closed unless an existing candidate/profile target is supplied; the current Task 23 candidate path supports only the mapped stable AI keys that land on canonical CandidateProfile field paths (`profile.headline`, `profile.summary`, `skills.primary_skills`, `experience.projects`, `experience.timeline_highlights`), requires matchable evidence quotes during extraction, and company/job publish remains blocked until a governed canonical write plus audit path is designed.
-- Consultant intake API exposure now exists for backend/API scope (`extract`, `review`, `decide`, `publish`), but no frontend review UI exists yet.
+- Consultant intake API exposure and the first Consultant Portal v1 frontend now exist for upload, extract, review, decide, publish, workflow, follow-up, and blocked-action handling. Remaining gaps are narrower productization items such as richer async worker orchestration, broader company/job canonical publish, and deeper follow-up automation beyond the current real consultant queue.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection API/UI, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
@@ -325,7 +325,7 @@
 
 - No UI integration exists for WorkflowEvent audit guardrails.
 - No broad real AI model wiring exists for workflow actions outside the current governed-intake task path.
-- API/controller integration now exists for governed intake through `ConsultantIntakeController`, but no governed-intake frontend UI exists yet.
+- API/controller integration and the first governed-intake frontend UI now exist through `ConsultantIntakeController` plus the unified Consultant Portal intake/upload/review/publish surfaces.
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.

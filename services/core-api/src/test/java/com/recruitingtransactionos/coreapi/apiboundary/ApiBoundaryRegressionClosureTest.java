@@ -434,17 +434,28 @@ class ApiBoundaryRegressionClosureTest {
       String source = Files.readString(file);
       boolean isConsultantIntakeController =
           "ConsultantIntakeController.java".equals(file.getFileName().toString());
-      assertThat(source)
-          .as(file.toString())
-          .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
-      if (!isConsultantIntakeController) {
+      boolean isConsultantCandidateSurface =
+          file.getFileName().toString().contains("ConsultantCandidate");
+      boolean isWorkflowSafeSurface =
+          "ApiBoundaryContractRules.java".equals(file.getFileName().toString())
+              || "ApiSafeResponseBody.java".equals(file.getFileName().toString())
+              || file.getFileName().toString().contains("ConsultantWorkflow")
+              || "ConsultantAuditDrawerResponse.java".equals(file.getFileName().toString());
+      if (!isConsultantCandidateSurface) {
         assertThat(source)
+            .as(file.toString())
+            .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
+      }
+      if (!isConsultantIntakeController) {
+        var assertion = assertThat(source)
             .as(file.toString())
             .doesNotContain("SourceItem")
             .doesNotContain("InformationPacket")
             .doesNotContain("ClaimLedgerItem")
-            .doesNotContain("ReviewEvent")
-            .doesNotContain("WorkflowEvent");
+            .doesNotContain("ReviewEvent");
+        if (!isWorkflowSafeSurface) {
+          assertion.doesNotContain("WorkflowEvent");
+        }
       }
     }
   }
@@ -458,12 +469,16 @@ class ApiBoundaryRegressionClosureTest {
         .containsExactlyInAnyOrder(
             "ClientSafeCandidateCardController.java",
             "HealthController.java",
+            "ConsultantCandidateController.java",
             "ConsultantCompanyController.java",
+            "ConsultantDashboardController.java",
             "ConsultantJobController.java",
             "ConsultantIntakeController.java",
-        "ConsultantMatchingController.java",
-        "ConsultantShortlistController.java",
+            "ConsultantMatchingController.java",
+            "ConsultantShortlistController.java",
             "ConsultantDocumentController.java",
+            "ConsultantFollowUpController.java",
+            "ConsultantWorkflowController.java",
         "AuthenticationController.java");
 
     for (Path controllerFile : controllerFiles) {

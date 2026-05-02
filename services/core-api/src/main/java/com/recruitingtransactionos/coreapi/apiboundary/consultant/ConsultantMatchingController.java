@@ -77,7 +77,7 @@ public final class ConsultantMatchingController {
       MatchReportGenerationRequest matchRequest = new MatchReportGenerationRequest(
           new MatchReportId("match_report_" + UUID.randomUUID().toString().replace("-", "")),
           MatchJobRef.of("job_ref_" + jobId.replace("-", "")),
-          MatchSubjectRef.of("subject_ref_" + request.candidateCardRef().replace("-", "")),
+          MatchSubjectRef.of(resolveCandidateSubjectRef(request)),
           MatchScore.of(request.requestedOverallScore()),
           parseDimensionScores(request.requestedDimensionScores()),
           new EvidenceCoverageInput(
@@ -132,6 +132,20 @@ public final class ConsultantMatchingController {
         false));
   }
 
+  private static String resolveCandidateSubjectRef(ConsultantMatchGenerationRequest request) {
+    if (request.candidateCardRef() != null && !request.candidateCardRef().isBlank()) {
+      return request.candidateCardRef().strip();
+    }
+    if (request.anonymousCandidateCardId() != null && !request.anonymousCandidateCardId().isBlank()) {
+      return "match_subject_card_"
+          + request.anonymousCandidateCardId().strip().replace("card_", "").replace("-", "").toLowerCase();
+    }
+    if (request.candidateId() != null && !request.candidateId().isBlank()) {
+      return "match_subject_candidate_" + request.candidateId().strip().replace("-", "").toLowerCase();
+    }
+    throw new IllegalArgumentException("candidate selection is required");
+  }
+
   private static ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> error(
       HttpStatus status, com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse error) {
     return ResponseEntity.status(status).body(ApiResponseEnvelope.failure(error));
@@ -147,6 +161,8 @@ public final class ConsultantMatchingController {
 }
 
 record ConsultantMatchGenerationRequest(
+    String candidateId,
+    String anonymousCandidateCardId,
     String candidateCardRef,
     int requestedOverallScore,
     Map<String, Integer> requestedDimensionScores,

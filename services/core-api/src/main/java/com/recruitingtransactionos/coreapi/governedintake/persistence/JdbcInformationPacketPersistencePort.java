@@ -15,7 +15,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -111,6 +113,33 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       ORDER BY packet_source.attached_at ASC, packet_source.source_item_id ASC
       """;
 
+  private static final String LIST_RECENT_BY_ORGANIZATION_SQL = """
+      SELECT
+        information_packet_id,
+        organization_id,
+        packet_type,
+        intended_entity_type,
+        intended_entity_id,
+        created_by_actor_type::text AS created_by_actor_type,
+        created_by_actor_id,
+        processing_status,
+        created_at,
+        updated_at,
+        notes,
+        metadata_json::text AS metadata_json
+      FROM intake.information_packet
+      WHERE organization_id = ?
+      ORDER BY updated_at DESC, created_at DESC, information_packet_id DESC
+      LIMIT ?
+      """;
+
+  private static final String TOUCH_PACKET_SQL = """
+      UPDATE intake.information_packet
+      SET updated_at = ?
+      WHERE organization_id = ?
+        AND information_packet_id = ?
+      """;
+
   private final DataSource dataSource;
 
   public JdbcInformationPacketPersistencePort(DataSource dataSource) {
@@ -179,6 +208,48 @@ public final class JdbcInformationPacketPersistencePort implements InformationPa
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to check packet source link", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<InformationPacket> listRecentByOrganization(UUID organizationId, int limit) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    if (limit <= 0) {
+      return List.of();
+    }
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(LIST_RECENT_BY_ORGANIZATION_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setInt(2, limit);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<InformationPacket> packets = new ArrayList<>();
+        while (resultSet.next()) {
+          packets.add(toInformationPacket(resultSet));
+        }
+        return List.copyOf(packets);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to list recent information packets", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public void touch(UUID organizationId, InformationPacketId informationPacketId, Instant updatedAt) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
+    Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(TOUCH_PACKET_SQL)) {
+      statement.setObject(1, OffsetDateTime.ofInstant(updatedAt, ZoneOffset.UTC));
+      statement.setObject(2, organizationId);
+      statement.setObject(3, informationPacketId.value());
+      statement.executeUpdate();
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to touch information packet", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

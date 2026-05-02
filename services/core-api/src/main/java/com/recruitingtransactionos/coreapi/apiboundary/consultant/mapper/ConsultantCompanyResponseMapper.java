@@ -32,6 +32,7 @@ public final class ConsultantCompanyResponseMapper {
             .toList();
     return new ConsultantCompanyDetailResponse(
         company.companyId().value().toString(),
+        company.version(),
         company.name(),
         company.displayName(),
         company.industry(),

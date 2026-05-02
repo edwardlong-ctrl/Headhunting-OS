@@ -12,6 +12,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +29,14 @@ public final class JdbcIdentityAuthenticationPort implements IdentityAuthenticat
       FROM identity.user_account
       WHERE organization_id = ?
         AND lower(email) = lower(?)
+      """;
+
+  private static final String FIND_ACTIVE_ACCOUNTS_BY_EMAIL_SQL = """
+      SELECT user_account_id, organization_id, email, display_name, status, password_hash, last_login_at
+      FROM identity.user_account
+      WHERE lower(email) = lower(?)
+        AND status = 'active'
+      ORDER BY organization_id ASC, user_account_id ASC
       """;
 
   private static final String FIND_USER_BY_ORG_AND_ID_SQL = """
@@ -156,6 +166,26 @@ public final class JdbcIdentityAuthenticationPort implements IdentityAuthenticat
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find user_account by organization and email", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<IdentityUserAccount> findActiveAccountsByEmail(String email) {
+    Objects.requireNonNull(email, "email must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ACTIVE_ACCOUNTS_BY_EMAIL_SQL)) {
+      statement.setString(1, email);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<IdentityUserAccount> accounts = new ArrayList<>();
+        while (resultSet.next()) {
+          accounts.add(toUserAccount(resultSet));
+        }
+        return List.copyOf(accounts);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find active user_account by email", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

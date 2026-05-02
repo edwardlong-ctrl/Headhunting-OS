@@ -145,8 +145,8 @@ public final class DocumentUploadService {
         var packet = governedIntakeService.createInformationPacket(
             new InformationPacketCreateCommand(
                 command.organizationId(),
-                InformationPacketType.CANDIDATE,
-                IntendedEntityType.CANDIDATE,
+                command.packetType(),
+                command.intendedEntityType(),
                 null,
                 command.uploadedByActorType(),
                 command.uploadedByActorId(),

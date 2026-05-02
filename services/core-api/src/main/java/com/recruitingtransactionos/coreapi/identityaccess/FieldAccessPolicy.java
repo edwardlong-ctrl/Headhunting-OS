@@ -165,6 +165,13 @@ public final class FieldAccessPolicy {
             "consultant_information_packet_read_allowed",
             "Consultant role may read same-organization governed intake packets.");
       }
+      if (request.resourceType() == ResourceType.WORKFLOW_EVENT
+          && request.fieldClassification() == FieldClassification.INTERNAL
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_workflow_event_read_allowed",
+            "Consultant role may read same-organization workflow and operational views.");
+      }
       if (request.resourceType() == ResourceType.SOURCE_ITEM
           && request.fieldClassification() == FieldClassification.RAW_SOURCE
           && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
