@@ -4,9 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `bdb7dbb`
-- latest main commit: `bdb7dbb` (`Complete governed AI intake backend flow`)
+- current main HEAD: `a52d435`
+- latest main commit: `a52d435` (`Complete Task 25 company and job intake`)
 - latest product baseline merges on main:
+  - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
 - latest documented validation snapshot: frontend `apps/web` typecheck/test/build passed after the Task 25 consultant/client intake closure, and backend `mvn -f services/core-api/pom.xml test -DskipITs` passed after the final ownership-boundary fixes.
