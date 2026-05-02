@@ -2,6 +2,7 @@
 
 ## Current Git Main Milestones
 
+- `1a00715` Complete Task 27 matching and evidence v1: added consultant-internal MatchReport persistence via V22, backend-owned evidence-backed matching assembly, consultant matching GET/POST API, portal workspace consumption, permission hardening, and roadmap/status closure.
 - `beb71d4` Add product specs as source of truth: established `docs/specs/CURRENT_SPEC.md`, v2.1 as current product source of truth, and preserved v2.0 as UI / portal baseline.
 - `f1b2e0a` Initialize production kernel skeleton: created the first production-kernel repo skeleton for the production-first Recruiting Transaction OS.
 - `45f979a` Document contracts-first truth layer design: added the Task 2A contracts-first truth-layer design documents.

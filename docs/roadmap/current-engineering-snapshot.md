@@ -4,14 +4,15 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `c63d79a`
-- latest main commit: `c63d79a` (`Implement task26 workflow engine v1`)
+- current main HEAD: `1a00715`
+- latest main commit: `1a00715` (`Complete Task 27 matching and evidence v1`)
 - latest product baseline merges on main:
+  - `1a00715` — Task 27: Matching and Evidence v1
   - `c63d79a` — Task 26: Workflow Engine v1
   - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
-- latest documented validation snapshot: backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` passed after the Task 26 workflow closure, frontend `npm --workspace @rto/web run typecheck` and `npm --workspace @rto/web run build` passed, and `git diff --check` was clean.
+- latest documented validation snapshot: backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` passed after the Task 27 closure, frontend `npm --workspace @rto/web run typecheck` and `npm --workspace @rto/web run build` passed during the Task 27 consultant matching delivery, and `git diff --check` was clean.
 - merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 16-Hardening.
 - next recommended task: Task 28 Semiconductor Industry Pack v1, followed by Task 29 Shortlist Builder v1 and longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
 
