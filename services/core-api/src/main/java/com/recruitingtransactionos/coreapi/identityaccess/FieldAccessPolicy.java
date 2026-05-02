@@ -200,6 +200,13 @@ public final class FieldAccessPolicy {
             "consultant_source_item_read_allowed",
             "Consultant role may read same-organization raw source items.");
       }
+      if (request.resourceType() == ResourceType.MATCH_REPORT
+          && request.fieldClassification() == FieldClassification.CONSULTANT_PRIVATE
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_match_report_read_allowed",
+            "Consultant role may read same-organization consultant-private match reports.");
+      }
     }
     if (request.action() == AccessAction.CREATE
         || request.action() == AccessAction.UPDATE) {
@@ -233,6 +240,14 @@ public final class FieldAccessPolicy {
         return AccessDecision.allow(
             "consultant_source_item_create_allowed",
             "Consultant role may upload same-organization raw source items.");
+      }
+      if (request.action() == AccessAction.CREATE
+          && request.resourceType() == ResourceType.MATCH_REPORT
+          && request.fieldClassification() == FieldClassification.CONSULTANT_PRIVATE
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+        return AccessDecision.allow(
+            "consultant_match_report_create_allowed",
+            "Consultant role may create same-organization consultant-private match reports.");
       }
     }
     return deny(

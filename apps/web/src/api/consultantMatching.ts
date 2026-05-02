@@ -2,10 +2,33 @@ import { ApiResult, apiRequest, asJson } from "./http";
 
 export type ConsultantMatchReport = {
   matchReportId: string;
+  subjectType: string;
+  subjectRef: string;
   finalScore: number;
   capApplied: boolean;
   capReason: string;
+  capSafeExplanation: string;
   confidence: string;
+  authenticityRisk: string;
+  reidentificationRiskSignal: string;
+  ontologyVersion: string;
+  industryPackVersion: string;
+  generatedAt: string;
+  dimensionScores: Array<{ dimension: string; score: number }>;
+  evidenceCoverage: {
+    coverageRatio: number;
+    coverageLevel: string;
+    independentEvidenceCount: number;
+    independentHighTrustEvidenceCount: number;
+  };
+  provenanceSummary: {
+    strongestProvenanceCategory: string;
+    strongestSourceStrength: string;
+    provenanceWeight: number;
+    assertionStrength: string;
+  };
+  explanations: string[];
+  interviewQuestions: string[];
 };
 
 export const CONSULTANT_MATCH_DIMENSIONS = [
@@ -25,20 +48,7 @@ export type ConsultantMatchDimensionScores = Record<ConsultantMatchDimension, nu
 
 export type ConsultantMatchGenerationPayload = {
   candidateId?: string;
-  anonymousCandidateCardId?: string;
-  candidateCardRef?: string;
-  requestedOverallScore: number;
-  requestedDimensionScores: ConsultantMatchDimensionScores;
-  industryPackMaturity: string;
-  keywordOnlyEvidence: boolean;
-  projectEvidencePresent: boolean;
-  candidateIntentSignalStrength: string;
-  ontologyStale: boolean;
-  industryPackVersionStale: boolean;
-  authenticityRisk: string;
-  reidentificationRiskSignal: string;
-  ontologyVersion: string;
-  industryPackVersion: string;
+  shortlistCandidateCardId?: string;
 };
 
 export function createDefaultRequestedDimensionScores(
@@ -60,25 +70,11 @@ export function createDefaultRequestedDimensionScores(
 
 export function createConsultantMatchGenerationPayload(subject: {
   candidateId?: string;
-  anonymousCandidateCardId?: string;
-  candidateCardRef?: string;
+  shortlistCandidateCardId?: string;
 }): ConsultantMatchGenerationPayload {
   return {
     candidateId: subject.candidateId,
-    anonymousCandidateCardId: subject.anonymousCandidateCardId,
-    candidateCardRef: subject.candidateCardRef,
-    requestedOverallScore: 80,
-    requestedDimensionScores: createDefaultRequestedDimensionScores(),
-    industryPackMaturity: "MATURE",
-    keywordOnlyEvidence: false,
-    projectEvidencePresent: true,
-    candidateIntentSignalStrength: "MEDIUM",
-    ontologyStale: false,
-    industryPackVersionStale: false,
-    authenticityRisk: "LOW",
-    reidentificationRiskSignal: "LOW",
-    ontologyVersion: "v2.1",
-    industryPackVersion: "default",
+    shortlistCandidateCardId: subject.shortlistCandidateCardId,
   };
 }
 
@@ -87,4 +83,12 @@ export function generateConsultantMatch(
   payload: ConsultantMatchGenerationPayload,
 ): Promise<ApiResult<ConsultantMatchReport>> {
   return apiRequest<ConsultantMatchReport>(`/api/consultant/jobs/${encodeURIComponent(jobId)}/matching/generate`, asJson(payload));
+}
+
+export function listConsultantMatchReports(
+  jobId: string,
+): Promise<ApiResult<{ reports: ConsultantMatchReport[] }>> {
+  return apiRequest<{ reports: ConsultantMatchReport[] }>(
+    `/api/consultant/jobs/${encodeURIComponent(jobId)}/matching`,
+  );
 }

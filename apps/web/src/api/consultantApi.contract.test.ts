@@ -1,22 +1,17 @@
-import {
-  CONSULTANT_MATCH_DIMENSIONS,
-  createConsultantMatchGenerationPayload,
-} from "./consultantMatching";
+import { createConsultantMatchGenerationPayload } from "./consultantMatching";
 import { createConsultantJobUpdatePayload } from "./consultantJobs";
 import { createConsultantShortlistUpdatePayload } from "./consultantShortlists";
 import { SHORTLIST_BUILDER_INITIAL_STATUS } from "../features/consultant-portal/consultantPortalUtils";
 
 describe("consultant API contract helpers", () => {
-  it("builds a matching payload with every required backend dimension", () => {
+  it("builds a matching payload with backend-owned truth removed from the client request", () => {
     const payload = createConsultantMatchGenerationPayload({
       candidateId: "candidate-123",
     });
 
     expect(payload.candidateId).toBe("candidate-123");
-    expect(payload.anonymousCandidateCardId).toBeUndefined();
-    expect(Object.keys(payload.requestedDimensionScores).sort()).toEqual(
-      [...CONSULTANT_MATCH_DIMENSIONS].sort(),
-    );
+    expect(payload.shortlistCandidateCardId).toBeUndefined();
+    expect(Object.keys(payload)).toEqual(["candidateId", "shortlistCandidateCardId"]);
   });
 
   it("builds a job update payload that preserves required company and version fields", () => {

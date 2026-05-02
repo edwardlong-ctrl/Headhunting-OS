@@ -76,6 +76,7 @@ import {
   CONSULTANT_MATCH_DIMENSIONS,
   createConsultantMatchGenerationPayload,
   generateConsultantMatch,
+  listConsultantMatchReports,
   type ConsultantMatchReport,
 } from "../../api/consultantMatching";
 import {
@@ -1883,6 +1884,7 @@ function JobIntakeWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
 function MatchingPage() {
   const { jobId = "" } = useParams();
   const candidates = useLoadable(() => listConsultantCandidates({ limit: 50, offset: 0 }), []);
+  const [refreshToken, setRefreshToken] = useState(0);
   const shortlistCards = useLoadable(async () => {
     const shortlists = await listConsultantShortlists({ jobId, limit: 50, offset: 0 });
     if (shortlists.status !== "ready") {
@@ -1907,26 +1909,33 @@ function MatchingPage() {
           return [];
         }
         return detail.data.cards.map((card) => ({
+          shortlistCandidateCardId: card.cardId,
           shortlistId: summary.shortlistId,
           shortlistTitle: summary.title,
           anonymousCandidateCardId: card.anonymousCandidateCardId,
           status: card.status,
+          matchReportId: card.matchReportId,
         }));
       }),
     };
   }, [jobId]);
+  const reports = useLoadable(() => listConsultantMatchReports(jobId), [jobId, refreshToken]);
   const [selectionMode, setSelectionMode] = useState<"talent" | "shortlist">("talent");
   const [candidateId, setCandidateId] = useState("");
-  const [anonymousCandidateCardId, setAnonymousCandidateCardId] = useState("");
+  const [shortlistCandidateCardId, setShortlistCandidateCardId] = useState("");
   const [result, setResult] = useState<Loadable<ConsultantMatchReport>>({ status: "idle" });
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResult({ status: "loading" });
-    setResult(await generateConsultantMatch(jobId, createConsultantMatchGenerationPayload({
+    const nextResult = await generateConsultantMatch(jobId, createConsultantMatchGenerationPayload({
       candidateId: selectionMode === "talent" ? candidateId : undefined,
-      anonymousCandidateCardId: selectionMode === "shortlist" ? anonymousCandidateCardId : undefined,
-    })));
+      shortlistCandidateCardId: selectionMode === "shortlist" ? shortlistCandidateCardId : undefined,
+    }));
+    setResult(nextResult);
+    if (nextResult.status === "ready") {
+      setRefreshToken((value) => value + 1);
+    }
   }
 
   return (
@@ -1965,10 +1974,10 @@ function MatchingPage() {
           )) : renderLoadable(shortlistCards, (cards) => (
             <label>
               Shortlist card
-              <select value={anonymousCandidateCardId} onChange={(event) => setAnonymousCandidateCardId(event.target.value)}>
+              <select value={shortlistCandidateCardId} onChange={(event) => setShortlistCandidateCardId(event.target.value)}>
                 <option value="">Select a shortlisted card</option>
                 {cards.map((card) => (
-                  <option key={card.anonymousCandidateCardId} value={card.anonymousCandidateCardId}>
+                  <option key={card.shortlistCandidateCardId} value={card.shortlistCandidateCardId}>
                     {card.shortlistTitle} · {card.anonymousCandidateCardId} · {card.status}
                   </option>
                 ))}
@@ -1993,10 +2002,10 @@ function MatchingPage() {
             ))}
           </div>
           <p className="helper-copy">
-            Matching requests now send the full backend-required dimension set, so report generation
-            stays aligned with the `MatchDimension` contract.
+            Match generation now sends only the selected subject. Scoring, evidence coverage, provenance,
+            and authenticity risk are assembled by the backend.
           </p>
-          <button type="submit" disabled={selectionMode === "talent" ? !candidateId : !anonymousCandidateCardId}>
+          <button type="submit" disabled={selectionMode === "talent" ? !candidateId : !shortlistCandidateCardId}>
             Generate report
           </button>
         </form>
@@ -2007,13 +2016,55 @@ function MatchingPage() {
           <KeyValueList
             items={[
               ["Report", result.data.matchReportId],
+              ["Subject", result.data.subjectRef],
               ["Score", String(result.data.finalScore)],
               ["Confidence", result.data.confidence],
               ["Cap reason", result.data.capReason],
+              ["Cap explanation", result.data.capSafeExplanation],
+              ["Authenticity risk", result.data.authenticityRisk],
+              ["Coverage", `${result.data.evidenceCoverage.coverageLevel} (${Math.round(result.data.evidenceCoverage.coverageRatio * 100)}%)`],
+              ["Generated", result.data.generatedAt],
             ]}
           />
+          <div className="portal-chip-row">
+            {result.data.dimensionScores.map((dimension) => (
+              <span key={dimension.dimension} className="portal-chip">
+                {dimension.dimension}: {dimension.score}
+              </span>
+            ))}
+          </div>
+          <ul className="timeline-list">
+            {result.data.explanations.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <ul className="timeline-list">
+            {result.data.interviewQuestions.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </article>
       )}
+      {renderLoadable(reports, (loaded) => (
+        loaded.reports.length > 0 ? (
+          <article className="data-card compact-card">
+            <h3>Recent reports</h3>
+            <DataTable
+              headers={["Report", "Subject", "Score", "Confidence", "Coverage", "Generated"]}
+              rows={loaded.reports.map((report) => [
+                report.matchReportId,
+                report.subjectRef,
+                report.finalScore,
+                report.confidence,
+                `${report.evidenceCoverage.coverageLevel} (${Math.round(report.evidenceCoverage.coverageRatio * 100)}%)`,
+                report.generatedAt,
+              ])}
+            />
+          </article>
+        ) : (
+          <EmptyState title="No match reports yet" />
+        )
+      ))}
       {result.status !== "idle" && result.status !== "loading" && result.status !== "ready" ? <ApiState status={result.status} error={loadableError(result)} /> : null}
     </DetailPageShell>
   );

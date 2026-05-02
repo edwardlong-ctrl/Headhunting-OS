@@ -200,10 +200,14 @@ and dimension vocabularies exist, score confidence and evidence coverage
 metadata exist, a provenance weighting placeholder exists, deterministic
 ScoreCapPolicy exists, MatchReportGenerationService placeholder exists, and
 regression tests prove no AI execution, no persistence, no canonical mutation,
-and no client/API exposure. This is not real AI matching: model routing, prompt
-execution, matching persistence, API/controller/UI, client-facing match report
-delivery, real industry ontology calibration, and outcome-label feedback loops
-remain deferred.
+and no client/API exposure. This is not real AI matching at the Task 11 kernel
+layer: model routing, prompt execution, matching persistence, API/controller/UI,
+client-facing match report delivery, real industry ontology calibration, and
+outcome-label feedback loops remain deferred there. Task 27 later closes the
+first consultant-internal productization slice on top of this kernel by adding
+MatchReport persistence, consultant matching API/UI consumption, backend-owned
+evidence-backed request assembly, and report readback semantics without making
+the report client-safe or canonical.
 
 Task 12A: Consent / Disclosure Protection ✅ for first backend-only kernel scope
 

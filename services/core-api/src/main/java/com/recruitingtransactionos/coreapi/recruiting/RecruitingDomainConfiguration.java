@@ -1,5 +1,6 @@
 package com.recruitingtransactionos.coreapi.recruiting;
 
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityAwareMatchRequestFactory;
 import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.port.CandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
@@ -14,6 +15,8 @@ import com.recruitingtransactionos.coreapi.company.port.CompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyPreferencePersistencePort;
 import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
+import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
+import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobRequirementPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobScorecardPersistencePort;
@@ -23,6 +26,7 @@ import com.recruitingtransactionos.coreapi.job.port.JobScorecardPersistencePort;
 import com.recruitingtransactionos.coreapi.job.service.JobActivationGateService;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
@@ -161,5 +165,23 @@ public class RecruitingDomainConfiguration {
   CandidateProfileService candidateProfileService(
       CandidateProfilePersistencePort candidateProfilePersistencePort) {
     return new CandidateProfileService(candidateProfilePersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(MatchReportPersistencePort.class)
+  MatchReportPersistencePort matchReportPersistencePort(DataSource dataSource) {
+    return new JdbcMatchReportPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(MatchReportGenerationService.class)
+  MatchReportGenerationService matchReportGenerationService() {
+    return new MatchReportGenerationService();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(AuthenticityAwareMatchRequestFactory.class)
+  AuthenticityAwareMatchRequestFactory authenticityAwareMatchRequestFactory() {
+    return new AuthenticityAwareMatchRequestFactory();
   }
 }

@@ -18,6 +18,7 @@ public sealed interface ApiSafeResponseBody
         ConsultantFollowUpSummaryResponse,
         ConsultantCompanySummaryResponse,
         ConsultantMatchReportResponse,
+        ConsultantMatchReportListResponse,
         ConsultantCompanyDetailResponse,
         ConsultantJobSummaryResponse,
         ConsultantJobDetailResponse,
