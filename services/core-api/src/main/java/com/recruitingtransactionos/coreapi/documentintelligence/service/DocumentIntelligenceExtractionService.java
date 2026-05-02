@@ -160,7 +160,8 @@ public final class DocumentIntelligenceExtractionService {
 
   private static IntakeExtractedField field(String name, String value, IntakeExtractedFieldStatus status) {
     return new IntakeExtractedField(name, value, null, 1.0d, status,
-        "Task 22 document-intelligence extraction metadata only.");
+        "Task 22 document-intelligence extraction metadata only.",
+        null);
   }
 
   private static List<IntakeExtractionFinding> findings(List<ParsedDocument> parsedDocuments) {
@@ -252,8 +253,10 @@ public final class DocumentIntelligenceExtractionService {
         packet.intendedEntityType(),
         OUTPUT_SCHEMA_VERSION,
         sourceItems.stream().map(SourceItem::sourceItemId).toList(),
+        List.of(),
         sourceItems.stream().map(DocumentIntelligenceExtractionService::snapshot).toList(),
         extractedFields(parsedDocuments),
+        List.of(),
         findings(parsedDocuments),
         List.of(),
         now));

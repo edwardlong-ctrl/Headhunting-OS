@@ -55,8 +55,7 @@ public final class ConsultantApiQueryService {
       CompanyService companyService,
       JobService jobService,
       ShortlistService shortlistService) {
-    this(companyService, jobService, shortlistService,
-        new PermissionEnforcer(new PermissionEvaluator()));
+    this(companyService, jobService, shortlistService, new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   ConsultantApiQueryService(
@@ -69,8 +68,6 @@ public final class ConsultantApiQueryService {
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
-
-  // ── Companies ──────────────────────────────────────────────────────────────
 
   public PagedResult<ConsultantCompanySummaryResponse> listCompanies(
       AccessRequest accessRequest, PagedQuery pagedQuery, String statusFilter) {

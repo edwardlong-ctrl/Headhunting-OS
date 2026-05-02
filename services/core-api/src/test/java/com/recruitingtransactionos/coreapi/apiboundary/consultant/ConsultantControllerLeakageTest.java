@@ -739,6 +739,23 @@ class ConsultantControllerLeakageTest {
   // ── Allowlist validation ──────────────────────────────────────────────────
 
   @Test
+  void consultantCandidateSummaryResponseFieldsMatchAllowlist() {
+    Set<String> fields = ApiBoundaryContractRules.consultantCandidateSummaryResponseFieldNames();
+    assertThat(fields).containsExactlyInAnyOrder(
+        "candidateId", "status", "privacyStatus", "currentProfileId",
+        "ownerConsultantId", "lastActivityAt", "createdAt");
+  }
+
+  @Test
+  void consultantCandidateDetailResponseFieldsMatchAllowlist() {
+    Set<String> fields = ApiBoundaryContractRules.consultantCandidateDetailResponseFieldNames();
+    assertThat(fields).containsExactlyInAnyOrder(
+        "candidateId", "status", "privacyStatus", "currentProfileId",
+        "ownerConsultantId", "lastActivityAt", "doNotContactReason",
+        "mergedIntoCandidateId", "defaultIndustryPackId", "createdAt", "updatedAt");
+  }
+
+  @Test
   void consultantCompanySummaryResponseFieldsMatchAllowlist() {
     Set<String> fields = ApiBoundaryContractRules.consultantCompanySummaryResponseFieldNames();
     assertThat(fields).containsExactlyInAnyOrder(

@@ -62,7 +62,7 @@
   - No AI task queue/worker, retry scheduler, or long-running execution orchestration yet.
   - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from document parsing outputs yet.
   - No client-safe evidence exposure or frontend review UI yet.
-  - No semantic claim generation over parsed chunks yet; Task 23 is now next.
+  - Task 23 backend/API now adds governed AI extraction and clean-fact generation, but broader productization still remains: no frontend review UI, no async worker orchestration, and no automatic reviewer workflow.
   - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
   - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
 
@@ -231,12 +231,13 @@
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
 - For the Task 5C, Task 5D, and Task 5E bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
-- No real AI extraction exists yet.
+- Governed AI extraction now exists for the Task 23 backend/API slice through `GOVERNED_AI_V1`, but it is still constrained to the governed-intake pipeline rather than a broad AI product surface.
 - Full canonical persistence from governed intake remains future work beyond the Task 6D/6E minimal single-field path.
 - No default-placeholder business ClaimLedger append from intake exists.
 - Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
 - No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
-- No API/UI exposure exists for governed intake.
+- Candidate publish now fails closed unless an existing candidate/profile target is supplied, and company/job publish remains blocked until a governed canonical write plus audit path is designed.
+- Consultant intake API exposure now exists for backend/API scope (`extract`, `review`, `decide`, `publish`), but no frontend review UI exists yet.
 - No Consent/Disclosure, RBAC/ABAC, Client-safe projection API/UI, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
 - Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
 
@@ -324,7 +325,7 @@
 
 - No UI integration exists for WorkflowEvent audit guardrails.
 - No real AI model wiring exists for workflow actions.
-- No API/controller/UI integration exists for governed intake.
+- API/controller integration now exists for governed intake through `ConsultantIntakeController`, but no governed-intake frontend UI exists yet.
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.

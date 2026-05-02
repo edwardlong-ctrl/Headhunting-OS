@@ -225,6 +225,27 @@ class IntakeClaimLedgerBridgeServiceTest {
   }
 
   @Test
+  void differentDiscriminatorsAppendDistinctClaimsForSameFieldName() {
+    InMemoryExtractionRunPort extractionPort = new InMemoryExtractionRunPort();
+    InformationPacket packet = packet(ORG_A);
+    extractionPort.save(successfulRun(ORG_A, packet, List.of(
+        bridgeEligibleField("fixture:quality-note:chunk-1"),
+        bridgeEligibleField("fixture:quality-note:chunk-2"))));
+    ClaimLedgerStore store = new ClaimLedgerStore();
+
+    IntakeClaimLedgerBridgeResult result =
+        service(new InMemoryInformationPacketPort(packet), extractionPort, store)
+            .bridge(request(RUN_ID));
+
+    assertThat(result.appendedClaimIds()).hasSize(2);
+    assertThat(store.commands).hasSize(2);
+    assertThat(store.commands)
+        .extracting(command -> command.sourceSpanReference().value())
+        .doesNotHaveDuplicates()
+        .allMatch(value -> value.contains("|discriminator:fixture:quality-note:chunk-"));
+  }
+
+  @Test
   void forbiddenPlaceholderMetadataIsBlockedEvenIfMarkedClaimCandidate() {
     InMemoryExtractionRunPort extractionPort = new InMemoryExtractionRunPort();
     InformationPacket packet = packet(ORG_A);
@@ -234,7 +255,8 @@ class IntakeClaimLedgerBridgeServiceTest {
         SOURCE_ID,
         1.0d,
         IntakeExtractedFieldStatus.CLAIM_CANDIDATE,
-        "malformed fixture"))));
+        "malformed fixture",
+        "fixture:malformed"))));
     ClaimLedgerStore store = new ClaimLedgerStore();
 
     IntakeClaimLedgerBridgeResult result =
@@ -294,6 +316,7 @@ class IntakeClaimLedgerBridgeServiceTest {
         packet.intendedEntityType(),
         "intake-extraction-envelope.v1",
         List.of(SOURCE_ID),
+        List.of(),
         List.of(new IntakeExtractionSourceSnapshot(
             SOURCE_ID,
             SourceItemType.CV,
@@ -301,6 +324,7 @@ class IntakeClaimLedgerBridgeServiceTest {
             "sha256:170006",
             "ats:170006")),
         fields,
+        List.of(),
         List.of(),
         List.of(),
         NOW);
@@ -336,17 +360,23 @@ class IntakeClaimLedgerBridgeServiceTest {
         null,
         1.0d,
         IntakeExtractedFieldStatus.PLACEHOLDER,
-        "placeholder metadata only");
+        "placeholder metadata only",
+        null);
   }
 
   private static IntakeExtractedField bridgeEligibleField() {
+    return bridgeEligibleField("fixture:quality-note");
+  }
+
+  private static IntakeExtractedField bridgeEligibleField(String discriminator) {
     return new IntakeExtractedField(
         "intake.bridge_eligible.quality_note",
         "explicitly marked operational bridge fixture",
         SOURCE_ID,
         0.5d,
         IntakeExtractedFieldStatus.CLAIM_CANDIDATE,
-        "Operational fixture; not a candidate/company/job canonical fact.");
+        "Operational fixture; not a candidate/company/job canonical fact.",
+        discriminator);
   }
 
   private static InformationPacket packet(UUID organizationId) {

@@ -8,7 +8,8 @@ public record IntakeExtractedField(
     SourceItemId sourceItemId,
     double deterministicConfidence,
     IntakeExtractedFieldStatus valueStatus,
-    String notes) {
+    String notes,
+    String sourceSpanDiscriminator) {
 
   public IntakeExtractedField {
     fieldName = GovernedIntakeGuards.requireNonBlank(fieldName, "fieldName");
@@ -19,5 +20,9 @@ public record IntakeExtractedField(
     }
     Objects.requireNonNull(valueStatus, "valueStatus must not be null");
     notes = GovernedIntakeGuards.optionalNonBlank(notes, "notes");
+    sourceSpanDiscriminator =
+        GovernedIntakeGuards.optionalNonBlank(
+            sourceSpanDiscriminator,
+            "sourceSpanDiscriminator");
   }
 }

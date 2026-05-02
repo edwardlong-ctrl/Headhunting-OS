@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,19 +27,13 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunUpdateComman
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
-import com.recruitingtransactionos.coreapi.truthlayer.port.ModelRef;
-import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimId;
-import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimLedgerAppendCommand;
-import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimLedgerAppendResult;
-import com.recruitingtransactionos.coreapi.truthlayer.port.ClaimLedgerPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ModelRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
-import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,20 +46,31 @@ class CandidateProfileParserTaskServiceTest {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Test
-  void upperCaseCandidateEntityTypeStillAppendsClaimLedgerProposals() throws Exception {
+  void returnsClaimCandidatesWithoutWritingClaimLedger() throws Exception {
     UUID organizationId = UUID.fromString("00000000-0000-0000-0000-000000220001");
     UUID sourceRefId = UUID.fromString("00000000-0000-0000-0000-000000220002");
     UUID candidateId = UUID.fromString("00000000-0000-0000-0000-000000220003");
-    RecordingClaimLedgerPort claimLedgerPort = new RecordingClaimLedgerPort();
     CandidateProfileParserTaskService service = new CandidateProfileParserTaskService(
         runner(new InMemoryAITaskRunPort(), new StubProvider(
             OBJECT_MAPPER.readTree("""
-                {"headline":"AI headline","summary":"AI summary","primarySkills":["verification"],"projects":["project-a"],"timelineHighlights":["timeline-a"]}
+                {
+                  "headline":"AI headline",
+                  "summary":"AI summary",
+                  "primarySkills":["verification"],
+                  "projects":["project-a"],
+                  "timelineHighlights":["timeline-a"],
+                  "claimCandidates":[
+                    {"fieldName":"headline","fieldValue":"AI headline","rationale":"draft headline","evidenceQuote":"Senior AI engineer"},
+                    {"fieldName":"summary","fieldValue":"AI summary","rationale":"draft summary","evidenceQuote":"Built ranking workflows"},
+                    {"fieldName":"primary_skills","fieldValue":"verification","rationale":"skill extraction","evidenceQuote":"verification"},
+                    {"fieldName":"projects","fieldValue":"project-a","rationale":"project extraction","evidenceQuote":"project-a"},
+                    {"fieldName":"timeline_highlights","fieldValue":"timeline-a","rationale":"timeline extraction","evidenceQuote":"timeline-a"}
+                  ]
+                }
                 """))),
-        OBJECT_MAPPER,
-        new ClaimLedgerService(claimLedgerPort));
+        OBJECT_MAPPER);
 
-    service.execute(
+    CandidateProfileParserResult result = service.execute(
         organizationId,
         new ActorRef(UUID.fromString("00000000-0000-0000-0000-000000220005"), ActorRole.CONSULTANT),
         new EntityRef("CANDIDATE", candidateId),
@@ -73,13 +79,51 @@ class CandidateProfileParserTaskServiceTest {
         new WorkflowCorrelationId(UUID.fromString("00000000-0000-0000-0000-000000220006")),
         new WorkflowCausationId(UUID.fromString("00000000-0000-0000-0000-000000220007")));
 
-    assertThat(claimLedgerPort.commands).hasSize(2);
-    assertThat(claimLedgerPort.commands)
-        .extracting(ClaimLedgerAppendCommand::targetFieldPath)
-        .containsExactly("headline", "summary");
-    assertThat(claimLedgerPort.commands)
-        .extracting(ClaimLedgerAppendCommand::aiTaskRunId)
-        .allSatisfy(runId -> assertThat(runId).isNotNull());
+    assertThat(result.execution().runRecord().status()).isEqualTo(AITaskRunStatus.SUCCEEDED);
+    assertThat(result.claimCandidates())
+        .extracting(candidate -> candidate.fieldName() + "=" + candidate.fieldValue())
+        .containsExactly(
+            "headline=AI headline",
+            "summary=AI summary",
+            "primary_skills=verification",
+            "projects=project-a",
+            "timeline_highlights=timeline-a");
+    assertThat(result.claimCandidates())
+        .extracting(candidate -> candidate.rationale())
+        .allSatisfy(rationale -> assertThat(rationale).isNotBlank());
+    assertThat(result.claimCandidates())
+        .extracting(candidate -> candidate.evidenceQuote())
+        .allSatisfy(evidenceQuote -> assertThat(evidenceQuote).isNotBlank());
+  }
+
+  @Test
+  void rejectsUnsupportedClaimCandidateFieldNames() throws Exception {
+    CandidateProfileParserTaskService service = new CandidateProfileParserTaskService(
+        runner(new InMemoryAITaskRunPort(), new StubProvider(
+            OBJECT_MAPPER.readTree("""
+                {
+                  "headline":"AI headline",
+                  "summary":"AI summary",
+                  "primarySkills":["verification"],
+                  "projects":["project-a"],
+                  "timelineHighlights":["timeline-a"],
+                  "claimCandidates":[
+                    {"fieldName":"metadata.notes","fieldValue":"unsafe","rationale":"unexpected field","evidenceQuote":"unsafe"}
+                  ]
+                }
+                """))),
+        OBJECT_MAPPER);
+
+    assertThatThrownBy(() -> service.execute(
+        UUID.fromString("00000000-0000-0000-0000-000000220011"),
+        new ActorRef(UUID.fromString("00000000-0000-0000-0000-000000220012"), ActorRole.CONSULTANT),
+        new EntityRef("CANDIDATE", UUID.fromString("00000000-0000-0000-0000-000000220013")),
+        List.of(UUID.fromString("00000000-0000-0000-0000-000000220014")),
+        new CandidateProfileParserInput("candidate summary", "", "", "", ""),
+        new WorkflowCorrelationId(UUID.fromString("00000000-0000-0000-0000-000000220015")),
+        new WorkflowCausationId(UUID.fromString("00000000-0000-0000-0000-000000220016"))))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("claimCandidates fieldName is not allowed: metadata.notes");
   }
 
   private static AITaskRunnerService runner(InMemoryAITaskRunPort port, AITaskProvider provider) {
@@ -122,16 +166,6 @@ class CandidateProfileParserTaskServiceTest {
           BigDecimal.ONE,
           "trace-claim-ledger",
           Duration.ofMillis(5));
-    }
-  }
-
-  private static final class RecordingClaimLedgerPort implements ClaimLedgerPort {
-    private final List<ClaimLedgerAppendCommand> commands = new ArrayList<>();
-
-    @Override
-    public ClaimLedgerAppendResult append(ClaimLedgerAppendCommand command) {
-      commands.add(command);
-      return new ClaimLedgerAppendResult(new ClaimId(UUID.randomUUID()));
     }
   }
 

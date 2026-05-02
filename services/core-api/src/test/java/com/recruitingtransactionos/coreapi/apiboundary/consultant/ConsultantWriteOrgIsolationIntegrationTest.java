@@ -3,10 +3,15 @@ package com.recruitingtransactionos.coreapi.apiboundary.consultant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.recruitingtransactionos.coreapi.candidate.Candidate;
+import com.recruitingtransactionos.coreapi.candidate.CandidateStatus;
+import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
+import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
 import com.recruitingtransactionos.coreapi.company.Company;
 import com.recruitingtransactionos.coreapi.company.CompanyContact;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
 import com.recruitingtransactionos.coreapi.company.CompanyPreference;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.company.CompanyStatus;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyContactPersistencePort;
@@ -77,6 +82,45 @@ class ConsultantWriteOrgIsolationIntegrationTest {
         POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     insertOrganization(ORG_A);
     insertOrganization(ORG_B);
+  }
+
+  // ── Candidate org-isolation ────────────────────────────────────────────────
+
+  @Test
+  void createCandidateWithOrgA_cannotReadWithOrgB() {
+    CandidateService service = candidateService();
+    CandidateId candidateId = new CandidateId(UUID.randomUUID());
+
+    Candidate created = service.createCandidate(Candidate.builder()
+        .candidateId(candidateId)
+        .organizationId(ORG_A)
+        .status(CandidateStatus.NEW)
+        .privacyStatus("internal_only")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    assertThat(created.status()).isEqualTo(CandidateStatus.NEW);
+    assertThat(service.findCandidateByIdAndOrganizationId(ORG_B, candidateId)).isEmpty();
+  }
+
+  @Test
+  void createCandidateWithOrgA_canReadWithOrgA() {
+    CandidateService service = candidateService();
+    CandidateId candidateId = new CandidateId(UUID.randomUUID());
+
+    service.createCandidate(Candidate.builder()
+        .candidateId(candidateId)
+        .organizationId(ORG_A)
+        .status(CandidateStatus.AVAILABLE)
+        .privacyStatus("internal_only")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    Optional<Candidate> found = service.findCandidateByIdAndOrganizationId(ORG_A, candidateId);
+    assertThat(found).isPresent();
+    assertThat(found.get().status()).isEqualTo(CandidateStatus.AVAILABLE);
   }
 
   // ── Company org-isolation ──────────────────────────────────────────────────
@@ -638,6 +682,10 @@ class ConsultantWriteOrgIsolationIntegrationTest {
     return new AccessRequest(
         PortalRole.CONSULTANT, ResourceType.SHORTLIST, AccessAction.UPDATE,
         FieldClassification.CLIENT_SAFE, Set.of(), false);
+  }
+
+  private static CandidateService candidateService() {
+    return new CandidateService(new JdbcCandidatePersistencePort(dataSource));
   }
 
   private static CompanyService companyService() {

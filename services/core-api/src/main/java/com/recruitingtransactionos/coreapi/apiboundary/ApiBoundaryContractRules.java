@@ -23,6 +23,16 @@ public final class ApiBoundaryContractRules {
           "safeEvidenceSummaries",
           "safeMatchNarratives");
 
+  private static final Set<String> CONSULTANT_CANDIDATE_SUMMARY_RESPONSE_FIELDS =
+      Set.of("candidateId", "status", "privacyStatus", "currentProfileId",
+          "ownerConsultantId", "lastActivityAt", "createdAt");
+
+  private static final Set<String> CONSULTANT_CANDIDATE_DETAIL_RESPONSE_FIELDS =
+      Set.of("candidateId", "status", "privacyStatus", "currentProfileId",
+          "ownerConsultantId", "lastActivityAt", "doNotContactReason",
+          "mergedIntoCandidateId", "defaultIndustryPackId", "createdAt",
+          "updatedAt");
+
   private static final Set<String> CONSULTANT_COMPANY_SUMMARY_RESPONSE_FIELDS =
       Set.of("companyId", "name", "status", "contactCount", "jobCount", "createdAt");
 
@@ -80,6 +90,31 @@ public final class ApiBoundaryContractRules {
   private static final Set<String> CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS =
       Set.of("processingStatus", "query", "totalHits", "hits");
 
+  private static final Set<String> CONSULTANT_INTAKE_RUN_RESPONSE_FIELDS =
+      Set.of(
+          "extractionRunId",
+          "informationPacketId",
+          "intendedEntityType",
+          "status",
+          "outputSchemaVersion",
+          "cleanFactCount",
+          "aiTaskRunIds");
+
+  private static final Set<String> CONSULTANT_INTAKE_REVIEW_RESPONSE_FIELDS =
+      Set.of(
+          "extractionRunId",
+          "informationPacketId",
+          "intendedEntityType",
+          "cleanFactCount",
+          "cleanFacts");
+
+  private static final Set<String> CONSULTANT_INTAKE_PUBLISH_RESPONSE_FIELDS =
+      Set.of(
+          "informationPacketId",
+          "canonicalWriteCount",
+          "canonicalWriteStatuses",
+          "directWrites");
+
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
           "l0_teaser",
@@ -113,6 +148,28 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> clientSafeCandidateCardResponseFieldNames() {
     return new LinkedHashSet<>(CLIENT_SAFE_CANDIDATE_CARD_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantCandidateSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_CANDIDATE_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantCandidateSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_CANDIDATE_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantCandidateDetailResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_CANDIDATE_DETAIL_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantCandidateDetailResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_CANDIDATE_DETAIL_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedConsultantCompanySummaryResponseField(String fieldName) {
@@ -223,6 +280,39 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantDocumentEvidenceResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_DOCUMENT_EVIDENCE_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantIntakeRunResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_INTAKE_RUN_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantIntakeRunResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_INTAKE_RUN_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantIntakeReviewResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_INTAKE_REVIEW_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantIntakeReviewResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_INTAKE_REVIEW_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantIntakePublishResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_INTAKE_PUBLISH_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantIntakePublishResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_INTAKE_PUBLISH_RESPONSE_FIELDS);
   }
 
   public static String requireNonBlank(String value, String fieldName) {

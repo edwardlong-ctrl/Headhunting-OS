@@ -9,9 +9,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - latest product baseline merges on main:
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
-- latest documented validation snapshot: backend Maven suite reached 685 tests, 0 failures/errors, 1 existing skip after Task 21 Real AI Task Runner v1; earlier frontend typecheck/build validation remains recorded through Task 13A.
-- merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 16-Hardening.
-- next recommended task: Task 23 (Governed AI Intake End-to-End), followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
+- latest documented validation snapshot: backend Maven suite reached 737 tests, 0 failures/errors, 3 skips after Task 23 backend/API completion and final blocker fixes; earlier frontend typecheck/build validation remains recorded through Task 13A.
+- merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 16-Hardening.
+- next recommended task: Task 23 frontend review UI / operator experience follow-on, followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
 
 ## Completed Major Tasks
 
@@ -56,6 +56,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 20: Document Storage and SourceItem v1 ✅ V13 migration (mime_type, file_size_bytes, original_filename, scan_status + unique constraint on intake.source_item), DocumentStore interface + DocumentStoreKey + InMemoryDocumentStore, VirusScanPort + NoOpVirusScanPort, DocumentUploadCommand + DocumentUploadResult, DocumentUploadService (MIME validation, size limits, SHA-256 dedup, idempotent), ConsultantDocumentController (POST upload + GET download), DocumentRetrievalResult, SourceItem record enhancement (4 new fields), JdbcSourceItemPersistencePort/JdbcInformationPacketPersistencePort column updates, API boundary leakage regression updated. No real virus scan (NoOp placeholder), no AI extraction, no client/candidate upload, no presigned URLs, CanonicalWriteGate bypass prevented.
 - Task 21: Real AI Task Runner v1 ✅ V18 migration (`input_payload`, `output_payload`, replay lineage on `governance.ai_task_run`), `AITaskRun` append/update/readback audit model, audited in-process runner, prompt registry, JSON schema validation, task routing, DeepSeek provider adapter, Candidate Profile Parser v1, Authenticity Risk Assessor v1, replay support, authenticity-to-matching request adapter, and focused runner tests. Scope remains audit-only: no ClaimLedger/ReviewEvent/WorkflowEvent/canonical write-back from AI outputs.
 - Task 22: Document Intelligence and Evidence Retrieval v1 ✅ V19 migration (`intake.parsed_document`, `intake.parsed_document_chunk`, `intake.parsed_document_span` plus `intake.extraction_run` mode expansion), `documentintelligence` package with TXT/PDF/DOCX parsing, chunk/span persistence, OCR/STT fail-closed boundary via `PENDING_EXTERNAL_PROCESSING`, `DocumentIntelligenceExtractionService`, and consultant document parse/evidence endpoints. Scope remains evidence-only: no OCR execution, no ClaimLedger append, no ReviewEvent append, no WorkflowEvent promotion beyond existing intake flows, and no canonical write-back from parsed output.
+- Task 23: Governed AI Intake End-to-End backend/API slice ✅ V21 migration enabling `GOVERNED_AI_V1`, governed AI extraction orchestration across candidate/company/job packets, clean-fact candidate generation, stable source-span lineage for repeated fields, review query/decision services, consultant intake endpoints (`extract`, `review`, `decide`, `publish`), API-safe intake DTOs, contract-test allowlisting, and fail-closed publish behavior. Candidate canonical publish requires an existing candidate target instead of auto-creating records; company/job publish remains blocked until a governed canonical/audit path exists. Scope still excludes frontend review UI and consultant candidate CRUD.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -172,7 +173,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Next Recommended Task
 
-Task 23: Governed AI Intake End-to-End, using:
+Task 23 frontend review UI / operator experience follow-on, using:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/task-20-document-storage-design.md`
@@ -182,7 +183,7 @@ Task 23: Governed AI Intake End-to-End, using:
 
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Future auth work is now longer-horizon backlog rather than the next blocking productization step.
-Task 22 is now complete for its v1 backend scope. Task 23 is the next independent productization stream.
+Task 23 backend/API scope is now complete; the next independent productization stream is the frontend review/operator slice on top of the new intake API.
 
 ## Future Prompt Strategy
 

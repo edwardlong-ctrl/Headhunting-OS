@@ -10,5 +10,13 @@ Output exactly one JSON object with only these keys:
 - primarySkills: array of strings
 - projects: array of strings
 - timelineHighlights: array of strings
+- claimCandidates: array of objects with fieldName, fieldValue, rationale, evidenceQuote
+Every claim candidate must cite a short exact evidenceQuote copied verbatim from the supplied materials.
+Use stable field names for claimCandidates:
+- headline
+- summary
+- primary_skills
+- projects
+- timeline_highlights
 Do not include any other keys such as fullName, skills, yearsOfExperience, confidence, or notes.
 If a list field is unknown, return an empty array instead of null or omitted fields.

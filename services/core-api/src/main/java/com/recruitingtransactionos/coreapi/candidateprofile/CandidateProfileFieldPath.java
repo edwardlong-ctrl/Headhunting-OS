@@ -30,10 +30,16 @@ public record CandidateProfileFieldPath(String value) {
       of("experience.current_company");
   public static final CandidateProfileFieldPath EXPERIENCE_CURRENT_TITLE =
       of("experience.current_title");
+  public static final CandidateProfileFieldPath PROFILE_HEADLINE =
+      of("profile.headline");
+  public static final CandidateProfileFieldPath PROFILE_SUMMARY =
+      of("profile.summary");
   public static final CandidateProfileFieldPath EXPERIENCE_YEARS_OF_EXPERIENCE =
       of("experience.years_of_experience");
   public static final CandidateProfileFieldPath EXPERIENCE_WORK_HISTORY =
       of("experience.work_history");
+  public static final CandidateProfileFieldPath EXPERIENCE_TIMELINE_HIGHLIGHTS =
+      of("experience.timeline_highlights");
   public static final CandidateProfileFieldPath SKILLS_PRIMARY_SKILLS =
       of("skills.primary_skills");
   public static final CandidateProfileFieldPath SKILLS_SECONDARY_SKILLS =
@@ -73,8 +79,11 @@ public record CandidateProfileFieldPath(String value) {
       AVAILABILITY_AVAILABLE_FROM.value(),
       EXPERIENCE_CURRENT_COMPANY.value(),
       EXPERIENCE_CURRENT_TITLE.value(),
+      PROFILE_HEADLINE.value(),
+      PROFILE_SUMMARY.value(),
       EXPERIENCE_YEARS_OF_EXPERIENCE.value(),
       EXPERIENCE_WORK_HISTORY.value(),
+      EXPERIENCE_TIMELINE_HIGHLIGHTS.value(),
       EXPERIENCE_PROJECTS.value(),
       EXPERIENCE_PORTFOLIO.value(),
       EXPERIENCE_INDUSTRY.value(),

@@ -432,14 +432,20 @@ class ApiBoundaryRegressionClosureTest {
 
     for (Path file : apiBoundaryProductionFiles()) {
       String source = Files.readString(file);
+      boolean isConsultantIntakeController =
+          "ConsultantIntakeController.java".equals(file.getFileName().toString());
       assertThat(source)
           .as(file.toString())
-          .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile")
-          .doesNotContain("SourceItem")
-          .doesNotContain("InformationPacket")
-          .doesNotContain("ClaimLedgerItem")
-          .doesNotContain("ReviewEvent")
-          .doesNotContain("WorkflowEvent");
+          .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
+      if (!isConsultantIntakeController) {
+        assertThat(source)
+            .as(file.toString())
+            .doesNotContain("SourceItem")
+            .doesNotContain("InformationPacket")
+            .doesNotContain("ClaimLedgerItem")
+            .doesNotContain("ReviewEvent")
+            .doesNotContain("WorkflowEvent");
+      }
     }
   }
 
@@ -454,6 +460,7 @@ class ApiBoundaryRegressionClosureTest {
             "HealthController.java",
             "ConsultantCompanyController.java",
             "ConsultantJobController.java",
+            "ConsultantIntakeController.java",
         "ConsultantMatchingController.java",
         "ConsultantShortlistController.java",
             "ConsultantDocumentController.java",
@@ -485,13 +492,18 @@ class ApiBoundaryRegressionClosureTest {
               || "ConsultantJobController.java".equals(fileName)
               || "ConsultantMatchingController.java".equals(fileName)
               || "ConsultantShortlistController.java".equals(fileName);
+      boolean isConsultantIntakeController =
+          "ConsultantIntakeController.java".equals(fileName);
       boolean isDocumentController =
           "ConsultantDocumentController.java".equals(fileName);
 
       boolean isAuthenticationController =
           "AuthenticationController.java".equals(fileName);
 
-      if (!isConsultantWriteController && !isDocumentController && !isAuthenticationController) {
+      if (!isConsultantWriteController
+          && !isConsultantIntakeController
+          && !isDocumentController
+          && !isAuthenticationController) {
         assertThat(source)
             .as(controllerFile.toString())
             .doesNotContain("@PostMapping");

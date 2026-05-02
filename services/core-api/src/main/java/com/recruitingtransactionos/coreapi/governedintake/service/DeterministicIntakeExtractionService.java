@@ -144,8 +144,10 @@ public final class DeterministicIntakeExtractionService {
         packet.intendedEntityType(),
         OUTPUT_SCHEMA_VERSION,
         sourceItems.stream().map(SourceItem::sourceItemId).toList(),
+        List.of(),
         sourceItems.stream().map(DeterministicIntakeExtractionService::sourceSnapshot).toList(),
         extractedFields(packet, sourceItems),
+        List.of(),
         findings(sourceItems),
         List.of(),
         createdAt);
@@ -185,7 +187,8 @@ public final class DeterministicIntakeExtractionService {
         null,
         1.0d,
         status,
-        "Deterministic placeholder metadata only; not a canonical fact or claim.");
+        "Deterministic placeholder metadata only; not a canonical fact or claim.",
+        null);
   }
 
   private static List<IntakeExtractionFinding> findings(List<SourceItem> sourceItems) {

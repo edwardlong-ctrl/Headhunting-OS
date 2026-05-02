@@ -70,9 +70,9 @@ class IntakeClaimLedgerBridgePostgresIntegrationTest {
 
   @Test
   void flywayMigrationAddsBridgeSourceReferenceLookupIndex() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(21);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
-            "18", "19");
+            "18", "19", "20", "21");
     assertThat(indexExists(
         "governance",
         "claim_ledger_item",
@@ -184,6 +184,7 @@ class IntakeClaimLedgerBridgePostgresIntegrationTest {
         packet.intendedEntityType(),
         "intake-extraction-envelope.v1",
         List.of(sourceItem.sourceItemId()),
+        List.of(),
         List.of(new IntakeExtractionSourceSnapshot(
             sourceItem.sourceItemId(),
             sourceItem.sourceType(),
@@ -196,7 +197,9 @@ class IntakeClaimLedgerBridgePostgresIntegrationTest {
             sourceItem.sourceItemId(),
             0.5d,
             IntakeExtractedFieldStatus.CLAIM_CANDIDATE,
-            "Operational fixture only; not a canonical candidate/company/job fact.")),
+            "Operational fixture only; not a canonical candidate/company/job fact.",
+            "fixture:quality-note")),
+        List.of(),
         List.of(),
         List.of(),
         now);

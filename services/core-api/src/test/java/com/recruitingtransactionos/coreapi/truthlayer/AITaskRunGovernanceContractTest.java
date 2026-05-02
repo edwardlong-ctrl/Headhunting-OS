@@ -238,7 +238,7 @@ class AITaskRunGovernanceContractTest {
 
     assertThatThrownBy(() -> service.append(command))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("ai_or_system_cannot_self_approve_ai_output");
+        .hasMessage("human_review_approval_actor_required");
     assertThat(port.appendCalls).isZero();
   }
 

@@ -200,13 +200,17 @@ public final class IntakeClaimLedgerBridgeService {
   private static SourceSpanRef sourceSpanReference(
       IntakeExtractionOutputEnvelope envelope,
       IntakeExtractedField field) {
-    return new SourceSpanRef(
+    String value =
         "intake.extraction_run:" + envelope.extractionRunId().value()
             + "|intake.information_packet:" + envelope.informationPacketId().value()
             + "|packet_type:" + envelope.packetType().wireValue()
             + "|intended_entity_type:" + envelope.intendedEntityType().wireValue()
             + "|intake.source_item:" + field.sourceItemId().value()
-            + "|field:" + field.fieldName());
+            + "|field:" + field.fieldName();
+    if (field.sourceSpanDiscriminator() != null) {
+      value += "|discriminator:" + field.sourceSpanDiscriminator();
+    }
+    return new SourceSpanRef(value);
   }
 
   private static void handleExistingSourceReference(

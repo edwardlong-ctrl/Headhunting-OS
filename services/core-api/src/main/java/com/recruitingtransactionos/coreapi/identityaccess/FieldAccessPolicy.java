@@ -157,6 +157,14 @@ public final class FieldAccessPolicy {
             "consultant_read_allowed",
             "Consultant role may read company, job, and shortlist resources.");
       }
+      if (request.resourceType() == ResourceType.INFORMATION_PACKET
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)
+          && (request.fieldClassification() == FieldClassification.INTERNAL
+              || request.fieldClassification() == FieldClassification.SYSTEM_GOVERNANCE)) {
+        return AccessDecision.allow(
+            "consultant_information_packet_read_allowed",
+            "Consultant role may read same-organization governed intake packets.");
+      }
       if (request.resourceType() == ResourceType.SOURCE_ITEM
           && request.fieldClassification() == FieldClassification.RAW_SOURCE
           && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
@@ -173,6 +181,14 @@ public final class FieldAccessPolicy {
         return AccessDecision.allow(
             "consultant_write_allowed",
             "Consultant role may create and update company and job resources.");
+      }
+      if (request.resourceType() == ResourceType.INFORMATION_PACKET
+          && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)
+          && (request.fieldClassification() == FieldClassification.INTERNAL
+              || request.fieldClassification() == FieldClassification.SYSTEM_GOVERNANCE)) {
+        return AccessDecision.allow(
+            "consultant_information_packet_update_allowed",
+            "Consultant role may operate on same-organization governed intake packets.");
       }
       if (request.action() == AccessAction.UPDATE
           && request.resourceType() == ResourceType.SOURCE_ITEM

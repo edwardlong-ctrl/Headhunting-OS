@@ -54,8 +54,7 @@ public final class ConsultantApiCommandService {
       CompanyService companyService,
       JobService jobService,
       ShortlistService shortlistService) {
-    this(companyService, jobService, shortlistService,
-        new PermissionEnforcer(new PermissionEvaluator()));
+    this(companyService, jobService, shortlistService, new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   ConsultantApiCommandService(
@@ -428,6 +427,10 @@ public final class ConsultantApiCommandService {
         organizationId, jobId);
     return ConsultantJobResponseMapper.toDetail(job,
         requirements != null ? requirements : Collections.emptyList(), activeScorecard);
+  }
+
+  private static UUID parseUuid(String value) {
+    return value != null ? UUID.fromString(value) : null;
   }
 
   // ── Access enforcement ──────────────────────────────────────────────────────

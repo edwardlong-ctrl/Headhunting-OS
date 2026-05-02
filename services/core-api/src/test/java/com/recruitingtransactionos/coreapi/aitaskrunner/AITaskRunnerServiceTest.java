@@ -39,7 +39,22 @@ class AITaskRunnerServiceTest {
     InMemoryAITaskRunPort port = new InMemoryAITaskRunPort();
     AITaskRunnerService service = runner(port, new StubProvider(
         "stub",
-        OBJECT_MAPPER.readTree("{\"headline\":\"Platform engineer\",\"summary\":\"Builds core systems\",\"primarySkills\":[\"Java\",\"PostgreSQL\"],\"projects\":[\"Workflow audit\"],\"timelineHighlights\":[\"Led hiring automation\"]}"),
+        OBJECT_MAPPER.readTree("""
+            {
+              "headline":"Platform engineer",
+              "summary":"Builds core systems",
+              "primarySkills":["Java","PostgreSQL"],
+              "projects":["Workflow audit"],
+              "timelineHighlights":["Led hiring automation"],
+              "claimCandidates":[
+                {"fieldName":"headline","fieldValue":"Platform engineer","rationale":"title summary","evidenceQuote":"platform engineer"},
+                {"fieldName":"summary","fieldValue":"Builds core systems","rationale":"summary draft","evidenceQuote":"workflow systems"},
+                {"fieldName":"primary_skills","fieldValue":"Java | PostgreSQL","rationale":"skills list","evidenceQuote":"Java"},
+                {"fieldName":"projects","fieldValue":"Workflow audit","rationale":"project list","evidenceQuote":"Workflow audit"},
+                {"fieldName":"timeline_highlights","fieldValue":"Led hiring automation","rationale":"timeline list","evidenceQuote":"Led hiring automation"}
+              ]
+            }
+            """),
         "trace-123"));
 
     AITaskExecutionResult result = service.execute(new AITaskExecutionRequest(

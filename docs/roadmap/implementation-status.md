@@ -63,6 +63,7 @@
 - Task 19B: Product Controller Migration to JWT-backed Security Context. Consultant/client-safe/document product controllers now read identity from `@AuthenticationPrincipal RtoAuthenticatedPrincipal` instead of temporary role/org headers, `ClientSafeCandidateCardApiAccessContextAdapter` derives access/query scope from the authenticated principal plus explicit field/disclosure headers, `SecurityConfig` enforces authenticated access across `/api/**` except `/api/auth/**` and `/health`, and controller regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`.
 - Task 19C: Auth/Session Hardening and Regression Closure. `JwtAuthenticationFilter` now validates every access token against an active `identity.session`, refresh revokes the old session and creates a new session id so stale access tokens fail immediately, filter-time checks now fail closed on session/account/role mismatches, auth regression adds revoked-session and stale-principal coverage, and WebMvc/API boundary regression now proves revoked bearer tokens are rejected before controller logic.
 - Task 22: Document Intelligence and Evidence Retrieval v1 via V19 migration expanding `intake.extraction_run.mode` and adding `intake.parsed_document`, `intake.parsed_document_chunk`, and `intake.parsed_document_span`. Adds `documentintelligence` persistence and service layer (`JdbcDocumentIntelligencePersistencePort`, `DocumentParsingService`, `DocumentIntelligenceExtractionService`), real TXT/PDF/DOCX parsing through PDFBox/POI, OCR/STT fail-closed boundary through `DocumentConversionWorkerPort`, consultant parse/summary/evidence endpoints on `ConsultantDocumentController`, consultant RAW_SOURCE update permission for parse execution, focused WebMvc + parser + PostgreSQL/Testcontainers coverage, and roadmap closure updates. Scope remains evidence-only: no OCR execution worker, no AI claim promotion, no canonical write-back.
+- Task 23 (backend/API scope): Governed AI Intake End-to-End via V21 migration enabling `GOVERNED_AI_V1`, governed AI extraction orchestration, AI task lineage capture, clean-fact candidates, review query/decision services, consultant intake endpoints (`extract`, `review`, `decide`, `publish`), API-safe intake DTOs, stable source-span lineage for repeated clean-fact fields, and fail-closed publish behavior. Candidate canonical publish now requires an existing target instead of auto-creating candidate records; company/job publish remains intentionally blocked until a governed canonical/audit path exists. The delivered scope closes the backend/API governed-intake loop without adding frontend review UI or consultant candidate CRUD.
 
 ## Current Test State
 
@@ -124,6 +125,7 @@
 - Full Maven backend reached 664 tests, 0 failures/errors, 1 existing skip after Task 19A.
 - `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` reached 685 tests, 0 failures/errors, 1 existing skip after Task 21.
 - Targeted Task 22 verification passed `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml -Dtest=ConsultantDocumentControllerTest,DocumentParsingServiceTest,DocumentIntelligencePostgresIntegrationTest,GovernedIntakeConfigurationTest test`.
+- Task 23 backend/API verification passed targeted API-boundary, WebMvc, governed-intake, AI-task, and PostgreSQL/Testcontainers suites, and full Maven reached 737 tests, 0 failures/errors, 3 skips after the final blocker fixes.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:
@@ -227,7 +229,7 @@ PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
   -> `WorkflowEvent` audit + minimal `CandidateProfile` field write
   -> lineage/source-span and CandidateProfile metadata preserved.
 - Task 6F confirms ClaimLedgerItem remains claim input, ReviewEvent remains evidence rather than fact promotion, CanonicalWriteGate remains mandatory, gate-blocked attempts still write no CandidateProfile field, and a separate persisted blocked-attempt audit ledger was deferred at Task 6F time (delivered by Task 17 V11 `governance.canonical_write_attempt`).
-- No endpoint/API/UI/AI wiring exists for this flow yet.
+- Task 23 now adds backend/API wiring for governed intake through `ConsultantIntakeController`, review/query/decision services, and governed AI extraction orchestration. Frontend review UI and broader product workflow remain future work.
 
 ## Current Client-safe Projection Contract Capabilities
 

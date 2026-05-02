@@ -113,9 +113,9 @@ class GovernedIntakeEndToEndRegressionTest {
   @Test
   void minimalSliceRunsThroughCanonicalGateWithoutCanonicalPersistence()
       throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(19);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(21);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
-            "18", "19");
+            "18", "19", "20", "21");
     int candidateRowsBefore = countRows("recruiting.candidate", ORG_A);
     int candidateProfileRowsBefore = countRows("recruiting.candidate_profile", ORG_A);
 
@@ -554,6 +554,7 @@ class GovernedIntakeEndToEndRegressionTest {
         packet.intendedEntityType(),
         "intake-extraction-envelope.v1",
         sourceItems.stream().map(SourceItem::sourceItemId).toList(),
+        List.of(),
         sourceItems.stream()
             .map(sourceItem -> new IntakeExtractionSourceSnapshot(
                 sourceItem.sourceItemId(),
@@ -568,7 +569,9 @@ class GovernedIntakeEndToEndRegressionTest {
             primarySource.sourceItemId(),
             0.5d,
             IntakeExtractedFieldStatus.CLAIM_CANDIDATE,
-            "Operational fixture only; not a canonical candidate/company/job fact.")),
+            "Operational fixture only; not a canonical candidate/company/job fact.",
+            "fixture:quality-note")),
+        List.of(),
         List.of(),
         List.of(),
         now);

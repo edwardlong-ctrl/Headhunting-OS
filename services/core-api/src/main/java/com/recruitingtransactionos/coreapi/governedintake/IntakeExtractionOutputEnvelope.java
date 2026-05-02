@@ -13,8 +13,10 @@ public record IntakeExtractionOutputEnvelope(
     IntendedEntityType intendedEntityType,
     String outputSchemaVersion,
     List<SourceItemId> sourceItemIds,
+    List<UUID> aiTaskRunIds,
     List<IntakeExtractionSourceSnapshot> sourceSnapshots,
     List<IntakeExtractedField> extractedFields,
+    List<IntakeCleanFactCandidate> cleanFactCandidates,
     List<IntakeExtractionFinding> findings,
     List<IntakeExtractionError> errors,
     Instant createdAt) {
@@ -31,12 +33,18 @@ public record IntakeExtractionOutputEnvelope(
     sourceItemIds = List.copyOf(Objects.requireNonNull(
         sourceItemIds,
         "sourceItemIds must not be null"));
+    aiTaskRunIds = List.copyOf(Objects.requireNonNull(
+        aiTaskRunIds,
+        "aiTaskRunIds must not be null"));
     sourceSnapshots = List.copyOf(Objects.requireNonNull(
         sourceSnapshots,
         "sourceSnapshots must not be null"));
     extractedFields = List.copyOf(Objects.requireNonNull(
         extractedFields,
         "extractedFields must not be null"));
+    cleanFactCandidates = List.copyOf(Objects.requireNonNull(
+        cleanFactCandidates,
+        "cleanFactCandidates must not be null"));
     findings = List.copyOf(Objects.requireNonNull(findings, "findings must not be null"));
     errors = List.copyOf(Objects.requireNonNull(errors, "errors must not be null"));
     Objects.requireNonNull(createdAt, "createdAt must not be null");

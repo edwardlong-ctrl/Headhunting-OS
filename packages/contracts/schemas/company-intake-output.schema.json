@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.recruitingtransactionos.dev/ai/company-intake-output.schema.json",
+  "type": "object",
+  "properties": {
+    "normalizedSummary": {"type": "string", "minLength": 1},
+    "claimCandidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fieldName": {"type": "string", "minLength": 1},
+          "fieldValue": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string", "minLength": 1},
+          "evidenceQuote": {"type": "string", "minLength": 1}
+        },
+        "required": ["fieldName", "fieldValue", "rationale", "evidenceQuote"],
+        "additionalProperties": false
+      }
+    },
+    "followUpQuestions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "required": ["normalizedSummary", "claimCandidates", "followUpQuestions"],
+  "additionalProperties": false
+}

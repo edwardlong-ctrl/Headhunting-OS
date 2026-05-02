@@ -129,8 +129,11 @@ class CandidateProfileContractTest {
             "availability.available_from",
             "experience.current_company",
             "experience.current_title",
+            "profile.headline",
+            "profile.summary",
             "experience.years_of_experience",
             "experience.work_history",
+            "experience.timeline_highlights",
             "experience.projects",
             "experience.portfolio",
             "experience.industry",
@@ -516,6 +519,16 @@ class CandidateProfileContractTest {
         if (relativePath.endsWith(
             "candidateprofile/persistence/JdbcCandidateProfilePersistencePort.java")
             && matcher.group(2).equals("candidate_profile")) {
+          continue;
+        }
+        if (relativePath.endsWith(
+            "candidate/persistence/JdbcCandidatePersistencePort.java")
+            && matcher.group(2).equals("candidate")) {
+          continue;
+        }
+        if (relativePath.endsWith(
+            "consentdisclosure/persistence/JdbcCandidateWorkflowStatePort.java")
+            && matcher.group(2).equals("candidate")) {
           continue;
         }
         matches.add(relativePath + " contains " + matcher.group());

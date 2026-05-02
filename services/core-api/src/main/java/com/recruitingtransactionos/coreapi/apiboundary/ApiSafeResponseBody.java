@@ -7,6 +7,8 @@ public sealed interface ApiSafeResponseBody
         AuthSessionResponse,
         AuthLogoutResponse,
         ClientSafeCandidateCardResponse,
+        ConsultantCandidateSummaryResponse,
+        ConsultantCandidateDetailResponse,
         ConsultantCompanySummaryResponse,
         ConsultantMatchReportResponse,
     ConsultantCompanyDetailResponse,
@@ -17,4 +19,7 @@ public sealed interface ApiSafeResponseBody
         ConsultantDocumentUploadResponse,
         ConsultantParsedDocumentResponse,
         ConsultantDocumentEvidenceResponse,
+        ConsultantIntakeRunResponse,
+        ConsultantIntakeReviewResponse,
+        ConsultantIntakePublishResponse,
         PagedResult {}

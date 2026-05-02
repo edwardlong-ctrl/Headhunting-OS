@@ -7,8 +7,22 @@
     "summary": {"type": "string", "minLength": 1},
     "primarySkills": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "projects": {"type": "array", "items": {"type": "string", "minLength": 1}},
-    "timelineHighlights": {"type": "array", "items": {"type": "string", "minLength": 1}}
+    "timelineHighlights": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "claimCandidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fieldName": {"type": "string", "minLength": 1},
+          "fieldValue": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string", "minLength": 1},
+          "evidenceQuote": {"type": "string", "minLength": 1}
+        },
+        "required": ["fieldName", "fieldValue", "rationale", "evidenceQuote"],
+        "additionalProperties": false
+      }
+    }
   },
-  "required": ["headline", "summary", "primarySkills", "projects", "timelineHighlights"],
+  "required": ["headline", "summary", "primarySkills", "projects", "timelineHighlights", "claimCandidates"],
   "additionalProperties": false
 }

@@ -5,6 +5,8 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.deepseek.DeepSeekAITaskP
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityAwareMatchRequestFactory;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityRiskAssessorTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.CandidateProfileParserTaskService;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.companyintake.CompanyIntakeTaskService;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.jobintake.JobIntakeTaskService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
@@ -31,6 +33,24 @@ public class AITaskRunnerConfiguration {
             "/ai/prompts/candidate-profile-parser-v1.txt",
             "/ai/schemas/candidate-profile-parser-input.schema.json",
             "/ai/schemas/candidate-profile-parser-output.schema.json",
+            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
+            AITaskHumanReviewStatus.REQUIRED),
+        new AITaskDefinition(
+            "company-intake",
+            "company-intake.v1",
+            "prompt.company-intake.v1",
+            "/ai/prompts/company-intake-v1.txt",
+            "/ai/schemas/company-intake-input.schema.json",
+            "/ai/schemas/company-intake-output.schema.json",
+            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
+            AITaskHumanReviewStatus.REQUIRED),
+        new AITaskDefinition(
+            "job-intake",
+            "job-intake.v1",
+            "prompt.job-intake.v1",
+            "/ai/prompts/job-intake-v1.txt",
+            "/ai/schemas/job-intake-input.schema.json",
+            "/ai/schemas/job-intake-output.schema.json",
             AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
             AITaskHumanReviewStatus.REQUIRED),
         new AITaskDefinition(
@@ -117,10 +137,22 @@ public class AITaskRunnerConfiguration {
   @Bean
   CandidateProfileParserTaskService candidateProfileParserTaskService(
       AITaskRunnerService aiTaskRunnerService,
-      ObjectMapper objectMapper,
-      @org.springframework.beans.factory.annotation.Autowired(required = false)
-      com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService claimLedgerService) {
-    return new CandidateProfileParserTaskService(aiTaskRunnerService, objectMapper, claimLedgerService);
+      ObjectMapper objectMapper) {
+    return new CandidateProfileParserTaskService(aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  CompanyIntakeTaskService companyIntakeTaskService(
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new CompanyIntakeTaskService(aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  JobIntakeTaskService jobIntakeTaskService(
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new JobIntakeTaskService(aiTaskRunnerService, objectMapper);
   }
 
   @Bean

@@ -1,5 +1,8 @@
 package com.recruitingtransactionos.coreapi.recruiting;
 
+import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
+import com.recruitingtransactionos.coreapi.candidate.port.CandidatePersistencePort;
+import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyContactPersistencePort;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPreferencePersistencePort;
@@ -100,5 +103,17 @@ public class RecruitingDomainConfiguration {
       ShortlistPersistencePort shortlistPort,
       ShortlistCandidateCardPersistencePort cardPort) {
     return new ShortlistService(shortlistPort, cardPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidatePersistencePort.class)
+  CandidatePersistencePort candidatePersistencePort(DataSource dataSource) {
+    return new JdbcCandidatePersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateService.class)
+  CandidateService candidateService(CandidatePersistencePort candidatePort) {
+    return new CandidateService(candidatePort);
   }
 }

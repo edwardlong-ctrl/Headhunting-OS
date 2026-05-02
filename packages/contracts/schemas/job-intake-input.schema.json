@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.recruitingtransactionos.dev/ai/job-intake-input.schema.json",
+  "type": "object",
+  "properties": {
+    "sourceSummary": {"type": "string"},
+    "jobDescriptionText": {"type": "string"},
+    "hiringManagerBrief": {"type": "string"},
+    "consultantNotes": {"type": "string"}
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    {"required": ["sourceSummary"]},
+    {"required": ["jobDescriptionText"]},
+    {"required": ["hiringManagerBrief"]},
+    {"required": ["consultantNotes"]}
+  ]
+}
