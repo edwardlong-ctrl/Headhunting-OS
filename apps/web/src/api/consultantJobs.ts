@@ -12,6 +12,8 @@ export type ConsultantJobSummary = {
   title: string;
   companyId: string;
   status: string;
+  industryPackKey: string | null;
+  industryPackLabel: string | null;
   createdAt: string;
 };
 
@@ -28,6 +30,9 @@ export type ConsultantJobDetail = {
   compensation: string | null;
   commercialTerms: string | null;
   status: string;
+  industryPackKey: string | null;
+  industryPackLabel: string | null;
+  industryPackMaturity: string | null;
   ownerConsultantId: string | null;
   activatedAt: string | null;
   closedAt: string | null;
@@ -52,6 +57,7 @@ export type ConsultantJobCreatePayload = {
   companyId: string;
   title: string;
   status: string;
+  industryPackKey?: string | null;
 };
 
 export type ConsultantJobUpdatePayload = {
@@ -66,6 +72,7 @@ export type ConsultantJobUpdatePayload = {
   compensation?: string | null;
   commercialTerms?: string | null;
   status: string;
+  industryPackKey?: string | null;
 };
 
 export function createConsultantJobUpdatePayload(

@@ -15,6 +15,9 @@ public record ConsultantJobDetailResponse(
     String compensation,
     String commercialTerms,
     String status,
+    String industryPackKey,
+    String industryPackLabel,
+    String industryPackMaturity,
     String ownerConsultantId,
     String activatedAt,
     String closedAt,
@@ -39,9 +42,59 @@ public record ConsultantJobDetailResponse(
     compensation = ApiBoundaryContractRules.sanitizeExternalText(compensation, null);
     commercialTerms = ApiBoundaryContractRules.sanitizeConsultantVisibleText(commercialTerms, null);
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
+    industryPackKey = ApiBoundaryContractRules.sanitizeExternalText(industryPackKey, null);
+    industryPackLabel = ApiBoundaryContractRules.sanitizeExternalText(industryPackLabel, null);
+    industryPackMaturity = ApiBoundaryContractRules.sanitizeExternalText(industryPackMaturity, null);
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
     updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");
     requirements = ApiBoundaryContractRules.requireNonNullList(requirements, "requirements");
+  }
+
+  public ConsultantJobDetailResponse(
+      String jobId,
+      long version,
+      String companyId,
+      String title,
+      String description,
+      String location,
+      String seniorityBand,
+      String roleFamily,
+      String employmentType,
+      String compensation,
+      String commercialTerms,
+      String status,
+      String ownerConsultantId,
+      String activatedAt,
+      String closedAt,
+      String closeReason,
+      String createdAt,
+      String updatedAt,
+      List<Requirement> requirements,
+      Scorecard scorecard) {
+    this(
+        jobId,
+        version,
+        companyId,
+        title,
+        description,
+        location,
+        seniorityBand,
+        roleFamily,
+        employmentType,
+        compensation,
+        commercialTerms,
+        status,
+        null,
+        null,
+        null,
+        ownerConsultantId,
+        activatedAt,
+        closedAt,
+        closeReason,
+        createdAt,
+        updatedAt,
+        requirements,
+        scorecard);
   }
 
   public record Requirement(

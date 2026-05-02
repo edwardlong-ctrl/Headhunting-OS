@@ -17,6 +17,9 @@ import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicat
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
 import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
+import com.recruitingtransactionos.coreapi.industrypack.persistence.JdbcIndustryPackReadPort;
+import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobRequirementPersistencePort;
 import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobScorecardPersistencePort;
@@ -171,6 +174,18 @@ public class RecruitingDomainConfiguration {
   @ConditionalOnMissingBean(MatchReportPersistencePort.class)
   MatchReportPersistencePort matchReportPersistencePort(DataSource dataSource) {
     return new JdbcMatchReportPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(IndustryPackReadPort.class)
+  IndustryPackReadPort industryPackReadPort(DataSource dataSource) {
+    return new JdbcIndustryPackReadPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(IndustryPackService.class)
+  IndustryPackService industryPackService(IndustryPackReadPort industryPackReadPort) {
+    return new IndustryPackService(industryPackReadPort);
   }
 
   @Bean

@@ -66,7 +66,7 @@
   - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
   - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
 
-## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Matching Engine Deferred
+## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Task 28 Seeds One Real Industry Pack; Broader Matching Engine Still Deferred
 
 - Task 11A adds a backend-only `matching` package for evidence-backed MatchReport scoring contracts and deterministic score-cap policy.
 - `MatchReport` uses opaque `match_report_`, `job_ref_`, and `match_subject_` references rather than raw Candidate or CandidateProfile objects.
@@ -90,7 +90,14 @@
 - Task 11C adds matching/evidence regression closure coverage proving MatchReport and generation contracts remain opaque-ref-only, non-canonical, not client-safe API output, free of raw Candidate/Profile/source/governance leakage, deterministic across score/evidence/provenance metadata, and bounded by score-cap policy before return.
 - Task 11C proves Task 11 code adds no real AI/model service call, prompt execution, model routing, worker queue, persistence, database migration, canonical write, CandidateProfile mutation, ClaimLedgerItem append, ReviewEvent append, WorkflowEvent append, API/controller, or UI surface.
 - Task 11 remains the matching/evidence kernel foundation, and Task 27 now closes the first consultant-internal productization slice: MatchReport persistence exists, consultant matching GET/POST API and portal workspace exist, backend-owned assembly now uses JobRequirement/JobScorecard/CandidateProfile/active parsed documents/authenticity-task output, and regression tests prove no client-safe leakage or canonical mutation from this slice.
-- Broader gaps remain: no real learned AI matching, no real industry ontology calibration, no client-facing match report delivery, no shortlist-send workflow, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only.
+- Task 28 now adds the first real industry ontology calibration slice:
+  - persisted `industry_pack`, `ontology_version`, `skill_concept`, and role-family template data
+  - one real seeded pack: `semiconductor`
+  - consultant job-level pack selection
+  - real pack key/maturity/selection-reason metadata on stored match reports
+  - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
+  - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
+- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no shortlist-send workflow, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 

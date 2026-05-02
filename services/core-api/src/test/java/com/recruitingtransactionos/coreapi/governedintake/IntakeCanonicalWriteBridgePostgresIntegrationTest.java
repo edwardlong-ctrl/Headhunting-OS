@@ -104,9 +104,9 @@ class IntakeCanonicalWriteBridgePostgresIntegrationTest {
 
   @Test
   void flywaySchemaSupportsCanonicalWriteBridgeWithoutNewMigration() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(22);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(24);
     assertThat(appliedMigrationVersions()).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
-            "18", "19", "20", "21", "22");
+            "18", "19", "20", "21", "22", "23", "24");
     assertThat(columnExists("governance", "claim_ledger_item", "claim_value_text")).isTrue();
     assertThat(columnExists("governance", "review_event", "claim_ledger_item_id")).isTrue();
     assertThat(columnExists("workflow", "workflow_event", "idempotency_key")).isTrue();

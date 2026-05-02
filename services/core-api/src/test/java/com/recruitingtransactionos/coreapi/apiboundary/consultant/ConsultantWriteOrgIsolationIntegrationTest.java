@@ -554,6 +554,57 @@ class ConsultantWriteOrgIsolationIntegrationTest {
   }
 
   @Test
+  void updateJobWithoutIndustryPackKeyPreservesExistingIndustryPack() {
+    ConsultantApiCommandService commandService = commandService();
+
+    CompanyId companyId = new CompanyId(UUID.randomUUID());
+    companyService().createCompany(Company.builder()
+        .companyId(companyId)
+        .organizationId(ORG_A)
+        .name("Preservation Host")
+        .status(CompanyStatus.ACTIVE)
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    JobId jobId = new JobId(UUID.randomUUID());
+    Job created = jobService().createJob(Job.builder()
+        .jobId(jobId)
+        .organizationId(ORG_A)
+        .companyId(companyId)
+        .title("senior engineer")
+        .status(JobStatus.DRAFT)
+        .industryPackId(UUID.fromString("00000000-0000-0000-0000-000000280001"))
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build());
+
+    commandService.updateJob(
+        jobUpdateAccessRequest(),
+        ORG_A,
+        jobId,
+        new JobUpdateRequest(
+            companyId.value().toString(),
+            "platform engineer",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "draft",
+            null,
+            null,
+            null,
+            created.version()));
+
+    Job updated = jobService().findJobByIdAndOrganizationId(ORG_A, jobId).orElseThrow();
+    assertThat(updated.title()).isEqualTo("platform engineer");
+    assertThat(updated.industryPackId())
+        .isEqualTo(UUID.fromString("00000000-0000-0000-0000-000000280001"));
+  }
+
+  @Test
   void createShortlistWithCrossOrgJobThrowsIllegalArgumentException() {
     ConsultantApiCommandService commandService = commandService();
 

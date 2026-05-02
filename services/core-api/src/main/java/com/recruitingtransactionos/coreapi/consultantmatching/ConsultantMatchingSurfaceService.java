@@ -34,6 +34,15 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryRoleFamilyTemplate;
+import com.recruitingtransactionos.coreapi.industrypack.OntologyVersion;
+import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackMatchProfile;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
+import com.recruitingtransactionos.coreapi.industrypack.service.ResolvedIndustryPack;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
@@ -99,6 +108,7 @@ public final class ConsultantMatchingSurfaceService {
   private final CandidateDocumentService candidateDocumentService;
   private final DocumentParsingService documentParsingService;
   private final AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService;
+  private final IndustryPackService industryPackService;
   private final PermissionEnforcer permissionEnforcer;
 
   public ConsultantMatchingSurfaceService(
@@ -111,7 +121,8 @@ public final class ConsultantMatchingSurfaceService {
       AuthenticityAwareMatchRequestFactory authenticityAwareMatchRequestFactory,
       CandidateDocumentService candidateDocumentService,
       DocumentParsingService documentParsingService,
-      AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService) {
+      AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService,
+      IndustryPackService industryPackService) {
     this(
         jobService,
         candidateService,
@@ -123,6 +134,7 @@ public final class ConsultantMatchingSurfaceService {
         candidateDocumentService,
         documentParsingService,
         authenticityRiskAssessorTaskService,
+        industryPackService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -137,6 +149,34 @@ public final class ConsultantMatchingSurfaceService {
       CandidateDocumentService candidateDocumentService,
       DocumentParsingService documentParsingService,
       AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService,
+      PermissionEnforcer permissionEnforcer) {
+    this(
+        jobService,
+        candidateService,
+        candidateProfileService,
+        shortlistService,
+        generationService,
+        matchReportPersistencePort,
+        authenticityAwareMatchRequestFactory,
+        candidateDocumentService,
+        documentParsingService,
+        authenticityRiskAssessorTaskService,
+        defaultIndustryPackService(),
+        permissionEnforcer);
+  }
+
+  ConsultantMatchingSurfaceService(
+      JobService jobService,
+      CandidateService candidateService,
+      CandidateProfileService candidateProfileService,
+      ShortlistService shortlistService,
+      MatchReportGenerationService generationService,
+      MatchReportPersistencePort matchReportPersistencePort,
+      AuthenticityAwareMatchRequestFactory authenticityAwareMatchRequestFactory,
+      CandidateDocumentService candidateDocumentService,
+      DocumentParsingService documentParsingService,
+      AuthenticityRiskAssessorTaskService authenticityRiskAssessorTaskService,
+      IndustryPackService industryPackService,
       PermissionEnforcer permissionEnforcer) {
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.candidateService = Objects.requireNonNull(candidateService, "candidateService must not be null");
@@ -156,6 +196,7 @@ public final class ConsultantMatchingSurfaceService {
     this.authenticityRiskAssessorTaskService = Objects.requireNonNull(
         authenticityRiskAssessorTaskService,
         "authenticityRiskAssessorTaskService must not be null");
+    this.industryPackService = Objects.requireNonNull(industryPackService, "industryPackService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -192,6 +233,11 @@ public final class ConsultantMatchingSurfaceService {
             subjectContext.candidateId().value(),
             subjectContext.shortlistCandidateCardId(),
             assembly.reidentificationRiskSignal(),
+            assembly.resolvedIndustryPack().industryPack().packKey().value(),
+            assembly.resolvedIndustryPack().industryPack().maturity(),
+            assembly.resolvedIndustryPack().ontologyStale(),
+            assembly.resolvedIndustryPack().selectionReason(),
+            assembly.matchProfile().antiPatternWarnings(),
             explanations,
             interviewQuestions));
     return toResponse(stored);
@@ -265,7 +311,10 @@ public final class ConsultantMatchingSurfaceService {
       JobScorecard scorecard,
       SubjectContext subjectContext) {
     List<CandidateProfileField> fields = subjectContext.candidateProfile().fields();
-    Set<MatchDimension> requiredDimensions = determineRequiredDimensions(requirements, scorecard);
+    ResolvedIndustryPack resolvedIndustryPack =
+        industryPackService.resolveForJobAndCandidate(job, subjectContext.candidate(), Instant.now());
+    Set<MatchDimension> requiredDimensions =
+        determineRequiredDimensions(requirements, scorecard, resolvedIndustryPack);
     DocumentEvidenceSummary documentEvidence =
         collectDocumentEvidence(
             organizationId,
@@ -273,7 +322,8 @@ public final class ConsultantMatchingSurfaceService {
             job,
             requirements,
             scorecard,
-            requiredDimensions);
+            requiredDimensions,
+            resolvedIndustryPack);
     Map<MatchDimension, List<MatchEvidenceSignal>> signalsByDimension = new EnumMap<>(MatchDimension.class);
     for (MatchDimension dimension : MatchDimension.values()) {
       signalsByDimension.put(dimension, new ArrayList<>());
@@ -334,6 +384,23 @@ public final class ConsultantMatchingSurfaceService {
     for (MatchDimension dimension : MatchDimension.values()) {
       requestedScores.put(dimension, scoreDimension(signalsByDimension.get(dimension)));
     }
+    IndustryPackMatchProfile matchProfile = industryPackService.evaluateMatchProfile(
+        resolvedIndustryPack,
+        job.roleFamily(),
+        List.of(
+            documentEvidence.resumeText(),
+            documentEvidence.linkedInText(),
+            documentEvidence.portfolioText(),
+            documentEvidence.interviewNotesText()),
+        fields.stream().map(field -> field.value().jsonValue()).toList());
+    if (matchProfile.antiPatternTriggered()) {
+      requestedScores.computeIfPresent(
+          MatchDimension.TECHNICAL_FIT,
+          (dimension, score) -> MatchScore.of(Math.min(score.value(), 2)));
+      requestedScores.computeIfPresent(
+          MatchDimension.INDUSTRY_FIT,
+          (dimension, score) -> MatchScore.of(Math.min(score.value(), 2)));
+    }
     MatchScore overallScore = MatchScore.of(Math.max(1, Math.min(5, Math.round((float) requestedScores.values().stream()
         .mapToInt(MatchScore::value)
         .average()
@@ -361,28 +428,32 @@ public final class ConsultantMatchingSurfaceService {
             overallScore,
             requestedScores,
             coverageInput,
-            scorecard != null ? IndustryPackMaturity.SEEDED : IndustryPackMaturity.COLD,
+            resolvedIndustryPack.industryPack().maturity(),
             skillsPresent && !projectEvidencePresent,
             projectEvidencePresent,
             highConfidenceIntent ? EvidenceAssertionStrength.EXPLICIT : hasIntentField
                 ? EvidenceAssertionStrength.IMPLIED
                 : EvidenceAssertionStrength.WEAK_SIGNAL,
-            false,
-            false,
+            resolvedIndustryPack.ontologyStale(),
+            resolvedIndustryPack.ontologyStale(),
             reidentificationRiskSignal,
-            "ontology-v2.1",
-            scorecard != null ? "industry-pack-v1" : "industry-pack-unseeded",
+            resolvedIndustryPack.ontologyVersion().versionKey(),
+            resolvedIndustryPack.industryPack().packKey().value() + ":" + resolvedIndustryPack.ontologyVersion().versionKey(),
             Instant.now()),
         authenticityAssessment);
     return new AssemblyContext(
         request,
         reidentificationRiskSignal,
         documentEvidence,
-        authenticityAssessment);
+        authenticityAssessment,
+        resolvedIndustryPack,
+        matchProfile);
   }
 
   private static Set<MatchDimension> determineRequiredDimensions(
-      List<JobRequirement> requirements, JobScorecard scorecard) {
+      List<JobRequirement> requirements,
+      JobScorecard scorecard,
+      ResolvedIndustryPack resolvedIndustryPack) {
     Set<MatchDimension> required = EnumSet.noneOf(MatchDimension.class);
     if (requirements != null) {
       for (JobRequirement requirement : requirements) {
@@ -393,6 +464,10 @@ public final class ConsultantMatchingSurfaceService {
     if (scorecard != null) {
       required.addAll(inferDimensions(scorecard.dimensions().toLowerCase()));
       required.addAll(inferDimensions(scorecard.scoringGuidance() == null ? "" : scorecard.scoringGuidance().toLowerCase()));
+    }
+    if (resolvedIndustryPack != null && resolvedIndustryPack.roleFamilyTemplate() != null) {
+      required.addAll(inferDimensions(resolvedIndustryPack.roleFamilyTemplate().scorecardDimensions().toLowerCase(Locale.ROOT)));
+      required.addAll(inferDimensions(resolvedIndustryPack.roleFamilyTemplate().scoringGuidance().toLowerCase(Locale.ROOT)));
     }
     if (required.isEmpty()) {
       required.addAll(EnumSet.of(
@@ -558,7 +633,8 @@ public final class ConsultantMatchingSurfaceService {
       Job job,
       List<JobRequirement> requirements,
       JobScorecard scorecard,
-      Set<MatchDimension> requiredDimensions) {
+      Set<MatchDimension> requiredDimensions,
+      ResolvedIndustryPack resolvedIndustryPack) {
     EnumMap<MatchDimension, List<MatchEvidenceSignal>> signalsByDimension = new EnumMap<>(MatchDimension.class);
     for (MatchDimension dimension : MatchDimension.values()) {
       signalsByDimension.put(dimension, new ArrayList<>());
@@ -568,7 +644,8 @@ public final class ConsultantMatchingSurfaceService {
         .stream()
         .filter(document -> document.status() == CandidateDocumentStatus.ACTIVE)
         .toList();
-    List<String> evidenceQueries = buildEvidenceQueries(job, requirements, scorecard, requiredDimensions);
+    List<String> evidenceQueries =
+        buildEvidenceQueries(job, requirements, scorecard, requiredDimensions, resolvedIndustryPack);
     List<String> documentTitles = new ArrayList<>();
     List<UUID> sourceReferenceIds = new ArrayList<>();
     List<String> resumeTexts = new ArrayList<>();
@@ -685,7 +762,8 @@ public final class ConsultantMatchingSurfaceService {
       Job job,
       List<JobRequirement> requirements,
       JobScorecard scorecard,
-      Set<MatchDimension> requiredDimensions) {
+      Set<MatchDimension> requiredDimensions,
+      ResolvedIndustryPack resolvedIndustryPack) {
     LinkedHashSet<String> queries = new LinkedHashSet<>();
     addQueryParts(queries, job.title());
     addQueryParts(queries, job.roleFamily());
@@ -700,6 +778,13 @@ public final class ConsultantMatchingSurfaceService {
     if (scorecard != null) {
       addQueryParts(queries, scorecard.dimensions());
       addQueryParts(queries, scorecard.scoringGuidance());
+    }
+    if (resolvedIndustryPack != null && resolvedIndustryPack.roleFamilyTemplate() != null) {
+      addQueryParts(queries, resolvedIndustryPack.roleFamilyTemplate().displayName());
+      addQueryParts(queries, resolvedIndustryPack.roleFamilyTemplate().scorecardDimensions());
+      addQueryParts(queries, resolvedIndustryPack.roleFamilyTemplate().scoringGuidance());
+      resolvedIndustryPack.roleFamilyTemplate().requiredSkillKeys().forEach(skill -> addQueryParts(queries, skill.replace('_', ' ')));
+      resolvedIndustryPack.roleFamilyTemplate().evidenceExamples().forEach(example -> addQueryParts(queries, example));
     }
     for (MatchDimension dimension : requiredDimensions) {
       addQueryParts(queries, dimension.name().replace("_", " "));
@@ -792,6 +877,19 @@ public final class ConsultantMatchingSurfaceService {
     if (!assembly.authenticityAssessment().flags().isEmpty()) {
       explanations.add("Authenticity flags observed: " + String.join(", ", assembly.authenticityAssessment().flags()) + ".");
     }
+    explanations.add("Industry pack '" + assembly.resolvedIndustryPack().industryPack().displayName()
+        + "' (" + assembly.resolvedIndustryPack().industryPack().packKey().value()
+        + ") used ontology version " + assembly.resolvedIndustryPack().ontologyVersion().versionKey()
+        + " via " + assembly.resolvedIndustryPack().selectionReason() + ".");
+    if (assembly.resolvedIndustryPack().roleFamilyTemplate() != null) {
+      explanations.add("Role-family guidance applied: "
+          + assembly.resolvedIndustryPack().roleFamilyTemplate().displayName()
+          + " with " + assembly.resolvedIndustryPack().roleFamilyTemplate().requiredSkillKeys().size()
+          + " required skill concepts.");
+    }
+    if (!assembly.matchProfile().antiPatternWarnings().isEmpty()) {
+      explanations.addAll(assembly.matchProfile().antiPatternWarnings());
+    }
     if (report.scoreCapDecision().capApplied()) {
       explanations.add("Score cap applied because " + report.scoreCapDecision().safeExplanation() + ".");
     }
@@ -804,7 +902,7 @@ public final class ConsultantMatchingSurfaceService {
     return List.copyOf(explanations);
   }
 
-  private static List<String> buildInterviewQuestions(
+  private List<String> buildInterviewQuestions(
       List<JobRequirement> requirements,
       SubjectContext subjectContext,
       AssemblyContext assembly,
@@ -823,6 +921,7 @@ public final class ConsultantMatchingSurfaceService {
     if (assembly.authenticityAssessment().independentEvidenceGap()) {
       questions.add("Which claims can be backed by independent evidence beyond self-authored candidate documents?");
     }
+    questions.addAll(industryPackService.buildInterviewQuestions(assembly.resolvedIndustryPack()));
     questions.add("Which evidence-backed examples best support the top-scoring dimensions in this report?");
     if (subjectContext.shortlistCandidateCardId() != null) {
       questions.add("Which client-safe talking points can be derived later without exposing candidate identity?");
@@ -843,6 +942,10 @@ public final class ConsultantMatchingSurfaceService {
         report.scoreConfidence().name(),
         report.provenanceSummary().authenticityRisk().name(),
         stored.reidentificationRiskSignal().name(),
+        stored.industryPackKey(),
+        stored.industryPackMaturity() != null ? stored.industryPackMaturity().wireValue() : null,
+        stored.ontologyStale(),
+        stored.selectionReason(),
         report.ontologyVersion(),
         report.industryPackVersion(),
         ISO_INSTANT.format(report.generatedAt().atOffset(ZoneOffset.UTC)),
@@ -860,6 +963,7 @@ public final class ConsultantMatchingSurfaceService {
             report.provenanceSummary().strongestSourceStrength().name(),
             report.provenanceSummary().provenanceWeight().value(),
             report.provenanceSummary().assertionStrength().name()),
+        stored.antiPatternWarnings(),
         stored.explanations(),
         stored.interviewQuestions());
   }
@@ -883,7 +987,9 @@ public final class ConsultantMatchingSurfaceService {
       MatchReportGenerationRequest request,
       ReidentificationRiskSignal reidentificationRiskSignal,
       DocumentEvidenceSummary documentEvidence,
-      AuthenticityRiskAssessorOutput authenticityAssessment) {
+      AuthenticityRiskAssessorOutput authenticityAssessment,
+      ResolvedIndustryPack resolvedIndustryPack,
+      IndustryPackMatchProfile matchProfile) {
   }
 
   private record DocumentEvidenceSummary(
@@ -908,5 +1014,47 @@ public final class ConsultantMatchingSurfaceService {
           || !(portfolioText == null || portfolioText.isBlank())
           || !(interviewNotesText == null || interviewNotesText.isBlank());
     }
+  }
+
+  private static IndustryPackService defaultIndustryPackService() {
+    IndustryPack generalPack = new IndustryPack(
+        new IndustryPackId(UUID.fromString("00000000-0000-0000-0000-000000280001")),
+        new IndustryPackKey("general"),
+        "General",
+        IndustryPackMaturity.COLD,
+        true);
+    OntologyVersion ontologyVersion = new OntologyVersion(
+        UUID.fromString("00000000-0000-0000-0000-000000280011"),
+        generalPack.industryPackId(),
+        "ontology-general-v1",
+        "fallback",
+        "system",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2027-01-01T00:00:00Z"),
+        null);
+    return new IndustryPackService(new IndustryPackReadPort() {
+      @Override
+      public Optional<IndustryPack> findById(IndustryPackId industryPackId) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryPack> findByKey(IndustryPackKey packKey) {
+        return generalPack.packKey().equals(packKey) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<OntologyVersion> findActiveOntologyVersion(IndustryPackId industryPackId, Instant asOf) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(ontologyVersion) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryRoleFamilyTemplate> findRoleFamilyTemplate(
+          IndustryPackId industryPackId,
+          UUID ontologyVersionId,
+          String roleFamily) {
+        return Optional.empty();
+      }
+    });
   }
 }

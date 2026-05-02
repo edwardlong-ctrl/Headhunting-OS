@@ -78,7 +78,7 @@ class DocumentIntelligenceExtractionPostgresIntegrationTest {
 
   @Test
   void failedDocumentIntelligenceExtractionPersistsWithoutOutputEnvelope() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(22);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(24);
     GovernedIntakeService intakeService = intakeService();
     SourceItem sourceItem = intakeService.registerSourceItem(sourceCommand().build());
     InformationPacket packet = intakeService.createInformationPacket(packetCommand().build());

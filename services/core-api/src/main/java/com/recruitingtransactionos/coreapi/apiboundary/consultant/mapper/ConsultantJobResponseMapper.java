@@ -2,6 +2,7 @@ package com.recruitingtransactionos.coreapi.apiboundary.consultant.mapper;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobSummaryResponse;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
 import com.recruitingtransactionos.coreapi.job.JobScorecard;
@@ -14,23 +15,28 @@ public final class ConsultantJobResponseMapper {
 
   private ConsultantJobResponseMapper() {}
 
-  public static ConsultantJobSummaryResponse toSummary(Job job) {
+  public static ConsultantJobSummaryResponse toSummary(Job job, Optional<IndustryPack> industryPack) {
     Objects.requireNonNull(job, "job must not be null");
+    Objects.requireNonNull(industryPack, "industryPack must not be null");
     return new ConsultantJobSummaryResponse(
         job.jobId().value().toString(),
         job.title(),
         job.companyId().value().toString(),
         job.status().wireValue(),
+        industryPack.map(pack -> pack.packKey().value()).orElse(null),
+        industryPack.map(IndustryPack::displayName).orElse(null),
         job.createdAt().toString());
   }
 
   public static ConsultantJobDetailResponse toDetail(
       Job job,
       List<JobRequirement> requirements,
-      Optional<JobScorecard> scorecard) {
+      Optional<JobScorecard> scorecard,
+      Optional<IndustryPack> industryPack) {
     Objects.requireNonNull(job, "job must not be null");
     Objects.requireNonNull(requirements, "requirements must not be null");
     Objects.requireNonNull(scorecard, "scorecard must not be null");
+    Objects.requireNonNull(industryPack, "industryPack must not be null");
 
     List<ConsultantJobDetailResponse.Requirement> requirementDtos =
         requirements.stream()
@@ -53,6 +59,9 @@ public final class ConsultantJobResponseMapper {
         job.compensation(),
         job.commercialTerms(),
         job.status().wireValue(),
+        industryPack.map(pack -> pack.packKey().value()).orElse(null),
+        industryPack.map(IndustryPack::displayName).orElse(null),
+        industryPack.map(pack -> pack.maturity().wireValue()).orElse(null),
         job.ownerConsultantId() != null
             ? job.ownerConsultantId().toString() : null,
         optionalInstant(job.activatedAt()),

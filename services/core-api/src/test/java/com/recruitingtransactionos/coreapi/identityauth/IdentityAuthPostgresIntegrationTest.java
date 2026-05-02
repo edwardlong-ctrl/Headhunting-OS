@@ -62,9 +62,9 @@ class IdentityAuthPostgresIntegrationTest {
 
   @Test
   void migrationAddsPasswordHashAndIdentitySessionTable() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(22);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(24);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24");
     assertThat(columnExists("identity", "user_account", "password_hash")).isTrue();
     assertThat(tableExists("identity", "session")).isTrue();
   }

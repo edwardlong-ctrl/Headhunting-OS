@@ -78,6 +78,10 @@ class ConsultantMatchingControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.data.matchReportId").value("match_report_00000000000000000000000027b101"))
         .andExpect(jsonPath("$.data.subjectType").value("candidate"))
+        .andExpect(jsonPath("$.data.industryPackKey").value("semiconductor"))
+        .andExpect(jsonPath("$.data.industryPackMaturity").value("seeded"))
+        .andExpect(jsonPath("$.data.selectionReason").value("job_industry_pack"))
+        .andExpect(jsonPath("$.data.antiPatternWarnings[0]").value("Semiconductor DV anti-pattern detected"))
         .andExpect(jsonPath("$.data.dimensionScores[0].dimension").value("TECHNICAL_FIT"));
   }
 
@@ -94,6 +98,10 @@ class ConsultantMatchingControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.reports[0].matchReportId").value("match_report_00000000000000000000000027b102"))
         .andExpect(jsonPath("$.data.reports[0].capSafeExplanation").value("Evidence remains consultant-safe and reviewable."))
+        .andExpect(jsonPath("$.data.reports[0].industryPackKey").value("semiconductor"))
+        .andExpect(jsonPath("$.data.reports[0].industryPackMaturity").value("seeded"))
+        .andExpect(jsonPath("$.data.reports[0].selectionReason").value("job_industry_pack"))
+        .andExpect(jsonPath("$.data.reports[0].antiPatternWarnings[0]").value("Semiconductor DV anti-pattern detected"))
         .andExpect(jsonPath("$.data.reports[0].interviewQuestions[0]").value("Which recent projects best prove fit?"));
   }
 
@@ -109,12 +117,17 @@ class ConsultantMatchingControllerTest {
         "MEDIUM",
         "LOW",
         "LOW",
+        "semiconductor",
+        "seeded",
+        false,
+        "job_industry_pack",
         "ontology-v2.1",
         "industry-pack-v1",
         "2026-05-03T00:00:00Z",
         List.of(new DimensionScore("TECHNICAL_FIT", 4)),
         new EvidenceCoverageSummary(0.66d, "PARTIAL", 3, 1),
         new ProvenanceSummaryResponse("CONSULTANT_ATTESTED", "HIGH", 0.8d, "IMPLIED"),
+        List.of("Semiconductor DV anti-pattern detected"),
         List.of("Evidence coverage is partial across the required dimensions."),
         List.of("Which recent projects best prove fit?"));
   }

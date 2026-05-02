@@ -25,6 +25,13 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryRoleFamilyTemplate;
+import com.recruitingtransactionos.coreapi.industrypack.OntologyVersion;
+import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
@@ -32,6 +39,7 @@ import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
@@ -51,6 +59,7 @@ public final class ConsultantApiQueryService {
   private final JobService jobService;
   private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
+  private final IndustryPackService industryPackService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
@@ -58,12 +67,14 @@ public final class ConsultantApiQueryService {
       CompanyService companyService,
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
-      ShortlistService shortlistService) {
+      ShortlistService shortlistService,
+      IndustryPackService industryPackService) {
     this(
         companyService,
         jobService,
         jobIntakeApplicationService,
         shortlistService,
+        industryPackService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -71,11 +82,20 @@ public final class ConsultantApiQueryService {
       CompanyService companyService,
       JobService jobService,
       ShortlistService shortlistService) {
+    this(companyService, jobService, shortlistService, defaultIndustryPackService());
+  }
+
+  public ConsultantApiQueryService(
+      CompanyService companyService,
+      JobService jobService,
+      ShortlistService shortlistService,
+      IndustryPackService industryPackService) {
     this(
         companyService,
         jobService,
         null,
         shortlistService,
+        industryPackService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -84,11 +104,13 @@ public final class ConsultantApiQueryService {
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
+      IndustryPackService industryPackService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.jobIntakeApplicationService = jobIntakeApplicationService;
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
+    this.industryPackService = Objects.requireNonNull(industryPackService, "industryPackService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -152,7 +174,9 @@ public final class ConsultantApiQueryService {
     List<ConsultantJobSummaryResponse> items = all.stream()
         .skip(pagedQuery.offset())
         .limit(pagedQuery.limit())
-        .map(ConsultantJobResponseMapper::toSummary)
+        .map(job -> ConsultantJobResponseMapper.toSummary(
+            job,
+            industryPackService.findIndustryPackById(job.industryPackId())))
         .toList();
     return PagedResult.of(items, all.size(), pagedQuery.limit(), pagedQuery.offset());
   }
@@ -169,7 +193,11 @@ public final class ConsultantApiQueryService {
               jobService.findRequirementsByJobIdAndOrganizationId(organizationId, jobId);
           Optional<JobScorecard> scorecard =
               jobService.findActiveScorecardByJobIdAndOrganizationId(organizationId, jobId);
-          return ConsultantJobResponseMapper.toDetail(job, requirements, scorecard);
+          return ConsultantJobResponseMapper.toDetail(
+              job,
+              requirements,
+              scorecard,
+              industryPackService.findIndustryPackById(job.industryPackId()));
         });
   }
 
@@ -282,5 +310,47 @@ public final class ConsultantApiQueryService {
 
   private int countCards(UUID organizationId, ShortlistId shortlistId) {
     return shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId).size();
+  }
+
+  private static IndustryPackService defaultIndustryPackService() {
+    IndustryPack generalPack = new IndustryPack(
+        new IndustryPackId(UUID.fromString("00000000-0000-0000-0000-000000280001")),
+        new IndustryPackKey("general"),
+        "General",
+        IndustryPackMaturity.COLD,
+        true);
+    OntologyVersion ontologyVersion = new OntologyVersion(
+        UUID.fromString("00000000-0000-0000-0000-000000280011"),
+        generalPack.industryPackId(),
+        "ontology-general-v1",
+        "fallback",
+        "system",
+        java.time.Instant.parse("2026-01-01T00:00:00Z"),
+        java.time.Instant.parse("2027-01-01T00:00:00Z"),
+        null);
+    return new IndustryPackService(new IndustryPackReadPort() {
+      @Override
+      public Optional<IndustryPack> findById(IndustryPackId industryPackId) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryPack> findByKey(IndustryPackKey packKey) {
+        return generalPack.packKey().equals(packKey) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<OntologyVersion> findActiveOntologyVersion(IndustryPackId industryPackId, java.time.Instant asOf) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(ontologyVersion) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryRoleFamilyTemplate> findRoleFamilyTemplate(
+          IndustryPackId industryPackId,
+          UUID ontologyVersionId,
+          String roleFamily) {
+        return Optional.empty();
+      }
+    });
   }
 }

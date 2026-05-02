@@ -11,6 +11,10 @@ export type ConsultantMatchReport = {
   confidence: string;
   authenticityRisk: string;
   reidentificationRiskSignal: string;
+  industryPackKey: string | null;
+  industryPackMaturity: string | null;
+  ontologyStale: boolean | null;
+  selectionReason: string | null;
   ontologyVersion: string;
   industryPackVersion: string;
   generatedAt: string;
@@ -27,6 +31,7 @@ export type ConsultantMatchReport = {
     provenanceWeight: number;
     assertionStrength: string;
   };
+  antiPatternWarnings: string[];
   explanations: string[];
   interviewQuestions: string[];
 };

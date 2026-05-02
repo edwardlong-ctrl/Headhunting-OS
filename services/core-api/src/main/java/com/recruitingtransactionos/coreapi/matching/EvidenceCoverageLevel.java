@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.matching;
 public enum EvidenceCoverageLevel {
   NONE("none"),
   LOW("low"),
+  PARTIAL("partial"),
   MEDIUM("medium"),
   HIGH("high"),
   COMPLETE("complete");

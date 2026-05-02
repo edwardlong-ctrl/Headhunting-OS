@@ -51,6 +51,13 @@ import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryRoleFamilyTemplate;
+import com.recruitingtransactionos.coreapi.industrypack.OntologyVersion;
+import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
@@ -60,6 +67,8 @@ import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobScorecardId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
+import com.recruitingtransactionos.coreapi.matching.MatchDimension;
 import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
 import com.recruitingtransactionos.coreapi.matching.ReidentificationRiskSignal;
 import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
@@ -124,18 +133,143 @@ class ConsultantMatchingSurfaceServiceTest {
   @BeforeEach
   void setUp() {
     authenticityAwareMatchRequestFactory = org.mockito.Mockito.spy(new AuthenticityAwareMatchRequestFactory());
-    service = new ConsultantMatchingSurfaceService(
-        jobService,
-        candidateService,
-        candidateProfileService,
-        shortlistService,
-        new MatchReportGenerationService(),
-        matchReportPersistencePort,
-        authenticityAwareMatchRequestFactory,
-        candidateDocumentService,
-        documentParsingService,
-        authenticityRiskAssessorTaskService,
-        new PermissionEnforcer(new PermissionEvaluator()));
+    service = buildService(defaultIndustryPackService());
+  }
+
+  @Test
+  void generateMatchReportAppliesSemiconductorDvAntiPatternWarningAndDowngrade() {
+    service = buildService(semiconductorIndustryPackService());
+    Job job = Job.builder()
+        .jobId(JOB_ID)
+        .organizationId(ORGANIZATION_ID)
+        .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-00000027c01a")))
+        .title("Senior DV Verification Engineer")
+        .description("Own verification closure for complex SoC blocks using SystemVerilog and UVM.")
+        .location("Singapore")
+        .roleFamily("dv verification")
+        .status(JobStatus.ACTIVATED)
+        .industryPackId(UUID.fromString("00000000-0000-0000-0000-000000280002"))
+        .ownerConsultantId(OWNER_ID)
+        .metadata("{}")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build();
+    Candidate candidate = sampleCandidate();
+    CandidateProfile profile = CandidateProfile.builder()
+        .candidateProfileId(PROFILE_ID)
+        .organizationId(ORGANIZATION_ID)
+        .candidateId(CANDIDATE_ID)
+        .profileVersion(new CandidateProfileVersion(1))
+        .fields(List.of(
+            profileField(
+                CandidateProfileFieldPath.SKILLS_PRIMARY_SKILLS,
+                "staff engineer, test automation, qa leadership",
+                CandidateProfileFieldStatus.CONSULTANT_ATTESTED),
+            profileField(
+                CandidateProfileFieldPath.EXPERIENCE_WORK_HISTORY,
+                "Led software testing programs for web applications and QA automation.",
+                CandidateProfileFieldStatus.CANDIDATE_CONFIRMED)))
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .build();
+    CandidateDocument resume = sampleResumeDocument();
+    ParsedDocument parsedDocument = new ParsedDocument(
+        UUID.fromString("00000000-0000-0000-0000-00000027c01b"),
+        ORGANIZATION_ID,
+        new SourceItemId(SOURCE_ITEM_ID),
+        DocumentProcessingStatus.SUCCEEDED,
+        "txt-parser",
+        "v1",
+        "text/plain",
+        "sha256:test-dv",
+        "en",
+        false,
+        NOW,
+        Optional.of(NOW),
+        Optional.empty());
+    DocumentEvidenceRetrievalResult evidence = new DocumentEvidenceRetrievalResult(
+        parsedDocument,
+        List.of(new DocumentEvidenceHit(
+            UUID.fromString("00000000-0000-0000-0000-00000027c01c"),
+            0,
+            null,
+            0,
+            160,
+            2.1d,
+            "Staff engineer leading software testing, manual QA, and test automation for enterprise web releases.")));
+
+    when(jobService.findJobByIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.of(job));
+    when(jobService.findRequirementsByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(List.of(
+        JobRequirement.builder()
+            .jobRequirementId(new JobRequirementId(UUID.fromString("00000000-0000-0000-0000-00000027c01d")))
+            .organizationId(ORGANIZATION_ID)
+            .jobId(JOB_ID)
+            .requirementType("skill")
+            .label("SystemVerilog / UVM")
+            .importance(JobRequirementImportance.MUST_HAVE)
+            .detail("Need direct IC verification ownership.")
+            .sortOrder(0)
+            .createdAt(NOW)
+            .updatedAt(NOW)
+            .build()));
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID))
+        .thenReturn(Optional.empty());
+    when(candidateService.findCandidateByIdAndOrganizationId(ORGANIZATION_ID, CANDIDATE_ID))
+        .thenReturn(Optional.of(candidate));
+    when(candidateProfileService.findCandidateProfileByCandidateIdAndOrganizationId(ORGANIZATION_ID, CANDIDATE_ID))
+        .thenReturn(Optional.of(profile));
+    when(candidateDocumentService.findDocumentsByCandidateIdAndOrganizationId(ORGANIZATION_ID, CANDIDATE_ID))
+        .thenReturn(List.of(resume));
+    when(documentParsingService.findLatestParsedDocument(eq(ORGANIZATION_ID), any(SourceItemId.class)))
+        .thenReturn(Optional.of(parsedDocument));
+    when(documentParsingService.retrieveEvidence(eq(ORGANIZATION_ID), any(SourceItemId.class), anyString(), eq(3)))
+        .thenAnswer(invocation -> {
+          String query = invocation.getArgument(2, String.class).toLowerCase();
+          if (query.contains("dv")
+              || query.contains("verification")
+              || query.contains("systemverilog")
+              || query.contains("uvm")) {
+            return evidence;
+          }
+          return new DocumentEvidenceRetrievalResult(parsedDocument, List.of());
+        });
+    when(authenticityRiskAssessorTaskService.execute(
+        eq(ORGANIZATION_ID),
+        any(),
+        any(),
+        eq(List.of(SOURCE_ITEM_ID)),
+        any(),
+        any(),
+        any()))
+        .thenReturn(new AuthenticityRiskAssessorResult(
+            org.mockito.Mockito.mock(AITaskExecutionResult.class),
+            new AuthenticityRiskAssessorOutput("medium", 70, true, List.of("mixed_confidence"))));
+    when(matchReportPersistencePort.create(any()))
+        .thenAnswer(invocation -> invocation.getArgument(0, StoredMatchReport.class));
+
+    var response = service.generateMatchReport(
+        consultantCreateAccessRequest(),
+        ORGANIZATION_ID,
+        JOB_ID,
+        new ConsultantMatchSelection(CANDIDATE_ID.value().toString(), null));
+
+    ArgumentCaptor<StoredMatchReport> storedCaptor = ArgumentCaptor.forClass(StoredMatchReport.class);
+    verify(matchReportPersistencePort).create(storedCaptor.capture());
+    StoredMatchReport stored = storedCaptor.getValue();
+
+    assertThat(stored.antiPatternWarnings())
+        .singleElement()
+        .asString()
+        .contains("Semiconductor DV anti-pattern detected");
+    assertThat(stored.matchReport().dimensionScores().get(MatchDimension.TECHNICAL_FIT).value())
+        .isLessThanOrEqualTo(2);
+    assertThat(stored.matchReport().dimensionScores().get(MatchDimension.INDUSTRY_FIT).value())
+        .isLessThanOrEqualTo(2);
+    assertThat(stored.industryPackKey()).isEqualTo("semiconductor");
+    assertThat(response.antiPatternWarnings()).hasSize(1);
+    assertThat(response.antiPatternWarnings().get(0)).contains("Semiconductor DV anti-pattern detected");
+    assertThat(response.explanations())
+        .anyMatch(value -> value.contains("Semiconductor DV anti-pattern detected"));
   }
 
   @Test
@@ -469,5 +603,155 @@ class ConsultantMatchingSurfaceServiceTest {
         .createdAt(NOW)
         .updatedAt(NOW)
         .build();
+  }
+
+  private ConsultantMatchingSurfaceService buildService(IndustryPackService industryPackService) {
+    return new ConsultantMatchingSurfaceService(
+        jobService,
+        candidateService,
+        candidateProfileService,
+        shortlistService,
+        new MatchReportGenerationService(),
+        matchReportPersistencePort,
+        authenticityAwareMatchRequestFactory,
+        candidateDocumentService,
+        documentParsingService,
+        authenticityRiskAssessorTaskService,
+        industryPackService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+  }
+
+  private static IndustryPackService defaultIndustryPackService() {
+    IndustryPack generalPack = new IndustryPack(
+        new IndustryPackId(UUID.fromString("00000000-0000-0000-0000-000000280001")),
+        new IndustryPackKey("general"),
+        "General",
+        IndustryPackMaturity.COLD,
+        true);
+    OntologyVersion ontologyVersion = new OntologyVersion(
+        UUID.fromString("00000000-0000-0000-0000-000000280011"),
+        generalPack.industryPackId(),
+        "ontology-general-v1",
+        "fallback",
+        "system",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2027-01-01T00:00:00Z"),
+        null);
+    return new IndustryPackService(new IndustryPackReadPort() {
+      @Override
+      public Optional<IndustryPack> findById(IndustryPackId industryPackId) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryPack> findByKey(IndustryPackKey packKey) {
+        return generalPack.packKey().equals(packKey) ? Optional.of(generalPack) : Optional.empty();
+      }
+
+      @Override
+      public Optional<OntologyVersion> findActiveOntologyVersion(IndustryPackId industryPackId, Instant asOf) {
+        return generalPack.industryPackId().equals(industryPackId) ? Optional.of(ontologyVersion) : Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryRoleFamilyTemplate> findRoleFamilyTemplate(
+          IndustryPackId industryPackId,
+          UUID ontologyVersionId,
+          String roleFamily) {
+        return Optional.empty();
+      }
+    });
+  }
+
+  private static IndustryPackService semiconductorIndustryPackService() {
+    IndustryPack generalPack = new IndustryPack(
+        new IndustryPackId(UUID.fromString("00000000-0000-0000-0000-000000280001")),
+        new IndustryPackKey("general"),
+        "General",
+        IndustryPackMaturity.COLD,
+        true);
+    IndustryPack semiconductorPack = new IndustryPack(
+        new IndustryPackId(UUID.fromString("00000000-0000-0000-0000-000000280002")),
+        new IndustryPackKey("semiconductor"),
+        "Semiconductor",
+        IndustryPackMaturity.SEEDED,
+        true);
+    OntologyVersion generalOntologyVersion = new OntologyVersion(
+        UUID.fromString("00000000-0000-0000-0000-000000280011"),
+        generalPack.industryPackId(),
+        "ontology-general-v1",
+        "fallback",
+        "system",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2027-01-01T00:00:00Z"),
+        null);
+    OntologyVersion semiconductorOntologyVersion = new OntologyVersion(
+        UUID.fromString("00000000-0000-0000-0000-000000280012"),
+        semiconductorPack.industryPackId(),
+        "ontology-semiconductor-v1",
+        "task28-seed",
+        "system",
+        Instant.parse("2026-01-01T00:00:00Z"),
+        Instant.parse("2026-12-31T00:00:00Z"),
+        null);
+    IndustryRoleFamilyTemplate dvTemplate = new IndustryRoleFamilyTemplate(
+        UUID.fromString("00000000-0000-0000-0000-000000280101"),
+        semiconductorPack.industryPackId(),
+        semiconductorOntologyVersion.ontologyVersionId(),
+        "dv_verification",
+        "Semiconductor DV Verification",
+        "technical fit, industry fit, evidence strength",
+        "Reward direct verification ownership with SystemVerilog/UVM evidence.",
+        List.of("Describe the most complex verification environment you owned."),
+        List.of("Built UVM environment for SoC verification."),
+        List.of("software testing", "qa engineer"),
+        List.of("systemverilog", "uvm"));
+    return new IndustryPackService(new IndustryPackReadPort() {
+      @Override
+      public Optional<IndustryPack> findById(IndustryPackId industryPackId) {
+        if (generalPack.industryPackId().equals(industryPackId)) {
+          return Optional.of(generalPack);
+        }
+        if (semiconductorPack.industryPackId().equals(industryPackId)) {
+          return Optional.of(semiconductorPack);
+        }
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryPack> findByKey(IndustryPackKey packKey) {
+        if (generalPack.packKey().equals(packKey)) {
+          return Optional.of(generalPack);
+        }
+        if (semiconductorPack.packKey().equals(packKey)) {
+          return Optional.of(semiconductorPack);
+        }
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<OntologyVersion> findActiveOntologyVersion(IndustryPackId industryPackId, Instant asOf) {
+        if (generalPack.industryPackId().equals(industryPackId)) {
+          return Optional.of(generalOntologyVersion);
+        }
+        if (semiconductorPack.industryPackId().equals(industryPackId)) {
+          return Optional.of(semiconductorOntologyVersion);
+        }
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<IndustryRoleFamilyTemplate> findRoleFamilyTemplate(
+          IndustryPackId industryPackId,
+          UUID ontologyVersionId,
+          String roleFamily) {
+        if (semiconductorPack.industryPackId().equals(industryPackId)
+            && semiconductorOntologyVersion.ontologyVersionId().equals(ontologyVersionId)
+            && "dv_verification".equals(roleFamily)) {
+          return Optional.of(dvTemplate);
+        }
+        return Optional.empty();
+      }
+    });
   }
 }

@@ -111,6 +111,10 @@ type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 type NavItem = { to: string; label: string };
 type IntakeLane = "candidate" | "company" | "job" | "call-note" | "feedback";
 const DEFAULT_PAGE_SIZE = 10;
+const INDUSTRY_PACK_OPTIONS = [
+  { key: "general", label: "General" },
+  { key: "semiconductor", label: "Semiconductor" },
+] as const;
 
 const navItems: NavItem[] = [
   { to: "/consultant/dashboard", label: "Dashboard" },
@@ -1625,12 +1629,13 @@ function JobsPage() {
   const companies = useLoadable(() => listConsultantCompanies({ limit: 100, offset: 0 }), []);
   const [companyId, setCompanyId] = useState("");
   const [title, setTitle] = useState("");
+  const [industryPackKey, setIndustryPackKey] = useState("general");
   const [result, setResult] = useState<Loadable<ConsultantJobDetail>>({ status: "idle" });
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResult({ status: "loading" });
-    setResult(await createConsultantJob({ companyId, title, status: "submitted" }));
+    setResult(await createConsultantJob({ companyId, title, status: "submitted", industryPackKey }));
   }
 
   return (
@@ -1677,11 +1682,12 @@ function JobsPage() {
           </ListToolbar>
           <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
           <DataTable
-            headers={["Title", "Status", "Company", "Matching"]}
+            headers={["Title", "Status", "Company", "Industry Pack", "Matching"]}
             rows={result.items.map((item) => [
               <Link to={`/consultant/jobs/${item.jobId}`} className="text-link">{item.title}</Link>,
               <StatusBadge value={item.status} />,
               item.companyId,
+              item.industryPackLabel ?? item.industryPackKey ?? "General",
               <Link to={`/consultant/jobs/${item.jobId}/matching`} className="text-link">Open matching</Link>,
             ])}
           />
@@ -1708,6 +1714,14 @@ function JobsPage() {
                 <option value="">Select a company</option>
                 {companyResult.items.map((company) => (
                   <option key={company.companyId} value={company.companyId}>{company.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Industry pack
+              <select value={industryPackKey} onChange={(event) => setIndustryPackKey(event.target.value)}>
+                {INDUSTRY_PACK_OPTIONS.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
                 ))}
               </select>
             </label>
@@ -2022,10 +2036,21 @@ function MatchingPage() {
               ["Cap reason", result.data.capReason],
               ["Cap explanation", result.data.capSafeExplanation],
               ["Authenticity risk", result.data.authenticityRisk],
+              [
+                "Industry pack",
+                result.data.industryPackKey
+                  ? `${result.data.industryPackKey} (${result.data.industryPackMaturity ?? "unknown"})`
+                  : "unknown",
+              ],
+              ["Selection reason", result.data.selectionReason ?? "unknown"],
+              ["Ontology", `${result.data.ontologyVersion}${result.data.ontologyStale ? " · stale" : ""}`],
               ["Coverage", `${result.data.evidenceCoverage.coverageLevel} (${Math.round(result.data.evidenceCoverage.coverageRatio * 100)}%)`],
               ["Generated", result.data.generatedAt],
             ]}
           />
+          {result.data.antiPatternWarnings.length > 0 ? (
+            <SafeList title="Industry-pack anti-pattern warnings" items={result.data.antiPatternWarnings} />
+          ) : null}
           <div className="portal-chip-row">
             {result.data.dimensionScores.map((dimension) => (
               <span key={dimension.dimension} className="portal-chip">
@@ -2050,11 +2075,14 @@ function MatchingPage() {
           <article className="data-card compact-card">
             <h3>Recent reports</h3>
             <DataTable
-              headers={["Report", "Subject", "Score", "Confidence", "Coverage", "Generated"]}
+              headers={["Report", "Subject", "Score", "Pack", "Confidence", "Coverage", "Generated"]}
               rows={loaded.reports.map((report) => [
                 report.matchReportId,
                 report.subjectRef,
                 report.finalScore,
+                report.industryPackKey
+                  ? `${report.industryPackKey} (${report.industryPackMaturity ?? "unknown"})`
+                  : "unknown",
                 report.confidence,
                 `${report.evidenceCoverage.coverageLevel} (${Math.round(report.evidenceCoverage.coverageRatio * 100)}%)`,
                 report.generatedAt,
@@ -2079,11 +2107,12 @@ function MatchingHubPage() {
       description="Open a job, review fit evidence, and start the matching pass from the correct context."
     >
       <DataTable
-        headers={["Job", "Status", "Company", "Open matching"]}
+        headers={["Job", "Status", "Company", "Industry Pack", "Open matching"]}
         rows={result.items.map((item) => [
           item.title,
           <StatusBadge value={item.status} />,
           item.companyId,
+          item.industryPackLabel ?? item.industryPackKey ?? "General",
           <Link to={`/consultant/jobs/${item.jobId}/matching`} className="text-link">Open matching</Link>,
         ])}
       />
@@ -2329,6 +2358,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
   const [compensation, setCompensation] = useState(initialJob.compensation ?? "");
   const [commercialTerms, setCommercialTerms] = useState<CommercialTermsDraft>(() => parseCommercialTerms(initialJob.commercialTerms));
   const [status, setStatus] = useState(initialJob.status);
+  const [industryPackKey, setIndustryPackKey] = useState(initialJob.industryPackKey ?? "general");
   const [requirementLabel, setRequirementLabel] = useState("");
   const [requirementType, setRequirementType] = useState("must_have");
   const [requirementImportance, setRequirementImportance] = useState("high");
@@ -2349,6 +2379,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
       compensation: emptyToNull(compensation),
       commercialTerms: serializeCommercialTerms(commercialTerms),
       status,
+      industryPackKey,
     }));
     setUpdateState(next);
     if (next.status === "ready") {
@@ -2397,6 +2428,7 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
           ["Location", job.location],
           ["Seniority", job.seniorityBand],
           ["Role family", job.roleFamily],
+          ["Industry pack", job.industryPackLabel ? `${job.industryPackLabel} (${job.industryPackMaturity ?? "unknown"})` : job.industryPackKey],
           ["Employment", job.employmentType],
           ["Commercial terms", job.commercialTerms ? "Structured placeholder captured" : null],
         ]}
@@ -2409,6 +2441,14 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
           <label>Location<input value={location} onChange={(event) => setLocation(event.target.value)} /></label>
           <label>Seniority band<input value={seniorityBand} onChange={(event) => setSeniorityBand(event.target.value)} /></label>
           <label>Role family<input value={roleFamily} onChange={(event) => setRoleFamily(event.target.value)} /></label>
+          <label>
+            Industry pack
+            <select value={industryPackKey} onChange={(event) => setIndustryPackKey(event.target.value)}>
+              {INDUSTRY_PACK_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
           <label>Employment type<input value={employmentType} onChange={(event) => setEmploymentType(event.target.value)} /></label>
           <label>Compensation<input value={compensation} onChange={(event) => setCompensation(event.target.value)} /></label>
           <div className="portal-panel client-nested-panel">

@@ -7,6 +7,7 @@ import com.recruitingtransactionos.coreapi.matching.AuthenticityRiskLevel;
 import com.recruitingtransactionos.coreapi.matching.EvidenceAssertionStrength;
 import com.recruitingtransactionos.coreapi.matching.EvidenceCoverage;
 import com.recruitingtransactionos.coreapi.matching.EvidenceCoverageLevel;
+import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
 import com.recruitingtransactionos.coreapi.matching.MatchDimension;
 import com.recruitingtransactionos.coreapi.matching.MatchJobRef;
 import com.recruitingtransactionos.coreapi.matching.MatchReport;
@@ -32,6 +33,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,14 +51,16 @@ public final class JdbcMatchReportPersistencePort implements MatchReportPersiste
         subject_type, match_subject_ref, proposed_score, overall_score, score_confidence,
         cap_applied, cap_reason, cap_safe_explanation, human_review_required,
         additional_evidence_required, client_delivery_blocked, authenticity_risk,
-        reidentification_risk_signal, ontology_version, industry_pack_version,
+        reidentification_risk_signal, industry_pack_key, industry_pack_maturity, ontology_stale,
+        selection_reason, ontology_version, industry_pack_version,
         dimension_scores, evidence_coverage, provenance_summary, explanations,
-        interview_questions, generated_at
+        interview_questions, anti_pattern_warnings, generated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
-        ?, ?, ?::jsonb, ?::jsonb, ?::jsonb,
+        ?, ?, ?, ?, ?, ?,
+        ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb,
         ?::jsonb, ?::jsonb, ?
       )
       """;
@@ -66,12 +70,14 @@ public final class JdbcMatchReportPersistencePort implements MatchReportPersiste
         subject_type, match_subject_ref, proposed_score, overall_score, score_confidence,
         cap_applied, cap_reason, cap_safe_explanation, human_review_required,
         additional_evidence_required, client_delivery_blocked, authenticity_risk,
-        reidentification_risk_signal, ontology_version, industry_pack_version,
+        reidentification_risk_signal, industry_pack_key, industry_pack_maturity, ontology_stale,
+        selection_reason, ontology_version, industry_pack_version,
         dimension_scores::text AS dimension_scores,
         evidence_coverage::text AS evidence_coverage,
         provenance_summary::text AS provenance_summary,
         explanations::text AS explanations,
         interview_questions::text AS interview_questions,
+        anti_pattern_warnings::text AS anti_pattern_warnings,
         created_at, generated_at
       FROM recruiting.match_report
       """;
@@ -115,14 +121,23 @@ public final class JdbcMatchReportPersistencePort implements MatchReportPersiste
       statement.setBoolean(16, matchReport.scoreCapDecision().clientDeliveryBlocked());
       statement.setString(17, matchReport.provenanceSummary().authenticityRisk().name());
       statement.setString(18, storedMatchReport.reidentificationRiskSignal().name());
-      statement.setString(19, matchReport.ontologyVersion());
-      statement.setString(20, matchReport.industryPackVersion());
-      statement.setString(21, serializeDimensionScores(matchReport.dimensionScores()));
-      statement.setString(22, serializeEvidenceCoverage(matchReport.evidenceCoverage()));
-      statement.setString(23, serializeProvenanceSummary(matchReport.provenanceSummary()));
-      statement.setString(24, serializeStringList(storedMatchReport.explanations()));
-      statement.setString(25, serializeStringList(storedMatchReport.interviewQuestions()));
-      statement.setTimestamp(26, Timestamp.from(matchReport.generatedAt()));
+      statement.setString(19, storedMatchReport.industryPackKey());
+      statement.setString(
+          20,
+          storedMatchReport.industryPackMaturity() != null
+              ? storedMatchReport.industryPackMaturity().wireValue()
+              : null);
+      statement.setObject(21, storedMatchReport.ontologyStale());
+      statement.setString(22, storedMatchReport.selectionReason());
+      statement.setString(23, matchReport.ontologyVersion());
+      statement.setString(24, matchReport.industryPackVersion());
+      statement.setString(25, serializeDimensionScores(matchReport.dimensionScores()));
+      statement.setString(26, serializeEvidenceCoverage(matchReport.evidenceCoverage()));
+      statement.setString(27, serializeProvenanceSummary(matchReport.provenanceSummary()));
+      statement.setString(28, serializeStringList(storedMatchReport.explanations()));
+      statement.setString(29, serializeStringList(storedMatchReport.interviewQuestions()));
+      statement.setString(30, serializeStringList(storedMatchReport.antiPatternWarnings()));
+      statement.setTimestamp(31, Timestamp.from(matchReport.generatedAt()));
       statement.executeUpdate();
       if (storedMatchReport.shortlistCandidateCardId() != null) {
         updateShortlistCardMatchReport(
@@ -239,11 +254,35 @@ public final class JdbcMatchReportPersistencePort implements MatchReportPersiste
           rs.getObject("candidate_id", UUID.class),
           rs.getObject("shortlist_candidate_card_id", UUID.class),
           ReidentificationRiskSignal.valueOf(rs.getString("reidentification_risk_signal")),
-          OBJECT_MAPPER.readValue(rs.getString("explanations"), new TypeReference<List<String>>() {}),
-          OBJECT_MAPPER.readValue(rs.getString("interview_questions"), new TypeReference<List<String>>() {}));
+          rs.getString("industry_pack_key"),
+          parseIndustryPackMaturity(rs.getString("industry_pack_maturity")),
+          readNullableBoolean(rs, "ontology_stale"),
+          rs.getString("selection_reason"),
+          readStringList(rs.getString("anti_pattern_warnings")),
+          readStringList(rs.getString("explanations")),
+          readStringList(rs.getString("interview_questions")));
     } catch (Exception exception) {
       throw new IllegalStateException("Failed to map stored match report", exception);
     }
+  }
+
+  private static IndustryPackMaturity parseIndustryPackMaturity(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return IndustryPackMaturity.valueOf(value.toUpperCase(Locale.ROOT));
+  }
+
+  private static Boolean readNullableBoolean(ResultSet rs, String columnName) throws SQLException {
+    boolean value = rs.getBoolean(columnName);
+    return rs.wasNull() ? null : value;
+  }
+
+  private static List<String> readStringList(String json) throws Exception {
+    if (json == null || json.isBlank()) {
+      return List.of();
+    }
+    return OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
   }
 
   private static Map<MatchDimension, MatchScore> readDimensionScores(String json) throws Exception {
@@ -259,9 +298,17 @@ public final class JdbcMatchReportPersistencePort implements MatchReportPersiste
     Map<String, Object> raw = OBJECT_MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {});
     return new EvidenceCoverage(
         Double.parseDouble(String.valueOf(raw.getOrDefault("coverageRatio", 0.0d))),
-        EvidenceCoverageLevel.valueOf(String.valueOf(raw.getOrDefault("coverageLevel", EvidenceCoverageLevel.NONE.name()))),
+        parseEvidenceCoverageLevel(String.valueOf(raw.getOrDefault("coverageLevel", EvidenceCoverageLevel.NONE.name()))),
         Integer.parseInt(String.valueOf(raw.getOrDefault("independentEvidenceCount", 0))),
         Integer.parseInt(String.valueOf(raw.getOrDefault("independentHighTrustEvidenceCount", 0))));
+  }
+
+  private static EvidenceCoverageLevel parseEvidenceCoverageLevel(String value) {
+    if (value == null || value.isBlank()) {
+      return EvidenceCoverageLevel.NONE;
+    }
+    String normalized = value.strip().toUpperCase(Locale.ROOT);
+    return EvidenceCoverageLevel.valueOf(normalized);
   }
 
   private static ProvenanceSummary readProvenanceSummary(String json) throws Exception {
