@@ -491,7 +491,8 @@ Goal: Move from append-only audit events to legal workflow state machines.
 Current baseline:
 
 - WorkflowEvent append/audit/read-model skeleton exists.
-- No transition legality validation exists.
+- Transition legality validation, blocker modeling, consultant workflow timeline enrichment, and entity-state preview are now implemented on main in `c63d79a`.
+- SLA due-date placeholders and automation remain deferred.
 
 Must deliver:
 
@@ -511,6 +512,14 @@ Forbidden scope:
 - No complex BPMN engine.
 - No direct state update without WorkflowEvent.
 - No frontend-decided transition legality.
+
+Current implementation snapshot:
+
+- Job/Candidate/Shortlist/Consent/Disclosure legality preview now returns stable target statuses plus blocker reasons.
+- Consultant workflow timeline now exposes real `beforeStatus` / `afterStatus`.
+- Consultant workflow `entity-state` now exposes `currentStatus` plus legal next actions and blockers.
+- Disclosure preview now reuses real prerequisite gates instead of static-only state-machine output.
+- Placement/Commission state lookup baseline exists for workflow read-model usage.
 
 Acceptance:
 

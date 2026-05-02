@@ -56,7 +56,7 @@ The completed work is a production-first backend kernel:
 
 The following are not complete product features yet:
 
-- Real auth/login/session and Spring Security.
+- Real auth/login/session and Spring Security beyond the current baseline hardening.
 - Production user/organization membership and full product-wide RBAC/ABAC.
 - Broad Consultant, Client, Candidate, Owner, and Admin API surfaces.
 - Real file upload, object storage, malware scan integration, and document lifecycle.
@@ -64,7 +64,7 @@ The following are not complete product features yet:
 - Real OCR/STT/file conversion/document intelligence/RAG/source highlight retrieval.
 - Governed AI intake UI for Clean Facts and Source Highlight review.
 - Full Candidate, Company, Job, JobScorecard, CandidateDocument, CandidateCompanyInteraction, Shortlist, InterviewFeedback, Placement, and Commission product behavior.
-- Workflow state machines with transition legality validation, blockers, read-model timeline, and SLA.
+- Full workflow automation beyond the current Task 26 legality validation, blockers, consultant timeline/entity-state slice, and read-model baseline.
 - Full matching engine, persisted MatchReports, client-facing safe explanations, industry ontology calibration, and outcome feedback loop.
 - Real redaction pipeline and real re-identification risk scoring.
 - Shortlist builder, client preview, send gate, PDF/email/WeChat-safe summary behavior.

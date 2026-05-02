@@ -4,15 +4,16 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `a52d435`
-- latest main commit: `a52d435` (`Complete Task 25 company and job intake`)
+- current main HEAD: `c63d79a`
+- latest main commit: `c63d79a` (`Implement task26 workflow engine v1`)
 - latest product baseline merges on main:
+  - `c63d79a` — Task 26: Workflow Engine v1
   - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
-- latest documented validation snapshot: frontend `apps/web` typecheck/test/build passed after the Task 25 consultant/client intake closure, and backend `mvn -f services/core-api/pom.xml test -DskipITs` passed after the final ownership-boundary fixes.
-- merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 16-Hardening.
-- next recommended task: Task 26/27 downstream productization follow-ons, followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
+- latest documented validation snapshot: backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` passed after the Task 26 workflow closure, frontend `npm --workspace @rto/web run typecheck` and `npm --workspace @rto/web run build` passed, and `git diff --check` was clean.
+- merge status: current engineering baseline contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 16-Hardening.
+- next recommended task: Task 27 downstream productization follow-on, followed by longer-horizon auth backlog items such as multi-org membership, SSO/OIDC, password reset, MFA, email verification, and rate limiting/lockout.
 
 ## Completed Major Tasks
 
@@ -60,6 +61,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 23: Governed AI Intake End-to-End backend/API slice ✅ V21 migration enabling `GOVERNED_AI_V1`, governed AI extraction orchestration across candidate/company/job packets, clean-fact candidate generation, stable source-span lineage for repeated fields, review query/decision services, consultant intake endpoints (`extract`, `review`, `decide`, `publish`), API-safe intake DTOs, contract-test allowlisting, evidence-quote-backed source highlights with fail-closed extraction when evidence cannot be matched, and fail-closed publish behavior. Candidate canonical publish now requires an existing candidate target, maps supported AI stable keys onto canonical CandidateProfile field paths (`profile.headline`, `profile.summary`, `skills.primary_skills`, `experience.projects`, `experience.timeline_highlights`), and no longer auto-creates records; company/job publish remains blocked until a governed canonical/audit path exists. Scope still excludes frontend review UI and consultant candidate CRUD.
 - Task 24: Consultant Portal v1 ✅ unified `/consultant` workspace in `apps/web` with dashboard, blocked actions, upload/intake/review/publish flow, talent/company/job/shortlist views, job intake, job outreach, matching review, workflow timeline, audit drawer, follow-up queue, and consultant candidate detail sections for overview/evidence/conflicts/stale info/follow-ups/history; plus new consultant backend surfaces for dashboard, candidates, workflow/audit, and follow-up data. Validation includes frontend `typecheck` / `build` and the targeted consultant/backend API suites used during final closure.
 - Task 25: Company and Job Intake v1 ✅ backend-owned `CompanyIntakeApplicationService` / `JobIntakeApplicationService` / `JobActivationGateService`, governed company/job review-to-publish write-back, consultant job activation gate + activate API/UI, minimal structured commercial terms placeholder, client company profile + job intake + clarification API boundary, minimal real Client portal routes, and ownership hardening so client access is exact `clientActorId` scoped instead of metadata-text based. Validation includes frontend `typecheck` / `test` / `build` and backend `mvn -f services/core-api/pom.xml test -DskipITs`.
+- Task 26: Workflow Engine v1 ✅ workflow legality vocabulary aligned to the current spec, transition decision/blocker model, `WorkflowTransitionAuditService.preview(...)`, fail-closed current-state validation through `WorkflowEntityStatePort`, placement/commission workflow state read-model baseline, consultant workflow `entity-state` API plus timeline `beforeStatus`/`afterStatus` + `entityStates`, portal display of current status/legal next actions/blockers, disclosure preview gate integration with real prerequisite checks, and focused controller/service/policy regressions. Scope still excludes SLA automation.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -176,7 +178,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Next Recommended Task
 
-Task 26/27 downstream productization follow-on, using:
+Task 27 downstream productization follow-on, using:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`
@@ -186,7 +188,7 @@ Task 26/27 downstream productization follow-on, using:
 
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Future auth work is now longer-horizon backlog rather than the next blocking productization step.
-Task 23 backend/API scope, Task 24 Consultant Portal v1, and Task 25 Company and Job Intake v1 are now complete; the next independent productization stream is the downstream work captured in Task 26/27.
+Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, and Task 26 Workflow Engine v1 are now complete; the next independent productization stream is the downstream work captured in Task 27 and the remaining downstream follow-ons.
 
 ## Future Prompt Strategy
 

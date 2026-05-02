@@ -94,15 +94,15 @@ privacy, audit, or workflow gates.
 
 ## Gate 6: Workflow Engine
 
-- [ ] Job state machine enforces legal transitions.
-- [ ] Candidate state machine enforces legal transitions.
-- [ ] Shortlist state machine enforces legal transitions.
-- [ ] Consent state machine enforces legal transitions.
-- [ ] Disclosure state machine enforces legal transitions.
-- [ ] Placement/Commission state machine enforces legal transitions for pilot scope.
+- [x] Job state machine enforces legal transitions for the current workflow slice.
+- [x] Candidate state machine enforces legal transitions for the current workflow slice.
+- [x] Shortlist state machine enforces legal transitions for the current workflow slice.
+- [x] Consent state machine enforces legal transitions for the current workflow slice.
+- [x] Disclosure state machine enforces legal transitions for the current workflow slice.
+- [x] Placement/Commission state machine baseline exists for pilot-scope read-model lookup.
 - [ ] Every key transition writes WorkflowEvent with actor, entity, action, before_state, after_state, reason, timestamp, AI involvement, correlation, causation.
-- [ ] Illegal transition attempts are blocked and auditably visible.
-- [ ] Timeline API exists.
+- [x] Illegal transition attempts are blocked and auditably visible.
+- [x] Timeline API exists.
 - [ ] SLA due-date placeholder exists for follow-ups and blocked tasks.
 
 ## Gate 7: Matching, Industry Pack, and Shortlist

@@ -277,34 +277,27 @@
 - No identity-disclosed Client access behavior exists.
 - No complete product-wide RBAC/ABAC enforcement exists beyond the Task 8B/8C backend guard surfaces and regression tests.
 
-## Workflow Engine Not Implemented
+## Workflow Engine Remaining Gaps
 
-- WorkflowEvent append exists.
-- Workflow action vocabulary and audit policy exist after Task 4A.
-- WorkflowEvent idempotency, correlation, and causation guardrails exist after Task 4B.
-- WorkflowEvent audit query/read model skeleton exists after Task 4C.
-- Workflow transition audit skeleton exists after Task 4D.
-- Task 4D records transition audit events with `before_state` and `after_state` through the existing `WorkflowEvent` append boundary.
-- Task 4D is backend-internal only.
-- Workflow action audit still exists only at append-boundary validation level.
-- No state machine.
-- No transition legality validation.
-- No entity-state lookup or mutation is performed by WorkflowEvent policy validation.
-- No entity-state lookup or mutation is performed by `WorkflowTransitionAuditService`.
-- No SLA/automation workflow engine.
-- Full workflow engine remains future work.
-- Task 5 governed-intake minimal slice exists, but the broader Governed Intake workflow engine remains future work.
+- Task 26 upgrades the earlier append-only workflow foundation into a real legality/preview layer for the current product slice.
+- WorkflowEvent append, idempotency, correlation, causation, and backend read-model foundations still exist and remain the audit source of truth.
+- Workflow action vocabulary now includes state-machine legality rules, canonical preview targets, and blocker reasons for the current job/candidate/shortlist/consent/disclosure scope plus placement/commission read-model lookup baseline.
+- `WorkflowTransitionAuditService` now performs preview-time legality checks, fail-closed current-state validation through entity-state lookup, and append-boundary audit recording for requested transitions.
+- Consultant workflow API/UI now expose timeline before/after state, current entity status, legal next actions, and blockers.
+- Workflow mutation still remains service-owned; Task 26 does not introduce a generic engine that directly mutates arbitrary entity rows.
+- No SLA/automation workflow engine exists yet.
+- No due-date placeholder, reminder queue, or automatic escalation behavior exists yet.
+- Owner/Admin workflow analytics and broader cross-portal workflow surfaces remain future work.
+- Task 5 governed-intake minimal slice exists, but the broader governed intake orchestration engine remains future work.
 
 ## Workflow Read Model Remaining Gaps
 
 - Task 4C adds a backend-internal, read-only audit query/read model for `WorkflowEvent`.
-- It is not an API/controller layer.
-- It is not UI integration.
+- Task 26 adds consultant-facing workflow timeline and entity-state API/UI integration on top of the audit/read-model foundation.
 - It is not a client-safe projection.
 - It does not expose raw Candidate/Profile payloads or business entity internals.
-- It does not join Candidate, Company, Job, Consent, Disclosure, Placement, or Commission tables.
-- It is not dashboard analytics, full reporting, full-text search, generic repository search, or arbitrary SQL filtering.
-- Correlation and causation identifiers are queryable for backend audit lineage, but no user-facing timeline/query API exists yet.
+- It is still not dashboard analytics, full reporting, full-text search, generic repository search, or arbitrary SQL filtering.
+- Correlation and causation identifiers remain queryable for backend audit lineage, but only the consultant workflow slice is surfaced today.
 
 ## Task 9 API Boundary Slice Exists; Broad API Deferred
 
