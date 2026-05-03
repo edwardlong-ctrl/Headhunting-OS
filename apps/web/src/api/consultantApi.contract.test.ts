@@ -1,7 +1,11 @@
 import { createConsultantMatchGenerationPayload } from "./consultantMatching";
 import { createConsultantJobUpdatePayload } from "./consultantJobs";
+import type { ConsultantWorkflowEvent } from "./consultantWorkflow";
 import { createConsultantShortlistUpdatePayload } from "./consultantShortlists";
-import { SHORTLIST_BUILDER_INITIAL_STATUS } from "../features/consultant-portal/consultantPortalUtils";
+import {
+  SHORTLIST_BUILDER_INITIAL_STATUS,
+  describeWorkflowTransition,
+} from "../features/consultant-portal/consultantPortalUtils";
 
 describe("consultant API contract helpers", () => {
   it("builds a matching payload with backend-owned truth removed from the client request", () => {
@@ -57,5 +61,25 @@ describe("consultant API contract helpers", () => {
   it("keeps shortlist builder creation inside the draft state", () => {
     expect(SHORTLIST_BUILDER_INITIAL_STATUS).toBe("draft");
     expect(SHORTLIST_BUILDER_INITIAL_STATUS).not.toBe("ready_for_review");
+  });
+
+  it("renders shortlist card composition audit transitions from card status when shortlist status is unchanged", () => {
+    const event: ConsultantWorkflowEvent = {
+      workflowEventId: "event-1",
+      entityType: "SHORTLIST",
+      entityId: "shortlist-1",
+      actionCode: "SHORTLIST_CARD_REMOVED",
+      actorType: "consultant",
+      aiInvolvement: "none",
+      riskTier: "t2_medium_risk",
+      beforeStatus: "draft",
+      afterStatus: "draft",
+      beforeCardStatus: "included",
+      afterCardStatus: "removed",
+      reason: "candidate card removed from shortlist builder",
+      occurredAt: "2026-05-03T00:00:00Z",
+    };
+
+    expect(describeWorkflowTransition(event)).toBe("included -> removed");
   });
 });

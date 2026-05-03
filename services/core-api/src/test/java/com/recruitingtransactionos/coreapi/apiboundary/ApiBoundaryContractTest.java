@@ -245,9 +245,24 @@ class ApiBoundaryContractTest {
     ConsultantShortlistDetailResponse.Card card = new ConsultantShortlistDetailResponse.Card(
         "card-1",
         "anon-card-1",
+        1,
         0,
         "draft",
-        "workflowEvent leaked");
+        "workflowEvent leaked",
+        "anon_candidate_1",
+        "Consultant-reviewed candidate",
+        "Confidential role family",
+        "Consultant-reviewed shortlist level",
+        "Location shared after identity unlock",
+        "safe summary",
+        "safe skill summary",
+        List.of("evidence"),
+        List.of("narrative"),
+        null,
+        "unknown",
+        "not_assessed",
+        List.of(),
+        null);
 
     assertThat(requirement.detail()).isNull();
     assertThat(scorecard.dimensions()).isEqualTo("technical_fit");

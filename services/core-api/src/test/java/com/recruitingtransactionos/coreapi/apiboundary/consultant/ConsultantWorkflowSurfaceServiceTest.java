@@ -2,8 +2,10 @@ package com.recruitingtransactionos.coreapi.apiboundary.consultant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowEntityStateResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTimelineResponse;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosurePrerequisiteEvaluator;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosurePrerequisites;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureServiceRequest;
@@ -21,10 +23,20 @@ import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCorrelationId;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowAuditQueryService;
 import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionLegalityPolicy;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -114,6 +126,36 @@ class ConsultantWorkflowSurfaceServiceTest {
         });
   }
 
+  @Test
+  void timelineExposesCardStatusTransitionWhenWorkflowSnapshotContainsIt() {
+    WorkflowAuditQueryService workflowAuditQueryService = mock(WorkflowAuditQueryService.class);
+    when(workflowAuditQueryService.search(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(sampleShortlistCardAuditRecord()));
+    ConsultantWorkflowSurfaceService service = new ConsultantWorkflowSurfaceService(
+        workflowAuditQueryService,
+        (organizationId, namespace, entityType, entityId) -> Optional.empty(),
+        WorkflowTransitionLegalityPolicy.standard(),
+        mock(ConsentDisclosurePrerequisiteEvaluator.class),
+        mock(DisclosureRecordPort.class),
+        mock(UnlockDecisionPort.class),
+        new PermissionEnforcer(new PermissionEvaluator()));
+
+    ConsultantWorkflowTimelineResponse response = service.timeline(
+        consultantWorkflowReadAccess(),
+        ORG_ID,
+        "SHORTLIST",
+        DISCLOSURE_ENTITY_ID,
+        20,
+        0);
+
+    assertThat(response.items()).singleElement().satisfies(item -> {
+      assertThat(item.beforeStatus()).isEqualTo("draft");
+      assertThat(item.afterStatus()).isEqualTo("draft");
+      assertThat(item.beforeCardStatus()).isEqualTo("included");
+      assertThat(item.afterCardStatus()).isEqualTo("removed");
+    });
+  }
+
   private static AccessRequest consultantWorkflowReadAccess() {
     return new AccessRequest(
         PortalRole.CONSULTANT,
@@ -139,5 +181,31 @@ class ConsultantWorkflowSurfaceServiceTest {
         "consent-ref-26",
         Optional.empty(),
         Instant.parse("2026-05-02T00:00:00Z"));
+  }
+
+  private static WorkflowAuditRecord sampleShortlistCardAuditRecord() {
+    Instant occurredAt = Instant.parse("2026-05-02T03:00:00Z");
+    return new WorkflowAuditRecord(
+        new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-00000026a101")),
+        ORG_ID,
+        "workflow",
+        "SHORTLIST",
+        DISCLOSURE_ENTITY_ID,
+        "SHORTLIST_CARD_REMOVED",
+        ActorRole.CONSULTANT,
+        UUID.fromString("00000000-0000-0000-0000-00000026a102"),
+        WorkflowAiInvolvement.NONE,
+        RiskTier.T2_MEDIUM_RISK,
+        new WorkflowStateSnapshot("{\"status\":\"draft\",\"cardStatus\":\"included\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"draft\",\"cardStatus\":\"removed\"}"),
+        "candidate card removed from shortlist builder",
+        new WorkflowIdempotencyKey("workflow-test-idempotency"),
+        WorkflowCorrelationId.fromWireValue("00000000-0000-0000-0000-00000026a104"),
+        WorkflowCausationId.fromWireValue("00000000-0000-0000-0000-00000026a105"),
+        null,
+        "shortlist_builder",
+        UUID.fromString("00000000-0000-0000-0000-00000026a103"),
+        occurredAt,
+        occurredAt);
   }
 }

@@ -52,11 +52,14 @@ import {
   type ConsultantCandidateSummary,
 } from "../../api/consultantCandidates";
 import {
+  addConsultantShortlistCard,
   createConsultantShortlistUpdatePayload,
   createConsultantShortlist,
   fetchConsultantShortlist,
   listConsultantShortlists,
+  sendConsultantShortlist,
   type ConsultantShortlistListFilters,
+  updateConsultantShortlistCard,
   updateConsultantShortlist,
   type ConsultantShortlistDetail,
   type ConsultantShortlistSummary,
@@ -102,6 +105,7 @@ import {
   SHORTLIST_BUILDER_INITIAL_STATUS,
   CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS,
   canSaveShortlistBuilder,
+  describeWorkflowTransition,
   describeWorkflowPageWindow,
   isShortlistBuilderEditable,
 } from "./consultantPortalUtils";
@@ -311,12 +315,6 @@ function formatDate(value?: string | null): string {
   } catch {
     return value;
   }
-}
-
-function describeWorkflowTransition(item: ConsultantWorkflowEvent): string {
-  const before = item.beforeStatus ?? "unknown";
-  const after = item.afterStatus ?? "unknown";
-  return `${before} -> ${after}`;
 }
 
 function describeTransitionOption(option: ConsultantWorkflowEntityState["transitionOptions"][number]): string {
@@ -2203,11 +2201,18 @@ function ShortlistBuilderPage() {
         </form>
         {result.status === "ready" ? <p className="helper-copy">Created shortlist {result.data.title}.</p> : null}
         {result.status === "ready" ? (
+          <div className="link-row">
+            <Link to={`/consultant/shortlists/${result.data.shortlistId}`} className="text-link">
+              Open shortlist workspace
+            </Link>
+          </div>
+        ) : null}
+        {result.status === "ready" ? (
           <KeyValueList
             items={[
               ["Status", result.data.status],
               ["Cards", String(result.data.cards.length)],
-              ["Pre-send check", result.data.cards.length > 0 ? "Candidate cards attached" : "No candidate cards attached yet"],
+              ["Pre-send check", result.data.preSendChecks.map((item) => `${item.passed ? "PASS" : "BLOCK"}:${item.code}`).join(" · ")],
             ]}
           />
         ) : null}
@@ -2514,10 +2519,20 @@ function JobDetailWorkspace({ initialJob }: { initialJob: ConsultantJobDetail })
 function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: ConsultantShortlistDetail }) {
   const [shortlist, setShortlist] = useState(initialShortlist);
   const [updateState, setUpdateState] = useState<Loadable<ConsultantShortlistDetail>>({ status: "idle" });
+  const [cardState, setCardState] = useState<Loadable<ConsultantShortlistDetail>>({ status: "idle" });
+  const [sendState, setSendState] = useState<Loadable<ConsultantShortlistDetail>>({ status: "idle" });
   const [title, setTitle] = useState(initialShortlist.title);
   const [status, setStatus] = useState(initialShortlist.status);
+  const [candidateId, setCandidateId] = useState("");
+  const [clientNotes, setClientNotes] = useState("");
   const statusIsEditable = isShortlistBuilderEditable(status);
   const currentStatusIsBeyondBuilder = !isShortlistBuilderEditable(shortlist.status);
+  const candidates = useLoadable(() => listConsultantCandidates({ limit: 50, offset: 0 }), []);
+
+  useEffect(() => {
+    setTitle(shortlist.title);
+    setStatus(shortlist.status);
+  }, [shortlist.title, shortlist.status]);
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2532,14 +2547,47 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
     }
   }
 
-  const preSendChecks = [
-    shortlist.cards.length > 0 ? "Candidate cards present" : "No candidate cards attached",
-    shortlist.status === "ready_for_review"
-      ? "Status is ready for consultant review."
-      : shortlist.status === "sent_to_client"
-        ? "Shortlist has already moved beyond builder scope."
-        : "Status is still inside pre-send builder work.",
-  ];
+  async function onAddCandidate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!candidateId) {
+      return;
+    }
+    setCardState({ status: "loading" });
+    const next = await addConsultantShortlistCard(shortlist.shortlistId, {
+      candidateId,
+      clientNotes: emptyToNull(clientNotes),
+    });
+    setCardState(next);
+    if (next.status === "ready") {
+      setShortlist(next.data);
+      setCandidateId("");
+      setClientNotes("");
+    }
+  }
+
+  async function onUpdateCard(cardId: string, version: number, fields: { status?: string; clientNotes?: string | null }) {
+    setCardState({ status: "loading" });
+    const next = await updateConsultantShortlistCard(shortlist.shortlistId, cardId, {
+      version,
+      ...fields,
+    });
+    setCardState(next);
+    if (next.status === "ready") {
+      setShortlist(next.data);
+    }
+  }
+
+  async function onSend() {
+    setSendState({ status: "loading" });
+    const next = await sendConsultantShortlist(shortlist.shortlistId);
+    setSendState(next);
+    if (next.status === "ready") {
+      setShortlist(next.data);
+    }
+  }
+
+  const includedCards = shortlist.cards.filter((card) => card.status === "included");
+  const canSend = shortlist.preSendChecks.every((check) => check.passed) && shortlist.status === "ready_for_review";
 
   return (
     <DetailPageShell title={shortlist.title} eyebrow="Consultant shortlist detail">
@@ -2573,13 +2621,123 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
           </button>
         </form>
         <p className="helper-copy">
-          Task 24 only supports shortlist builder states. Client send/view transitions remain outside
-          this page and are not simulated here.
+          Builder status stays inside consultant control until pre-send checks pass and you explicitly
+          approve the send action.
         </p>
       </section>
-      <SafeList title="Cards" items={shortlist.cards.map((card) => `${card.anonymousCandidateCardId} · ${card.status}`)} />
-      <SafeList title="Pre-send checks" items={preSendChecks} />
+      <section className="portal-panel">
+        <h3>Add candidate card</h3>
+        <form className="stack-form" onSubmit={onAddCandidate}>
+          {renderLoadable(candidates, (candidateResult) => (
+            <label>
+              Candidate
+              <select
+                value={candidateId}
+                onChange={(event) => setCandidateId(event.target.value)}
+                disabled={currentStatusIsBeyondBuilder}
+              >
+                <option value="">Select a candidate</option>
+                {candidateResult.items.map((candidate) => (
+                  <option key={candidate.candidateId} value={candidate.candidateId}>
+                    {candidate.candidateId} · {candidate.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <label>
+            Client-safe notes
+            <textarea
+              value={clientNotes}
+              onChange={(event) => setClientNotes(event.target.value)}
+              rows={3}
+              placeholder="Optional client-safe framing for this candidate card."
+              disabled={currentStatusIsBeyondBuilder}
+            />
+          </label>
+          <button type="submit" disabled={!candidateId || currentStatusIsBeyondBuilder}>
+            Add candidate to shortlist
+          </button>
+        </form>
+      </section>
+      <section className="portal-panel">
+        <h3>Comparison table</h3>
+        {includedCards.length > 0 ? (
+          <DataTable
+            headers={["Anonymous ref", "Headline", "Score", "Confidence", "Evidence", "Dimensions"]}
+            rows={includedCards.map((card) => [
+              card.anonymousCandidateRef,
+              `${card.generalizedHeadline} · ${card.generalizedRoleFamily}`,
+              card.overallScore == null ? "Pending" : `${card.overallScore}/5`,
+              card.confidence,
+              card.safeEvidenceSummaries.join(" "),
+              card.dimensionScores.map((item) => `${item.dimension}:${item.score}`).join(" · "),
+            ])}
+          />
+        ) : (
+          <EmptyState title="No shortlisted candidates yet" description="Add candidates to populate the comparison view." />
+        )}
+      </section>
+      <section className="portal-panel">
+        <h3>Cards</h3>
+        {shortlist.cards.length > 0 ? (
+          shortlist.cards.map((card) => (
+            <article key={card.cardId} className="data-card compact-card">
+              <KeyValueList
+                items={[
+                  ["Card", card.anonymousCandidateCardId],
+                  ["Anonymous ref", card.anonymousCandidateRef],
+                  ["Status", card.status],
+                  ["Score", card.overallScore == null ? "Pending" : `${card.overallScore}/5`],
+                  ["Risk signal", card.reidentificationRiskSignal],
+                ]}
+              />
+              <SafeList title="Client-safe evidence" items={card.safeEvidenceSummaries} />
+              <SafeList title="Client-safe narrative" items={card.safeMatchNarratives} />
+              {card.clientNotes ? <p className="helper-copy">{card.clientNotes}</p> : null}
+              <div className="button-row">
+                {card.status !== "removed" && !currentStatusIsBeyondBuilder ? (
+                  <button type="button" onClick={() => onUpdateCard(card.cardId, card.version, { status: "removed" })}>
+                    Remove card
+                  </button>
+                ) : null}
+                {card.status === "removed" && !currentStatusIsBeyondBuilder ? (
+                  <button type="button" onClick={() => onUpdateCard(card.cardId, card.version, { status: "included" })}>
+                    Restore card
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))
+        ) : (
+          <EmptyState title="No cards attached" description="Create shortlist cards from consultant-reviewed candidates." />
+        )}
+      </section>
+      <section className="portal-panel">
+        <h3>Pre-send checks</h3>
+        <SafeList
+          title="Current gate results"
+          items={shortlist.preSendChecks.map((check) => `${check.passed ? "PASS" : "BLOCK"} · ${check.label}`)}
+        />
+      </section>
+      <section className="portal-panel">
+        <h3>Delivery preview</h3>
+        <SafeList
+          title="Client-safe delivery pack"
+          items={[
+            shortlist.deliveryPreview.clientSafeSummary,
+            shortlist.deliveryPreview.pdfSummary,
+            shortlist.deliveryPreview.emailSummary,
+            shortlist.deliveryPreview.wechatSummary,
+          ]}
+        />
+        <button type="button" disabled={!canSend || currentStatusIsBeyondBuilder} onClick={onSend}>
+          Approve and mark sent_to_client
+        </button>
+      </section>
       {updateState.status !== "idle" && updateState.status !== "loading" && updateState.status !== "ready" ? <ApiState status={updateState.status} error={loadableError(updateState)} /> : null}
+      {cardState.status !== "idle" && cardState.status !== "loading" && cardState.status !== "ready" ? <ApiState status={cardState.status} error={loadableError(cardState)} /> : null}
+      {sendState.status !== "idle" && sendState.status !== "loading" && sendState.status !== "ready" ? <ApiState status={sendState.status} error={loadableError(sendState)} /> : null}
       <AuditDrawerButton entityType="shortlist" entityId={shortlist.shortlistId} />
     </DetailPageShell>
   );
@@ -3246,8 +3404,13 @@ function BoardPreviewPanel({
   );
 }
 
-function EmptyState({ title }: { title: string }) {
-  return <div className="empty-state">{title}</div>;
+function EmptyState({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="empty-state">
+      <div>{title}</div>
+      {description ? <div className="helper-copy">{description}</div> : null}
+    </div>
+  );
 }
 
 function emptyToNull(value: string): string | null {

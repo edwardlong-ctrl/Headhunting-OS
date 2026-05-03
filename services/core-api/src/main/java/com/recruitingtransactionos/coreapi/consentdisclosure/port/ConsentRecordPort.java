@@ -11,4 +11,10 @@ public interface ConsentRecordPort {
   Optional<ConsentRecord> findByRefAndOrganizationId(UUID organizationId, String consentRecordRef);
 
   Optional<ConsentRecord> findByWorkflowEntityId(UUID organizationId, UUID workflowEntityId);
+
+  Optional<ConsentRecord> findLatestByCandidateProfileAndJob(
+      UUID organizationId,
+      String candidateRef,
+      String candidateProfileRef,
+      String jobRef);
 }

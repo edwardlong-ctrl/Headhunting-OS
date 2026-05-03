@@ -17,6 +17,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
 import java.util.List;
 import java.util.Objects;
@@ -96,7 +97,7 @@ public final class ConsultantShortlistController {
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.CREATE);
 
     ConsultantShortlistDetailResponse result =
-        commandService.createShortlist(accessRequest, orgId, request);
+        commandService.createShortlist(accessRequest, orgId, principal.userAccountId(), request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponseEnvelope.success(result));
   }
@@ -113,7 +114,71 @@ public final class ConsultantShortlistController {
     AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
 
     ConsultantShortlistDetailResponse result =
-        commandService.updateShortlist(accessRequest, orgId, sid, request);
+        commandService.updateShortlist(
+            accessRequest, orgId, principal.userAccountId(), sid, request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
+  }
+
+  @PostMapping("/{shortlistId}/cards")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> addShortlistCandidateCard(
+      @PathVariable String shortlistId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestBody ShortlistCandidateCardCreateRequest request) {
+
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
+    ShortlistId sid = parseShortlistId(shortlistId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
+
+    ConsultantShortlistDetailResponse result = commandService.addShortlistCandidateCard(
+        accessRequest,
+        orgId,
+        principal.userAccountId(),
+        sid,
+        request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
+  }
+
+  @PutMapping("/{shortlistId}/cards/{cardId}")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateShortlistCandidateCard(
+      @PathVariable String shortlistId,
+      @PathVariable String cardId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestBody ShortlistCandidateCardUpdateRequest request) {
+
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
+    ShortlistId sid = parseShortlistId(shortlistId);
+    ShortlistCandidateCardId shortlistCandidateCardId = parseShortlistCandidateCardId(cardId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
+
+    ConsultantShortlistDetailResponse result = commandService.updateShortlistCandidateCard(
+        accessRequest,
+        orgId,
+        principal.userAccountId(),
+        sid,
+        shortlistCandidateCardId,
+        request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(result));
+  }
+
+  @PostMapping("/{shortlistId}/send")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> sendShortlist(
+      @PathVariable String shortlistId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestBody ShortlistSendRequest request) {
+
+    requireConsultantRole(principal.portalRole());
+    UUID orgId = principal.organizationId();
+    ShortlistId sid = parseShortlistId(shortlistId);
+    AccessRequest accessRequest = buildAccessRequest(ResourceType.SHORTLIST, AccessAction.UPDATE);
+
+    ConsultantShortlistDetailResponse result = commandService.sendShortlist(
+        accessRequest,
+        orgId,
+        principal.userAccountId(),
+        sid,
+        request);
     return ResponseEntity.ok(ApiResponseEnvelope.success(result));
   }
 
@@ -176,6 +241,17 @@ public final class ConsultantShortlistController {
       return new ShortlistId(UUID.fromString(shortlistId));
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("Invalid shortlist ID format.");
+    }
+  }
+
+  private static ShortlistCandidateCardId parseShortlistCandidateCardId(String cardId) {
+    if (cardId == null || cardId.isBlank()) {
+      throw new IllegalArgumentException("cardId must not be blank");
+    }
+    try {
+      return new ShortlistCandidateCardId(UUID.fromString(cardId));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid shortlist candidate card ID format.");
     }
   }
 

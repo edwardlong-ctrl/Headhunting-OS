@@ -17,6 +17,8 @@ export type ConsultantWorkflowEvent = {
   riskTier: string;
   beforeStatus: string | null;
   afterStatus: string | null;
+  beforeCardStatus: string | null;
+  afterCardStatus: string | null;
   reason: string;
   occurredAt: string;
 };

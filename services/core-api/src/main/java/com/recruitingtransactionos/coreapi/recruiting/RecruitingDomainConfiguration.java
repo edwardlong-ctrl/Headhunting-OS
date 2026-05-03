@@ -15,6 +15,7 @@ import com.recruitingtransactionos.coreapi.company.port.CompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyPreferencePersistencePort;
 import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
+import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.industrypack.persistence.JdbcIndustryPackReadPort;
@@ -34,6 +35,7 @@ import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCa
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistPersistencePort;
+import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistBuilderService;
 import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import javax.sql.DataSource;
@@ -143,6 +145,26 @@ public class RecruitingDomainConfiguration {
       ShortlistPersistencePort shortlistPort,
       ShortlistCandidateCardPersistencePort cardPort) {
     return new ShortlistService(shortlistPort, cardPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(ShortlistBuilderService.class)
+  ShortlistBuilderService shortlistBuilderService(
+      ShortlistService shortlistService,
+      CandidateService candidateService,
+      CandidateProfileService candidateProfileService,
+      MatchReportPersistencePort matchReportPersistencePort,
+      ConsentRecordPort consentRecordPort,
+      JobService jobService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
+    return new ShortlistBuilderService(
+        shortlistService,
+        candidateService,
+        candidateProfileService,
+        matchReportPersistencePort,
+        consentRecordPort,
+        jobService,
+        workflowTransitionAuditService);
   }
 
   @Bean

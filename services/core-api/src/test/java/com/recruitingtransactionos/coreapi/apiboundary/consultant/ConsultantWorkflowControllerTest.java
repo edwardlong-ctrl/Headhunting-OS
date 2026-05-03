@@ -106,6 +106,8 @@ class ConsultantWorkflowControllerTest {
                 "t2_operational",
                 "contract_pending",
                 "activated",
+                null,
+                null,
                 "Ready for launch",
                 "2026-05-02T01:00:00Z")),
             List.of(new ConsultantWorkflowEntityStateResponse(

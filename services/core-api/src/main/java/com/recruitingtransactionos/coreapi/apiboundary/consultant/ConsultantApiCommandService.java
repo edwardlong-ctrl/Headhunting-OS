@@ -38,9 +38,19 @@ import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationServi
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardStatus;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistStatus;
+import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistBuilderService;
 import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +67,9 @@ public final class ConsultantApiCommandService {
   private final JobService jobService;
   private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
+  private final ShortlistBuilderService shortlistBuilderService;
   private final IndustryPackService industryPackService;
+  private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
@@ -66,13 +78,17 @@ public final class ConsultantApiCommandService {
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
-      IndustryPackService industryPackService) {
+      ShortlistBuilderService shortlistBuilderService,
+      IndustryPackService industryPackService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
     this(
         companyService,
         jobService,
         jobIntakeApplicationService,
         shortlistService,
+        shortlistBuilderService,
         industryPackService,
+        workflowTransitionAuditService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -93,7 +109,9 @@ public final class ConsultantApiCommandService {
         jobService,
         null,
         shortlistService,
+        null,
         industryPackService,
+        null,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -102,13 +120,17 @@ public final class ConsultantApiCommandService {
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
+      ShortlistBuilderService shortlistBuilderService,
       IndustryPackService industryPackService,
+      WorkflowTransitionAuditService workflowTransitionAuditService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.jobIntakeApplicationService = jobIntakeApplicationService;
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
+    this.shortlistBuilderService = shortlistBuilderService;
     this.industryPackService = Objects.requireNonNull(industryPackService, "industryPackService must not be null");
+    this.workflowTransitionAuditService = workflowTransitionAuditService;
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -289,6 +311,15 @@ public final class ConsultantApiCommandService {
 
   public ConsultantShortlistDetailResponse createShortlist(
       AccessRequest accessRequest, UUID organizationId, ShortlistCreateRequest request) {
+    return createShortlist(
+        accessRequest,
+        organizationId,
+        new UUID(0L, 0L),
+        request);
+  }
+
+  public ConsultantShortlistDetailResponse createShortlist(
+      AccessRequest accessRequest, UUID organizationId, UUID actorId, ShortlistCreateRequest request) {
     requireConsultantShortlistWrite(accessRequest, AccessAction.CREATE);
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(request, "request must not be null");
@@ -297,6 +328,10 @@ public final class ConsultantApiCommandService {
     jobService.findJobByIdAndOrganizationId(organizationId, jobId)
         .orElseThrow(() -> new IllegalArgumentException(
             "Job not found in this organization"));
+    ShortlistStatus requestedStatus = ShortlistStatus.fromWireValue(request.status());
+    if (requestedStatus != ShortlistStatus.DRAFT) {
+      throw new IllegalArgumentException("shortlist_create_requires_draft_status");
+    }
 
     ShortlistId shortlistId = new ShortlistId(UUID.randomUUID());
     Instant now = Instant.now();
@@ -306,7 +341,7 @@ public final class ConsultantApiCommandService {
         .organizationId(organizationId)
         .jobId(jobId)
         .title(request.title())
-        .status(ShortlistStatus.fromWireValue(request.status()))
+        .status(requestedStatus)
         .ownerConsultantId(request.ownerConsultantId() != null
             ? UUID.fromString(request.ownerConsultantId()) : null)
         .metadata(request.metadata() != null ? request.metadata() : "{}")
@@ -316,11 +351,33 @@ public final class ConsultantApiCommandService {
         .build();
 
     Shortlist created = shortlistService.createShortlist(shortlist);
+    recordShortlistTransition(
+        created,
+        "absent",
+        created.status().wireValue(),
+        WorkflowActionCode.SHORTLIST_DRAFT_CREATED,
+        actorId,
+        "shortlist draft created from consultant portal");
+    if (shortlistBuilderService != null) {
+      return ConsultantShortlistResponseMapper.toDetail(
+          shortlistBuilderService.getBuilderState(organizationId, created.shortlistId()));
+    }
     return ConsultantShortlistResponseMapper.toDetail(created, Collections.emptyList());
   }
 
   public ConsultantShortlistDetailResponse updateShortlist(
       AccessRequest accessRequest, UUID organizationId, ShortlistId shortlistId,
+      ShortlistUpdateRequest request) {
+    return updateShortlist(
+        accessRequest,
+        organizationId,
+        new UUID(0L, 0L),
+        shortlistId,
+        request);
+  }
+
+  public ConsultantShortlistDetailResponse updateShortlist(
+      AccessRequest accessRequest, UUID organizationId, UUID actorId, ShortlistId shortlistId,
       ShortlistUpdateRequest request) {
     requireConsultantShortlistWrite(accessRequest, AccessAction.UPDATE);
     Objects.requireNonNull(organizationId, "organizationId must not be null");
@@ -331,18 +388,25 @@ public final class ConsultantApiCommandService {
         organizationId, shortlistId)
         .orElseThrow(() -> new IllegalArgumentException(
             "Shortlist not found in this organization"));
+    requireMutableBuilderShortlist(existing);
 
     JobId jobId = new JobId(UUID.fromString(request.jobId()));
     jobService.findJobByIdAndOrganizationId(organizationId, jobId)
         .orElseThrow(() -> new IllegalArgumentException(
             "Job not found in this organization"));
 
+    ShortlistStatus requestedStatus = ShortlistStatus.fromWireValue(request.status());
+    if (requestedStatus != ShortlistStatus.DRAFT
+        && requestedStatus != ShortlistStatus.READY_FOR_REVIEW) {
+      throw new IllegalArgumentException("shortlist_status_change_requires_send_command");
+    }
+
     Shortlist shortlist = Shortlist.builder()
         .shortlistId(shortlistId)
         .organizationId(organizationId)
         .jobId(jobId)
         .title(request.title())
-        .status(ShortlistStatus.fromWireValue(request.status()))
+        .status(requestedStatus)
         .ownerConsultantId(request.ownerConsultantId() != null
             ? UUID.fromString(request.ownerConsultantId()) : null)
         .metadata(request.metadata() != null ? request.metadata() : "{}")
@@ -352,7 +416,90 @@ public final class ConsultantApiCommandService {
         .build();
 
     Shortlist updated = shortlistService.updateShortlist(shortlist);
-    return ConsultantShortlistResponseMapper.toDetail(updated, Collections.emptyList());
+    if (existing.status() != updated.status()) {
+      if (updated.status() == ShortlistStatus.READY_FOR_REVIEW) {
+        recordShortlistTransition(
+            updated,
+            existing.status().wireValue(),
+            updated.status().wireValue(),
+            WorkflowActionCode.SHORTLIST_READY_FOR_REVIEW,
+            actorId,
+            "shortlist promoted to ready_for_review");
+      } else if (updated.status() == ShortlistStatus.DRAFT
+          && existing.status() == ShortlistStatus.READY_FOR_REVIEW) {
+        recordShortlistTransition(
+            updated,
+            existing.status().wireValue(),
+            updated.status().wireValue(),
+            WorkflowActionCode.SHORTLIST_RETURNED_TO_DRAFT,
+            actorId,
+            "shortlist returned to draft for additional consultant edits");
+      }
+    }
+    if (shortlistBuilderService != null) {
+      return ConsultantShortlistResponseMapper.toDetail(
+          shortlistBuilderService.getBuilderState(organizationId, shortlistId));
+    }
+    return ConsultantShortlistResponseMapper.toDetail(
+        updated,
+        shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId));
+  }
+
+  public ConsultantShortlistDetailResponse addShortlistCandidateCard(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      UUID actorId,
+      ShortlistId shortlistId,
+      ShortlistCandidateCardCreateRequest request) {
+    requireConsultantShortlistWrite(accessRequest, AccessAction.UPDATE);
+    requireShortlistBuilderService();
+    return ConsultantShortlistResponseMapper.toDetail(shortlistBuilderService.addCandidateCard(
+        organizationId,
+        actorId,
+        shortlistId,
+        new com.recruitingtransactionos.coreapi.candidateprofile.CandidateId(
+            UUID.fromString(request.candidateId())),
+        request.sortOrder(),
+        request.clientNotes()));
+  }
+
+  public ConsultantShortlistDetailResponse updateShortlistCandidateCard(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      UUID actorId,
+      ShortlistId shortlistId,
+      ShortlistCandidateCardId shortlistCandidateCardId,
+      ShortlistCandidateCardUpdateRequest request) {
+    requireConsultantShortlistWrite(accessRequest, AccessAction.UPDATE);
+    requireShortlistBuilderService();
+    ShortlistCandidateCardStatus status = request.status() == null
+        ? null
+        : ShortlistCandidateCardStatus.fromWireValue(request.status());
+    requireBuilderCardStatus(status);
+    return ConsultantShortlistResponseMapper.toDetail(shortlistBuilderService.updateCandidateCard(
+        organizationId,
+        actorId,
+        shortlistId,
+        shortlistCandidateCardId,
+        request.version(),
+        request.sortOrder(),
+        status,
+        request.clientNotes()));
+  }
+
+  public ConsultantShortlistDetailResponse sendShortlist(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      UUID actorId,
+      ShortlistId shortlistId,
+      ShortlistSendRequest request) {
+    requireConsultantShortlistWrite(accessRequest, AccessAction.UPDATE);
+    requireShortlistBuilderService();
+    Objects.requireNonNull(request, "request must not be null");
+    return ConsultantShortlistResponseMapper.toDetail(shortlistBuilderService.sendToClient(
+        organizationId,
+        actorId,
+        shortlistId));
   }
 
   // ── Company Contact (sub-resource) ──────────────────────────────────────────
@@ -564,18 +711,52 @@ public final class ConsultantApiCommandService {
     });
   }
 
+  private void requireShortlistBuilderService() {
+    if (shortlistBuilderService == null) {
+      throw new IllegalStateException("shortlistBuilderService_not_configured");
+    }
+  }
+
+  private void recordShortlistTransition(
+      Shortlist shortlist,
+      String beforeStatus,
+      String afterStatus,
+      WorkflowActionCode actionCode,
+      UUID actorId,
+      String reason) {
+    if (workflowTransitionAuditService == null) {
+      return;
+    }
+    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+        .organizationId(shortlist.organizationId())
+        .entityNamespace("recruiting")
+        .entityType(WorkflowEntityType.SHORTLIST.wireValue())
+        .entityId(shortlist.shortlistId().value())
+        .entityVersion(shortlist.version())
+        .actionCode(actionCode.wireValue())
+        .actorType(ActorRole.CONSULTANT)
+        .actorId(actorId)
+        .aiInvolvement(WorkflowAiInvolvement.NONE)
+        .beforeState(new WorkflowStateSnapshot("{\"status\":\"" + beforeStatus + "\"}"))
+        .afterState(new WorkflowStateSnapshot("{\"status\":\"" + afterStatus + "\"}"))
+        .reason(reason)
+        .sourceType("consultant_shortlist_api")
+        .sourceRefId(shortlist.shortlistId().value())
+        .occurredAt(Instant.now())
+        .build());
+  }
+
   // ── Access enforcement ──────────────────────────────────────────────────────
 
   private void requireConsultantCompanyWrite(
       AccessRequest accessRequest, AccessAction action) {
     permissionEnforcer.requireAllowed(accessRequest);
     if (accessRequest.resourceType() != ResourceType.COMPANY
-        || (accessRequest.action() != AccessAction.CREATE
-            && accessRequest.action() != AccessAction.UPDATE)) {
+        || accessRequest.action() != action) {
       throw new AccessDeniedException(new AccessDecision(
           false,
           "company_write_context_required",
-          "Consultant company API requires a company create or update context."));
+          "Consultant company API requires a matching company write context."));
     }
   }
 
@@ -583,12 +764,11 @@ public final class ConsultantApiCommandService {
       AccessRequest accessRequest, AccessAction action) {
     permissionEnforcer.requireAllowed(accessRequest);
     if (accessRequest.resourceType() != ResourceType.JOB
-        || (accessRequest.action() != AccessAction.CREATE
-            && accessRequest.action() != AccessAction.UPDATE)) {
+        || accessRequest.action() != action) {
       throw new AccessDeniedException(new AccessDecision(
           false,
           "job_write_context_required",
-          "Consultant job API requires a job create or update context."));
+          "Consultant job API requires a matching job write context."));
     }
   }
 
@@ -596,12 +776,28 @@ public final class ConsultantApiCommandService {
       AccessRequest accessRequest, AccessAction action) {
     permissionEnforcer.requireAllowed(accessRequest);
     if (accessRequest.resourceType() != ResourceType.SHORTLIST
-        || (accessRequest.action() != AccessAction.CREATE
-            && accessRequest.action() != AccessAction.UPDATE)) {
+        || accessRequest.action() != action) {
       throw new AccessDeniedException(new AccessDecision(
           false,
           "shortlist_write_context_required",
-          "Consultant shortlist API requires a shortlist create or update context."));
+          "Consultant shortlist API requires a matching shortlist write context."));
+    }
+  }
+
+  private void requireMutableBuilderShortlist(Shortlist shortlist) {
+    if (shortlist.status() != ShortlistStatus.DRAFT
+        && shortlist.status() != ShortlistStatus.READY_FOR_REVIEW) {
+      throw new IllegalStateException("shortlist_builder_locked_after_send");
+    }
+  }
+
+  private void requireBuilderCardStatus(ShortlistCandidateCardStatus status) {
+    if (status == null) {
+      return;
+    }
+    if (status != ShortlistCandidateCardStatus.INCLUDED
+        && status != ShortlistCandidateCardStatus.REMOVED) {
+      throw new IllegalArgumentException("shortlist_builder_card_status_requires_dedicated_workflow");
     }
   }
 }

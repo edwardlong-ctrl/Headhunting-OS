@@ -551,6 +551,20 @@ class ConsentDisclosureServiceTest {
               record.consentRecordRef()).equals(workflowEntityId))
           .findFirst();
     }
+
+    @Override
+    public Optional<ConsentRecord> findLatestByCandidateProfileAndJob(
+        UUID organizationId,
+        String candidateRef,
+        String candidateProfileRef,
+        String jobRef) {
+      return appendedRecords.stream()
+          .filter(record -> record.organizationId().equals(organizationId))
+          .filter(record -> record.candidateRef().equals(candidateRef))
+          .filter(record -> record.candidateProfileRef().equals(candidateProfileRef))
+          .filter(record -> record.jobRef().equals(jobRef))
+          .reduce((first, second) -> second);
+    }
   }
 
   private static final class InMemoryUnlockDecisionPort implements UnlockDecisionPort {

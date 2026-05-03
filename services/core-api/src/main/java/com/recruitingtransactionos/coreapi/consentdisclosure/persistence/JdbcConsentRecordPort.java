@@ -79,6 +79,29 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
         AND workflow_entity_id = ?
       """;
 
+  private static final String FIND_LATEST_BY_CANDIDATE_PROFILE_AND_JOB_SQL = """
+      SELECT
+        consent_record_ref,
+        organization_id,
+        candidate_ref,
+        candidate_profile_ref,
+        job_ref,
+        profile_version,
+        consent_text_version,
+        status,
+        permitted_disclosure_levels,
+        confirmed_at,
+        expires_at,
+        revoked
+      FROM privacy.consent_record
+      WHERE organization_id = ?
+        AND candidate_ref = ?
+        AND candidate_profile_ref = ?
+        AND job_ref = ?
+      ORDER BY confirmed_at DESC, consent_record_ref DESC
+      LIMIT 1
+      """;
+
   private final DataSource dataSource;
 
   public JdbcConsentRecordPort(DataSource dataSource) {
@@ -159,6 +182,37 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find consent record by workflow entity id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Optional<ConsentRecord> findLatestByCandidateProfileAndJob(
+      UUID organizationId,
+      String candidateRef,
+      String candidateProfileRef,
+      String jobRef) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateRef, "candidateRef must not be null");
+    Objects.requireNonNull(candidateProfileRef, "candidateProfileRef must not be null");
+    Objects.requireNonNull(jobRef, "jobRef must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement =
+        connection.prepareStatement(FIND_LATEST_BY_CANDIDATE_PROFILE_AND_JOB_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, candidateRef);
+      statement.setString(3, candidateProfileRef);
+      statement.setString(4, jobRef);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(mapConsentRecord(resultSet));
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException(
+          "Failed to find consent record by candidate/profile/job", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

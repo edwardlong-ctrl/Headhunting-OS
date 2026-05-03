@@ -32,6 +32,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -120,6 +121,71 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
     assertThat(countRows("privacy.consent_record", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.unlock_decision", organizationId)).isEqualTo(1);
     assertThat(countRows("privacy.disclosure_record", organizationId)).isEqualTo(1);
+  }
+
+  @Test
+  void findsLatestConsentByCandidateProfileAndJobWithinOrganizationScope() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b151");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-00000012b152");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b153");
+    insertOrganizationAndUser(organizationId, consultantId);
+    insertOrganizationAndUser(otherOrganizationId, uuid("00000000-0000-0000-0000-00000012b154"));
+
+    ConsentRecordPort consentPort = new JdbcConsentRecordPort(dataSource);
+
+    ConsentRecord older = consentPort.append(new ConsentRecord(
+        "consent_record_task12b_pg_latest_old",
+        organizationId,
+        "candidate_ref_task12b_pg_latest",
+        "profile_ref_task12b_pg_latest",
+        "job_ref_task12b_pg_latest",
+        "1",
+        "consent-v1",
+        ConsentStatus.CONFIRMED,
+        Set.of(DisclosureLevel.L2_CLIENT_SAFE),
+        Instant.parse("2026-05-01T00:00:00Z"),
+        Instant.parse("2026-06-01T00:00:00Z"),
+        false));
+    ConsentRecord newer = consentPort.append(new ConsentRecord(
+        "consent_record_task12b_pg_latest_new",
+        organizationId,
+        "candidate_ref_task12b_pg_latest",
+        "profile_ref_task12b_pg_latest",
+        "job_ref_task12b_pg_latest",
+        "2",
+        "consent-v2",
+        ConsentStatus.CONFIRMED,
+        Set.of(DisclosureLevel.L2_CLIENT_SAFE),
+        Instant.parse("2026-05-02T00:00:00Z"),
+        Instant.parse("2026-06-02T00:00:00Z"),
+        false));
+    consentPort.append(new ConsentRecord(
+        "consent_record_task12b_pg_latest_other_org",
+        otherOrganizationId,
+        "candidate_ref_task12b_pg_latest",
+        "profile_ref_task12b_pg_latest",
+        "job_ref_task12b_pg_latest",
+        "9",
+        "consent-v9",
+        ConsentStatus.CONFIRMED,
+        Set.of(DisclosureLevel.L2_CLIENT_SAFE),
+        Instant.parse("2026-05-03T00:00:00Z"),
+        Instant.parse("2026-06-03T00:00:00Z"),
+        false));
+
+    assertThat(consentPort.findLatestByCandidateProfileAndJob(
+        organizationId,
+        "candidate_ref_task12b_pg_latest",
+        "profile_ref_task12b_pg_latest",
+        "job_ref_task12b_pg_latest")).contains(newer);
+    assertThat(consentPort.findLatestByCandidateProfileAndJob(
+        otherOrganizationId,
+        "candidate_ref_task12b_pg_latest",
+        "profile_ref_task12b_pg_latest",
+        "job_ref_task12b_pg_latest"))
+        .hasValueSatisfying(value -> assertThat(value.consentRecordRef())
+            .isEqualTo("consent_record_task12b_pg_latest_other_org"));
+    assertThat(newer).isNotEqualTo(older);
   }
 
   @Test

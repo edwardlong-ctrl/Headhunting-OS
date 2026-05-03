@@ -10,6 +10,8 @@ public record ConsultantWorkflowEventResponse(
     String riskTier,
     String beforeStatus,
     String afterStatus,
+    String beforeCardStatus,
+    String afterCardStatus,
     String reason,
     String occurredAt) implements ApiSafeResponseBody {
 
@@ -23,6 +25,8 @@ public record ConsultantWorkflowEventResponse(
     riskTier = ApiBoundaryContractRules.requireNonBlank(riskTier, "riskTier");
     beforeStatus = ApiBoundaryContractRules.sanitizeConsultantVisibleText(beforeStatus, null);
     afterStatus = ApiBoundaryContractRules.sanitizeConsultantVisibleText(afterStatus, null);
+    beforeCardStatus = ApiBoundaryContractRules.sanitizeConsultantVisibleText(beforeCardStatus, null);
+    afterCardStatus = ApiBoundaryContractRules.sanitizeConsultantVisibleText(afterCardStatus, null);
     reason = ApiBoundaryContractRules.requireNonBlank(reason, "reason");
     occurredAt = ApiBoundaryContractRules.requireNonBlank(occurredAt, "occurredAt");
   }

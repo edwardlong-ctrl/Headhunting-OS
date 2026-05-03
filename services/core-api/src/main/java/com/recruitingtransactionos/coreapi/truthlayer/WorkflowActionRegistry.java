@@ -168,8 +168,19 @@ public final class WorkflowActionRegistry {
         RiskTier.T2_MEDIUM_RISK,
         "Shortlist draft was created.",
         WorkflowEntityType.SHORTLIST));
+    policies.add(transition(
+        WorkflowActionCode.SHORTLIST_CARD_REMOVED,
+        RiskTier.T2_MEDIUM_RISK,
+        "Candidate card was removed from the shortlist builder.",
+        WorkflowEntityType.SHORTLIST));
+    policies.add(transition(
+        WorkflowActionCode.SHORTLIST_CARD_RESTORED,
+        RiskTier.T2_MEDIUM_RISK,
+        "Candidate card was restored to the shortlist builder.",
+        WorkflowEntityType.SHORTLIST));
     policies.addAll(transitions(WorkflowEntityType.SHORTLIST, RiskTier.T3_HIGH_RISK,
         List.of(
+            WorkflowActionCode.SHORTLIST_RETURNED_TO_DRAFT,
             WorkflowActionCode.SHORTLIST_READY_FOR_REVIEW,
             WorkflowActionCode.SHORTLIST_SENT_TO_CLIENT,
             WorkflowActionCode.SHORTLIST_VIEWED_BY_CLIENT,

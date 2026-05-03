@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.shortlist.service;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistPersistencePort;
@@ -55,6 +56,19 @@ public final class ShortlistService {
   public ShortlistCandidateCard addCandidateCard(ShortlistCandidateCard card) {
     Objects.requireNonNull(card, "card must not be null");
     return cardPort.create(card);
+  }
+
+  public ShortlistCandidateCard updateCandidateCard(ShortlistCandidateCard card) {
+    Objects.requireNonNull(card, "card must not be null");
+    return cardPort.update(card);
+  }
+
+  public Optional<ShortlistCandidateCard> findCardByIdAndOrganizationId(
+      UUID organizationId, ShortlistCandidateCardId shortlistCandidateCardId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(
+        shortlistCandidateCardId, "shortlistCandidateCardId must not be null");
+    return cardPort.findByIdAndOrganizationId(organizationId, shortlistCandidateCardId);
   }
 
   public List<ShortlistCandidateCard> findCardsByShortlistIdAndOrganizationId(

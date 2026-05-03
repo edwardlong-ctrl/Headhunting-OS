@@ -32,6 +32,25 @@
   - No filtering/search on write responses.
 -  - Real auth/login/session/Spring Security now exists, product endpoints are on JWT-backed `SecurityContext`, and Task 19C closes the current baseline hardening slice; remaining auth work is now longer-horizon identity capability backlog.
 
+## Task 29 Shortlist Builder v1 Complete; Client Review and Real Privacy Hardening Deferred
+
+- Task 29 closes the first consultant-side shortlist builder/send slice on top of Task 18C shortlist CRUD and Task 27 match reports.
+- `ShortlistBuilderService` now composes shortlist state, shortlist cards, pre-send checks, and delivery preview placeholders.
+- Consultant shortlist commands now include candidate-card create/update and explicit send-to-client approval through:
+  - `ConsultantShortlistController`
+  - `ConsultantApiCommandService`
+  - `ShortlistCandidateCardCreateRequest`
+  - `ShortlistCandidateCardUpdateRequest`
+  - `ShortlistSendRequest`
+- `ConsultantShortlistDetailResponse` now includes client-safe shortlist card comparison data, pre-send checks, and delivery preview placeholder fields.
+- Consultant portal shortlist UI now supports candidate selection, card updates, comparison display, pre-send checks, preview text, and explicit send action.
+- Workflow audit coverage now exists for shortlist draft creation, ready-for-review promotion, return-to-draft rollback, candidate shortlisted, shortlist card remove/restore, shortlist send, and job shortlist progression.
+- Consultant workflow timeline/audit drawer now renders shortlist card composition transitions from `cardStatus` when the top-level shortlist status is unchanged, so remove/restore events no longer collapse into no-op-looking `draft -> draft` labels.
+- Remaining gaps:
+  - No real re-identification scorer or generalized text rewriting pipeline yet; Task 29 still relies on the deterministic placeholder/fail-closed boundary from Task 7C.
+  - No client portal shortlist review, unlock request, or shortlist feedback flow yet; that remains Task 32 scope.
+  - No real PDF/email/WeChat delivery execution yet; Task 29 only ships safe preview/placeholder content and status progression.
+
 ## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
 
 - Task 20 adds V13 migration with `mime_type`, `file_size_bytes`, `original_filename`, `scan_status` columns and `uq_source_item_org_content_hash` partial unique index on `intake.source_item`.
@@ -97,7 +116,7 @@
   - real pack key/maturity/selection-reason metadata on stored match reports
   - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
   - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
-- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no shortlist-send workflow, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only.
+- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no client-facing shortlist review/unlock flow, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
@@ -363,7 +382,7 @@
   - Successful responses return only allowlisted fields with no internal entity leakage.
   - Not-found returns sanitized 404; invalid UUID returns sanitized 400.
   - No raw Candidate, CandidateProfile, PII, internal entity types, stack traces, or internal package names leak through response bodies or denial messages.
-- Task 18A is complete only for Consultant read-only access to companies, jobs, and shortlists. No Client-safe candidate projection read endpoints exist through the product API layer. No Client portal product API endpoints exist. No filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists. No full-text search exists. No shortlist candidate card detail with generalized content exists. No composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. Real auth/login/session/Spring Security now exists, the consultant product API uses JWT-backed `SecurityContext`, and Task 19C closes the baseline auth/session hardening slice.
+- Task 18A is complete only for the original Consultant read-only API layer on companies, jobs, and shortlists. Later work extends shortlist detail and command behavior through Task 18C and Task 29, but no Client-safe candidate projection read endpoints exist through the product API layer, no Client portal product API endpoints exist, no filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists, no full-text search exists, and no composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. Real auth/login/session/Spring Security now exists, the consultant product API uses JWT-backed `SecurityContext`, and Task 19C closes the baseline auth/session hardening slice.
 
 ## Task 18B (Partial) Consultant Write Endpoints for Company and Job
 

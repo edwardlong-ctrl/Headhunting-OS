@@ -26,7 +26,39 @@ export type ConsultantShortlistDetail = {
   ownerConsultantId: string | null;
   createdAt: string;
   updatedAt: string;
-  cards: Array<{ cardId: string; anonymousCandidateCardId: string; sortOrder: number; status: string; matchReportId: string | null }>;
+  preSendChecks: Array<{
+    code: string;
+    label: string;
+    passed: boolean;
+  }>;
+  deliveryPreview: {
+    clientSafeSummary: string;
+    pdfSummary: string;
+    emailSummary: string;
+    wechatSummary: string;
+  };
+  cards: Array<{
+    cardId: string;
+    anonymousCandidateCardId: string;
+    version: number;
+    sortOrder: number;
+    status: string;
+    matchReportId: string | null;
+    anonymousCandidateRef: string;
+    generalizedHeadline: string;
+    generalizedRoleFamily: string;
+    generalizedSeniorityBand: string;
+    generalizedLocationRegion: string;
+    safeSummary: string;
+    safeSkillSummary: string;
+    safeEvidenceSummaries: string[];
+    safeMatchNarratives: string[];
+    overallScore: number | null;
+    confidence: string;
+    reidentificationRiskSignal: string;
+    dimensionScores: Array<{ dimension: string; score: number }>;
+    clientNotes: string | null;
+  }>;
 };
 
 export type ConsultantShortlistCreatePayload = {
@@ -40,6 +72,19 @@ export type ConsultantShortlistUpdatePayload = {
   version: number;
   title: string;
   status: string;
+};
+
+export type ConsultantShortlistCardCreatePayload = {
+  candidateId: string;
+  sortOrder?: number;
+  clientNotes?: string | null;
+};
+
+export type ConsultantShortlistCardUpdatePayload = {
+  version: number;
+  sortOrder?: number;
+  status?: string | null;
+  clientNotes?: string | null;
 };
 
 export function createConsultantShortlistUpdatePayload(
@@ -76,5 +121,33 @@ export function updateConsultantShortlist(shortlistId: string, payload: Consulta
   return apiRequest<ConsultantShortlistDetail>(
     `/api/consultant/shortlists/${encodeURIComponent(shortlistId)}`,
     asMethodJson("PUT", payload),
+  );
+}
+
+export function addConsultantShortlistCard(
+  shortlistId: string,
+  payload: ConsultantShortlistCardCreatePayload,
+) {
+  return apiRequest<ConsultantShortlistDetail>(
+    `/api/consultant/shortlists/${encodeURIComponent(shortlistId)}/cards`,
+    asJson(payload),
+  );
+}
+
+export function updateConsultantShortlistCard(
+  shortlistId: string,
+  cardId: string,
+  payload: ConsultantShortlistCardUpdatePayload,
+) {
+  return apiRequest<ConsultantShortlistDetail>(
+    `/api/consultant/shortlists/${encodeURIComponent(shortlistId)}/cards/${encodeURIComponent(cardId)}`,
+    asMethodJson("PUT", payload),
+  );
+}
+
+export function sendConsultantShortlist(shortlistId: string) {
+  return apiRequest<ConsultantShortlistDetail>(
+    `/api/consultant/shortlists/${encodeURIComponent(shortlistId)}/send`,
+    asJson({ approvalConfirmed: true }),
   );
 }

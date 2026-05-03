@@ -772,6 +772,12 @@ class ConsultantWriteOrgIsolationIntegrationTest {
   private static ShortlistService shortlistService() {
     ShortlistCandidateCardPersistencePort cardPort = new ShortlistCandidateCardPersistencePort() {
       @Override public ShortlistCandidateCard create(ShortlistCandidateCard card) { return card; }
+      @Override public ShortlistCandidateCard update(ShortlistCandidateCard card) { return card; }
+      @Override public Optional<ShortlistCandidateCard> findByIdAndOrganizationId(
+          UUID organizationId,
+          com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId shortlistCandidateCardId) {
+        return Optional.empty();
+      }
       @Override public List<ShortlistCandidateCard> findByShortlistIdAndOrganizationId(
           UUID organizationId, ShortlistId shortlistId) { return List.of(); }
     };

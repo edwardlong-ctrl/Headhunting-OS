@@ -552,6 +552,12 @@ class ConsultantControllerLeakageTest {
             SHORTLIST_ID, 1L, JOB_ID, "test-shortlist", "draft",
             null, null, null,
             "2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z",
+            Collections.emptyList(),
+            new ConsultantShortlistDetailResponse.DeliveryPreview(
+                "client-safe summary",
+                "pdf placeholder",
+                "email placeholder",
+                "wechat placeholder"),
             Collections.emptyList());
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -583,7 +589,7 @@ class ConsultantControllerLeakageTest {
 
     @Test
     void createShortlistSuccessReturns201() throws Exception {
-      when(commandService.createShortlist(any(), any(), any()))
+      when(commandService.createShortlist(any(), any(), any(), any()))
           .thenReturn(SHORTLIST_DETAIL);
 
       String body = objectMapper.writeValueAsString(
@@ -625,7 +631,7 @@ class ConsultantControllerLeakageTest {
 
     @Test
     void updateShortlistSuccessReturns200() throws Exception {
-      when(commandService.updateShortlist(any(), any(), any(), any()))
+      when(commandService.updateShortlist(any(), any(), any(), any(), any()))
           .thenReturn(SHORTLIST_DETAIL);
 
       String body = objectMapper.writeValueAsString(

@@ -56,6 +56,9 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.CANDIDATE_ARCHIVED, Set.of("profile_parsed", "consultant_review", "available", "shortlisted", "client_review", "rejected", "placed"), "archived"),
           rule(WorkflowActionCode.CANDIDATE_DO_NOT_CONTACT_MARKED, Set.of("profile_parsed", "consultant_review", "available", "shortlisted", "client_review", "identity_disclosed", "interviewing", "offer_pending", "rejected", "archived"), "do_not_contact"),
           rule(WorkflowActionCode.SHORTLIST_DRAFT_CREATED, Set.of("absent"), "draft"),
+          rule(WorkflowActionCode.SHORTLIST_CARD_REMOVED, Set.of("draft", "ready_for_review"), Set.of("draft", "ready_for_review")),
+          rule(WorkflowActionCode.SHORTLIST_CARD_RESTORED, Set.of("draft", "ready_for_review"), Set.of("draft", "ready_for_review")),
+          rule(WorkflowActionCode.SHORTLIST_RETURNED_TO_DRAFT, Set.of("ready_for_review"), "draft"),
           rule(WorkflowActionCode.SHORTLIST_READY_FOR_REVIEW, Set.of("draft"), "ready_for_review"),
           rule(WorkflowActionCode.SHORTLIST_SENT_TO_CLIENT, Set.of("ready_for_review"), "sent_to_client"),
           rule(WorkflowActionCode.SHORTLIST_VIEWED_BY_CLIENT, Set.of("sent_to_client"), "client_viewed"),
@@ -233,6 +236,7 @@ public final class WorkflowTransitionLegalityPolicy {
           WorkflowActionCode.CANDIDATE_DO_NOT_CONTACT_MARKED);
       case "shortlist" -> List.of(
           WorkflowActionCode.SHORTLIST_DRAFT_CREATED,
+          WorkflowActionCode.SHORTLIST_RETURNED_TO_DRAFT,
           WorkflowActionCode.SHORTLIST_READY_FOR_REVIEW,
           WorkflowActionCode.SHORTLIST_SENT_TO_CLIENT,
           WorkflowActionCode.SHORTLIST_VIEWED_BY_CLIENT,

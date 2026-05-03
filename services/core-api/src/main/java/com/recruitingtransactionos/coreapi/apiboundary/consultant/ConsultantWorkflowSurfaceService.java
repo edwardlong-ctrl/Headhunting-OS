@@ -174,6 +174,8 @@ public final class ConsultantWorkflowSurfaceService {
         record.riskTier().wireValue(),
         extractStatus(record.beforeState().json()),
         extractStatus(record.afterState().json()),
+        extractCardStatus(record.beforeState().json()),
+        extractCardStatus(record.afterState().json()),
         record.reason(),
         record.occurredAt().toString());
   }
@@ -322,17 +324,27 @@ public final class ConsultantWorkflowSurfaceService {
   }
 
   private static String extractStatus(String stateJson) {
+    return extractStateValue(stateJson, "status");
+  }
+
+  private static String extractCardStatus(String stateJson) {
+    return extractStateValue(stateJson, "cardStatus");
+  }
+
+  private static String extractStateValue(String stateJson, String fieldName) {
     if (stateJson == null || stateJson.isBlank()) {
       return null;
     }
     try {
       com.fasterxml.jackson.databind.JsonNode node =
           new com.fasterxml.jackson.databind.ObjectMapper().readTree(stateJson);
-      if (node.has("status") && node.get("status").isTextual()) {
-        return node.get("status").asText();
+      if (node.has(fieldName) && node.get(fieldName).isTextual()) {
+        return node.get(fieldName).asText();
       }
     } catch (Exception exception) {
-      throw new IllegalArgumentException("workflow state must be valid JSON with a status field", exception);
+      throw new IllegalArgumentException(
+          "workflow state must be valid JSON with a readable " + fieldName + " field",
+          exception);
     }
     return null;
   }

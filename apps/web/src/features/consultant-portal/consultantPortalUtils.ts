@@ -1,3 +1,5 @@
+import type { ConsultantWorkflowEvent } from "../../api/consultantWorkflow";
+
 export const SHORTLIST_BUILDER_INITIAL_STATUS = "draft";
 
 export const SHORTLIST_BUILDER_EDITABLE_STATUSES = [
@@ -40,4 +42,24 @@ export function describeWorkflowPageWindow(itemCount: number, offset: number): s
   const start = offset + 1;
   const end = offset + itemCount;
   return `Showing ${start}-${end} events in this window`;
+}
+
+export function describeWorkflowTransition(item: ConsultantWorkflowEvent): string {
+  const hasPrimaryTransition = hasStatusChange(item.beforeStatus, item.afterStatus);
+  const hasCardTransition = hasStatusChange(item.beforeCardStatus, item.afterCardStatus);
+  const before = !hasPrimaryTransition && hasCardTransition
+    ? item.beforeCardStatus
+    : item.beforeStatus ?? item.beforeCardStatus;
+  const after = !hasPrimaryTransition && hasCardTransition
+    ? item.afterCardStatus
+    : item.afterStatus ?? item.afterCardStatus;
+  return `${before ?? "unknown"} -> ${after ?? "unknown"}`;
+}
+
+function hasStatusChange(before?: string | null, after?: string | null): boolean {
+  return typeof before === "string"
+    && typeof after === "string"
+    && before.length > 0
+    && after.length > 0
+    && before !== after;
 }

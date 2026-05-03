@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -37,6 +38,22 @@ public final class JdbcShortlistCandidateCardPersistencePort
       FROM recruiting.shortlist_candidate_card
       WHERE organization_id = ? AND shortlist_id = ?
       ORDER BY sort_order
+      """;
+
+  private static final String FIND_BY_ID_SQL = """
+      SELECT shortlist_candidate_card_id, organization_id, shortlist_id,
+        anonymous_candidate_card_id, candidate_id, candidate_profile_id,
+        sort_order, status, match_report_id, client_notes,
+        metadata::text AS metadata, created_at, updated_at, version
+      FROM recruiting.shortlist_candidate_card
+      WHERE organization_id = ? AND shortlist_candidate_card_id = ?
+      """;
+
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.shortlist_candidate_card
+      SET sort_order = ?, status = ?, match_report_id = ?, client_notes = ?,
+          metadata = ?::jsonb, updated_at = CURRENT_TIMESTAMP, version = version + 1
+      WHERE organization_id = ? AND shortlist_candidate_card_id = ? AND version = ?
       """;
 
   private final DataSource dataSource;
@@ -95,6 +112,56 @@ public final class JdbcShortlistCandidateCardPersistencePort
     } catch (SQLException exception) {
       throw new IllegalStateException(
           "Failed to find shortlist_candidate_cards by shortlist", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public ShortlistCandidateCard update(ShortlistCandidateCard card) {
+    Objects.requireNonNull(card, "card must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setInt(1, card.sortOrder());
+      statement.setString(2, card.status().wireValue());
+      statement.setObject(3, card.matchReportId());
+      statement.setString(4, card.clientNotes());
+      statement.setString(5, card.metadata());
+      statement.setObject(6, card.organizationId());
+      statement.setObject(7, card.shortlistCandidateCardId().value());
+      statement.setInt(8, card.version());
+      int updated = statement.executeUpdate();
+      if (updated != 1) {
+        throw new IllegalStateException("shortlist_candidate_card_update_conflict");
+      }
+      return findByIdAndOrganizationId(card.organizationId(), card.shortlistCandidateCardId())
+          .orElseThrow(() -> new IllegalStateException(
+              "shortlist_candidate_card not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update shortlist_candidate_card", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Optional<ShortlistCandidateCard> findByIdAndOrganizationId(
+      UUID organizationId, ShortlistCandidateCardId shortlistCandidateCardId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(
+        shortlistCandidateCardId, "shortlistCandidateCardId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setObject(2, shortlistCandidateCardId.value());
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(toCard(resultSet));
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find shortlist_candidate_card by id", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

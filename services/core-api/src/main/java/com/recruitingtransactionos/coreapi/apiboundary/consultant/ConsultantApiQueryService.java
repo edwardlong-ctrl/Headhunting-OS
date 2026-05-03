@@ -42,8 +42,10 @@ import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
+import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardStatus;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistId;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistStatus;
+import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistBuilderService;
 import com.recruitingtransactionos.coreapi.shortlist.service.ShortlistService;
 import java.util.List;
 import java.util.Objects;
@@ -59,6 +61,7 @@ public final class ConsultantApiQueryService {
   private final JobService jobService;
   private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
+  private final ShortlistBuilderService shortlistBuilderService;
   private final IndustryPackService industryPackService;
   private final PermissionEnforcer permissionEnforcer;
 
@@ -68,12 +71,14 @@ public final class ConsultantApiQueryService {
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
+      ShortlistBuilderService shortlistBuilderService,
       IndustryPackService industryPackService) {
     this(
         companyService,
         jobService,
         jobIntakeApplicationService,
         shortlistService,
+        shortlistBuilderService,
         industryPackService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
@@ -95,6 +100,7 @@ public final class ConsultantApiQueryService {
         jobService,
         null,
         shortlistService,
+        null,
         industryPackService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
@@ -104,12 +110,14 @@ public final class ConsultantApiQueryService {
       JobService jobService,
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
+      ShortlistBuilderService shortlistBuilderService,
       IndustryPackService industryPackService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.jobIntakeApplicationService = jobIntakeApplicationService;
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
+    this.shortlistBuilderService = shortlistBuilderService;
     this.industryPackService = Objects.requireNonNull(industryPackService, "industryPackService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
@@ -252,6 +260,10 @@ public final class ConsultantApiQueryService {
 
     return shortlistService.findShortlistByIdAndOrganizationId(organizationId, shortlistId)
         .map(shortlist -> {
+          if (shortlistBuilderService != null) {
+            return ConsultantShortlistResponseMapper.toDetail(
+                shortlistBuilderService.getBuilderState(organizationId, shortlistId));
+          }
           List<ShortlistCandidateCard> cards =
               shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId);
           return ConsultantShortlistResponseMapper.toDetail(shortlist, cards);
@@ -309,7 +321,10 @@ public final class ConsultantApiQueryService {
   }
 
   private int countCards(UUID organizationId, ShortlistId shortlistId) {
-    return shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId).size();
+    return (int) shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId)
+        .stream()
+        .filter(card -> card.status() != ShortlistCandidateCardStatus.REMOVED)
+        .count();
   }
 
   private static IndustryPackService defaultIndustryPackService() {
