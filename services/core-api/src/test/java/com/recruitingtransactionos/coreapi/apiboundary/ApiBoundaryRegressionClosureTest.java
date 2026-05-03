@@ -72,6 +72,8 @@ class ApiBoundaryRegressionClosureTest {
   private static final String ORGANIZATION_ID_HEADER = "X-RTO-Organization-Id";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009c0003";
+  private static final String USER_ACCOUNT_ID =
+      "00000000-0000-0000-0000-0000009c0004";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009c0001";
@@ -119,7 +121,7 @@ class ApiBoundaryRegressionClosureTest {
 
     assertThat(queryPort.calls).isEqualTo(1);
     assertThat(queryPort.lastScope).isEqualTo(
-        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
+        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID), java.util.UUID.fromString(USER_ACCOUNT_ID), com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole.CLIENT));
     assertThat(queryPort.lastCardId)
         .isEqualTo(AnonymousCandidateCardId.of("card_task9c_0001"));
   }
@@ -750,11 +752,11 @@ class ApiBoundaryRegressionClosureTest {
         portalRole = PortalRole.CONSULTANT;
     }
     return new RtoAuthenticatedPrincipal(
-        UUID.randomUUID(),
+        UUID.fromString(USER_ACCOUNT_ID),
         organizationId,
         portalRole,
         "Test User",
-        UUID.randomUUID()
+        UUID.fromString(USER_ACCOUNT_ID)
     );
   }
 

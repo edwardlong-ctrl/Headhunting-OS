@@ -15,4 +15,16 @@ public enum ReidentificationRiskDecision {
   public String wireValue() {
     return wireValue;
   }
+
+  public static ReidentificationRiskDecision fromWireValue(String wireValue) {
+    if (wireValue == null) {
+      throw new NullPointerException("wireValue must not be null");
+    }
+    for (ReidentificationRiskDecision decision : values()) {
+      if (decision.wireValue.equals(wireValue)) {
+        return decision;
+      }
+    }
+    throw new IllegalArgumentException("unknown re-identification risk decision: " + wireValue);
+  }
 }

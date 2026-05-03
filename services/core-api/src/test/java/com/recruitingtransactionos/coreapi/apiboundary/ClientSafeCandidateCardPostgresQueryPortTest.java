@@ -5,7 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.clientsafeprojection.AnonymousCandidateCardId;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateCard;
+import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateProjectionService;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
+import com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessmentService;
+import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
+import com.recruitingtransactionos.coreapi.privacyredaction.SpringRedactionAuditTransactionBoundary;
+import com.recruitingtransactionos.coreapi.privacyredaction.persistence.JdbcReidentificationRiskAssessmentPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -36,10 +44,12 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
 
   private static final UUID ORG_A = uuid("00000000-0000-0000-0000-00000013b001");
   private static final UUID ORG_B = uuid("00000000-0000-0000-0000-00000013b002");
-  private static final UUID CANDIDATE_A = uuid("00000000-0000-0000-0000-00000013b003");
+  private static final UUID CLIENT_USER_A = uuid("00000000-0000-0000-0000-00000013b003");
   private static final UUID PROFILE_A = uuid("00000000-0000-0000-0000-00000013b004");
-  private static final UUID CANDIDATE_B = uuid("00000000-0000-0000-0000-00000013b005");
+  private static final UUID CLIENT_USER_B = uuid("00000000-0000-0000-0000-00000013b005");
   private static final UUID PROFILE_B = uuid("00000000-0000-0000-0000-00000013b006");
+  private static final UUID CANDIDATE_A = uuid("00000000-0000-0000-0000-00000013b013");
+  private static final UUID CANDIDATE_B = uuid("00000000-0000-0000-0000-00000013b014");
 
   private static final String RAW_FULL_NAME = "Task 13B Raw Candidate";
   private static final String RAW_EMAIL = "task13b.raw@example.com";
@@ -69,6 +79,8 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     dataSource = postgresDataSource();
     insertOrganization(ORG_A);
     insertOrganization(ORG_B);
+    insertUser(ORG_A, CLIENT_USER_A);
+    insertUser(ORG_B, CLIENT_USER_B);
     insertCandidate(ORG_A, CANDIDATE_A);
     insertCandidate(ORG_B, CANDIDATE_B);
   }
@@ -108,9 +120,26 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
 
   @Test
   void queryScopeCannotBeCreatedWithoutOrganizationId() {
-    assertThatThrownBy(() -> ClientSafeCandidateCardQueryScope.of(null))
+    assertThatThrownBy(() -> ClientSafeCandidateCardQueryScope.of(null, CLIENT_USER_A, ActorRole.CLIENT))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("organizationId must not be null");
+  }
+
+
+  @Test
+  void queryReadPathPersistsAssessmentAndWorkflowEvent() throws SQLException {
+    seedSuccessCardProjection();
+    int assessmentsBefore = countAssessmentsForCard(ORG_A, "card_task13b_success_0001");
+    int auditEventsBefore = countWorkflowActionRows(ORG_A, "REIDENTIFICATION_RISK_ASSESSED");
+
+    Optional<ClientSafeCandidateCard> card = queryPort().findByAnonymousCardId(
+        scope(ORG_A),
+        AnonymousCandidateCardId.of("card_task13b_success_0001"));
+
+    assertThat(card).isPresent();
+    assertThat(countAssessmentsForCard(ORG_A, "card_task13b_success_0001")).isEqualTo(assessmentsBefore + 1);
+    assertThat(countWorkflowActionRows(ORG_A, "REIDENTIFICATION_RISK_ASSESSED")).isEqualTo(auditEventsBefore + 1);
+    assertThat(latestAssessmentWorkflowEventId(ORG_A, "card_task13b_success_0001")).isNotNull();
   }
 
   @Test
@@ -148,7 +177,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             "card_task13b_success_0001",
-            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
+            new RtoAuthenticatedPrincipal(CLIENT_USER_A, ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -207,7 +236,7 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
     ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> response =
         controller.readClientSafeCandidateCard(
             otherOrgOnlyCardRef,
-            new RtoAuthenticatedPrincipal(UUID.randomUUID(), ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
+            new RtoAuthenticatedPrincipal(CLIENT_USER_A, ORG_A, PortalRole.CLIENT, "Test", UUID.randomUUID()));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
@@ -426,15 +455,75 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
   }
 
   private static ClientSafeCandidateCardQueryPort productionBeanPathQueryPort() {
-    return new PostgresClientSafeCandidateCardQueryPort(dataSource);
+    return queryPort(ORG_A);
   }
 
   private static ClientSafeCandidateCardQueryPort queryPort(UUID organizationId) {
-    return new PostgresClientSafeCandidateCardQueryPort(dataSource);
+    return new AuditedPostgresClientSafeCandidateCardQueryPort(
+        dataSource,
+        new ClientSafeCandidateProjectionService(),
+        auditService());
   }
 
   private static ClientSafeCandidateCardQueryScope scope(UUID organizationId) {
-    return ClientSafeCandidateCardQueryScope.of(organizationId);
+    UUID actorId = organizationId.equals(ORG_A) ? CLIENT_USER_A : CLIENT_USER_B;
+    return ClientSafeCandidateCardQueryScope.of(organizationId, actorId, ActorRole.CLIENT);
+  }
+
+
+  private static int countAssessmentsForCard(UUID organizationId, String candidateCardId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            "SELECT count(*) FROM privacy.reidentification_risk_assessment WHERE organization_id = ? AND candidate_card_id = ?")) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, candidateCardId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private static int countWorkflowActionRows(UUID organizationId, String action) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            "SELECT count(*) FROM workflow.workflow_event WHERE organization_id = ? AND action = ?")) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, action);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private static UUID latestAssessmentWorkflowEventId(UUID organizationId, String candidateCardId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement(
+            """
+            SELECT workflow_event_id
+            FROM privacy.reidentification_risk_assessment
+            WHERE organization_id = ? AND candidate_card_id = ?
+            ORDER BY recorded_at DESC, created_at DESC
+            LIMIT 1
+            """)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, candidateCardId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return null;
+        }
+        return resultSet.getObject(1, UUID.class);
+      }
+    }
+  }
+
+  private static RedactionAuditService auditService() {
+    return new RedactionAuditService(
+        new ReidentificationRiskAssessmentService(),
+        new JdbcReidentificationRiskAssessmentPort(dataSource),
+        new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
+        new SpringRedactionAuditTransactionBoundary(new org.springframework.jdbc.datasource.DataSourceTransactionManager(dataSource)));
   }
 
   private static void insertCandidateProfile(
@@ -484,6 +573,26 @@ class ClientSafeCandidateCardPostgresQueryPortTest {
       statement.setObject(1, organizationId);
       statement.setString(2, "Task 13B Org " + organizationId);
       statement.setString(3, "Task 13B Org");
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertUser(UUID organizationId, UUID userId) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO identity.user_account (
+              user_account_id,
+              organization_id,
+              email,
+              display_name,
+              status
+            )
+            VALUES (?, ?, ?, ?, 'active')
+            """)) {
+      statement.setObject(1, userId);
+      statement.setObject(2, organizationId);
+      statement.setString(3, "client-" + userId + "@example.com");
+      statement.setString(4, "Client " + userId);
       statement.executeUpdate();
     }
   }

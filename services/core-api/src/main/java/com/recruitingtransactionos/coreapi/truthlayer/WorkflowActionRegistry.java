@@ -257,6 +257,20 @@ public final class WorkflowActionRegistry {
         false,
         "AI recommendation was recorded as metadata, not fact.",
         WorkflowEntityType.AI_TASK_RUN));
+    policies.add(auditOnly(
+        WorkflowActionCode.REIDENTIFICATION_RISK_ASSESSED,
+        RiskTier.T2_MEDIUM_RISK,
+        true,
+        false,
+        "Re-identification risk assessment was recorded against an anonymous candidate card.",
+        WorkflowEntityType.REIDENTIFICATION_ASSESSMENT));
+    policies.add(auditOnly(
+        WorkflowActionCode.CLIENT_SAFE_REDACTION_BLOCKED,
+        RiskTier.T2_MEDIUM_RISK,
+        true,
+        false,
+        "Client-safe projection was blocked because re-identification risk could not be reduced. Recorded by the redaction system actor; downstream review still requires human attention.",
+        WorkflowEntityType.REIDENTIFICATION_ASSESSMENT));
 
     return new WorkflowActionRegistry(policies.values());
   }

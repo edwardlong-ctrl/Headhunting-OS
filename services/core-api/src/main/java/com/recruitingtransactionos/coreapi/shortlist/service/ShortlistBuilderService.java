@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.candidate.Candidate;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
@@ -13,6 +14,7 @@ import com.recruitingtransactionos.coreapi.clientsafeprojection.AnonymousCandida
 import com.recruitingtransactionos.coreapi.clientsafeprojection.AnonymousCandidateRef;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateCard;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateProjectionService;
+import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientVisibleCandidateFieldPolicy;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.InternalCandidateProjectionSnapshot;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessment;
@@ -33,6 +35,7 @@ import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.matching.MatchDimension;
+import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId;
@@ -78,6 +81,7 @@ public final class ShortlistBuilderService {
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final ClientSafeCandidateProjectionService clientSafeProjectionService;
   private final ReidentificationRiskAssessmentService reidentificationRiskAssessmentService;
+  private final RedactionAuditService redactionAuditService;
 
   public ShortlistBuilderService(
       ShortlistService shortlistService,
@@ -96,10 +100,11 @@ public final class ShortlistBuilderService {
         jobService,
         workflowTransitionAuditService,
         new ClientSafeCandidateProjectionService(),
-        new ReidentificationRiskAssessmentService());
+        new ReidentificationRiskAssessmentService(),
+        null);
   }
 
-  ShortlistBuilderService(
+  public ShortlistBuilderService(
       ShortlistService shortlistService,
       CandidateService candidateService,
       CandidateProfileService candidateProfileService,
@@ -108,7 +113,8 @@ public final class ShortlistBuilderService {
       JobService jobService,
       WorkflowTransitionAuditService workflowTransitionAuditService,
       ClientSafeCandidateProjectionService clientSafeProjectionService,
-      ReidentificationRiskAssessmentService reidentificationRiskAssessmentService) {
+      ReidentificationRiskAssessmentService reidentificationRiskAssessmentService,
+      RedactionAuditService redactionAuditService) {
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.candidateService = Objects.requireNonNull(candidateService, "candidateService must not be null");
     this.candidateProfileService = Objects.requireNonNull(
@@ -125,6 +131,18 @@ public final class ShortlistBuilderService {
     this.reidentificationRiskAssessmentService = Objects.requireNonNull(
         reidentificationRiskAssessmentService,
         "reidentificationRiskAssessmentService must not be null");
+    this.redactionAuditService = redactionAuditService;
+  }
+
+  private record ProjectedAnonymousCard(
+      ClientSafeCandidateCard card,
+      String reidentificationRiskSignal) {
+  }
+
+  private record ProjectionAssessment(
+      InternalCandidateProjectionSnapshot redactedSnapshot,
+      ReidentificationRiskAssessment assessment,
+      boolean blocked) {
   }
 
   public ShortlistBuilderState getBuilderState(UUID organizationId, ShortlistId shortlistId) {
@@ -161,10 +179,10 @@ public final class ShortlistBuilderService {
         matchReportPersistencePort.findLatestByCandidateIdAndJobId(
             organizationId, shortlist.jobId(), candidateId.value());
     UUID anonymousCardId = UUID.randomUUID();
-    ClientSafeCandidateCard projectedCard = projectAnonymousCard(
-        shortlist, candidate, profile, matchReport, anonymousCardId);
+    ProjectedAnonymousCard projectedCard = projectAnonymousCard(
+        shortlist, candidate, profile, matchReport, anonymousCardId, actorId);
     ShortlistCandidateCardViewMetadata viewMetadata =
-        buildViewMetadata(projectedCard, matchReport.orElse(null));
+        buildViewMetadata(projectedCard.card(), matchReport.orElse(null), projectedCard.reidentificationRiskSignal());
 
     Instant now = Instant.now();
     ShortlistCandidateCard persisted = shortlistService.addCandidateCard(ShortlistCandidateCard.builder()
@@ -243,7 +261,7 @@ public final class ShortlistBuilderService {
     Shortlist existing = requireShortlist(organizationId, shortlistId);
     List<ShortlistCandidateCard> cards = refreshCards(organizationId, shortlistId);
     ShortlistBuilderState state = stateFor(existing, cards);
-    if (!state.canSend()) {
+    if (!state.canSend() || !allIncludedCardsPassCurrentRiskGate(existing, cards, actorId)) {
       throw new IllegalArgumentException("shortlist_send_blocked");
     }
     Instant now = Instant.now();
@@ -357,13 +375,14 @@ public final class ShortlistBuilderService {
     return new ShortlistDeliveryPreview(clientSafeSummary, pdfSummary, emailSummary, wechatSummary);
   }
 
-  private ClientSafeCandidateCard projectAnonymousCard(
+  private ProjectedAnonymousCard projectAnonymousCard(
       Shortlist shortlist,
       Candidate candidate,
       CandidateProfile profile,
       Optional<StoredMatchReport> matchReport,
-      UUID anonymousCardId) {
-    return new ClientSafeCandidateCard(
+      UUID anonymousCardId,
+      UUID actorId) {
+    ClientSafeCandidateCard seedCard = new ClientSafeCandidateCard(
         AnonymousCandidateCardId.of(toOpaqueCardId(anonymousCardId)),
         AnonymousCandidateRef.of(toOpaqueCandidateRef(candidate.candidateId())),
         PROJECTION_VERSION,
@@ -376,11 +395,34 @@ public final class ShortlistBuilderService {
         safeSkillSummary(matchReport.orElse(null)),
         safeEvidenceSummaries(matchReport.orElse(null)),
         safeMatchNarratives(matchReport.orElse(null)));
+    if (redactionAuditService == null) {
+      return new ProjectedAnonymousCard(
+          seedCard,
+          matchReport.map(report -> report.reidentificationRiskSignal().wireValue()).orElse("not_assessed"));
+    }
+    InternalCandidateProjectionSnapshot snapshot = buildProjectionSnapshot(
+        shortlist,
+        candidate,
+        profile,
+        matchReport.orElse(null),
+        seedCard);
+    ProjectionAssessment projectionAssessment = evaluateProjection(
+        shortlist,
+        candidate,
+        snapshot,
+        actorId);
+    if (projectionAssessment.blocked()) {
+      throw new IllegalArgumentException("shortlist_candidate_card_reidentification_blocked");
+    }
+    return new ProjectedAnonymousCard(
+        clientSafeProjectionService.project(CLIENT_SAFE_CARD_ACCESS, projectionAssessment.redactedSnapshot()),
+        projectionAssessment.assessment().riskLevel().wireValue());
   }
 
   private ShortlistCandidateCardViewMetadata buildViewMetadata(
       ClientSafeCandidateCard projectedCard,
-      StoredMatchReport matchReport) {
+      StoredMatchReport matchReport,
+      String reidentificationRiskSignal) {
     return new ShortlistCandidateCardViewMetadata(
         projectedCard.anonymousCandidateRef().value(),
         projectedCard.projectionVersion(),
@@ -395,10 +437,79 @@ public final class ShortlistBuilderService {
         projectedCard.safeMatchNarratives(),
         matchReport == null ? null : matchReport.matchReport().overallScore().value(),
         matchReport == null ? "unknown" : matchReport.matchReport().scoreConfidence().wireValue(),
-        matchReport == null
-            ? "not_assessed"
-            : matchReport.reidentificationRiskSignal().wireValue(),
+        reidentificationRiskSignal,
         dimensionScoreItems(matchReport));
+  }
+
+  private InternalCandidateProjectionSnapshot buildProjectionSnapshot(
+      Shortlist shortlist,
+      Candidate candidate,
+      CandidateProfile profile,
+      StoredMatchReport matchReport,
+      ClientSafeCandidateCard seedCard) {
+    return new InternalCandidateProjectionSnapshot(
+        candidate.candidateId().value().toString(),
+        profile.candidateProfileId().value().toString(),
+        fieldText(profile, "identity.full_name"),
+        fieldText(profile, "contact.email"),
+        fieldText(profile, "contact.phone"),
+        null,
+        fieldText(profile, "experience.current_company"),
+        fieldList(profile, "experience.projects"),
+        null,
+        fieldText(profile, "metadata.notes"),
+        seedCard.cardId(),
+        seedCard.anonymousCandidateRef(),
+        seedCard.projectionVersion(),
+        seedCard.redactionLevel(),
+        seedCard.generalizedHeadline(),
+        seedCard.generalizedRoleFamily(),
+        seedCard.generalizedSeniorityBand(),
+        seedCard.generalizedLocationRegion(),
+        seedCard.safeSummary(),
+        seedCard.safeSkillSummary(),
+        seedCard.safeEvidenceSummaries(),
+        seedCard.safeMatchNarratives(),
+        ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
+  }
+
+  private ProjectionAssessment evaluateProjection(
+      Shortlist shortlist,
+      Candidate candidate,
+      InternalCandidateProjectionSnapshot snapshot,
+      UUID actorId) {
+    if (redactionAuditService != null) {
+      RedactionAuditService.RedactionAuditResult auditResult = redactionAuditService.evaluate(
+          new RedactionAuditService.RedactionAuditRequest(
+              shortlist.organizationId(),
+              redactionAssessmentRef(snapshot.cardId()),
+              candidate.candidateId().value().toString(),
+              shortlist.jobId().value().toString(),
+              snapshot,
+              actorId,
+              ActorRole.CONSULTANT,
+              "shortlist_builder",
+              "shortlist anonymous candidate card projected",
+              Instant.now()));
+      return new ProjectionAssessment(
+          auditResult.redactedSnapshot(),
+          auditResult.assessment(),
+          auditResult.blocked());
+    }
+    ReidentificationRiskAssessmentService.PipelineResult pipelineResult =
+        reidentificationRiskAssessmentService.assessWithPipeline(snapshot);
+    return new ProjectionAssessment(
+        pipelineResult.pipeline().redactedSnapshot(),
+        pipelineResult.assessment(),
+        pipelineResult.assessment().decision()
+            == com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskDecision.BLOCK);
+  }
+
+  private String redactionAssessmentRef(AnonymousCandidateCardId cardId) {
+    return "shortlist_redaction_"
+        + cardId.value()
+        + "_"
+        + UUID.randomUUID().toString().replace("-", "");
   }
 
   private List<ShortlistCandidateCardViewMetadata.DimensionScoreItem> dimensionScoreItems(
@@ -465,6 +576,51 @@ public final class ShortlistBuilderService {
         .sorted(Map.Entry.comparingByKey(Comparator.comparing(MatchDimension::wireValue)))
         .map(entry -> entry.getKey().wireValue() + ": " + entry.getValue().value() + "/5")
         .toList();
+  }
+
+  private boolean allIncludedCardsPassCurrentRiskGate(
+      Shortlist shortlist,
+      List<ShortlistCandidateCard> cards,
+      UUID actorId) {
+    if (redactionAuditService == null) {
+      return includedCards(cards).stream().allMatch(this::passesReidentificationRiskGate);
+    }
+    for (ShortlistCandidateCard card : includedCards(cards)) {
+      Candidate candidate = candidateService.findCandidateByIdAndOrganizationId(
+              shortlist.organizationId(),
+              card.candidateId())
+          .orElseThrow(() -> new IllegalArgumentException("candidate_not_found_in_organization"));
+      CandidateProfile profile = candidateProfileService.findCandidateProfileByIdAndOrganizationId(
+              shortlist.organizationId(),
+              new CandidateProfileId(card.candidateProfileId()))
+          .orElseThrow(() -> new IllegalArgumentException("candidate_profile_not_found_in_organization"));
+      Optional<StoredMatchReport> matchReport = matchReportPersistencePort.findLatestByCandidateIdAndJobId(
+          shortlist.organizationId(),
+          shortlist.jobId(),
+          card.candidateId().value());
+      ClientSafeCandidateCard seedCard = new ClientSafeCandidateCard(
+          AnonymousCandidateCardId.of(toOpaqueCardId(card.anonymousCandidateCardId())),
+          AnonymousCandidateRef.of(toOpaqueCandidateRef(candidate.candidateId())),
+          PROJECTION_VERSION,
+          RedactionLevel.L2_CLIENT_SAFE,
+          generalizedHeadline(shortlist),
+          generalizedRoleFamily(shortlist),
+          generalizedSeniorityBand(shortlist),
+          "Location shared after identity unlock",
+          "Evidence-backed candidate profile reviewed by a consultant for this role. Identity remains protected until unlock.",
+          safeSkillSummary(matchReport.orElse(null)),
+          safeEvidenceSummaries(matchReport.orElse(null)),
+          safeMatchNarratives(matchReport.orElse(null)));
+      ProjectionAssessment assessment = evaluateProjection(
+          shortlist,
+          candidate,
+          buildProjectionSnapshot(shortlist, candidate, profile, matchReport.orElse(null), seedCard),
+          actorId);
+      if (assessment.blocked()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private int resolveSortOrder(List<ShortlistCandidateCard> existingCards, Integer requestedSortOrder) {

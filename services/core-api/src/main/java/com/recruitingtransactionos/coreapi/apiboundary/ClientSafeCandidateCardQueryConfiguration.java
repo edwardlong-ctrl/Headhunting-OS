@@ -1,5 +1,7 @@
 package com.recruitingtransactionos.coreapi.apiboundary;
 
+import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateProjectionService;
+import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
 import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -14,8 +16,12 @@ public class ClientSafeCandidateCardQueryConfiguration {
   @Primary
   @ConditionalOnBean(DataSource.class)
   ClientSafeCandidateCardQueryPort postgresClientSafeCandidateCardQueryPort(
-      DataSource dataSource) {
-    return new PostgresClientSafeCandidateCardQueryPort(dataSource);
+      DataSource dataSource,
+      RedactionAuditService redactionAuditService) {
+    return new AuditedPostgresClientSafeCandidateCardQueryPort(
+        dataSource,
+        new ClientSafeCandidateProjectionService(),
+        redactionAuditService);
   }
 
   @Bean

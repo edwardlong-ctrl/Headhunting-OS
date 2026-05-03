@@ -29,7 +29,8 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 
-public final class PostgresClientSafeCandidateCardQueryPort
+@Deprecated(forRemoval = true)
+final class PostgresClientSafeCandidateCardQueryPort
     implements ClientSafeCandidateCardQueryPort {
 
   private static final String PROJECTION_METADATA_KEY =

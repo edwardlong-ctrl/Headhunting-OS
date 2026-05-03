@@ -16,7 +16,8 @@ public enum WorkflowEntityType {
   AI_TASK_RUN,
   CANONICAL_WRITE,
   INFORMATION_PACKET,
-  SOURCE_ITEM;
+  SOURCE_ITEM,
+  REIDENTIFICATION_ASSESSMENT;
 
   public String wireValue() {
     return name();

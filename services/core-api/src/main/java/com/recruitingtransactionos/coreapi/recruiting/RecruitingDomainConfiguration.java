@@ -31,6 +31,7 @@ import com.recruitingtransactionos.coreapi.job.service.JobActivationGateService;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
+import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
@@ -156,7 +157,8 @@ public class RecruitingDomainConfiguration {
       MatchReportPersistencePort matchReportPersistencePort,
       ConsentRecordPort consentRecordPort,
       JobService jobService,
-      WorkflowTransitionAuditService workflowTransitionAuditService) {
+      WorkflowTransitionAuditService workflowTransitionAuditService,
+      RedactionAuditService redactionAuditService) {
     return new ShortlistBuilderService(
         shortlistService,
         candidateService,
@@ -164,7 +166,10 @@ public class RecruitingDomainConfiguration {
         matchReportPersistencePort,
         consentRecordPort,
         jobService,
-        workflowTransitionAuditService);
+        workflowTransitionAuditService,
+        new com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandidateProjectionService(),
+        new com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessmentService(),
+        redactionAuditService);
   }
 
   @Bean
