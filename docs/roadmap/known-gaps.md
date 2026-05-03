@@ -47,9 +47,31 @@
 - Workflow audit coverage now exists for shortlist draft creation, ready-for-review promotion, return-to-draft rollback, candidate shortlisted, shortlist card remove/restore, shortlist send, and job shortlist progression.
 - Consultant workflow timeline/audit drawer now renders shortlist card composition transitions from `cardStatus` when the top-level shortlist status is unchanged, so remove/restore events no longer collapse into no-op-looking `draft -> draft` labels.
 - Remaining gaps:
-  - No real re-identification scorer or generalized text rewriting pipeline yet; Task 29 still relies on the deterministic placeholder/fail-closed boundary from Task 7C.
   - No client portal shortlist review, unlock request, or shortlist feedback flow yet; that remains Task 32 scope.
   - No real PDF/email/WeChat delivery execution yet; Task 29 only ships safe preview/placeholder content and status progression.
+  - The Task 30 `RedactionAuditService` now provides a real persistence-backed re-identification gate, but `ShortlistBuilderService.projectAnonymousCard()` and `PostgresClientSafeCandidateCardQueryPort` are not yet wired through it (see "Task 30 Privacy Redaction and Re-identification v1 Complete; Call-Site Wiring Deferred" below).
+
+## Task 30 Privacy Redaction and Re-identification v1 Complete; Call-Site Wiring Deferred
+
+- Task 30 closes the privacy-kernel slice of the v2.1 anonymity-by-default invariant.
+- New baseline:
+  - `privacy.reidentification_risk_assessment` table (V25) with composite PK `(organization_id, reidentification_risk_assessment_ref)`, score range CHECK constraint, optional FK to `workflow.workflow_event`, and dual indexes on `(org, candidate_card_id, recorded_at)` and `(org, decision, recorded_at)`.
+  - V25 also extends the `workflow.workflow_event` namespace allowlist to include `'privacy'`.
+  - Three new generalization policies in `clientsafeprojection`:
+    - `CompanyNameGeneralizationPolicy` with curated semiconductor / chip / cloud-hyperscaler vocabulary.
+    - `ProjectChipNameRedactionPolicy` with declared exact name redaction + known chip-family pattern set + chip-context-gated generic shape detector.
+    - `RareTitleYearCombinationRiskRule` with chief / head-of / founding / CTO-CEO etc. vocabulary + four-digit year detector.
+  - `ClientSafeSummaryPipeline` orchestrates all three across every projected text field and returns redaction explanations.
+  - `ReidentificationRiskAssessmentService` now produces a deterministic risk score in `[0.0, 1.0]` and exposes `assessWithPipeline(...)` combining redaction + assessment.
+  - New `privacyredaction` package with `ReidentificationRiskAssessmentPort` + `JdbcReidentificationRiskAssessmentPort`, `PersistedReidentificationRiskAssessment`, `RedactionAuditService` (orchestrator), `RedactionAuditWorkflowEntityIds`, and `PrivacyRedactionConfiguration`.
+  - Two new workflow action codes: `REIDENTIFICATION_RISK_ASSESSED` (T2 audit-only) and `CLIENT_SAFE_REDACTION_BLOCKED` (T2 audit-only). New entity type `REIDENTIFICATION_ASSESSMENT`.
+  - The spec acceptance scenario "top chip company + unique title + exact year + chip code name" is covered end-to-end by `RedactionAuditPostgresIntegrationTest` (Testcontainers Postgres, V1-V25 applied) and proves BLOCK + HIGH risk + employer/chip generalization + per-organization scope.
+- Remaining gaps:
+  - `RedactionAuditService` is not yet wired into `ShortlistBuilderService.projectAnonymousCard()`. Today the shortlist builder still uses string templating and the carryover `reidentificationRiskSignal` from the match report instead of the new audit-trailed gate.
+  - `RedactionAuditService` is not yet wired into `PostgresClientSafeCandidateCardQueryPort`. Today the query port still calls `ReidentificationRiskAssessmentService.assess(snapshot)` without persisting the assessment or emitting an audit event.
+  - The curated company / chip vocabulary is intentionally narrow; v1 prioritizes the acceptance scenario. Production rollout will need a maintained vocabulary pack — likely as part of the industry-pack baseline (Task 28 follow-up).
+  - The risk score is hand-curated weights, not a learned classifier. v1 chose policy-as-code for explainability and audit; a future task may introduce calibrated scoring once outcome-label feedback is available.
+  - No admin UI exists for browsing / re-querying persisted assessments. The Postgres rows + `findRecentByCandidateCardId` are sufficient for backend tooling but not for consultant or admin self-service review.
 
 ## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
 

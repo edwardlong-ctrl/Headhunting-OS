@@ -43,4 +43,16 @@ public enum ReidentificationRiskFeature {
   public ReidentificationRiskDecision recommendedDecision() {
     return recommendedDecision;
   }
+
+  public static ReidentificationRiskFeature fromWireValue(String wireValue) {
+    if (wireValue == null) {
+      throw new NullPointerException("wireValue must not be null");
+    }
+    for (ReidentificationRiskFeature feature : values()) {
+      if (feature.wireValue.equals(wireValue)) {
+        return feature;
+      }
+    }
+    throw new IllegalArgumentException("unknown re-identification risk feature: " + wireValue);
+  }
 }

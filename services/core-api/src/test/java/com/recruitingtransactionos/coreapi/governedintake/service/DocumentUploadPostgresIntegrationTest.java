@@ -88,7 +88,7 @@ class DocumentUploadPostgresIntegrationTest {
         uploadCommand(),
         new ByteArrayInputStream(FILE_CONTENT));
 
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(24);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(25);
     assertThat(first.sourceItemId()).isNotEqualTo(second.sourceItemId());
     assertThat(first.storageRef()).isEqualTo(second.storageRef());
     assertThat(first.scanStatus()).isEqualTo("clean");

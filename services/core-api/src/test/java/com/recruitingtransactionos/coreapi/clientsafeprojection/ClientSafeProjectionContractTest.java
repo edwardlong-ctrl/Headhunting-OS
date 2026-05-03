@@ -250,7 +250,11 @@ class ClientSafeProjectionContractTest {
         .extracting(path -> path.getFileName().toString())
         .contains(
             "ClientSafeCandidateProjectionService.java",
+            "ClientSafeSummaryPipeline.java",
+            "CompanyNameGeneralizationPolicy.java",
             "InternalCandidateProjectionSnapshot.java",
+            "ProjectChipNameRedactionPolicy.java",
+            "RareTitleYearCombinationRiskRule.java",
             "ReidentificationRiskAssessment.java",
             "ReidentificationRiskAssessmentService.java",
             "ReidentificationRiskDecision.java",
