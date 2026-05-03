@@ -15,7 +15,15 @@ import com.recruitingtransactionos.coreapi.company.port.CompanyPersistencePort;
 import com.recruitingtransactionos.coreapi.company.port.CompanyPreferencePersistencePort;
 import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
+import com.recruitingtransactionos.coreapi.consentdisclosure.persistence.JdbcClientUnlockRequestPort;
+import com.recruitingtransactionos.coreapi.consentdisclosure.port.ClientUnlockRequestPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
+import com.recruitingtransactionos.coreapi.interaction.persistence.JdbcCandidateCompanyInteractionPersistencePort;
+import com.recruitingtransactionos.coreapi.interaction.port.CandidateCompanyInteractionPersistencePort;
+import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.persistence.JdbcInterviewFeedbackPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.port.InterviewFeedbackPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
 import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.industrypack.persistence.JdbcIndustryPackReadPort;
@@ -63,6 +71,12 @@ public class RecruitingDomainConfiguration {
   @ConditionalOnMissingBean(CompanyPreferencePersistencePort.class)
   CompanyPreferencePersistencePort companyPreferencePersistencePort(DataSource dataSource) {
     return new JdbcCompanyPreferencePersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(ClientUnlockRequestPort.class)
+  ClientUnlockRequestPort clientUnlockRequestPort(DataSource dataSource) {
+    return new JdbcClientUnlockRequestPort(dataSource);
   }
 
   @Bean
@@ -176,6 +190,33 @@ public class RecruitingDomainConfiguration {
   @ConditionalOnMissingBean(CandidatePersistencePort.class)
   CandidatePersistencePort candidatePersistencePort(DataSource dataSource) {
     return new JdbcCandidatePersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateCompanyInteractionPersistencePort.class)
+  CandidateCompanyInteractionPersistencePort candidateCompanyInteractionPersistencePort(
+      DataSource dataSource) {
+    return new JdbcCandidateCompanyInteractionPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateCompanyInteractionService.class)
+  CandidateCompanyInteractionService candidateCompanyInteractionService(
+      CandidateCompanyInteractionPersistencePort interactionPersistencePort) {
+    return new CandidateCompanyInteractionService(interactionPersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackPersistencePort.class)
+  InterviewFeedbackPersistencePort interviewFeedbackPersistencePort(DataSource dataSource) {
+    return new JdbcInterviewFeedbackPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackService.class)
+  InterviewFeedbackService interviewFeedbackService(
+      InterviewFeedbackPersistencePort interviewFeedbackPersistencePort) {
+    return new InterviewFeedbackService(interviewFeedbackPersistencePort);
   }
 
   @Bean

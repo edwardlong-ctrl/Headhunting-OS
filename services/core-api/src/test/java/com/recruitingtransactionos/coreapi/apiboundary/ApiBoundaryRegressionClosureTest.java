@@ -473,7 +473,9 @@ class ApiBoundaryRegressionClosureTest {
         .containsExactlyInAnyOrder(
             "ClientSafeCandidateCardController.java",
             "ClientCompanyController.java",
+            "ClientDashboardController.java",
             "ClientJobController.java",
+            "ClientShortlistController.java",
             "HealthController.java",
             "ConsultantCandidateController.java",
             "ConsultantCompanyController.java",
@@ -523,7 +525,10 @@ class ApiBoundaryRegressionClosureTest {
           "ConsultantDocumentController.java".equals(fileName);
       boolean isClientWriteController =
           "ClientCompanyController.java".equals(fileName)
-              || "ClientJobController.java".equals(fileName);
+              || "ClientJobController.java".equals(fileName)
+              || "ClientShortlistController.java".equals(fileName);
+      boolean allowsPutMapping =
+          isConsultantWriteController || "ClientCompanyController.java".equals(fileName);
 
       boolean isAuthenticationController =
           "AuthenticationController.java".equals(fileName);
@@ -538,8 +543,8 @@ class ApiBoundaryRegressionClosureTest {
             .doesNotContain("@PostMapping");
       }
 
-      // Allow @PutMapping only on consultant write controllers (not document controller)
-      if (!isConsultantWriteController) {
+      // Allow @PutMapping on consultant write controllers and the client preference/profile surface.
+      if (!allowsPutMapping) {
         assertThat(source)
             .as(controllerFile.toString())
             .doesNotContain("@PutMapping");

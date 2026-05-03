@@ -69,4 +69,19 @@ class WorkflowTransitionLegalityPolicyTest {
           }
         });
   }
+
+  @Test
+  void shortlistCandidateSelected_requiresViewedStateInsteadOfAllowingDirectSentTransition() {
+    policy.enforce(
+        WorkflowActionCode.SHORTLIST_CANDIDATE_SELECTED,
+        new WorkflowStateSnapshot("{\"status\":\"client_viewed\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"candidate_selected\"}"));
+
+    assertThatThrownBy(() -> policy.enforce(
+        WorkflowActionCode.SHORTLIST_CANDIDATE_SELECTED,
+        new WorkflowStateSnapshot("{\"status\":\"sent_to_client\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"candidate_selected\"}")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("illegal workflow transition before status");
+  }
 }

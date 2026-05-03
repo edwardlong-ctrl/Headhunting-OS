@@ -686,6 +686,12 @@ Priority: P0
 Goal: Let client companies create jobs, answer clarification, review anonymous
 shortlists, request unlock, and submit feedback.
 
+Current baseline:
+
+- Client dashboard, manual job creation, clarification, shortlist review, anonymous candidate detail, unlock request capture, feedback submission, and client profile/preferences are implemented in the current worktree state.
+- Unlock remains request-only in this task; final identity disclosure release still belongs to Task 33.
+- JD upload remains deferred; the current intake path is manual job submission plus clarification.
+
 Must deliver:
 
 - Client dashboard.

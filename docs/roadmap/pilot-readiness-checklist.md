@@ -12,18 +12,18 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
-| Gate | Required for pilot | Current status after Task 14 |
+| Gate | Required for pilot | Current status after Task 32 |
 | --- | --- | --- |
-| Product scope boundary | Must define kernel vs product vs pilot | Needs Task 15 closure |
-| Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Partial backend kernel only |
-| Real auth and access | Login/session, org membership, role/field enforcement | Kernel policy only |
-| Real intake | File/text upload, source lineage, AI claim extraction, review, canonical write | Skeleton and deterministic placeholder only |
-| Real AI execution | Provider routing, prompt registry, schema validation, AITaskRun replay | Metadata only |
-| Consultant portal | Daily workflow for intake, review, talent, jobs, matching, shortlist, timeline | Route shell only |
-| Client portal | Job creation, clarification, shortlist review, unlock, feedback | Narrow candidate-card route only |
+| Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |
+| Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Product model baseline exists; downstream disclosure/placement/commercial depth still partial |
+| Real auth and access | Login/session, org membership, role/field enforcement | JWT/session baseline exists; broader membership and auth hardening still partial |
+| Real intake | File/text upload, source lineage, AI claim extraction, review, canonical write | Governed intake/document parsing baseline exists; JD upload and broader async orchestration still partial |
+| Real AI execution | Provider routing, prompt registry, schema validation, AITaskRun replay | Audited runner baseline exists; no queue/worker or governed write-back execution |
+| Consultant portal | Daily workflow for intake, review, talent, jobs, matching, shortlist, timeline | Real unified workflow surface exists for the current product slice |
+| Client portal | Job creation, clarification, shortlist review, unlock, feedback | Unified client workspace now exists; JD upload and final disclosure remain missing |
 | Candidate portal | Upload, profile review, follow-up, opportunity, consent | Route shell only |
-| Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Audit append only |
-| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Backend kernel only |
+| Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
+| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction and request-only unlock exist; final identity disclosure workflow still partial |
 | Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Not yet |
 | Security | Auth hardening, file security, PII logs, export controls, access audit | Not yet |
 

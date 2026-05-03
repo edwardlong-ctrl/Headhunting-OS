@@ -22,13 +22,43 @@ import {
   type ClientJobSubmissionStatus,
 } from "../../api/clientJobs";
 import {
+  fetchClientPreferences,
+  saveClientPreferences,
+  type ClientPreferenceItem,
+  type ClientPreferenceResponse,
+} from "../../api/clientPreferences";
+import {
   fetchClientSafeCandidateCard,
   isAnonymousCardRef,
   type ClientSafeCandidateCard,
   type ClientSafeCandidateCardResult,
 } from "../../api/clientSafeCandidateCards";
+import {
+  createClientUnlockRequest,
+  fetchClientDashboard,
+  fetchClientShortlist,
+  fetchClientShortlists,
+  markClientShortlistViewed,
+  selectClientShortlistCandidate,
+  type ClientDashboard,
+  type ClientShortlistCard,
+  type ClientShortlistDetail,
+  type ClientShortlistSummary,
+  type ClientUnlockRequest,
+} from "../../api/clientShortlists";
+import {
+  submitClientFeedback,
+  type ClientFeedbackResponse,
+} from "../../api/clientFeedback";
 import { type ApiResult } from "../../api/http";
 import { loadAccessToken, saveAccessToken } from "../../auth/accessTokenStorage";
+import {
+  canClientRequestUnlock,
+  canClientSelectCandidate,
+  canClientSubmitInterviewFeedback,
+  deriveIdentityAccessStatus,
+  shouldWarnApprovedWithoutDisclosure,
+} from "./clientPortalShortlistUtils";
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 
@@ -51,7 +81,9 @@ const CLIENT_LAST_JOB_ID_STORAGE_KEY = "rto.clientLastJobId";
 const CLIENT_NAV_ITEMS = [
   { to: "/client", label: "Dashboard" },
   { to: "/client/company-profile", label: "Company Profile" },
+  { to: "/client/preferences", label: "Preferences" },
   { to: "/client/jobs/new", label: "Submit Job" },
+  { to: "/client/shortlists", label: "Shortlists" },
 ] as const;
 
 const EMPTY_COMMERCIAL_TERMS: CommercialTermsDraft = {
@@ -641,7 +673,12 @@ function ClientSignInPage({
 
 function DashboardPage({ session }: { session: ClientPortalSession }) {
   const companyState = useLoadable(fetchClientCompanyProfile, []);
+  const dashboardState = useLoadable(fetchClientDashboard, []);
   const lastJobId = loadLastJobId();
+  const recentShortlists =
+    dashboardState.status === "ready" ? dashboardState.data.recentShortlists : [];
+  const primaryShortlistRef =
+    recentShortlists.length > 0 ? `/client/shortlists/${encodeURIComponent(recentShortlists[0].shortlistId)}` : "/client/shortlists";
 
   return (
     <div className="workspace-stack">
@@ -663,19 +700,33 @@ function DashboardPage({ session }: { session: ClientPortalSession }) {
             <small>{companyState.status === "ready" ? companyState.data.name : "Create or refresh profile"}</small>
           </article>
           <article className="metric-card">
-            <span>Manual intake</span>
-            <strong>Open</strong>
-            <small>Submit a new role with clarification seeds</small>
+            <span>Active jobs</span>
+            <strong>{dashboardState.status === "ready" ? dashboardState.data.activeJobCount : "..."}</strong>
+            <small>Governed jobs currently visible in this client workspace</small>
           </article>
           <article className="metric-card">
             <span>Clarification</span>
-            <strong>{lastJobId ? "In progress" : "Pending"}</strong>
-            <small>{lastJobId ? `Latest job: ${lastJobId}` : "Open a job to answer follow-up questions"}</small>
+            <strong>
+              {dashboardState.status === "ready"
+                ? dashboardState.data.pendingClarificationCount
+                : lastJobId
+                  ? "In progress"
+                  : "Pending"}
+            </strong>
+            <small>
+              {lastJobId
+                ? `Latest job: ${lastJobId}`
+                : "Open a job to answer follow-up questions"}
+            </small>
           </article>
           <article className="metric-card">
-            <span>Commercial terms</span>
-            <strong>Placeholder</strong>
-            <small>Fee model, rate, payment terms, contract status</small>
+            <span>Shortlists</span>
+            <strong>{dashboardState.status === "ready" ? dashboardState.data.shortlistCount : "..."}</strong>
+            <small>
+              {dashboardState.status === "ready"
+                ? `${dashboardState.data.pendingUnlockRequestCount} pending unlock requests`
+                : "Client-safe shortlist review queue"}
+            </small>
           </article>
         </div>
       </section>
@@ -700,9 +751,13 @@ function DashboardPage({ session }: { session: ClientPortalSession }) {
             <strong>Track job status</strong>
             <span>Check blockers, clarification answers, and activation readiness.</span>
           </Link>
-          <Link className="board-action-card" to="/client/candidate-cards/card_demo">
-            <strong>Client-safe card</strong>
-            <span>Preview the anonymous candidate card surface.</span>
+          <Link className="board-action-card" to={primaryShortlistRef}>
+            <strong>Review shortlists</strong>
+            <span>Open anonymous candidate cards, request unlock, and share feedback.</span>
+          </Link>
+          <Link className="board-action-card" to="/client/preferences">
+            <strong>Preferences</strong>
+            <span>Capture hiring and communication preferences for downstream consultant work.</span>
           </Link>
         </div>
       </section>
@@ -727,6 +782,41 @@ function DashboardPage({ session }: { session: ClientPortalSession }) {
               ["Updated", formatDate(companyState.data.updatedAt)],
             ]}
           />
+        </section>
+      ) : null}
+
+      {dashboardState.status === "ready" ? (
+        <section className="portal-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Recent shortlists</span>
+              <h2>Client review queue</h2>
+            </div>
+            <NavLink className="secondary-link" to="/client/shortlists">
+              View all
+            </NavLink>
+          </div>
+          {dashboardState.data.recentShortlists.length > 0 ? (
+            <div className="client-action-grid">
+              {dashboardState.data.recentShortlists.map((shortlist) => (
+                <Link
+                  key={shortlist.shortlistId}
+                  className="board-action-card"
+                  to={`/client/shortlists/${encodeURIComponent(shortlist.shortlistId)}`}
+                >
+                  <strong>{shortlist.title}</strong>
+                  <span>{shortlist.status} · {shortlist.candidateCount} candidates</span>
+                  <small>{formatDate(shortlist.sentAt ?? shortlist.createdAt)}</small>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <ClientSafeState
+              title="No client-visible shortlist yet"
+              tone="neutral"
+              detail="Shortlists appear here after consultant send-to-client."
+            />
+          )}
         </section>
       ) : null}
     </div>
@@ -1196,6 +1286,440 @@ function ClarificationPage() {
   ));
 }
 
+function PreferencesPage() {
+  const state = useLoadable(fetchClientPreferences, []);
+  const [saveState, setSaveState] = useState<Loadable<ClientPreferenceResponse>>({ status: "idle" });
+  const [hiringPreferences, setHiringPreferences] = useState("");
+  const [communicationPreferences, setCommunicationPreferences] = useState("");
+  const [commercialNotes, setCommercialNotes] = useState("");
+
+  useEffect(() => {
+    if (state.status !== "ready") {
+      return;
+    }
+    const byKey = new Map(state.data.preferences.map((item) => [item.preferenceKey, item]));
+    setHiringPreferences(byKey.get("hiring_preferences")?.preferenceValue ?? "");
+    setCommunicationPreferences(byKey.get("communication_preferences")?.preferenceValue ?? "");
+    setCommercialNotes(byKey.get("commercial_notes")?.preferenceValue ?? "");
+  }, [state]);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const preferences: ClientPreferenceItem[] = [
+      { preferenceKey: "hiring_preferences", preferenceValue: hiringPreferences.trim(), notes: null },
+      { preferenceKey: "communication_preferences", preferenceValue: communicationPreferences.trim(), notes: null },
+      { preferenceKey: "commercial_notes", preferenceValue: commercialNotes.trim(), notes: null },
+    ].filter((item) => item.preferenceValue.length > 0);
+    setSaveState({ status: "loading" });
+    setSaveState(await saveClientPreferences(preferences));
+  }
+
+  const resolvedState = saveState.status === "ready" ? saveState : state;
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel shell-header-panel">
+        <span className="portal-eyebrow">Client profile preferences</span>
+        <h2>Preferences</h2>
+        <p className="helper-copy shell-description">
+          Capture durable hiring and communication preferences so consultant work stays aligned with backend-owned truth.
+        </p>
+      </section>
+
+      <section className="portal-panel portal-form-panel">
+        <form className="stack-form" onSubmit={onSubmit}>
+          <label>
+            Hiring preferences
+            <textarea
+              rows={4}
+              value={hiringPreferences}
+              onChange={(event) => setHiringPreferences(event.target.value)}
+              placeholder="Preferred seniority, target profiles, must-have experience, geography, compensation posture"
+            />
+          </label>
+          <label>
+            Communication preferences
+            <textarea
+              rows={4}
+              value={communicationPreferences}
+              onChange={(event) => setCommunicationPreferences(event.target.value)}
+              placeholder="Stakeholders, cadence, approval rhythm, escalation rules"
+            />
+          </label>
+          <label>
+            Commercial notes
+            <textarea
+              rows={4}
+              value={commercialNotes}
+              onChange={(event) => setCommercialNotes(event.target.value)}
+              placeholder="Commercial assumptions, rate expectations, payment guardrails"
+            />
+          </label>
+          <button type="submit">Save preferences</button>
+        </form>
+        {saveState.status !== "idle" && saveState.status !== "loading" && saveState.status !== "ready" ? (
+          <ClientApiState status={saveState.status} error={loadableError(saveState)} />
+        ) : null}
+      </section>
+
+      {resolvedState.status === "ready" ? (
+        <section className="portal-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Current snapshot</span>
+              <h2>Saved preference keys</h2>
+            </div>
+          </div>
+          {resolvedState.data.preferences.length > 0 ? (
+            <KeyValueList
+              items={resolvedState.data.preferences.map((item) => [item.preferenceKey, item.preferenceValue])}
+            />
+          ) : (
+            <ClientSafeState
+              title="No preferences saved yet"
+              tone="neutral"
+              detail="Save at least one preference block to populate the client profile layer."
+            />
+          )}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function ShortlistsPage() {
+  const state = useLoadable(fetchClientShortlists, []);
+
+  return renderLoadable(state, (page) => (
+    <div className="workspace-stack">
+      <section className="portal-panel shell-header-panel">
+        <span className="portal-eyebrow">Client shortlist review</span>
+        <h2>Shortlists</h2>
+        <p className="helper-copy shell-description">
+          Review consultant-sent shortlists, open anonymous candidate cards, and progress unlock or feedback decisions.
+        </p>
+      </section>
+
+      <section className="portal-panel">
+        {page.items.length > 0 ? (
+          <div className="client-action-grid">
+            {page.items.map((shortlist) => (
+              <Link
+                key={shortlist.shortlistId}
+                className="board-action-card"
+                to={`/client/shortlists/${encodeURIComponent(shortlist.shortlistId)}`}
+              >
+                <strong>{shortlist.title}</strong>
+                <span>{shortlist.status}</span>
+                <small>{shortlist.candidateCount} candidates · sent {formatDate(shortlist.sentAt ?? shortlist.createdAt)}</small>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <ClientSafeState
+            title="No client-visible shortlists yet"
+            tone="neutral"
+            detail="Shortlists appear here after consultant send-to-client."
+          />
+        )}
+      </section>
+    </div>
+  ));
+}
+
+function ShortlistDetailPage() {
+  const { shortlistId = "" } = useParams();
+  const [state, setState] = useState<Loadable<ClientShortlistDetail>>({ status: "loading" });
+  const [unlockDrafts, setUnlockDrafts] = useState<Record<string, string>>({});
+  const [unlockResults, setUnlockResults] = useState<Record<string, ClientUnlockRequest>>({});
+  const [feedbackNotes, setFeedbackNotes] = useState<Record<string, string>>({});
+  const [feedbackOutcomes, setFeedbackOutcomes] = useState<Record<string, string>>({});
+  const [feedbackResults, setFeedbackResults] = useState<Record<string, ClientFeedbackResponse>>({});
+  const [busyCardId, setBusyCardId] = useState<string | null>(null);
+
+  async function refresh(markViewed = false) {
+    if (!shortlistId) {
+      setState({ status: "invalid_request", error: "Missing shortlist id." });
+      return;
+    }
+    setState({ status: "loading" });
+    const next = markViewed ? await markClientShortlistViewed(shortlistId) : await fetchClientShortlist(shortlistId);
+    if (next.status === "ready" && !markViewed && next.data.status === "sent_to_client" && !next.data.clientViewedAt) {
+      setState(await markClientShortlistViewed(shortlistId));
+      return;
+    }
+    setState(next);
+  }
+
+  useEffect(() => {
+    void refresh(false);
+  }, [shortlistId]);
+
+  async function handleSelect(card: ClientShortlistCard) {
+    setBusyCardId(card.shortlistCandidateCardId);
+    const result = await selectClientShortlistCandidate(shortlistId, card.shortlistCandidateCardId);
+    setBusyCardId(null);
+    if (result.status === "ready") {
+      await refresh(false);
+    }
+  }
+
+  async function handleUnlock(card: ClientShortlistCard) {
+    const requestReason = (unlockDrafts[card.shortlistCandidateCardId] ?? "").trim();
+    if (!requestReason) {
+      return;
+    }
+    setBusyCardId(card.shortlistCandidateCardId);
+    const result = await createClientUnlockRequest(shortlistId, card.shortlistCandidateCardId, requestReason);
+    setBusyCardId(null);
+    if (result.status === "ready") {
+      setUnlockResults((current) => ({ ...current, [card.shortlistCandidateCardId]: result.data }));
+      await refresh(false);
+    }
+  }
+
+  async function handleFeedback(card: ClientShortlistCard) {
+    const notes = (feedbackNotes[card.shortlistCandidateCardId] ?? "").trim();
+    const outcome = feedbackOutcomes[card.shortlistCandidateCardId] ?? "maybe";
+    if (!notes) {
+      return;
+    }
+    setBusyCardId(card.shortlistCandidateCardId);
+    const result = await submitClientFeedback(shortlistId, card.shortlistCandidateCardId, {
+      outcome,
+      notes,
+      strengths: null,
+      concerns: null,
+      interviewRound: 1,
+      interviewerName: null,
+      interviewerRole: null,
+    });
+    setBusyCardId(null);
+    if (result.status === "ready") {
+      setFeedbackResults((current) => ({ ...current, [card.shortlistCandidateCardId]: result.data }));
+      await refresh(false);
+    }
+  }
+
+  return renderLoadable(state, (shortlist) => (
+    <div className="workspace-stack">
+      <section className="portal-panel shell-header-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Client shortlist detail</span>
+            <h2>{shortlist.title}</h2>
+            <p className="helper-copy shell-description">
+              Stay inside the client-safe boundary while deciding which anonymous candidates to progress.
+            </p>
+          </div>
+          <StatusBadge value={shortlist.status} />
+        </div>
+        <KeyValueList
+          items={[
+            ["Shortlist ID", shortlist.shortlistId],
+            ["Job ID", shortlist.jobId],
+            ["Sent", formatDate(shortlist.sentAt)],
+            ["Viewed", formatDate(shortlist.clientViewedAt)],
+            ["Updated", formatDate(shortlist.updatedAt)],
+          ]}
+        />
+      </section>
+
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Anonymous candidates</span>
+            <h2>Cards on this shortlist</h2>
+          </div>
+          <NavLink className="secondary-link" to="/client/shortlists">
+            Back to shortlists
+          </NavLink>
+        </div>
+        {shortlist.cards.length > 0 ? (
+          <div className="workspace-stack">
+            {shortlist.cards.map((card) => {
+              const selectionAllowed = canClientSelectCandidate(shortlist.status);
+              const unlockEligible = canClientRequestUnlock(shortlist.status, card.status);
+              const interviewFeedbackEligible = canClientSubmitInterviewFeedback(shortlist.status, card.status);
+              const identityAccessStatus = deriveIdentityAccessStatus(shortlist.status, card.approvedDisclosureRecordRef);
+              const unlockBlockedByLifecycle =
+                !canClientSelectCandidate(shortlist.status) && (card.status === "selected" || card.status === "unlocked");
+              return (
+              <article key={card.shortlistCandidateCardId} className="portal-panel client-nested-panel">
+                <div className="section-header">
+                  <div>
+                    <span className="portal-eyebrow">{card.generalizedRoleFamily}</span>
+                    <h3>{card.generalizedHeadline}</h3>
+                  </div>
+                  <StatusBadge value={card.status} />
+                </div>
+                <KeyValueList
+                  items={[
+                    ["Anonymous card", card.anonymousCardRef],
+                    ["Seniority", card.generalizedSeniorityBand],
+                    ["Region", card.generalizedLocationRegion],
+                    ["Confidence", card.confidence],
+                    ["Re-identification risk", card.reidentificationRiskSignal],
+                    ["Unlock request status", card.unlockRequestStatus ?? "not_requested"],
+                    ["Identity access", identityAccessStatus],
+                    ["Unlock decision", card.unlockDecisionRef ?? "not_recorded"],
+                    ["Disclosure record", card.approvedDisclosureRecordRef ?? "not_recorded"],
+                  ]}
+                />
+                <p>{card.safeSummary}</p>
+                <p className="helper-copy">{card.safeSkillSummary}</p>
+                {shouldWarnApprovedWithoutDisclosure(card.unlockRequestStatus, card.approvedDisclosureRecordRef) ? (
+                  <p className="helper-copy">
+                    Unlock approval does not disclose identity until a disclosure record is issued and the shortlist enters contact unlocked.
+                  </p>
+                ) : null}
+                <div className="client-action-grid">
+                  <Link
+                    className="board-action-card"
+                    to={`/client/candidates/${encodeURIComponent(card.anonymousCardRef)}`}
+                  >
+                    <strong>Open anonymous detail</strong>
+                    <span>Inspect the client-safe candidate card.</span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="board-action-card"
+                    onClick={() => void handleSelect(card)}
+                    disabled={!selectionAllowed || busyCardId === card.shortlistCandidateCardId}
+                  >
+                    <strong>Select candidate</strong>
+                    <span>Mark this card for deeper review and unlock handling.</span>
+                  </button>
+                </div>
+                {!selectionAllowed ? (
+                  <p className="helper-copy">
+                    Candidate selection is only available before the shortlist reaches contact unlocked, interviewing, or closed.
+                  </p>
+                ) : null}
+                <label>
+                  Unlock request reason
+                  <textarea
+                    rows={3}
+                    disabled={!unlockEligible}
+                    value={unlockDrafts[card.shortlistCandidateCardId] ?? ""}
+                    onChange={(event) =>
+                      setUnlockDrafts((current) => ({
+                        ...current,
+                        [card.shortlistCandidateCardId]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      unlockEligible
+                        ? "Explain why identity disclosure is required for this candidate."
+                        : unlockBlockedByLifecycle
+                          ? "Unlock requests close after the shortlist reaches contact unlocked, interviewing, or closed."
+                          : "Select this candidate first to enable unlock request."
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleUnlock(card)}
+                  disabled={
+                    !unlockEligible
+                    || busyCardId === card.shortlistCandidateCardId
+                    || !(unlockDrafts[card.shortlistCandidateCardId] ?? "").trim()
+                  }
+                >
+                  Request unlock
+                </button>
+                {!unlockEligible ? (
+                  <p className="helper-copy">
+                    {unlockBlockedByLifecycle
+                      ? "Unlock requests are only available before the shortlist reaches contact unlocked, interviewing, or closed."
+                      : "Select this candidate first before requesting identity unlock."}
+                  </p>
+                ) : null}
+                {unlockResults[card.shortlistCandidateCardId] ? (
+                  <KeyValueList
+                    items={[
+                      ["Latest unlock request", unlockResults[card.shortlistCandidateCardId].clientUnlockRequestId],
+                      ["Request status", unlockResults[card.shortlistCandidateCardId].status],
+                      ["Requested at", formatDate(unlockResults[card.shortlistCandidateCardId].createdAt)],
+                      ["Unlock decision", unlockResults[card.shortlistCandidateCardId].unlockDecisionRef ?? "not_recorded"],
+                      ["Disclosure record", unlockResults[card.shortlistCandidateCardId].approvedDisclosureRecordRef ?? "not_recorded"],
+                    ]}
+                  />
+                ) : null}
+                <label>
+                  Feedback outcome
+                  <select
+                    disabled={!interviewFeedbackEligible}
+                    value={feedbackOutcomes[card.shortlistCandidateCardId] ?? "maybe"}
+                    onChange={(event) =>
+                      setFeedbackOutcomes((current) => ({
+                        ...current,
+                        [card.shortlistCandidateCardId]: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="strong_yes">Strong yes</option>
+                    <option value="yes">Yes</option>
+                    <option value="maybe">Maybe</option>
+                    <option value="weak_no">Weak no</option>
+                    <option value="strong_no">Strong no</option>
+                  </select>
+                </label>
+                <label>
+                  Feedback notes
+                  <textarea
+                    rows={4}
+                    disabled={!interviewFeedbackEligible}
+                    value={feedbackNotes[card.shortlistCandidateCardId] ?? ""}
+                    onChange={(event) =>
+                      setFeedbackNotes((current) => ({
+                        ...current,
+                        [card.shortlistCandidateCardId]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      interviewFeedbackEligible
+                        ? "Structured interview feedback after identity unlock."
+                        : "Interview feedback opens after identity unlock and interview-stage progression."
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleFeedback(card)}
+                  disabled={
+                    !interviewFeedbackEligible
+                    || busyCardId === card.shortlistCandidateCardId
+                    || !(feedbackNotes[card.shortlistCandidateCardId] ?? "").trim()
+                  }
+                >
+                  Submit feedback
+                </button>
+                {!interviewFeedbackEligible ? (
+                  <p className="helper-copy">
+                    Interview feedback is only available after identity unlock, when the shortlist has entered contact unlocked or interviewing.
+                  </p>
+                ) : null}
+                {feedbackResults[card.shortlistCandidateCardId] ? (
+                  <KeyValueList
+                    items={[
+                      ["Feedback outcome", feedbackResults[card.shortlistCandidateCardId].outcome],
+                      ["Feedback created", formatDate(feedbackResults[card.shortlistCandidateCardId].createdAt)],
+                    ]}
+                  />
+                ) : null}
+              </article>
+              );
+            })}
+          </div>
+        ) : (
+          <ClientSafeState title="No shortlist cards available" tone="neutral" />
+        )}
+      </section>
+    </div>
+  ));
+}
+
 function ClientSafeCandidateCardPage() {
   const { anonymousCardRef = "" } = useParams();
   const decodedCardRef = useMemo(() => {
@@ -1244,8 +1768,8 @@ function ClientSafeCandidateCardPage() {
             <span className="portal-eyebrow">Shortlist preview</span>
             <h2>Client-safe anonymous candidate card</h2>
           </div>
-          <NavLink to="/client" className="secondary-link">
-            Back to dashboard
+          <NavLink to="/client/shortlists" className="secondary-link">
+            Back to shortlists
           </NavLink>
         </div>
       </section>
@@ -1357,9 +1881,13 @@ export function ClientPortal() {
       <Routes>
         <Route index element={<DashboardPage session={session} />} />
         <Route path="company-profile" element={<CompanyProfilePage />} />
+        <Route path="preferences" element={<PreferencesPage />} />
         <Route path="jobs/new" element={<NewJobPage />} />
         <Route path="jobs/:jobId" element={<JobStatusPage />} />
         <Route path="jobs/:jobId/clarification" element={<ClarificationPage />} />
+        <Route path="shortlists" element={<ShortlistsPage />} />
+        <Route path="shortlists/:shortlistId" element={<ShortlistDetailPage />} />
+        <Route path="candidates/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
         <Route path="candidate-cards/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
         <Route path="*" element={<Navigate to="/client" replace />} />
       </Routes>

@@ -10,7 +10,7 @@
   - No SSO/OIDC/external identity provider integration exists yet.
   - No password reset, MFA, email verification, lockout, or auth-audit hardening flow exists yet.
 
-## Task 18C Consultant Shortlist CRUD + Sub-entity CREATE Complete; UPDATE/DELETE and Client Portal Deferred
+## Task 18C Consultant Shortlist CRUD + Sub-entity CREATE Complete; UPDATE/DELETE and Broader Write Breadth Deferred
 
 - Task 18C completes the Consultant write API surface by adding Shortlist CREATE and UPDATE endpoints (with optimistic locking), plus CompanyContact, JobRequirement, and JobScorecard CREATE endpoints as sub-resources.
 - `ShortlistPersistencePort.update()` and `JdbcShortlistPersistencePort.update()` with optimistic-locking JDBC implementation (`WHERE organization_id = ? AND version = ?`, `SET version = version + 1`).
@@ -26,13 +26,13 @@
   - No UPDATE endpoints for sub-entities (CompanyContact, JobRequirement, JobScorecard). Sub-entities can only be created, not modified.
   - No DELETE endpoints for any Consultant resource (Company, Job, Shortlist, or any sub-entity).
   - No Soft-delete or archive behavior for any entity.
-  - No Client-portal endpoints (read or write).
+  - Client portal write/read endpoints now exist through Tasks 25 and 32; the remaining gap is broader portal/API breadth, not total absence of client endpoints.
   - No Candidate/CandidateProfile write endpoints.
   - No batch operations.
   - No filtering/search on write responses.
--  - Real auth/login/session/Spring Security now exists, product endpoints are on JWT-backed `SecurityContext`, and Task 19C closes the current baseline hardening slice; remaining auth work is now longer-horizon identity capability backlog.
+  - Real auth/login/session/Spring Security now exists, product endpoints are on JWT-backed `SecurityContext`, and Task 19C closes the current baseline hardening slice; remaining auth work is now longer-horizon identity capability backlog.
 
-## Task 29 Shortlist Builder v1 Complete; Client Review and Delivery Execution Deferred
+## Task 29 Shortlist Builder v1 Complete; Client Review Complete, Delivery Execution Deferred
 
 - Task 29 closes the first consultant-side shortlist builder/send slice on top of Task 18C shortlist CRUD and Task 27 match reports.
 - `ShortlistBuilderService` now composes shortlist state, shortlist cards, pre-send checks, and delivery preview placeholders.
@@ -47,9 +47,9 @@
 - Workflow audit coverage now exists for shortlist draft creation, ready-for-review promotion, return-to-draft rollback, candidate shortlisted, shortlist card remove/restore, shortlist send, and job shortlist progression.
 - Consultant workflow timeline/audit drawer now renders shortlist card composition transitions from `cardStatus` when the top-level shortlist status is unchanged, so remove/restore events no longer collapse into no-op-looking `draft -> draft` labels.
 - Remaining gaps:
-  - No client portal shortlist review, unlock request, or shortlist feedback flow yet; that remains Task 32 scope.
+  - Client portal shortlist review, unlock request capture, and shortlist feedback now exist through Task 32; final identity disclosure release and approval workflow still remain Task 33 scope.
   - No real PDF/email/WeChat delivery execution yet; Task 29 only ships safe preview/placeholder content and status progression.
-  - Task 30 hardening now routes shortlist send re-evaluation and the audited client-safe query path through `RedactionAuditService`, but client portal shortlist review/unlock UX and real outbound delivery execution still remain deferred.
+  - Task 30 hardening now routes shortlist send re-evaluation and the audited client-safe query path through `RedactionAuditService`; real outbound delivery execution still remains deferred.
 
 ## Task 30 Privacy Redaction and Re-identification v1 Complete; Calibration and Admin Tooling Deferred
 
@@ -139,7 +139,7 @@
   - real pack key/maturity/selection-reason metadata on stored match reports
   - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
   - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
-- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no client-facing shortlist review/unlock flow, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice.
+- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no final identity-disclosed shortlist release path, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
@@ -421,4 +421,4 @@
 - 14 new @WebMvcTest write-operation cases in `ConsultantControllerLeakageTest` covering role/org header enforcement, success paths (201/200), and invalid payload (400).
 - 5 new PostgreSQL/Testcontainers integration tests in `ConsultantWriteOrgIsolationIntegrationTest` proving organization-scoped isolation (cross-org read/update denied) and optimistic locking (wrong version fails, correct version succeeds and increments).
 - Full Maven backend reached 622 tests, 0 failures/errors, 1 existing skip.
-- Remaining gaps: no DELETE endpoints, no Shortlist write endpoints, no Client-portal write endpoints, no Candidate/CandidateProfile write endpoints, no batch operations.
+- Remaining gaps: no DELETE endpoints, no Candidate/CandidateProfile write endpoints, and no batch operations. Later Task 18C closes shortlist write endpoints, and Tasks 25/32 add the current client-portal write surface.

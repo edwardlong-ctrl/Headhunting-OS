@@ -536,7 +536,7 @@ public final class ApiBoundaryContractRules {
         .toList();
   }
 
-  static String requireApiSafeExternalText(String value, String fieldName) {
+  public static String requireApiSafeExternalText(String value, String fieldName) {
     String stripped = requireNonBlank(value, fieldName);
     if (containsInternalLeakage(stripped)) {
       throw new IllegalArgumentException(fieldName + " must not contain unsafe API-visible text");
@@ -573,7 +573,7 @@ public final class ApiBoundaryContractRules {
     return normalized;
   }
 
-  static String sanitizeExternalText(String value, String fallback) {
+  public static String sanitizeExternalText(String value, String fallback) {
     if (value == null || value.isBlank()) {
       return fallback;
     }

@@ -63,7 +63,7 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.SHORTLIST_SENT_TO_CLIENT, Set.of("ready_for_review"), "sent_to_client"),
           rule(WorkflowActionCode.SHORTLIST_VIEWED_BY_CLIENT, Set.of("sent_to_client"), "client_viewed"),
           rule(WorkflowActionCode.SHORTLIST_CLIENT_FEEDBACK_PENDING, Set.of("client_viewed"), "client_feedback_pending"),
-          rule(WorkflowActionCode.SHORTLIST_CANDIDATE_SELECTED, Set.of("client_feedback_pending", "sent_to_client"), "candidate_selected"),
+          rule(WorkflowActionCode.SHORTLIST_CANDIDATE_SELECTED, Set.of("client_feedback_pending", "client_viewed"), "candidate_selected"),
           rule(WorkflowActionCode.SHORTLIST_CONTACT_UNLOCKED, Set.of("candidate_selected"), "contact_unlocked"),
           rule(WorkflowActionCode.SHORTLIST_CLOSED, Set.of("ready_for_review", "sent_to_client", "client_viewed", "client_feedback_pending", "candidate_selected", "contact_unlocked", "interviewing"), "closed"),
           rule(WorkflowActionCode.CONSENT_REQUESTED, Set.of("not_requested"), "requested"),

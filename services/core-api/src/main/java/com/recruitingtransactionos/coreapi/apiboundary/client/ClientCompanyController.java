@@ -23,6 +23,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -64,6 +65,31 @@ public final class ClientCompanyController {
         principal.userAccountId(),
         request);
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponseEnvelope.success(response));
+  }
+
+  @GetMapping("/preferences")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> getPreferences(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireClientRole(principal.portalRole());
+    return queryService.getPreferences(
+            buildAccessRequest(AccessAction.READ),
+            principal.organizationId(),
+            principal.userAccountId())
+        .map(response -> ResponseEntity.ok(ApiResponseEnvelope.<ApiSafeResponseBody>success(response)))
+        .orElseGet(ClientCompanyController::notFound);
+  }
+
+  @PutMapping("/preferences")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> upsertPreferences(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestBody ClientPreferenceUpsertRequest request) {
+    requireClientRole(principal.portalRole());
+    var response = commandService.upsertPreferences(
+        buildAccessRequest(AccessAction.UPDATE),
+        principal.organizationId(),
+        principal.userAccountId(),
+        request);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(response));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

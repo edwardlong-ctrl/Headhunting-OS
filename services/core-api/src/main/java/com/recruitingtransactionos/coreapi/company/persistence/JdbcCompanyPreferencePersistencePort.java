@@ -1,5 +1,6 @@
 package com.recruitingtransactionos.coreapi.company.persistence;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
 import com.recruitingtransactionos.coreapi.company.CompanyPreference;
 import com.recruitingtransactionos.coreapi.company.CompanyPreferenceId;
@@ -18,6 +19,8 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcCompanyPreferencePersistencePort implements CompanyPreferencePersistencePort {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private static final String UPSERT_SQL = """
       INSERT INTO recruiting.company_preference (
         company_preference_id, organization_id, company_id,
@@ -33,7 +36,12 @@ public final class JdbcCompanyPreferencePersistencePort implements CompanyPrefer
 
   private static final String FIND_BY_COMPANY_SQL = """
       SELECT company_preference_id, organization_id, company_id,
-        preference_key, preference_value::text AS preference_value, notes,
+        preference_key,
+        CASE
+          WHEN jsonb_typeof(preference_value) = 'string' THEN preference_value #>> '{}'
+          ELSE preference_value::text
+        END AS preference_value,
+        notes,
         created_at, updated_at, version
       FROM recruiting.company_preference
       WHERE organization_id = ? AND company_id = ?
@@ -55,7 +63,7 @@ public final class JdbcCompanyPreferencePersistencePort implements CompanyPrefer
       statement.setObject(2, preference.organizationId());
       statement.setObject(3, preference.companyId().value());
       statement.setString(4, preference.preferenceKey());
-      statement.setString(5, preference.preferenceValue());
+      statement.setString(5, toJsonbLiteral(preference.preferenceValue()));
       statement.setString(6, preference.notes());
       statement.executeUpdate();
       return preference;
@@ -102,5 +110,18 @@ public final class JdbcCompanyPreferencePersistencePort implements CompanyPrefer
         .updatedAt(rs.getObject("updated_at", OffsetDateTime.class).toInstant())
         .version(rs.getInt("version"))
         .build();
+  }
+
+  private static String toJsonbLiteral(String value) {
+    try {
+      OBJECT_MAPPER.readTree(value);
+      return value;
+    } catch (Exception ignored) {
+      try {
+        return OBJECT_MAPPER.writeValueAsString(value);
+      } catch (Exception exception) {
+        throw new IllegalArgumentException("Failed to serialize company preference value", exception);
+      }
+    }
   }
 }
