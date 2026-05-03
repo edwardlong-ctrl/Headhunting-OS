@@ -11,16 +11,17 @@ import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientSafeCandid
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ClientVisibleCandidateFieldPolicy;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.InternalCandidateProjectionSnapshot;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
-import com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessmentService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,8 +30,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 
-@Deprecated(forRemoval = true)
-final class PostgresClientSafeCandidateCardQueryPort
+public final class AuditedPostgresClientSafeCandidateCardQueryPort
     implements ClientSafeCandidateCardQueryPort {
 
   private static final String PROJECTION_METADATA_KEY =
@@ -63,25 +63,17 @@ final class PostgresClientSafeCandidateCardQueryPort
 
   private final DataSource dataSource;
   private final ClientSafeCandidateProjectionService projectionService;
-  private final ReidentificationRiskAssessmentService reidentificationRiskAssessmentService;
+  private final RedactionAuditService redactionAuditService;
 
-  public PostgresClientSafeCandidateCardQueryPort(DataSource dataSource) {
-    this(
-        dataSource,
-        new ClientSafeCandidateProjectionService(),
-        new ReidentificationRiskAssessmentService());
-  }
-
-  PostgresClientSafeCandidateCardQueryPort(
+  AuditedPostgresClientSafeCandidateCardQueryPort(
       DataSource dataSource,
       ClientSafeCandidateProjectionService projectionService,
-      ReidentificationRiskAssessmentService reidentificationRiskAssessmentService) {
+      RedactionAuditService redactionAuditService) {
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
-    this.projectionService =
-        Objects.requireNonNull(projectionService, "projectionService must not be null");
-    this.reidentificationRiskAssessmentService = Objects.requireNonNull(
-        reidentificationRiskAssessmentService,
-        "reidentificationRiskAssessmentService must not be null");
+    this.projectionService = Objects.requireNonNull(
+        projectionService, "projectionService must not be null");
+    this.redactionAuditService = Objects.requireNonNull(
+        redactionAuditService, "redactionAuditService must not be null");
   }
 
   @Override
@@ -102,7 +94,7 @@ final class PostgresClientSafeCandidateCardQueryPort
         if (resultSet.next()) {
           return Optional.empty();
         }
-        return project(cardId, row);
+        return project(scope, cardId, row);
       }
     } catch (IllegalArgumentException | IllegalStateException | JsonProcessingException
         | SQLException exception) {
@@ -125,16 +117,38 @@ final class PostgresClientSafeCandidateCardQueryPort
   }
 
   private Optional<ClientSafeCandidateCard> project(
+      ClientSafeCandidateCardQueryScope scope,
       AnonymousCandidateCardId cardId,
       ProjectionRow row) throws JsonProcessingException {
     ProjectionDocument document = OBJECT_MAPPER.readValue(
         row.projectionJson(),
         ProjectionDocument.class);
     InternalCandidateProjectionSnapshot snapshot = document.toSnapshot(cardId, row);
+    RedactionAuditService.RedactionAuditResult auditResult = redactionAuditService.evaluate(
+        new RedactionAuditService.RedactionAuditRequest(
+            scope.organizationId(),
+            assessmentRef(cardId),
+            row.candidateId().toString(),
+            null,
+            snapshot,
+            scope.actorId(),
+            scope.actorRole(),
+            "client_safe_candidate_card_query",
+            "client-safe candidate card queried",
+            Instant.now()));
+    if (auditResult.blocked()) {
+      return Optional.empty();
+    }
     return Optional.of(projectionService.project(
         CLIENT_SAFE_READ_ACCESS,
-        snapshot,
-        reidentificationRiskAssessmentService.assess(snapshot)));
+        auditResult.redactedSnapshot()));
+  }
+
+  private static String assessmentRef(AnonymousCandidateCardId cardId) {
+    return "client_safe_query_"
+        + cardId.value()
+        + "_"
+        + UUID.randomUUID().toString().replace("-", "");
   }
 
   private static ProjectionRow projectionRow(ResultSet resultSet) throws SQLException {

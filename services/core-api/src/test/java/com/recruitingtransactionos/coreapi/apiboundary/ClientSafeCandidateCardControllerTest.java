@@ -57,6 +57,8 @@ class ClientSafeCandidateCardControllerTest {
       "/api/client-safe/candidate-cards/card_task9b_0001";
   private static final String ORGANIZATION_ID =
       "00000000-0000-0000-0000-0000009b0003";
+  private static final String USER_ACCOUNT_ID =
+      "00000000-0000-0000-0000-0000009b0004";
 
   private static final String RAW_CANDIDATE_ID =
       "00000000-0000-0000-0000-0000009b0001";
@@ -135,7 +137,7 @@ class ClientSafeCandidateCardControllerTest {
     assertThat(queryPort.calls).isEqualTo(1);
     assertThat(queryPort.lastCardId).isEqualTo(AnonymousCandidateCardId.of("card_task9b_0001"));
     assertThat(queryPort.lastScope).isEqualTo(
-        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID)));
+        ClientSafeCandidateCardQueryScope.of(java.util.UUID.fromString(ORGANIZATION_ID), java.util.UUID.fromString(USER_ACCOUNT_ID), com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole.CLIENT));
   }
 
   @Test
@@ -422,11 +424,11 @@ class ClientSafeCandidateCardControllerTest {
         portalRole = PortalRole.CONSULTANT;
     }
     RtoAuthenticatedPrincipal principal = new RtoAuthenticatedPrincipal(
-        UUID.randomUUID(),
+        UUID.fromString(USER_ACCOUNT_ID),
         UUID.fromString(ORGANIZATION_ID),
         portalRole,
         "Test User",
-        UUID.randomUUID()
+        UUID.fromString(USER_ACCOUNT_ID)
     );
     return new RtoAuthenticationToken(principal);
   }

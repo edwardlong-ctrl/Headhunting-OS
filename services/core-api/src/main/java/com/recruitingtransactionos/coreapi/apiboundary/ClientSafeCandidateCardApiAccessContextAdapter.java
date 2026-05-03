@@ -8,9 +8,8 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
-import java.util.Locale;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import java.util.Set;
-import java.util.UUID;
 
 final class ClientSafeCandidateCardApiAccessContextAdapter {
 
@@ -37,12 +36,29 @@ final class ClientSafeCandidateCardApiAccessContextAdapter {
   }
 
   static ClientSafeCandidateCardQueryScope queryScopeFromPrincipal(RtoAuthenticatedPrincipal principal) {
-    if (principal == null || principal.organizationId() == null) {
+    if (principal == null || principal.organizationId() == null || principal.userAccountId() == null) {
       throw denied(
           "api_access_context_required",
           "Access context is required.");
     }
-    return ClientSafeCandidateCardQueryScope.of(principal.organizationId());
+    return ClientSafeCandidateCardQueryScope.of(
+        principal.organizationId(),
+        principal.userAccountId(),
+        actorRole(principal.portalRole()));
+  }
+
+  private static ActorRole actorRole(PortalRole portalRole) {
+    return switch (portalRole) {
+      case OWNER -> ActorRole.OWNER;
+      case CONSULTANT -> ActorRole.CONSULTANT;
+      case CLIENT -> ActorRole.CLIENT;
+      case CANDIDATE -> ActorRole.CANDIDATE;
+      case ADMIN -> ActorRole.ADMIN;
+      case SYSTEM, AI_ASSISTANT -> ActorRole.SYSTEM;
+      case UNKNOWN -> throw denied(
+          "api_access_context_required",
+          "Access context is required.");
+    };
   }
 
   private static AccessDeniedException denied(String reasonCode, String safeExplanation) {

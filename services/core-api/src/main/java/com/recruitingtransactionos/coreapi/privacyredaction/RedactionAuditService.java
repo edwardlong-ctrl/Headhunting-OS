@@ -55,17 +55,32 @@ public final class RedactionAuditService {
   private final ReidentificationRiskAssessmentService assessmentService;
   private final ReidentificationRiskAssessmentPort assessmentPort;
   private final WorkflowEventService workflowEventService;
+  private final RedactionAuditTransactionBoundary transactionBoundary;
 
   public RedactionAuditService(
       ReidentificationRiskAssessmentService assessmentService,
       ReidentificationRiskAssessmentPort assessmentPort,
       WorkflowEventService workflowEventService) {
+    this(
+        assessmentService,
+        assessmentPort,
+        workflowEventService,
+        RedactionAuditTransactionBoundary.immediate());
+  }
+
+  public RedactionAuditService(
+      ReidentificationRiskAssessmentService assessmentService,
+      ReidentificationRiskAssessmentPort assessmentPort,
+      WorkflowEventService workflowEventService,
+      RedactionAuditTransactionBoundary transactionBoundary) {
     this.assessmentService = Objects.requireNonNull(
         assessmentService, "assessmentService must not be null");
     this.assessmentPort = Objects.requireNonNull(
         assessmentPort, "assessmentPort must not be null");
     this.workflowEventService = Objects.requireNonNull(
         workflowEventService, "workflowEventService must not be null");
+    this.transactionBoundary = Objects.requireNonNull(
+        transactionBoundary, "transactionBoundary must not be null");
   }
 
   /**
@@ -97,47 +112,36 @@ public final class RedactionAuditService {
   public RedactionAuditResult evaluate(RedactionAuditRequest request) {
     Objects.requireNonNull(request, "request must not be null");
 
-    ReidentificationRiskAssessmentService.PipelineResult pipelineResult =
-        assessmentService.assessWithPipeline(request.snapshot());
+    return transactionBoundary.run(() -> {
+      ReidentificationRiskAssessmentService.PipelineResult pipelineResult =
+          assessmentService.assessWithPipeline(request.snapshot());
 
-    boolean blocked =
-        pipelineResult.assessment().decision() == ReidentificationRiskDecision.BLOCK;
+      boolean blocked =
+          pipelineResult.assessment().decision() == ReidentificationRiskDecision.BLOCK;
 
-    PersistedReidentificationRiskAssessment toPersist =
-        new PersistedReidentificationRiskAssessment(
-            request.reidentificationRiskAssessmentRef(),
-            request.organizationId(),
-            request.candidateRef(),
-            request.jobRef(),
-            pipelineResult.assessment(),
-            Optional.empty(),
-            request.occurredAt());
+      WorkflowEventAppendCommand command = buildAuditCommand(
+          request,
+          pipelineResult,
+          blocked);
+      WorkflowEventAppendResult appendResult = workflowEventService.append(command);
+      WorkflowEventId workflowEventId = appendResult.workflowEventId();
 
-    PersistedReidentificationRiskAssessment persisted =
-        assessmentPort.append(toPersist);
+      PersistedReidentificationRiskAssessment persisted =
+          assessmentPort.append(new PersistedReidentificationRiskAssessment(
+              request.reidentificationRiskAssessmentRef(),
+              request.organizationId(),
+              request.candidateRef(),
+              request.jobRef(),
+              pipelineResult.assessment(),
+              Optional.of(workflowEventId),
+              request.occurredAt()));
 
-    WorkflowEventAppendCommand command = buildAuditCommand(
-        request,
-        pipelineResult,
-        blocked);
-    WorkflowEventAppendResult appendResult = workflowEventService.append(command);
-    WorkflowEventId workflowEventId = appendResult.workflowEventId();
-
-    PersistedReidentificationRiskAssessment finalRecord =
-        new PersistedReidentificationRiskAssessment(
-            persisted.reidentificationRiskAssessmentRef(),
-            persisted.organizationId(),
-            persisted.candidateRef(),
-            persisted.jobRef(),
-            persisted.assessment(),
-            Optional.of(workflowEventId),
-            persisted.recordedAt());
-
-    return new RedactionAuditResult(
-        finalRecord,
-        workflowEventId,
-        pipelineResult.pipeline().redactedSnapshot(),
-        blocked);
+      return new RedactionAuditResult(
+          persisted,
+          workflowEventId,
+          pipelineResult.pipeline().redactedSnapshot(),
+          blocked);
+    });
   }
 
   private WorkflowEventAppendCommand buildAuditCommand(

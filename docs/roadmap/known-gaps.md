@@ -32,7 +32,7 @@
   - No filtering/search on write responses.
 -  - Real auth/login/session/Spring Security now exists, product endpoints are on JWT-backed `SecurityContext`, and Task 19C closes the current baseline hardening slice; remaining auth work is now longer-horizon identity capability backlog.
 
-## Task 29 Shortlist Builder v1 Complete; Client Review and Real Privacy Hardening Deferred
+## Task 29 Shortlist Builder v1 Complete; Client Review and Delivery Execution Deferred
 
 - Task 29 closes the first consultant-side shortlist builder/send slice on top of Task 18C shortlist CRUD and Task 27 match reports.
 - `ShortlistBuilderService` now composes shortlist state, shortlist cards, pre-send checks, and delivery preview placeholders.
@@ -49,9 +49,9 @@
 - Remaining gaps:
   - No client portal shortlist review, unlock request, or shortlist feedback flow yet; that remains Task 32 scope.
   - No real PDF/email/WeChat delivery execution yet; Task 29 only ships safe preview/placeholder content and status progression.
-  - The Task 30 `RedactionAuditService` now provides a real persistence-backed re-identification gate, but `ShortlistBuilderService.projectAnonymousCard()` and `PostgresClientSafeCandidateCardQueryPort` are not yet wired through it (see "Task 30 Privacy Redaction and Re-identification v1 Complete; Call-Site Wiring Deferred" below).
+  - Task 30 hardening now routes shortlist send re-evaluation and the audited client-safe query path through `RedactionAuditService`, but client portal shortlist review/unlock UX and real outbound delivery execution still remain deferred.
 
-## Task 30 Privacy Redaction and Re-identification v1 Complete; Call-Site Wiring Deferred
+## Task 30 Privacy Redaction and Re-identification v1 Complete; Calibration and Admin Tooling Deferred
 
 - Task 30 closes the privacy-kernel slice of the v2.1 anonymity-by-default invariant.
 - New baseline:
@@ -66,9 +66,10 @@
   - New `privacyredaction` package with `ReidentificationRiskAssessmentPort` + `JdbcReidentificationRiskAssessmentPort`, `PersistedReidentificationRiskAssessment`, `RedactionAuditService` (orchestrator), `RedactionAuditWorkflowEntityIds`, and `PrivacyRedactionConfiguration`.
   - Two new workflow action codes: `REIDENTIFICATION_RISK_ASSESSED` (T2 audit-only) and `CLIENT_SAFE_REDACTION_BLOCKED` (T2 audit-only). New entity type `REIDENTIFICATION_ASSESSMENT`.
   - The spec acceptance scenario "top chip company + unique title + exact year + chip code name" is covered end-to-end by `RedactionAuditPostgresIntegrationTest` (Testcontainers Postgres, V1-V25 applied) and proves BLOCK + HIGH risk + employer/chip generalization + per-organization scope.
+- Current completed baseline:
+  - `RedactionAuditService` is now wired into `ShortlistBuilderService` send-time re-evaluation and the Spring-managed audited client-safe query path, so both surfaces persist `privacy.reidentification_risk_assessment` rows and emit workflow audit events before client delivery.
+  - The assessment/workflow-event write path now runs inside a dedicated Spring transaction boundary, and persisted assessments store the linked `workflow_event_id`.
 - Remaining gaps:
-  - `RedactionAuditService` is not yet wired into `ShortlistBuilderService.projectAnonymousCard()`. Today the shortlist builder still uses string templating and the carryover `reidentificationRiskSignal` from the match report instead of the new audit-trailed gate.
-  - `RedactionAuditService` is not yet wired into `PostgresClientSafeCandidateCardQueryPort`. Today the query port still calls `ReidentificationRiskAssessmentService.assess(snapshot)` without persisting the assessment or emitting an audit event.
   - The curated company / chip vocabulary is intentionally narrow; v1 prioritizes the acceptance scenario. Production rollout will need a maintained vocabulary pack — likely as part of the industry-pack baseline (Task 28 follow-up).
   - The risk score is hand-curated weights, not a learned classifier. v1 chose policy-as-code for explainability and audit; a future task may introduce calibrated scoring once outcome-label feedback is available.
   - No admin UI exists for browsing / re-querying persisted assessments. The Postgres rows + `findRecentByCandidateCardId` are sufficient for backend tooling but not for consultant or admin self-service review.
@@ -153,7 +154,7 @@
 - Task 7C covers required unsafe categories: exact company + rare title + exact year, exact current employer, exact project/product/chip code name, public identifier before consent, exact location/address, direct contact/profile URL, small-team unique ownership claim, and overly specific identifying achievement number.
 - Task 7C high-risk or L4 assessments cannot be treated as safe anonymous client output.
 - Task 7 is complete only for the current backend kernel scope: client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative tests, and re-identification placeholder.
-- No API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real redaction pipeline, automatic text rewriting, database migration, AI/model wiring, or real identity disclosure behavior exists from Task 7C.
+- Task 7C by itself did not add API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, database migration, AI/model wiring, or identity disclosure behavior. Later Task 30 adds a real deterministic redaction pipeline plus persisted re-identification audit, while broader UI/disclosure/productization still remains deferred.
 
 ## Canonical Persistence Minimal Path Exists; Metadata Hardened; Full Profile Deferred
 
@@ -297,8 +298,8 @@
 - Task 7B adds a minimal backend projection service/read model that returns only `ClientSafeCandidateCard`.
 - Task 7B does not add client-facing serialization, API, controller, UI, RBAC/ABAC, Consent, Disclosure, Unlock, identity disclosure, database migration, or AI/model wiring.
 - Task 7C adds only a deterministic placeholder for re-identification assessment; it does not perform real scoring.
-- No real redaction implementation exists yet.
-- Real re-identification risk scoring does not exist yet.
+- No broad redaction implementation exists beyond the current deterministic client-safe summary pipeline and its shortlist/query integrations.
+- No learned or calibrated re-identification scoring exists yet; the current scorer is deterministic and policy-coded.
 
 ## Task 8 Identity Access Kernel Exists for Current Backend Scope
 
@@ -370,7 +371,7 @@
 - No API/controller/UI integration exists for CandidateProfile.
 - No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
 - No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
-- No broad client-safe product UI or real redaction behavior exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, and Task 9B/13B together provide only the existing narrow endpoint behind it.
+- No broad client-safe product UI exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, while Task 30 hardening now adds real backend redaction behavior behind the shortlist send and client-safe candidate-card query paths.
 - No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the narrowed Task 23 existing-target candidate publish path and Task 6E metadata hardening; broad profile CRUD/update surfaces still do not exist.
 
 ## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening RESOLVED (V12)

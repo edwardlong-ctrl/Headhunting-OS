@@ -7,6 +7,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventServi
 import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * Spring wiring for Task 30 privacy redaction.
@@ -25,13 +26,21 @@ public class PrivacyRedactionConfiguration {
   }
 
   @Bean
+  RedactionAuditTransactionBoundary redactionAuditTransactionBoundary(
+      PlatformTransactionManager transactionManager) {
+    return new SpringRedactionAuditTransactionBoundary(transactionManager);
+  }
+
+  @Bean
   RedactionAuditService redactionAuditService(
       ReidentificationRiskAssessmentService reidentificationRiskAssessmentService,
       ReidentificationRiskAssessmentPort reidentificationRiskAssessmentPort,
-      WorkflowEventService workflowEventService) {
+      WorkflowEventService workflowEventService,
+      RedactionAuditTransactionBoundary transactionBoundary) {
     return new RedactionAuditService(
         reidentificationRiskAssessmentService,
         reidentificationRiskAssessmentPort,
-        workflowEventService);
+        workflowEventService,
+        transactionBoundary);
   }
 }

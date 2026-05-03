@@ -91,8 +91,9 @@ placeholder and regression closure. Task 7 is complete only for the current
 backend kernel scope: client-safe contract, forbidden-field policy, L0-L4
 vocabulary, projection/read-model boundary, raw exposure negative tests, and
 re-identification placeholder. There is still no REST/API/controller/DTO/UI,
-RBAC/ABAC, Consent/Disclosure/Unlock, real re-identification scorer, real
-redaction pipeline, automatic text rewriting, or identity disclosure behavior.
+RBAC/ABAC, Consent/Disclosure/Unlock, learned/calibrated re-identification
+scorer, broad redaction pipeline beyond the current deterministic client-safe
+summary path, automatic text rewriting, or identity disclosure behavior.
 
 Task 8: Identity / RBAC / ABAC Kernel ✅
 
