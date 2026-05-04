@@ -8,16 +8,18 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateDocumentSummaryResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.CandidateFollowUpFormResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateMeResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.CandidateOpportunityDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateOpportunityResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateProfileReviewResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateTimelineResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantDocumentUploadResponse;
-import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
 import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
 import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
@@ -77,9 +79,9 @@ class CandidatePortalControllerTest {
 
   @Test
   void meReturnsCandidateSummary() throws Exception {
-    when(portalQueryService.buildMe(eq(ORG_ID), eq(USER_ID)))
+    when(portalQueryService.buildMe(eq(ORG_ID), eq(USER_ID), eq("Alice")))
         .thenReturn(new CandidateMeResponse(
-            USER_ID.toString(), "Alice Chen", ORG_ID.toString(), "3", 2, 1, 0));
+            USER_ID.toString(), "Alice Chen", ORG_ID.toString(), "3", 2, 1, 2));
 
     mockMvc.perform(get("/api/candidate/me")
             .with(authentication(auth(PortalRole.CANDIDATE, USER_ID))))
@@ -88,7 +90,8 @@ class CandidatePortalControllerTest {
         .andExpect(jsonPath("$.data.displayName").value("Alice Chen"))
         .andExpect(jsonPath("$.data.currentProfileVersion").value("3"))
         .andExpect(jsonPath("$.data.documentCount").value(2))
-        .andExpect(jsonPath("$.data.activeOpportunityCount").value(1));
+        .andExpect(jsonPath("$.data.activeOpportunityCount").value(1))
+        .andExpect(jsonPath("$.data.pendingFollowUpCount").value(2));
   }
 
   // === profile endpoint ===
@@ -132,6 +135,89 @@ class CandidatePortalControllerTest {
         .andExpect(jsonPath("$.data.profileVersion").value("3"))
         .andExpect(jsonPath("$.data.fields[0].fieldPath").value("profile.headline"))
         .andExpect(jsonPath("$.data.fields[0].jsonValue").value("\"Senior Verification Engineer\""));
+  }
+
+  @Test
+  void confirmProfileReturnsUpdatedReview() throws Exception {
+    when(portalQueryService.confirmProfileFields(eq(ORG_ID), eq(USER_ID.toString()), eq(USER_ID), eq("profile.headline")))
+        .thenReturn(new CandidateProfileReviewResponse(
+            USER_ID.toString(),
+            "3",
+            List.of(new CandidateProfileReviewResponse.ProfileField(
+                "profile.headline",
+                "\"Senior Verification Engineer\"",
+                "candidate_confirmed",
+                "ai_extracted",
+                "2026-05-04T00:00:00Z"))));
+
+    mockMvc.perform(post("/api/candidate/profile/{candidateRef}/confirm", USER_ID)
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"fieldPath":"profile.headline"}
+                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.fields[0].status").value("candidate_confirmed"));
+  }
+
+  @Test
+  void confirmProfileRejectsMissingFieldPath() throws Exception {
+    mockMvc.perform(post("/api/candidate/profile/{candidateRef}/confirm", USER_ID)
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {}
+                """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.errorCode").value("validation_failed"));
+  }
+
+  @Test
+  void followUpReturnsSelfScopedForm() throws Exception {
+    when(portalQueryService.buildFollowUpForm(eq(ORG_ID), eq(USER_ID.toString()), eq("current-profile")))
+        .thenReturn(new CandidateFollowUpFormResponse(
+            USER_ID.toString(),
+            "current-profile",
+            "7",
+            List.of(new CandidateFollowUpFormResponse.FollowUpItem(
+                "availability.notice_period",
+                "Please confirm your current notice period or earliest start date.",
+                "text",
+                "30 days",
+                "stale",
+                "ai_extracted",
+                "2026-05-04T00:00:00Z"))));
+
+    mockMvc.perform(get("/api/candidate/follow-up/{candidateRef}/{formId}", USER_ID, "current-profile")
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.formId").value("current-profile"))
+        .andExpect(jsonPath("$.data.items[0].fieldPath").value("availability.notice_period"));
+  }
+
+  @Test
+  void submitFollowUpReturnsUpdatedForm() throws Exception {
+    when(portalQueryService.submitFollowUpAnswer(
+        eq(ORG_ID),
+        eq(USER_ID.toString()),
+        eq(USER_ID),
+        eq("current-profile"),
+        eq("availability.notice_period"),
+        eq("Immediate")))
+        .thenReturn(new CandidateFollowUpFormResponse(
+            USER_ID.toString(),
+            "current-profile",
+            "7",
+            List.of()));
+
+    mockMvc.perform(post("/api/candidate/follow-up/{candidateRef}/{formId}/submit", USER_ID, "current-profile")
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"fieldPath":"availability.notice_period","answer":"Immediate"}
+                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items").isArray());
   }
 
   // === documents endpoint ===
@@ -188,13 +274,97 @@ class CandidatePortalControllerTest {
     when(portalQueryService.listOpportunities(eq(ORG_ID), eq(USER_ID)))
         .thenReturn(List.of(
             new CandidateOpportunityResponse(
-                UUID.randomUUID().toString(), "Principal Engineer", "TechCorp", "active", "interview_scheduled", Instant.now(), Instant.now())));
+                UUID.randomUUID().toString(),
+                "Principal Engineer",
+                "TechCorp",
+                "active",
+                "interview_scheduled",
+                UUID.randomUUID().toString(),
+                UUID.randomUUID().toString(),
+                "requested",
+                "consent-task31-1",
+                "open_to_explore",
+                Instant.now(),
+                Instant.now())));
 
     mockMvc.perform(get("/api/candidate/opportunities")
             .with(authentication(auth(PortalRole.CANDIDATE, USER_ID))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.items[0].jobTitle").value("Principal Engineer"))
-        .andExpect(jsonPath("$.data.items[0].companyName").value("TechCorp"));
+        .andExpect(jsonPath("$.data.items[0].companyName").value("TechCorp"))
+        .andExpect(jsonPath("$.data.items[0].consentStatus").value("requested"))
+        .andExpect(jsonPath("$.data.items[0].interestStatus").value("open_to_explore"));
+  }
+
+  @Test
+  void opportunityDetailReturnsSelfScopedDetail() throws Exception {
+    when(portalQueryService.buildOpportunityDetail(
+        eq(ORG_ID),
+        eq(USER_ID),
+        eq(USER_ID.toString()),
+        anyString()))
+        .thenReturn(new CandidateOpportunityDetailResponse(
+            UUID.randomUUID().toString(),
+            "Principal Engineer",
+            "TechCorp",
+            "active",
+            "interview_scheduled",
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            "consent-task31-1",
+            "requested",
+            "Lead verification programs for a scaling hardware team.",
+            "Singapore",
+            "SGD 180k - 220k",
+            "This role aligns with the candidate profile.",
+            "open_to_explore",
+            Instant.now(),
+            Instant.now(),
+            Instant.now()));
+
+    mockMvc.perform(get("/api/candidate/opportunities/{candidateRef}/{interactionId}", USER_ID, UUID.randomUUID())
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.roleSummary").value("Lead verification programs for a scaling hardware team."))
+        .andExpect(jsonPath("$.data.interestStatus").value("open_to_explore"));
+  }
+
+  @Test
+  void opportunityInterestReturnsUpdatedDetail() throws Exception {
+    when(portalQueryService.recordOpportunityInterest(
+        eq(ORG_ID),
+        eq(USER_ID),
+        eq(USER_ID.toString()),
+        anyString(),
+        eq("interested_confirmed"),
+        eq("Looks like a strong match")))
+        .thenReturn(new CandidateOpportunityDetailResponse(
+            UUID.randomUUID().toString(),
+            "Principal Engineer",
+            "TechCorp",
+            "active",
+            "interview_scheduled",
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            "consent-task31-1",
+            "requested",
+            "Lead verification programs for a scaling hardware team.",
+            "Singapore",
+            "SGD 180k - 220k",
+            "This role aligns with the candidate profile.",
+            "interested_confirmed",
+            Instant.now(),
+            Instant.now(),
+            Instant.now()));
+
+    mockMvc.perform(post("/api/candidate/opportunities/{candidateRef}/{interactionId}/interest", USER_ID, UUID.randomUUID())
+            .with(authentication(auth(PortalRole.CANDIDATE, USER_ID)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"interestStatus":"interested_confirmed","note":"Looks like a strong match"}
+                """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.interestStatus").value("interested_confirmed"));
   }
 
   // === timeline endpoint ===

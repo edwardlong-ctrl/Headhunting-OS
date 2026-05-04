@@ -40,6 +40,48 @@ export type CandidateOpportunity = {
   companyName: string;
   status: string;
   interactionType: string;
+  candidateProfileRef: string;
+  jobRef: string;
+  consentStatus: string | null;
+  consentRecordRef: string | null;
+  interestStatus: string;
+  startedAt: string;
+  updatedAt: string;
+};
+
+export type CandidateFollowUpItem = {
+  fieldPath: string;
+  prompt: string;
+  inputType: string;
+  currentAnswer: string;
+  status: string;
+  sourceType: string;
+  updatedAt: string | null;
+};
+
+export type CandidateFollowUpForm = {
+  candidateRef: string;
+  formId: string;
+  profileVersion: string;
+  items: CandidateFollowUpItem[];
+};
+
+export type CandidateOpportunityDetail = {
+  interactionId: string;
+  jobTitle: string;
+  companyName: string;
+  status: string;
+  interactionType: string;
+  candidateProfileRef: string;
+  jobRef: string;
+  consentRecordRef: string | null;
+  consentStatus: string | null;
+  roleSummary: string;
+  location: string;
+  compensation: string;
+  fitExplanation: string;
+  interestStatus: string;
+  interestUpdatedAt: string | null;
   startedAt: string;
   updatedAt: string;
 };
@@ -65,6 +107,41 @@ export function fetchCandidateProfile(candidateRef: string): Promise<ApiResult<C
   return apiRequest<CandidateProfileReview>(
     `/api/candidate/profile/${encodeURIComponent(candidateRef)}`,
     undefined,
+    "candidate",
+  );
+}
+
+export function confirmCandidateProfile(
+  candidateRef: string,
+  fieldPath: string,
+): Promise<ApiResult<CandidateProfileReview>> {
+  return apiRequest<CandidateProfileReview>(
+    `/api/candidate/profile/${encodeURIComponent(candidateRef)}/confirm`,
+    asMethodJson("POST", { fieldPath }),
+    "candidate",
+  );
+}
+
+export function fetchCandidateFollowUp(
+  candidateRef: string,
+  formId: string,
+): Promise<ApiResult<CandidateFollowUpForm>> {
+  return apiRequest<CandidateFollowUpForm>(
+    `/api/candidate/follow-up/${encodeURIComponent(candidateRef)}/${encodeURIComponent(formId)}`,
+    undefined,
+    "candidate",
+  );
+}
+
+export function submitCandidateFollowUp(
+  candidateRef: string,
+  formId: string,
+  fieldPath: string,
+  answer: string,
+): Promise<ApiResult<CandidateFollowUpForm>> {
+  return apiRequest<CandidateFollowUpForm>(
+    `/api/candidate/follow-up/${encodeURIComponent(candidateRef)}/${encodeURIComponent(formId)}/submit`,
+    asMethodJson("POST", { fieldPath, answer }),
     "candidate",
   );
 }
@@ -96,6 +173,30 @@ export function uploadCandidateDocument(
 
 export function fetchCandidateOpportunities(): Promise<ApiResult<{ items: CandidateOpportunity[]; totalCount: number; limit: number; offset: number; hasMore: boolean }>> {
   return apiRequest("/api/candidate/opportunities", undefined, "candidate");
+}
+
+export function fetchCandidateOpportunityDetail(
+  candidateRef: string,
+  interactionId: string,
+): Promise<ApiResult<CandidateOpportunityDetail>> {
+  return apiRequest<CandidateOpportunityDetail>(
+    `/api/candidate/opportunities/${encodeURIComponent(candidateRef)}/${encodeURIComponent(interactionId)}`,
+    undefined,
+    "candidate",
+  );
+}
+
+export function recordCandidateOpportunityInterest(
+  candidateRef: string,
+  interactionId: string,
+  interestStatus: string,
+  note: string,
+): Promise<ApiResult<CandidateOpportunityDetail>> {
+  return apiRequest<CandidateOpportunityDetail>(
+    `/api/candidate/opportunities/${encodeURIComponent(candidateRef)}/${encodeURIComponent(interactionId)}/interest`,
+    asMethodJson("POST", { interestStatus, note }),
+    "candidate",
+  );
 }
 
 export function fetchCandidateTimeline(candidateRef: string): Promise<ApiResult<CandidateTimeline>> {

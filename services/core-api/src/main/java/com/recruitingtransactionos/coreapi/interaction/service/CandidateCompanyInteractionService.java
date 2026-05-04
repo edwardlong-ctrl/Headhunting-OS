@@ -26,6 +26,11 @@ public final class CandidateCompanyInteractionService {
     return interactionPort.create(interaction);
   }
 
+  public CandidateCompanyInteraction updateInteraction(CandidateCompanyInteraction interaction) {
+    Objects.requireNonNull(interaction, "interaction must not be null");
+    return interactionPort.update(interaction);
+  }
+
   public Optional<CandidateCompanyInteraction> findInteractionByIdAndOrganizationId(
       UUID organizationId, CandidateCompanyInteractionId interactionId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");

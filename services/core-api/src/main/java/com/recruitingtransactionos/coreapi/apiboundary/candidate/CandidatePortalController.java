@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,7 +41,10 @@ public final class CandidatePortalController {
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
     requireCandidateRole(principal.portalRole());
     return ResponseEntity.ok(ApiResponseEnvelope.success(
-        portalQueryService.buildMe(principal.organizationId(), principal.userAccountId())));
+        portalQueryService.buildMe(
+            principal.organizationId(),
+            principal.userAccountId(),
+            principal.displayName())));
   }
 
   @GetMapping("/profile/{candidateRef}")
@@ -51,6 +55,50 @@ public final class CandidatePortalController {
     requireSelfCandidate(principal, candidateRef);
     return ResponseEntity.ok(ApiResponseEnvelope.success(
         portalQueryService.buildProfileReview(principal.organizationId(), candidateRef)));
+  }
+
+  @PostMapping("/profile/{candidateRef}/confirm")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> confirmProfile(
+      @PathVariable String candidateRef,
+      @RequestBody CandidateProfileConfirmationRequest request,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    requireSelfCandidate(principal, candidateRef);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.confirmProfileFields(
+            principal.organizationId(),
+            candidateRef,
+            principal.userAccountId(),
+            request == null ? null : request.fieldPath())));
+  }
+
+  @GetMapping("/follow-up/{candidateRef}/{formId}")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> followUpForm(
+      @PathVariable String candidateRef,
+      @PathVariable String formId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    requireSelfCandidate(principal, candidateRef);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.buildFollowUpForm(principal.organizationId(), candidateRef, formId)));
+  }
+
+  @PostMapping("/follow-up/{candidateRef}/{formId}/submit")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> submitFollowUp(
+      @PathVariable String candidateRef,
+      @PathVariable String formId,
+      @RequestBody CandidateFollowUpSubmissionRequest request,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    requireSelfCandidate(principal, candidateRef);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.submitFollowUpAnswer(
+            principal.organizationId(),
+            candidateRef,
+            principal.userAccountId(),
+            formId,
+            request == null ? null : request.fieldPath(),
+            request == null ? null : request.answer())));
   }
 
   @GetMapping("/documents")
@@ -73,6 +121,39 @@ public final class CandidatePortalController {
         portalQueryService.listOpportunities(principal.organizationId(), principal.userAccountId());
     return ResponseEntity.ok(ApiResponseEnvelope.success(
         com.recruitingtransactionos.coreapi.apiboundary.PagedResult.of(items, items.size(), Math.max(1, limit), Math.max(0, offset))));
+  }
+
+  @GetMapping("/opportunities/{candidateRef}/{interactionId}")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> opportunityDetail(
+      @PathVariable String candidateRef,
+      @PathVariable String interactionId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    requireSelfCandidate(principal, candidateRef);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.buildOpportunityDetail(
+            principal.organizationId(),
+            principal.userAccountId(),
+            candidateRef,
+            interactionId)));
+  }
+
+  @PostMapping("/opportunities/{candidateRef}/{interactionId}/interest")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> recordOpportunityInterest(
+      @PathVariable String candidateRef,
+      @PathVariable String interactionId,
+      @RequestBody CandidateOpportunityInterestRequest request,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    requireSelfCandidate(principal, candidateRef);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.recordOpportunityInterest(
+            principal.organizationId(),
+            principal.userAccountId(),
+            candidateRef,
+            interactionId,
+            request == null ? null : request.interestStatus(),
+            request == null ? null : request.note())));
   }
 
   @GetMapping("/timeline/{candidateRef}")
@@ -130,4 +211,10 @@ public final class CandidatePortalController {
           false, "candidate_self_scope_required", "Candidate portal only supports self-scoped access."));
     }
   }
+
+  public record CandidateProfileConfirmationRequest(String fieldPath) {}
+
+  public record CandidateFollowUpSubmissionRequest(String fieldPath, String answer) {}
+
+  public record CandidateOpportunityInterestRequest(String interestStatus, String note) {}
 }

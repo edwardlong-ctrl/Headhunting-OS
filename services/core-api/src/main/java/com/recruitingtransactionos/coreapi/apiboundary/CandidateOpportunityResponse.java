@@ -9,6 +9,11 @@ public record CandidateOpportunityResponse(
     String companyName,
     String status,
     String interactionType,
+    String candidateProfileRef,
+    String jobRef,
+    String consentStatus,
+    String consentRecordRef,
+    String interestStatus,
     Instant startedAt,
     Instant updatedAt) implements ApiSafeResponseBody {
 
@@ -17,5 +22,7 @@ public record CandidateOpportunityResponse(
     Objects.requireNonNull(jobTitle, "jobTitle must not be null");
     Objects.requireNonNull(companyName, "companyName must not be null");
     Objects.requireNonNull(status, "status must not be null");
+    Objects.requireNonNull(candidateProfileRef, "candidateProfileRef must not be null");
+    Objects.requireNonNull(jobRef, "jobRef must not be null");
   }
 }

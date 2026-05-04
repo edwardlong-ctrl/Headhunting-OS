@@ -22,11 +22,10 @@ export type CandidateConsentSummary = {
 
 export function fetchCandidateConsent(
   candidateRef: string,
-  candidateProfileRef: string,
-  jobRef: string,
+  consentRecordRef: string,
 ): Promise<ApiResult<CandidateConsentSummary>> {
   return apiRequest<CandidateConsentSummary>(
-    `/api/candidate/consent/${encodeURIComponent(candidateRef)}/${encodeURIComponent(candidateProfileRef)}/${encodeURIComponent(jobRef)}`,
+    `/api/candidate/consent/${encodeURIComponent(candidateRef)}/requests/${encodeURIComponent(consentRecordRef)}`,
     undefined,
     "candidate",
   );
@@ -34,12 +33,11 @@ export function fetchCandidateConsent(
 
 export function respondCandidateConsent(
   candidateRef: string,
-  candidateProfileRef: string,
-  jobRef: string,
+  consentRecordRef: string,
   approve: boolean,
 ): Promise<ApiResult<CandidateConsentSummary>> {
   return apiRequest<CandidateConsentSummary>(
-    `/api/candidate/consent/${encodeURIComponent(candidateRef)}/${encodeURIComponent(candidateProfileRef)}/${encodeURIComponent(jobRef)}/respond`,
+    `/api/candidate/consent/${encodeURIComponent(candidateRef)}/requests/${encodeURIComponent(consentRecordRef)}/respond`,
     asJson({ approve }),
     "candidate",
   );

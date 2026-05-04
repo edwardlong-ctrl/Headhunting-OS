@@ -141,6 +141,7 @@ public final class WorkflowActionRegistry {
     policies.addAll(transitions(WorkflowEntityType.CANDIDATE, RiskTier.T2_MEDIUM_RISK,
         List.of(
             WorkflowActionCode.CANDIDATE_PROFILE_PARSED,
+            WorkflowActionCode.CANDIDATE_PROFILE_CONFIRMED,
             WorkflowActionCode.CANDIDATE_CONSULTANT_REVIEW_STARTED,
             WorkflowActionCode.CANDIDATE_MATCHED_TO_JOB,
             WorkflowActionCode.CANDIDATE_OUTREACH_STARTED,

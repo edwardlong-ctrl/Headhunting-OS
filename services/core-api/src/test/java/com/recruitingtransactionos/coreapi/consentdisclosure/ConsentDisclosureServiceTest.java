@@ -565,6 +565,14 @@ class ConsentDisclosureServiceTest {
           .filter(record -> record.jobRef().equals(jobRef))
           .reduce((first, second) -> second);
     }
+
+    @Override
+    public List<ConsentRecord> listByCandidateRef(UUID organizationId, String candidateRef) {
+      return appendedRecords.stream()
+          .filter(record -> record.organizationId().equals(organizationId))
+          .filter(record -> record.candidateRef().equals(candidateRef))
+          .toList();
+    }
   }
 
   private static final class InMemoryUnlockDecisionPort implements UnlockDecisionPort {

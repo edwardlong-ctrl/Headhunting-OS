@@ -13,6 +13,8 @@ public interface CandidateCompanyInteractionPersistencePort {
 
   CandidateCompanyInteraction create(CandidateCompanyInteraction interaction);
 
+  CandidateCompanyInteraction update(CandidateCompanyInteraction interaction);
+
   Optional<CandidateCompanyInteraction> findByIdAndOrganizationId(
       UUID organizationId, CandidateCompanyInteractionId interactionId);
 

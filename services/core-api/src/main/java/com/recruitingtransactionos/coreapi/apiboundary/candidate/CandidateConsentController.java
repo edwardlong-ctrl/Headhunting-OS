@@ -8,7 +8,6 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiValidationErrorRespons
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateConsentSummaryResponse;
 import com.recruitingtransactionos.coreapi.consentdisclosure.CandidateConsentWorkflowService;
 import com.recruitingtransactionos.coreapi.consentdisclosure.CandidateConsentWorkflowService.CandidateConsentView;
-import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
@@ -35,46 +34,41 @@ public final class CandidateConsentController {
     this.consentWorkflowService = consentWorkflowService;
   }
 
-  @GetMapping("/{candidateRef}/{candidateProfileRef}/{jobRef}")
+  @GetMapping("/{candidateRef}/requests/{consentRecordRef}")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> latestConsent(
       @PathVariable String candidateRef,
-      @PathVariable String candidateProfileRef,
-      @PathVariable String jobRef,
+      @PathVariable String consentRecordRef,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
     requireCandidateRole(principal.portalRole());
     requireSelfCandidate(principal, candidateRef);
-    CandidateConsentView view = consentWorkflowService.viewLatestConsent(
+    CandidateConsentView view = consentWorkflowService.viewConsentByRef(
         principal.organizationId(),
         candidateRef,
-        candidateProfileRef,
-        jobRef,
+        consentRecordRef,
         principal.userAccountId());
-    return ResponseEntity.ok(ApiResponseEnvelope.success(toResponse(view, candidateRef, candidateProfileRef, jobRef)));
+    return ResponseEntity.ok(ApiResponseEnvelope.success(toResponse(view, candidateRef)));
   }
 
-  @PostMapping("/{candidateRef}/{candidateProfileRef}/{jobRef}/respond")
+  @PostMapping("/{candidateRef}/requests/{consentRecordRef}/respond")
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> respond(
       @PathVariable String candidateRef,
-      @PathVariable String candidateProfileRef,
-      @PathVariable String jobRef,
+      @PathVariable String consentRecordRef,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
       @RequestBody CandidateConsentDecisionRequest request) {
     requireCandidateRole(principal.portalRole());
     requireSelfCandidate(principal, candidateRef);
-    consentWorkflowService.respondToConsent(
+    consentWorkflowService.respondToConsentByRef(
         principal.organizationId(),
         principal.userAccountId(),
         candidateRef,
-        candidateProfileRef,
-        jobRef,
+        consentRecordRef,
         request.approve());
-    CandidateConsentView view = consentWorkflowService.viewLatestConsent(
+    CandidateConsentView view = consentWorkflowService.viewConsentByRef(
         principal.organizationId(),
         candidateRef,
-        candidateProfileRef,
-        jobRef,
+        consentRecordRef,
         principal.userAccountId());
-    return ResponseEntity.ok(ApiResponseEnvelope.success(toResponse(view, candidateRef, candidateProfileRef, jobRef)));
+    return ResponseEntity.ok(ApiResponseEnvelope.success(toResponse(view, candidateRef)));
   }
 
   @ExceptionHandler(AccessDeniedException.class)
@@ -103,13 +97,11 @@ public final class CandidateConsentController {
 
   private static CandidateConsentSummaryResponse toResponse(
       CandidateConsentView view,
-      String candidateRef,
-      String candidateProfileRef,
-      String jobRef) {
+      String candidateRef) {
     return new CandidateConsentSummaryResponse(
         candidateRef,
-        candidateProfileRef,
-        jobRef,
+        view.consentRecord().candidateProfileRef(),
+        view.consentRecord().jobRef(),
         view.jobTitle(),
         view.consentRecord().consentRecordRef(),
         view.consentRecord().status().wireValue(),

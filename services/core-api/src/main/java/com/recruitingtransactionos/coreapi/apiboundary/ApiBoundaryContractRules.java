@@ -190,11 +190,46 @@ public final class ApiBoundaryContractRules {
   private static final Set<String> CANDIDATE_PROFILE_REVIEW_RESPONSE_FIELDS =
       Set.of("candidateRef", "profileVersion", "fields");
 
+  private static final Set<String> CANDIDATE_FOLLOW_UP_FORM_RESPONSE_FIELDS =
+      Set.of("candidateRef", "formId", "profileVersion", "items");
+
   private static final Set<String> CANDIDATE_DOCUMENT_SUMMARY_RESPONSE_FIELDS =
       Set.of("documentId", "documentType", "title", "status", "fileSizeBytes", "mimeType", "uploadedAt");
 
   private static final Set<String> CANDIDATE_OPPORTUNITY_RESPONSE_FIELDS =
-      Set.of("interactionId", "jobTitle", "companyName", "status", "interactionType", "startedAt", "updatedAt");
+      Set.of(
+          "interactionId",
+          "jobTitle",
+          "companyName",
+          "status",
+          "interactionType",
+          "candidateProfileRef",
+          "jobRef",
+          "consentStatus",
+          "consentRecordRef",
+          "interestStatus",
+          "startedAt",
+          "updatedAt");
+
+  private static final Set<String> CANDIDATE_OPPORTUNITY_DETAIL_RESPONSE_FIELDS =
+      Set.of(
+          "interactionId",
+          "jobTitle",
+          "companyName",
+          "status",
+          "interactionType",
+          "candidateProfileRef",
+          "jobRef",
+          "consentRecordRef",
+          "consentStatus",
+          "roleSummary",
+          "location",
+          "compensation",
+          "fitExplanation",
+          "interestStatus",
+          "interestUpdatedAt",
+          "startedAt",
+          "updatedAt");
 
   private static final Set<String> CANDIDATE_TIMELINE_RESPONSE_FIELDS =
       Set.of("candidateRef", "events");
@@ -543,6 +578,17 @@ public final class ApiBoundaryContractRules {
     return new LinkedHashSet<>(CANDIDATE_PROFILE_REVIEW_RESPONSE_FIELDS);
   }
 
+  public static boolean isAllowedCandidateFollowUpFormResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_FOLLOW_UP_FORM_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateFollowUpFormResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_FOLLOW_UP_FORM_RESPONSE_FIELDS);
+  }
+
   public static boolean isAllowedCandidateDocumentSummaryResponseField(String fieldName) {
     if (fieldName == null || fieldName.isBlank()) {
       return false;
@@ -563,6 +609,17 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> candidateOpportunityResponseFieldNames() {
     return new LinkedHashSet<>(CANDIDATE_OPPORTUNITY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateOpportunityDetailResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_OPPORTUNITY_DETAIL_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateOpportunityDetailResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_OPPORTUNITY_DETAIL_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedCandidateTimelineResponseField(String fieldName) {

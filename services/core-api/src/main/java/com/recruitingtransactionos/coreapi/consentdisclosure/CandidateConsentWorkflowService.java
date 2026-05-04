@@ -151,6 +151,49 @@ public final class CandidateConsentWorkflowService {
         latestConsentRecord(organizationId, candidateRef, candidateProfileRef, jobRef));
   }
 
+  public CandidateConsentView viewConsentByRef(
+      UUID organizationId,
+      String candidateRef,
+      String consentRecordRef,
+      UUID candidateActorId) {
+    ConsentRecord requestedRecord = consentRecordPort.findByRefAndOrganizationId(organizationId, consentRecordRef)
+        .orElseThrow(() -> new IllegalArgumentException("consent_request_not_found"));
+    ensureCandidateScoped(candidateRef, requestedRecord);
+    ConsentRecord current = resolveRequestScopedRecord(organizationId, requestedRecord);
+    if (current.status() == ConsentStatus.REQUESTED) {
+      Instant now = Instant.now();
+      current = consentRecordPort.append(new ConsentRecord(
+          UUID.randomUUID().toString(),
+          current.organizationId(),
+          current.candidateRef(),
+          current.candidateProfileRef(),
+          current.jobRef(),
+          current.profileVersion(),
+          current.consentTextVersion(),
+          ConsentStatus.VIEWED_BY_CANDIDATE,
+          current.permittedDisclosureLevels(),
+          now,
+          current.expiresAt(),
+          false));
+      recordEvent(
+          organizationId,
+          UUID.nameUUIDFromBytes(current.consentRecordRef().getBytes()),
+          null,
+          WorkflowActionCode.CONSENT_VIEWED_BY_CANDIDATE,
+          ActorRole.CANDIDATE,
+          candidateActorId,
+          ConsentStatus.REQUESTED.wireValue(),
+          ConsentStatus.VIEWED_BY_CANDIDATE.wireValue(),
+          "candidate viewed consent request",
+          now);
+    }
+    return buildConsentView(
+        organizationId,
+        current.candidateProfileRef(),
+        current.jobRef(),
+        current);
+  }
+
   public ConsentRecord respondToConsent(
       UUID organizationId,
       UUID candidateActorId,
@@ -209,6 +252,62 @@ public final class CandidateConsentWorkflowService {
     return updated;
   }
 
+  public ConsentRecord respondToConsentByRef(
+      UUID organizationId,
+      UUID candidateActorId,
+      String candidateRef,
+      String consentRecordRef,
+      boolean approve) {
+    ConsentRecord requestedRecord = consentRecordPort.findByRefAndOrganizationId(organizationId, consentRecordRef)
+        .orElseThrow(() -> new IllegalArgumentException("consent_request_not_found"));
+    ensureCandidateScoped(candidateRef, requestedRecord);
+    ConsentRecord current = resolveRequestScopedRecord(organizationId, requestedRecord);
+    CandidateProfile profile = requireProfile(organizationId, current.candidateProfileRef());
+    Instant now = Instant.now();
+    if (current.revoked() || current.status() == ConsentStatus.REVOKED) {
+      throw new IllegalArgumentException("consent_request_revoked");
+    }
+    if (current.isExpiredAt(now)) {
+      throw new IllegalArgumentException("consent_request_expired");
+    }
+    String currentProfileVersion = Integer.toString(profile.profileVersion().value());
+    if (!current.profileVersion().equals(currentProfileVersion)) {
+      throw new IllegalArgumentException("consent_profile_version_mismatch");
+    }
+    ConsentStatus nextStatus = approve ? ConsentStatus.CONFIRMED : ConsentStatus.DECLINED;
+    if (current.status() == nextStatus) {
+      return current;
+    }
+    if (current.status() == ConsentStatus.CONFIRMED || current.status() == ConsentStatus.DECLINED) {
+      throw new IllegalArgumentException("consent_already_resolved");
+    }
+    ConsentRecord updated = consentRecordPort.append(new ConsentRecord(
+        UUID.randomUUID().toString(),
+        organizationId,
+        current.candidateRef(),
+        current.candidateProfileRef(),
+        current.jobRef(),
+        currentProfileVersion,
+        current.consentTextVersion(),
+        nextStatus,
+        current.permittedDisclosureLevels(),
+        now,
+        current.expiresAt(),
+        false));
+    recordEvent(
+        organizationId,
+        UUID.nameUUIDFromBytes(updated.consentRecordRef().getBytes()),
+        null,
+        approve ? WorkflowActionCode.CONSENT_CONFIRMED : WorkflowActionCode.CONSENT_DECLINED,
+        ActorRole.CANDIDATE,
+        candidateActorId,
+        current.status().wireValue(),
+        nextStatus.wireValue(),
+        approve ? "candidate confirmed consent" : "candidate declined consent",
+        now);
+    return updated;
+  }
+
   private ConsentRecord latestConsentRecord(
       UUID organizationId,
       String candidateRef,
@@ -220,6 +319,37 @@ public final class CandidateConsentWorkflowService {
             candidateProfileRef,
             jobRef)
         .orElseThrow(() -> new IllegalArgumentException("consent_request_not_found"));
+  }
+
+  private ConsentRecord resolveRequestScopedRecord(
+      UUID organizationId,
+      ConsentRecord requestedRecord) {
+    ConsentRecord latest = latestConsentRecord(
+        organizationId,
+        requestedRecord.candidateRef(),
+        requestedRecord.candidateProfileRef(),
+        requestedRecord.jobRef());
+    if (sameRequestLineage(requestedRecord, latest)) {
+      return latest;
+    }
+    if (latest.confirmedAt().isAfter(requestedRecord.confirmedAt())) {
+      throw new IllegalArgumentException("consent_request_superseded");
+    }
+    return requestedRecord;
+  }
+
+  private static boolean sameRequestLineage(ConsentRecord requestedRecord, ConsentRecord candidateRecord) {
+    return requestedRecord.candidateRef().equals(candidateRecord.candidateRef())
+        && requestedRecord.candidateProfileRef().equals(candidateRecord.candidateProfileRef())
+        && requestedRecord.jobRef().equals(candidateRecord.jobRef())
+        && requestedRecord.profileVersion().equals(candidateRecord.profileVersion())
+        && requestedRecord.consentTextVersion().equals(candidateRecord.consentTextVersion());
+  }
+
+  private static void ensureCandidateScoped(String candidateRef, ConsentRecord consentRecord) {
+    if (!consentRecord.candidateRef().equals(candidateRef)) {
+      throw new IllegalArgumentException("consent_request_not_found");
+    }
   }
 
   private CandidateConsentView buildConsentView(

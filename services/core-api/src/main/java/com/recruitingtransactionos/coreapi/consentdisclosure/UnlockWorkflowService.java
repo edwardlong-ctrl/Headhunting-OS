@@ -28,6 +28,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -55,6 +56,7 @@ public final class UnlockWorkflowService {
   private final ConsentDisclosureService consentDisclosureService;
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final CanonicalWriteTransactionBoundary transactionBoundary;
+  private final Clock clock;
   private final ConsentDisclosureProtectionPolicy protectionPolicy = new ConsentDisclosureProtectionPolicy();
 
   @Autowired
@@ -71,6 +73,36 @@ public final class UnlockWorkflowService {
       ConsentDisclosureService consentDisclosureService,
       WorkflowTransitionAuditService workflowTransitionAuditService,
       CanonicalWriteTransactionBoundary transactionBoundary) {
+    this(
+        shortlistService,
+        jobService,
+        companyService,
+        candidateProfileService,
+        clientUnlockRequestPort,
+        consentRecordPort,
+        unlockDecisionPort,
+        disclosureRecordPort,
+        prerequisiteEvaluator,
+        consentDisclosureService,
+        workflowTransitionAuditService,
+        transactionBoundary,
+        Clock.systemUTC());
+  }
+
+  UnlockWorkflowService(
+      ShortlistService shortlistService,
+      JobService jobService,
+      CompanyService companyService,
+      CandidateProfileService candidateProfileService,
+      ClientUnlockRequestPort clientUnlockRequestPort,
+      ConsentRecordPort consentRecordPort,
+      UnlockDecisionPort unlockDecisionPort,
+      DisclosureRecordPort disclosureRecordPort,
+      ConsentDisclosurePrerequisiteEvaluator prerequisiteEvaluator,
+      ConsentDisclosureService consentDisclosureService,
+      WorkflowTransitionAuditService workflowTransitionAuditService,
+      CanonicalWriteTransactionBoundary transactionBoundary,
+      Clock clock) {
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
@@ -97,6 +129,7 @@ public final class UnlockWorkflowService {
     this.transactionBoundary = Objects.requireNonNull(
         transactionBoundary,
         "transactionBoundary must not be null");
+    this.clock = Objects.requireNonNull(clock, "clock must not be null");
   }
 
   public UnlockWorkflowResult createClientRequest(
@@ -132,7 +165,7 @@ public final class UnlockWorkflowService {
         organizationId,
         shortlist.shortlistId(),
         card.shortlistCandidateCardId());
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     List<UnlockBlocker> blockers =
         evaluateBlockers(organizationId, shortlist, card, clientActorId, now);
     if (existing.isPresent()
@@ -234,7 +267,7 @@ public final class UnlockWorkflowService {
         .filter(existingCard -> existingCard.shortlistId().equals(shortlistId))
         .orElseThrow(() -> new IllegalArgumentException("shortlist_card_not_found"));
 
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     List<UnlockBlocker> blockers =
         evaluateBlockers(organizationId, shortlist, card, latestRequest.clientActorId(), now);
     if (approved && !blockers.isEmpty()) {
@@ -386,7 +419,7 @@ public final class UnlockWorkflowService {
           .clientNotes(card.clientNotes())
           .metadata(card.metadata())
           .createdAt(card.createdAt())
-          .updatedAt(Instant.now())
+          .updatedAt(clock.instant())
           .version(card.version())
           .build());
     }
@@ -402,7 +435,7 @@ public final class UnlockWorkflowService {
           .ownerConsultantId(shortlist.ownerConsultantId())
           .metadata(shortlist.metadata())
           .createdAt(shortlist.createdAt())
-          .updatedAt(Instant.now())
+          .updatedAt(clock.instant())
           .version(shortlist.version())
           .build());
       workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
@@ -451,7 +484,7 @@ public final class UnlockWorkflowService {
         job.title(),
         clientCompany.map(Company::name).orElse("Client company"),
         latestConsent.map(record -> record.status().wireValue()).orElse("missing"),
-        evaluateBlockers(organizationId, shortlist, card, request.clientActorId(), Instant.now()));
+        evaluateBlockers(organizationId, shortlist, card, request.clientActorId(), clock.instant()));
   }
 
   private Map<String, ClientUnlockRequest> latestRequestsByCard(UUID organizationId) {

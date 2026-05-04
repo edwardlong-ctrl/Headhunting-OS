@@ -42,6 +42,19 @@ public final class JdbcCandidateCompanyInteractionPersistencePort
       WHERE organization_id = ? AND candidate_company_interaction_id = ?
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.candidate_company_interaction
+      SET status = ?,
+          ended_at = ?,
+          notes = ?,
+          metadata = ?::jsonb,
+          updated_at = now(),
+          version = version + 1
+      WHERE organization_id = ?
+        AND candidate_company_interaction_id = ?
+        AND version = ?
+      """;
+
   private static final String FIND_BY_CANDIDATE_COMPANY_SQL = """
       SELECT candidate_company_interaction_id, organization_id, candidate_id,
         company_id, job_id, interaction_type, status, started_at, ended_at,
@@ -100,6 +113,35 @@ public final class JdbcCandidateCompanyInteractionPersistencePort
     } catch (SQLException exception) {
       throw new IllegalStateException(
           "Failed to create candidate_company_interaction", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public CandidateCompanyInteraction update(CandidateCompanyInteraction interaction) {
+    Objects.requireNonNull(interaction, "interaction must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setString(1, interaction.status().wireValue());
+      statement.setTimestamp(2,
+          interaction.endedAt() != null ? Timestamp.from(interaction.endedAt()) : null);
+      statement.setString(3, interaction.notes());
+      statement.setString(4, interaction.metadata());
+      statement.setObject(5, interaction.organizationId());
+      statement.setObject(6, interaction.candidateCompanyInteractionId().value());
+      statement.setInt(7, interaction.version());
+      int updated = statement.executeUpdate();
+      if (updated != 1) {
+        throw new IllegalStateException("candidate_company_interaction update_conflict");
+      }
+      return findByIdAndOrganizationId(
+          interaction.organizationId(), interaction.candidateCompanyInteractionId())
+          .orElseThrow(() -> new IllegalStateException(
+              "candidate_company_interaction not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException(
+          "Failed to update candidate_company_interaction", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }
