@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -100,6 +102,26 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
         AND job_ref = ?
       ORDER BY confirmed_at DESC, consent_record_ref DESC
       LIMIT 1
+      """;
+
+  private static final String LIST_BY_CANDIDATE_REF_SQL = """
+      SELECT
+        consent_record_ref,
+        organization_id,
+        candidate_ref,
+        candidate_profile_ref,
+        job_ref,
+        profile_version,
+        consent_text_version,
+        status,
+        permitted_disclosure_levels,
+        confirmed_at,
+        expires_at,
+        revoked
+      FROM privacy.consent_record
+      WHERE organization_id = ?
+        AND candidate_ref = ?
+      ORDER BY confirmed_at DESC, consent_record_ref DESC
       """;
 
   private final DataSource dataSource;
@@ -213,6 +235,28 @@ public final class JdbcConsentRecordPort implements ConsentRecordPort {
     } catch (SQLException exception) {
       throw new IllegalStateException(
           "Failed to find consent record by candidate/profile/job", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<ConsentRecord> listByCandidateRef(UUID organizationId, String candidateRef) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateRef, "candidateRef must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(LIST_BY_CANDIDATE_REF_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, candidateRef);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<ConsentRecord> records = new ArrayList<>();
+        while (resultSet.next()) {
+          records.add(mapConsentRecord(resultSet));
+        }
+        return List.copyOf(records);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to list consent records by candidate", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

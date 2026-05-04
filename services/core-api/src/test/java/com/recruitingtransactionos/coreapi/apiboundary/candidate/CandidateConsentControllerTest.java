@@ -45,6 +45,7 @@ class CandidateConsentControllerTest {
       UUID.fromString("00000000-0000-0000-0000-000000330001");
   private static final UUID USER_ID =
       UUID.fromString("00000000-0000-0000-0000-000000330002");
+  private static final String CONSENT_RECORD_REF = "consent-task33-1";
   private static final String PROFILE_REF = "00000000-0000-0000-0000-000000330003";
   private static final String JOB_REF = "00000000-0000-0000-0000-000000330004";
 
@@ -59,27 +60,24 @@ class CandidateConsentControllerTest {
 
   @Test
   void latestConsentRequiresAuthentication() throws Exception {
-    mockMvc.perform(get("/api/candidate/consent/{candidateRef}/{candidateProfileRef}/{jobRef}",
+    mockMvc.perform(get("/api/candidate/consent/{candidateRef}/requests/{consentRecordRef}",
             USER_ID,
-            PROFILE_REF,
-            JOB_REF))
+            CONSENT_RECORD_REF))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.errorCode").value("authentication_failed"));
   }
 
   @Test
   void latestConsentReturnsCandidateScopedSummary() throws Exception {
-    when(consentWorkflowService.viewLatestConsent(
+    when(consentWorkflowService.viewConsentByRef(
         eq(ORG_ID),
         eq(USER_ID.toString()),
-        eq(PROFILE_REF),
-        eq(JOB_REF),
+        eq(CONSENT_RECORD_REF),
         eq(USER_ID))).thenReturn(sampleView(ConsentStatus.REQUESTED));
 
-    mockMvc.perform(get("/api/candidate/consent/{candidateRef}/{candidateProfileRef}/{jobRef}",
+    mockMvc.perform(get("/api/candidate/consent/{candidateRef}/requests/{consentRecordRef}",
             USER_ID,
-            PROFILE_REF,
-            JOB_REF)
+            CONSENT_RECORD_REF)
             .with(authentication(auth(PortalRole.CANDIDATE, USER_ID))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.candidateRef").value(USER_ID.toString()))
@@ -90,10 +88,9 @@ class CandidateConsentControllerTest {
 
   @Test
   void respondFailsClosedWhenCandidateRefDoesNotMatchPrincipal() throws Exception {
-    mockMvc.perform(post("/api/candidate/consent/{candidateRef}/{candidateProfileRef}/{jobRef}/respond",
+    mockMvc.perform(post("/api/candidate/consent/{candidateRef}/requests/{consentRecordRef}/respond",
             UUID.fromString("00000000-0000-0000-0000-000000330099"),
-            PROFILE_REF,
-            JOB_REF)
+            CONSENT_RECORD_REF)
             .with(authentication(auth(PortalRole.CANDIDATE, USER_ID)))
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
@@ -106,7 +103,7 @@ class CandidateConsentControllerTest {
   private static CandidateConsentView sampleView(ConsentStatus status) {
     return new CandidateConsentView(
         new ConsentRecord(
-            "consent-task33-1",
+            CONSENT_RECORD_REF,
             ORG_ID,
             USER_ID.toString(),
             PROFILE_REF,

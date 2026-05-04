@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.consentdisclosure.port;
 
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,4 +18,6 @@ public interface ConsentRecordPort {
       String candidateRef,
       String candidateProfileRef,
       String jobRef);
+
+  List<ConsentRecord> listByCandidateRef(UUID organizationId, String candidateRef);
 }

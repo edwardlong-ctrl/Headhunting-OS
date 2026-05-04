@@ -26,6 +26,11 @@ public final class CandidateCompanyInteractionService {
     return interactionPort.create(interaction);
   }
 
+  public CandidateCompanyInteraction updateInteraction(CandidateCompanyInteraction interaction) {
+    Objects.requireNonNull(interaction, "interaction must not be null");
+    return interactionPort.update(interaction);
+  }
+
   public Optional<CandidateCompanyInteraction> findInteractionByIdAndOrganizationId(
       UUID organizationId, CandidateCompanyInteractionId interactionId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
@@ -39,6 +44,13 @@ public final class CandidateCompanyInteractionService {
     Objects.requireNonNull(candidateId, "candidateId must not be null");
     Objects.requireNonNull(companyId, "companyId must not be null");
     return interactionPort.findByCandidateAndCompany(organizationId, candidateId, companyId);
+  }
+
+  public List<CandidateCompanyInteraction> findInteractionsByCandidateId(
+      UUID organizationId, CandidateId candidateId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateId, "candidateId must not be null");
+    return interactionPort.findByCandidateId(organizationId, candidateId);
   }
 
   public List<CandidateCompanyInteraction> findInteractionsByJobId(

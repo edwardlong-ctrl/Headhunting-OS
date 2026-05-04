@@ -34,7 +34,9 @@ import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -98,7 +100,8 @@ class UnlockWorkflowServiceTest {
         prerequisiteEvaluator,
         consentDisclosureService,
         workflowTransitionAuditService,
-        CanonicalWriteTransactionBoundary.immediate());
+        CanonicalWriteTransactionBoundary.immediate(),
+        Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   @Test
