@@ -440,12 +440,14 @@ class ApiBoundaryRegressionClosureTest {
           "ConsultantIntakeQueueQueryService.java".equals(file.getFileName().toString());
       boolean isConsultantCandidateSurface =
           file.getFileName().toString().contains("ConsultantCandidate");
+      boolean isClientDisclosedCandidateSurface =
+          "ClientDisclosedCandidateController.java".equals(file.getFileName().toString());
       boolean isWorkflowSafeSurface =
           "ApiBoundaryContractRules.java".equals(file.getFileName().toString())
               || "ApiSafeResponseBody.java".equals(file.getFileName().toString())
               || file.getFileName().toString().contains("ConsultantWorkflow")
               || "ConsultantAuditDrawerResponse.java".equals(file.getFileName().toString());
-      if (!isConsultantCandidateSurface) {
+      if (!isConsultantCandidateSurface && !isClientDisclosedCandidateSurface) {
         assertThat(source)
             .as(file.toString())
             .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
@@ -473,7 +475,9 @@ class ApiBoundaryRegressionClosureTest {
         .containsExactlyInAnyOrder(
             "ClientSafeCandidateCardController.java",
             "ClientCompanyController.java",
+            "CandidateConsentController.java",
             "ClientDashboardController.java",
+            "ClientDisclosedCandidateController.java",
             "ClientJobController.java",
             "ClientShortlistController.java",
             "HealthController.java",
@@ -484,6 +488,7 @@ class ApiBoundaryRegressionClosureTest {
             "ConsultantIntakeController.java",
             "ConsultantMatchingController.java",
             "ConsultantShortlistController.java",
+            "ConsultantUnlockController.java",
             "ConsultantDocumentController.java",
             "ConsultantFollowUpController.java",
             "ConsultantWorkflowController.java",
@@ -527,6 +532,10 @@ class ApiBoundaryRegressionClosureTest {
           "ClientCompanyController.java".equals(fileName)
               || "ClientJobController.java".equals(fileName)
               || "ClientShortlistController.java".equals(fileName);
+      boolean isCandidateConsentController =
+          "CandidateConsentController.java".equals(fileName);
+      boolean isConsultantUnlockController =
+          "ConsultantUnlockController.java".equals(fileName);
       boolean allowsPutMapping =
           isConsultantWriteController || "ClientCompanyController.java".equals(fileName);
 
@@ -535,6 +544,8 @@ class ApiBoundaryRegressionClosureTest {
 
       if (!isConsultantWriteController
           && !isClientWriteController
+          && !isCandidateConsentController
+          && !isConsultantUnlockController
           && !isConsultantIntakeController
           && !isDocumentController
           && !isAuthenticationController) {

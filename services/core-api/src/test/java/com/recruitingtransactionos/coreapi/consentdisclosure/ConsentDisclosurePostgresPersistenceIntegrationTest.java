@@ -592,12 +592,69 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
 
   @Test
   void fullFlywayMigrationAddsTask12bPrivacyPersistenceTables() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(26);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(28);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28");
     assertThat(tableExists("privacy", "consent_record")).isTrue();
     assertThat(tableExists("privacy", "unlock_decision")).isTrue();
     assertThat(tableExists("privacy", "disclosure_record")).isTrue();
+  }
+
+  @Test
+  void v28MigratesLegacyApprovedDisclosureRowsToConsultantApproved() throws SQLException {
+    String databaseName = "task33_disclosure_v28";
+    createDatabase(databaseName);
+
+    Flyway.configure()
+        .dataSource(databaseJdbcUrl(databaseName), POSTGRES.getUsername(), POSTGRES.getPassword())
+        .locations("classpath:db/migration")
+        .target("27")
+        .cleanDisabled(true)
+        .load()
+        .migrate();
+
+    UUID organizationId = uuid("00000000-0000-0000-0000-00000012b901");
+    UUID consultantId = uuid("00000000-0000-0000-0000-00000012b902");
+    try (Connection connection = connection(databaseName)) {
+      insertOrganizationAndUser(connection, organizationId, consultantId);
+      insertConsentRecord(connection,
+          organizationId,
+          "consent_record_task12b_v28_0001",
+          "candidate_ref_task12b_v28_0001",
+          "profile_ref_task12b_v28_0001",
+          "job_ref_task12b_v28_0001");
+      insertUnlockDecision(connection,
+          organizationId,
+          consultantId,
+          "unlock_decision_task12b_v28_0001",
+          "candidate_ref_task12b_v28_0001",
+          "profile_ref_task12b_v28_0001",
+          "job_ref_task12b_v28_0001",
+          "client_ref_task12b_v28_0001");
+      insertLegacyApprovedDisclosureRecord(connection,
+          organizationId,
+          "disclosure_record_task12b_v28_0001",
+          "candidate_ref_task12b_v28_0001",
+          "profile_ref_task12b_v28_0001",
+          "job_ref_task12b_v28_0001",
+          "client_ref_task12b_v28_0001",
+          "unlock_decision_task12b_v28_0001",
+          "consent_record_task12b_v28_0001");
+    }
+
+    Flyway.configure()
+        .dataSource(databaseJdbcUrl(databaseName), POSTGRES.getUsername(), POSTGRES.getPassword())
+        .locations("classpath:db/migration")
+        .cleanDisabled(true)
+        .load()
+        .migrate();
+
+    try (Connection connection = connection(databaseName)) {
+      assertThat(findDisclosureStatus(
+          connection,
+          organizationId,
+          "disclosure_record_task12b_v28_0001")).isEqualTo("consultant_approved");
+    }
   }
 
   private static CanonicalWriteTransactionBoundary transactionBoundary() {
@@ -664,7 +721,7 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         profileRef,
         jobRef,
         clientRef,
-        DisclosureStatus.APPROVED,
+        DisclosureStatus.CONSULTANT_APPROVED,
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         RedactionLevel.L4_IDENTITY_DISCLOSED,
         unlockDecisionRef,
@@ -676,16 +733,23 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
   private static void insertOrganizationAndUser(UUID organizationId, UUID userId)
       throws SQLException {
     try (Connection connection = connection();
-        PreparedStatement organization = connection.prepareStatement("""
-            INSERT INTO identity.organization (
-              organization_id,
-              legal_name,
-              display_name,
-              status,
-              default_timezone
-            )
-            VALUES (?, ?, ?, 'active', 'UTC')
-            """);
+        ) {
+      insertOrganizationAndUser(connection, organizationId, userId);
+    }
+  }
+
+  private static void insertOrganizationAndUser(Connection connection, UUID organizationId, UUID userId)
+      throws SQLException {
+    try (PreparedStatement organization = connection.prepareStatement("""
+        INSERT INTO identity.organization (
+          organization_id,
+          legal_name,
+          display_name,
+          status,
+          default_timezone
+        )
+        VALUES (?, ?, ?, 'active', 'UTC')
+        """);
         PreparedStatement user = connection.prepareStatement("""
             INSERT INTO identity.user_account (
               user_account_id,
@@ -712,6 +776,16 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
   private static String findDisclosureStatus(UUID organizationId, String disclosureRecordRef)
       throws SQLException {
     try (Connection connection = connection();
+        ) {
+      return findDisclosureStatus(connection, organizationId, disclosureRecordRef);
+    }
+  }
+
+  private static String findDisclosureStatus(
+      Connection connection,
+      UUID organizationId,
+      String disclosureRecordRef) throws SQLException {
+    try (
         PreparedStatement statement = connection.prepareStatement("""
             SELECT status
             FROM privacy.disclosure_record
@@ -726,6 +800,124 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         }
         return resultSet.getString("status");
       }
+    }
+  }
+
+  private static void insertConsentRecord(
+      Connection connection,
+      UUID organizationId,
+      String consentRecordRef,
+      String candidateRef,
+      String profileRef,
+      String jobRef) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        INSERT INTO privacy.consent_record (
+          consent_record_ref,
+          organization_id,
+          candidate_ref,
+          candidate_profile_ref,
+          job_ref,
+          profile_version,
+          consent_text_version,
+          status,
+          permitted_disclosure_levels,
+          confirmed_at,
+          expires_at,
+          revoked
+        )
+        VALUES (?, ?, ?, ?, ?, '1', 'consent-v1', 'confirmed',
+            ARRAY['l4_identity_disclosed']::text[], ?, ?, FALSE)
+        """)) {
+      statement.setString(1, consentRecordRef);
+      statement.setObject(2, organizationId);
+      statement.setString(3, candidateRef);
+      statement.setString(4, profileRef);
+      statement.setString(5, jobRef);
+      statement.setObject(6, java.time.OffsetDateTime.ofInstant(NOW.minusSeconds(3_600), java.time.ZoneOffset.UTC));
+      statement.setObject(7, java.time.OffsetDateTime.ofInstant(NOW.plusSeconds(3_600), java.time.ZoneOffset.UTC));
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertUnlockDecision(
+      Connection connection,
+      UUID organizationId,
+      UUID consultantId,
+      String unlockDecisionRef,
+      String candidateRef,
+      String profileRef,
+      String jobRef,
+      String clientRef) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        INSERT INTO privacy.unlock_decision (
+          unlock_decision_ref,
+          organization_id,
+          candidate_ref,
+          candidate_profile_ref,
+          job_ref,
+          client_ref,
+          requested_disclosure_level,
+          status,
+          review_status,
+          risk_tier,
+          approved_by_user_id,
+          approved_by_role,
+          decided_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'l4_identity_disclosed', 'approved', 'human_approved',
+            'T4_TRANSACTION_LEGAL_BLOCKING'::governance.risk_tier, ?, 'consultant'::governance.actor_role, ?)
+        """)) {
+      statement.setString(1, unlockDecisionRef);
+      statement.setObject(2, organizationId);
+      statement.setString(3, candidateRef);
+      statement.setString(4, profileRef);
+      statement.setString(5, jobRef);
+      statement.setString(6, clientRef);
+      statement.setObject(7, consultantId);
+      statement.setObject(8, java.time.OffsetDateTime.ofInstant(NOW.minusSeconds(1_800), java.time.ZoneOffset.UTC));
+      statement.executeUpdate();
+    }
+  }
+
+  private static void insertLegacyApprovedDisclosureRecord(
+      Connection connection,
+      UUID organizationId,
+      String disclosureRecordRef,
+      String candidateRef,
+      String profileRef,
+      String jobRef,
+      String clientRef,
+      String unlockDecisionRef,
+      String consentRecordRef) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        INSERT INTO privacy.disclosure_record (
+          disclosure_record_ref,
+          organization_id,
+          candidate_ref,
+          candidate_profile_ref,
+          job_ref,
+          client_ref,
+          status,
+          disclosure_level,
+          redaction_level,
+          unlock_decision_ref,
+          consent_record_ref,
+          workflow_event_id,
+          decided_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'approved', 'l4_identity_disclosed', 'l4_identity_disclosed',
+            ?, ?, NULL, ?)
+        """)) {
+      statement.setString(1, disclosureRecordRef);
+      statement.setObject(2, organizationId);
+      statement.setString(3, candidateRef);
+      statement.setString(4, profileRef);
+      statement.setString(5, jobRef);
+      statement.setString(6, clientRef);
+      statement.setString(7, unlockDecisionRef);
+      statement.setString(8, consentRecordRef);
+      statement.setObject(9, java.time.OffsetDateTime.ofInstant(NOW.minusSeconds(900), java.time.ZoneOffset.UTC));
+      statement.executeUpdate();
     }
   }
 
@@ -884,6 +1076,32 @@ class ConsentDisclosurePostgresPersistenceIntegrationTest {
         POSTGRES.getJdbcUrl(),
         POSTGRES.getUsername(),
         POSTGRES.getPassword());
+  }
+
+  private static Connection connection(String databaseName) throws SQLException {
+    return DriverManager.getConnection(
+        databaseJdbcUrl(databaseName),
+        POSTGRES.getUsername(),
+        POSTGRES.getPassword());
+  }
+
+  private static void createDatabase(String databaseName) throws SQLException {
+    try (Connection connection = DriverManager.getConnection(
+        databaseJdbcUrl("postgres"),
+        POSTGRES.getUsername(),
+        POSTGRES.getPassword());
+        PreparedStatement statement = connection.prepareStatement("CREATE DATABASE " + databaseName)) {
+      statement.executeUpdate();
+    }
+  }
+
+  private static String databaseJdbcUrl(String databaseName) {
+    String jdbcUrl = POSTGRES.getJdbcUrl();
+    int queryIndex = jdbcUrl.indexOf('?');
+    String base = queryIndex >= 0 ? jdbcUrl.substring(0, queryIndex) : jdbcUrl;
+    String query = queryIndex >= 0 ? jdbcUrl.substring(queryIndex) : "";
+    int lastSlash = base.lastIndexOf('/');
+    return base.substring(0, lastSlash + 1) + databaseName + query;
   }
 
   private static UUID uuid(String value) {

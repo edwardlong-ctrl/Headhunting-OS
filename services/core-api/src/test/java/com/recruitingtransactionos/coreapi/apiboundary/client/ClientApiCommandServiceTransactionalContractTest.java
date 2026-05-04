@@ -240,6 +240,11 @@ class ClientApiCommandServiceTransactionalContractTest {
     }
 
     @Bean
+    com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService unlockWorkflowService() {
+      return mock(com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService.class);
+    }
+
+    @Bean
     ClientApiCommandService clientApiCommandService(
         CompanyIntakeApplicationService companyIntakeApplicationService,
         JobIntakeApplicationService jobIntakeApplicationService,
@@ -247,6 +252,7 @@ class ClientApiCommandServiceTransactionalContractTest {
         JobService jobService,
         ShortlistService shortlistService,
         ClientUnlockRequestPort clientUnlockRequestPort,
+        com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService unlockWorkflowService,
         CandidateCompanyInteractionService interactionService,
         InterviewFeedbackService interviewFeedbackService,
         WorkflowTransitionAuditService workflowTransitionAuditService,
@@ -258,6 +264,7 @@ class ClientApiCommandServiceTransactionalContractTest {
           jobService,
           shortlistService,
           clientUnlockRequestPort,
+          unlockWorkflowService,
           interactionService,
           interviewFeedbackService,
           workflowTransitionAuditService,

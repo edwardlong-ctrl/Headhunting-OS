@@ -23,15 +23,15 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
 
   private static final String INSERT_SQL = """
       INSERT INTO privacy.client_unlock_request (
-        client_unlock_request_id, organization_id, shortlist_id, shortlist_candidate_card_id,
+        client_unlock_request_id, workflow_entity_id, organization_id, shortlist_id, shortlist_candidate_card_id,
         job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
-        unlock_decision_ref, approved_disclosure_record_ref
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        unlock_decision_ref, approved_disclosure_record_ref, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
   private static final String FIND_LATEST_BY_CARD_SQL = """
       SELECT client_unlock_request_id, organization_id, shortlist_id, shortlist_candidate_card_id,
-        job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
+        workflow_entity_id, job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
         unlock_decision_ref, approved_disclosure_record_ref, created_at, updated_at, version
       FROM privacy.client_unlock_request
       WHERE organization_id = ? AND shortlist_id = ? AND shortlist_candidate_card_id = ?
@@ -41,7 +41,7 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
 
   private static final String FIND_BY_ORG_SQL = """
       SELECT client_unlock_request_id, organization_id, shortlist_id, shortlist_candidate_card_id,
-        job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
+        workflow_entity_id, job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
         unlock_decision_ref, approved_disclosure_record_ref, created_at, updated_at, version
       FROM privacy.client_unlock_request
       WHERE organization_id = ?
@@ -50,7 +50,7 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
 
   private static final String FIND_BY_CLIENT_SQL = """
       SELECT client_unlock_request_id, organization_id, shortlist_id, shortlist_candidate_card_id,
-        job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
+        workflow_entity_id, job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
         unlock_decision_ref, approved_disclosure_record_ref, created_at, updated_at, version
       FROM privacy.client_unlock_request
       WHERE organization_id = ? AND client_actor_id = ?
@@ -59,7 +59,7 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
 
   private static final String FIND_BY_SHORTLIST_SQL = """
       SELECT client_unlock_request_id, organization_id, shortlist_id, shortlist_candidate_card_id,
-        job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
+        workflow_entity_id, job_id, client_actor_id, anonymous_candidate_card_ref, request_reason, status,
         unlock_decision_ref, approved_disclosure_record_ref, created_at, updated_at, version
       FROM privacy.client_unlock_request
       WHERE organization_id = ? AND shortlist_id = ?
@@ -78,16 +78,18 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
     Connection connection = DataSourceUtils.getConnection(dataSource);
     try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       statement.setObject(1, clientUnlockRequest.clientUnlockRequestId().value());
-      statement.setObject(2, clientUnlockRequest.organizationId());
-      statement.setObject(3, clientUnlockRequest.shortlistId().value());
-      statement.setObject(4, clientUnlockRequest.shortlistCandidateCardId().value());
-      statement.setObject(5, clientUnlockRequest.jobId());
-      statement.setObject(6, clientUnlockRequest.clientActorId());
-      statement.setString(7, clientUnlockRequest.anonymousCandidateCardRef());
-      statement.setString(8, clientUnlockRequest.requestReason());
-      statement.setString(9, clientUnlockRequest.status().wireValue());
-      statement.setString(10, clientUnlockRequest.unlockDecisionRef());
-      statement.setString(11, clientUnlockRequest.approvedDisclosureRecordRef());
+      statement.setObject(2, clientUnlockRequest.workflowEntityId());
+      statement.setObject(3, clientUnlockRequest.organizationId());
+      statement.setObject(4, clientUnlockRequest.shortlistId().value());
+      statement.setObject(5, clientUnlockRequest.shortlistCandidateCardId().value());
+      statement.setObject(6, clientUnlockRequest.jobId());
+      statement.setObject(7, clientUnlockRequest.clientActorId());
+      statement.setString(8, clientUnlockRequest.anonymousCandidateCardRef());
+      statement.setString(9, clientUnlockRequest.requestReason());
+      statement.setString(10, clientUnlockRequest.status().wireValue());
+      statement.setString(11, clientUnlockRequest.unlockDecisionRef());
+      statement.setString(12, clientUnlockRequest.approvedDisclosureRecordRef());
+      statement.setInt(13, clientUnlockRequest.version());
       statement.executeUpdate();
       return findLatestByShortlistCardAndOrganizationId(
           clientUnlockRequest.organizationId(),
@@ -165,6 +167,7 @@ public final class JdbcClientUnlockRequestPort implements ClientUnlockRequestPor
   private static ClientUnlockRequest toClientUnlockRequest(ResultSet rs) throws SQLException {
     return ClientUnlockRequest.builder()
         .clientUnlockRequestId(new ClientUnlockRequestId(rs.getObject("client_unlock_request_id", UUID.class)))
+        .workflowEntityId(rs.getObject("workflow_entity_id", UUID.class))
         .organizationId(rs.getObject("organization_id", UUID.class))
         .shortlistId(new ShortlistId(rs.getObject("shortlist_id", UUID.class)))
         .shortlistCandidateCardId(new ShortlistCandidateCardId(rs.getObject("shortlist_candidate_card_id", UUID.class)))

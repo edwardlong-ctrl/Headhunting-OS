@@ -114,7 +114,7 @@ public final class ConsentDisclosureProtectionPolicy {
         disclosure.candidateProfileRef(), disclosure.jobRef(), disclosure.clientRef())) {
       reasons.add("disclosure_scope_mismatch");
     }
-    if (disclosure.status() != DisclosureStatus.APPROVED) {
+    if (disclosure.status() != DisclosureStatus.CONSULTANT_APPROVED) {
       reasons.add("disclosure_not_approved");
     }
     if (disclosure.disclosureLevel() != request.requestedLevel()) {

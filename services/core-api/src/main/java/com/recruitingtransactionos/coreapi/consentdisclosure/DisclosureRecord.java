@@ -41,7 +41,7 @@ public record DisclosureRecord(
 
   public boolean isApprovedFor(DisclosureLevel requestedLevel) {
     Objects.requireNonNull(requestedLevel, "requestedLevel must not be null");
-    return status == DisclosureStatus.APPROVED
+    return status == DisclosureStatus.CONSULTANT_APPROVED
         && disclosureLevel == requestedLevel
         && redactionLevel == RedactionLevel.L4_IDENTITY_DISCLOSED;
   }

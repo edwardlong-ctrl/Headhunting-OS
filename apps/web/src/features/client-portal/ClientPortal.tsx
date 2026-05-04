@@ -57,8 +57,10 @@ import {
   canClientSelectCandidate,
   canClientSubmitInterviewFeedback,
   deriveIdentityAccessStatus,
+  deriveUnlockStageLabel,
   shouldWarnApprovedWithoutDisclosure,
 } from "./clientPortalShortlistUtils";
+import { ClientDisclosedCandidatePage } from "./ClientDisclosedCandidatePage";
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 
@@ -1561,6 +1563,7 @@ function ShortlistDetailPage() {
                     ["Confidence", card.confidence],
                     ["Re-identification risk", card.reidentificationRiskSignal],
                     ["Unlock request status", card.unlockRequestStatus ?? "not_requested"],
+                    ["Unlock stage", deriveUnlockStageLabel(card.unlockRequestStatus, card.approvedDisclosureRecordRef)],
                     ["Identity access", identityAccessStatus],
                     ["Unlock decision", card.unlockDecisionRef ?? "not_recorded"],
                     ["Disclosure record", card.approvedDisclosureRecordRef ?? "not_recorded"],
@@ -1590,6 +1593,15 @@ function ShortlistDetailPage() {
                     <strong>Select candidate</strong>
                     <span>Mark this card for deeper review and unlock handling.</span>
                   </button>
+                  {card.approvedDisclosureRecordRef ? (
+                    <Link
+                      className="board-action-card"
+                      to={`/client/disclosed-candidates/${encodeURIComponent(shortlist.shortlistId)}/${encodeURIComponent(card.shortlistCandidateCardId)}`}
+                    >
+                      <strong>Open disclosed detail</strong>
+                      <span>Read identity-disclosed fields after workflow release.</span>
+                    </Link>
+                  ) : null}
                 </div>
                 {!selectionAllowed ? (
                   <p className="helper-copy">
@@ -1636,15 +1648,27 @@ function ShortlistDetailPage() {
                   </p>
                 ) : null}
                 {unlockResults[card.shortlistCandidateCardId] ? (
-                  <KeyValueList
-                    items={[
-                      ["Latest unlock request", unlockResults[card.shortlistCandidateCardId].clientUnlockRequestId],
-                      ["Request status", unlockResults[card.shortlistCandidateCardId].status],
-                      ["Requested at", formatDate(unlockResults[card.shortlistCandidateCardId].createdAt)],
-                      ["Unlock decision", unlockResults[card.shortlistCandidateCardId].unlockDecisionRef ?? "not_recorded"],
-                      ["Disclosure record", unlockResults[card.shortlistCandidateCardId].approvedDisclosureRecordRef ?? "not_recorded"],
-                    ]}
-                  />
+                  <>
+                    <KeyValueList
+                      items={[
+                        ["Latest unlock request", unlockResults[card.shortlistCandidateCardId].clientUnlockRequestId ?? "not_created"],
+                        ["Request status", unlockResults[card.shortlistCandidateCardId].status],
+                        ["Unlock stage", unlockResults[card.shortlistCandidateCardId].stage],
+                        ["Requested at", formatDate(unlockResults[card.shortlistCandidateCardId].createdAt)],
+                        ["Unlock decision", unlockResults[card.shortlistCandidateCardId].unlockDecisionRef ?? "not_recorded"],
+                        ["Disclosure record", unlockResults[card.shortlistCandidateCardId].approvedDisclosureRecordRef ?? "not_recorded"],
+                      ]}
+                    />
+                    {unlockResults[card.shortlistCandidateCardId].blockers.length > 0 ? (
+                      <ul className="helper-copy">
+                        {unlockResults[card.shortlistCandidateCardId].blockers.map((blocker) => (
+                          <li key={`${card.shortlistCandidateCardId}-${blocker.code}`}>
+                            {blocker.code}: {blocker.message}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
                 ) : null}
                 <label>
                   Feedback outcome
@@ -1889,6 +1913,7 @@ export function ClientPortal() {
         <Route path="shortlists/:shortlistId" element={<ShortlistDetailPage />} />
         <Route path="candidates/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
         <Route path="candidate-cards/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
+        <Route path="disclosed-candidates/:shortlistId/:cardId" element={<ClientDisclosedCandidatePage />} />
         <Route path="*" element={<Navigate to="/client" replace />} />
       </Routes>
     </ClientPortalLayout>

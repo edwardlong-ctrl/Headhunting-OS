@@ -111,7 +111,7 @@ class ConsentDisclosureServiceTest {
     assertThat(workflowEvents.commands()).isEmpty();
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED);
+        .containsExactly(DisclosureStatus.CONSULTANT_APPROVED);
   }
 
   @Test
@@ -211,7 +211,7 @@ class ConsentDisclosureServiceTest {
         PROFILE_REF,
         JOB_REF,
         CLIENT_REF,
-        DisclosureStatus.APPROVED,
+        DisclosureStatus.CONSULTANT_APPROVED,
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         RedactionLevel.L4_IDENTITY_DISCLOSED,
         "unlock_decision_task12b_other",
@@ -237,7 +237,7 @@ class ConsentDisclosureServiceTest {
     assertThat(workflowEvents.commands()).isEmpty();
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED);
+        .containsExactly(DisclosureStatus.CONSULTANT_APPROVED);
   }
 
   @Test
@@ -255,7 +255,7 @@ class ConsentDisclosureServiceTest {
         PROFILE_REF,
         JOB_REF,
         CLIENT_REF,
-        DisclosureStatus.APPROVED,
+        DisclosureStatus.CONSULTANT_APPROVED,
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         RedactionLevel.L4_IDENTITY_DISCLOSED,
         "unlock_decision_task12b_other",
@@ -282,7 +282,7 @@ class ConsentDisclosureServiceTest {
     assertThat(workflowEvents.commands()).isEmpty();
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED);
+        .containsExactly(DisclosureStatus.CONSULTANT_APPROVED);
   }
 
   @Test
@@ -315,7 +315,7 @@ class ConsentDisclosureServiceTest {
     assertThat(workflowEvents.commands()).isEmpty();
     assertThat(disclosureRecords.appendedRecords())
         .extracting(DisclosureRecord::status)
-        .containsExactly(DisclosureStatus.APPROVED);
+        .containsExactly(DisclosureStatus.CONSULTANT_APPROVED);
   }
 
   @Test
@@ -477,7 +477,7 @@ class ConsentDisclosureServiceTest {
         PROFILE_REF,
         JOB_REF,
         CLIENT_REF,
-        DisclosureStatus.APPROVED,
+        DisclosureStatus.CONSULTANT_APPROVED,
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         RedactionLevel.L4_IDENTITY_DISCLOSED,
         "unlock_decision_task12b_0001",

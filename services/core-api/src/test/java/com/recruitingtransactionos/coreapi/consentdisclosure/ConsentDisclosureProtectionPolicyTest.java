@@ -35,13 +35,13 @@ class ConsentDisclosureProtectionPolicyTest {
     UnlockDisclosureDecision rawCandidate = policy.decide(request(
         DisclosureLevel.RAW_CANDIDATE,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundary()));
     UnlockDisclosureDecision rawProfile = policy.decide(request(
         DisclosureLevel.RAW_CANDIDATE_PROFILE,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundary()));
 
@@ -78,7 +78,7 @@ class ConsentDisclosureProtectionPolicyTest {
     UnlockDisclosureDecision disclosureWithoutUnlock = policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         null,
         auditBoundary()));
 
@@ -131,7 +131,7 @@ class ConsentDisclosureProtectionPolicyTest {
     assertDenied(policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         null,
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundary())), "missing_confirmed_consent");
 
@@ -145,7 +145,7 @@ class ConsentDisclosureProtectionPolicyTest {
       assertDenied(policy.decide(request(
           DisclosureLevel.L4_IDENTITY_DISCLOSED,
           consent(status),
-          disclosure(DisclosureStatus.APPROVED),
+          disclosure(DisclosureStatus.CONSULTANT_APPROVED),
           unlockDecision(UnlockDecisionStatus.APPROVED),
           auditBoundary())), "consent_not_confirmed");
     }
@@ -153,21 +153,21 @@ class ConsentDisclosureProtectionPolicyTest {
     assertDenied(policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         expiredConsent(),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundary())), "consent_expired");
 
     assertDenied(policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.REQUIRES_REVIEW),
         auditBoundary())), "unlock_decision_not_approved");
 
     assertDenied(policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         systemApprovedUnlockDecision(),
         auditBoundary())), "unlock_human_approval_required");
 
@@ -184,19 +184,19 @@ class ConsentDisclosureProtectionPolicyTest {
     UnlockDisclosureDecision missingAudit = policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         null));
     UnlockDisclosureDecision pendingAuditAppend = policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundaryWithoutWorkflowEvent()));
     UnlockDisclosureDecision allowed = policy.decide(request(
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         consent(ConsentStatus.CONFIRMED),
-        disclosure(DisclosureStatus.APPROVED),
+        disclosure(DisclosureStatus.CONSULTANT_APPROVED),
         unlockDecision(UnlockDecisionStatus.APPROVED),
         auditBoundary()));
 
@@ -286,7 +286,7 @@ class ConsentDisclosureProtectionPolicyTest {
   }
 
   private static DisclosureRecord disclosureWithRedactionLevel(RedactionLevel redactionLevel) {
-    return disclosureWithRedactionLevel(DisclosureStatus.APPROVED, redactionLevel);
+    return disclosureWithRedactionLevel(DisclosureStatus.CONSULTANT_APPROVED, redactionLevel);
   }
 
   private static DisclosureRecord disclosureWithRedactionLevel(

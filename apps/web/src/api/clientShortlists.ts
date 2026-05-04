@@ -30,6 +30,11 @@ export type ClientShortlistCard = {
   approvedDisclosureRecordRef: string | null;
 };
 
+export type ClientUnlockBlocker = {
+  code: string;
+  message: string;
+};
+
 export type ClientShortlistDetail = {
   shortlistId: string;
   jobId: string;
@@ -51,16 +56,18 @@ export type ClientShortlistCandidateSelection = {
 };
 
 export type ClientUnlockRequest = {
-  clientUnlockRequestId: string;
+  clientUnlockRequestId: string | null;
   shortlistId: string;
   shortlistCandidateCardId: string;
   anonymousCardRef: string;
   status: string;
+  stage: string;
   requestReason: string;
   createdAt: string;
   updatedAt: string;
   unlockDecisionRef: string | null;
   approvedDisclosureRecordRef: string | null;
+  blockers: ClientUnlockBlocker[];
 };
 
 export type ClientDashboard = {

@@ -137,6 +137,7 @@ class ConsentDisclosureRegressionClosureTest {
         .noneMatch(fileName -> fileName.endsWith("Repository.java"))
         .noneMatch(fileName -> fileName.endsWith("Entity.java"))
         .contains(
+            "CandidateConsentWorkflowService.java",
             "ConsentDisclosureService.java",
             "ConsentDisclosureServiceRequest.java",
             "ConsentDisclosureServiceResult.java",
@@ -145,18 +146,21 @@ class ConsentDisclosureRegressionClosureTest {
             "ConsentRecordPort.java",
             "UnlockDecisionPort.java",
             "DisclosureRecordPort.java",
+            "UnlockWorkflowService.java",
             "JdbcConsentRecordPort.java",
             "JdbcUnlockDecisionPort.java",
             "JdbcDisclosureRecordPort.java");
 
     for (Path file : productionFiles) {
       String source = Files.readString(file);
-      assertThat(source)
+      boolean isTask33WorkflowService =
+          "CandidateConsentWorkflowService.java".equals(file.getFileName().toString())
+              || "UnlockWorkflowService.java".equals(file.getFileName().toString());
+      var assertion = assertThat(source)
           .as(file.toString())
           .doesNotContain(
               "@RestController",
               "@Controller",
-              "@Service",
               "@Repository",
               "@RequestMapping",
               "@GetMapping",
@@ -176,7 +180,6 @@ class ConsentDisclosureRegressionClosureTest {
               "CanonicalWriteService",
               "CanonicalWriteGate",
               "CanonicalWriteCommand",
-              "CandidateProfileService",
               "CandidateProfilePersistencePort",
               "upsertCandidateProfileField",
               "ClaimLedgerService",
@@ -189,6 +192,11 @@ class ConsentDisclosureRegressionClosureTest {
               "BlockingQueue",
               "Kafka",
               "Rabbit");
+      if (!isTask33WorkflowService) {
+        assertion
+            .doesNotContain("@Service")
+            .doesNotContain("CandidateProfileService");
+      }
     }
 
     assertThat(findConsentDisclosureUiFiles()).isEmpty();

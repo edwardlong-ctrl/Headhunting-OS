@@ -87,6 +87,7 @@ class ClientApiCommandServiceTest {
   @Mock private JobService jobService;
   @Mock private ShortlistService shortlistService;
   @Mock private ClientUnlockRequestPort clientUnlockRequestPort;
+  @Mock private com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService unlockWorkflowService;
   @Mock private CandidateCompanyInteractionService interactionService;
   @Mock private InterviewFeedbackService interviewFeedbackService;
   @Mock private WorkflowTransitionAuditService workflowTransitionAuditService;
@@ -104,6 +105,7 @@ class ClientApiCommandServiceTest {
         jobService,
         shortlistService,
         clientUnlockRequestPort,
+        unlockWorkflowService,
         interactionService,
         interviewFeedbackService,
         workflowTransitionAuditService,

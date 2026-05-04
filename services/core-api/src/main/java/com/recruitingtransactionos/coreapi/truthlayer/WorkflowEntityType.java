@@ -8,6 +8,7 @@ public enum WorkflowEntityType {
   CANDIDATE,
   SHORTLIST,
   CONSENT,
+  UNLOCK_REQUEST,
   DISCLOSURE,
   PLACEMENT,
   COMMISSION,

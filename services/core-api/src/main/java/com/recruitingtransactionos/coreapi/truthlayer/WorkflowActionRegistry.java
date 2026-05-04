@@ -203,11 +203,16 @@ public final class WorkflowActionRegistry {
             WorkflowActionCode.CONSENT_DECLINED,
             WorkflowActionCode.CONSENT_EXPIRED,
             WorkflowActionCode.CONSENT_REVOKED)));
+    policies.addAll(transitions(WorkflowEntityType.UNLOCK_REQUEST,
+        RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
+        List.of(
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED,
+            WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED,
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED)));
 
     policies.addAll(transitions(WorkflowEntityType.DISCLOSURE,
         RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         List.of(
-            WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED,
             WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED,
             WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
             WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED,

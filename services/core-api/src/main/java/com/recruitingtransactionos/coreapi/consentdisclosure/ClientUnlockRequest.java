@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record ClientUnlockRequest(
     ClientUnlockRequestId clientUnlockRequestId,
+    UUID workflowEntityId,
     UUID organizationId,
     ShortlistId shortlistId,
     ShortlistCandidateCardId shortlistCandidateCardId,
@@ -25,6 +26,12 @@ public record ClientUnlockRequest(
   public ClientUnlockRequest {
     Objects.requireNonNull(clientUnlockRequestId, "clientUnlockRequestId must not be null");
     Objects.requireNonNull(organizationId, "organizationId must not be null");
+    workflowEntityId = workflowEntityId == null
+        ? ConsentDisclosureWorkflowEntityIds.unlockRequestEntityId(
+            organizationId,
+            clientUnlockRequestId.value().toString())
+        : workflowEntityId;
+    Objects.requireNonNull(workflowEntityId, "workflowEntityId must not be null");
     Objects.requireNonNull(shortlistId, "shortlistId must not be null");
     Objects.requireNonNull(shortlistCandidateCardId, "shortlistCandidateCardId must not be null");
     Objects.requireNonNull(jobId, "jobId must not be null");
@@ -45,6 +52,7 @@ public record ClientUnlockRequest(
 
   public static final class Builder {
     private ClientUnlockRequestId clientUnlockRequestId;
+    private UUID workflowEntityId;
     private UUID organizationId;
     private ShortlistId shortlistId;
     private ShortlistCandidateCardId shortlistCandidateCardId;
@@ -68,6 +76,11 @@ public record ClientUnlockRequest(
 
     public Builder organizationId(UUID organizationId) {
       this.organizationId = organizationId;
+      return this;
+    }
+
+    public Builder workflowEntityId(UUID workflowEntityId) {
+      this.workflowEntityId = workflowEntityId;
       return this;
     }
 
@@ -134,6 +147,7 @@ public record ClientUnlockRequest(
     public ClientUnlockRequest build() {
       return new ClientUnlockRequest(
           clientUnlockRequestId,
+          workflowEntityId,
           organizationId,
           shortlistId,
           shortlistCandidateCardId,

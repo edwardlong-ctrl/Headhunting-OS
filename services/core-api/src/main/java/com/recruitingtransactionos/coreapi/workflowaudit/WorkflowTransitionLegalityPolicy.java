@@ -73,8 +73,10 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.CONSENT_EXPIRED, Set.of("requested", "viewed_by_candidate"), "expired"),
           rule(WorkflowActionCode.CONSENT_REVOKED, Set.of("confirmed"), "revoked"),
           rule(WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED, Set.of("not_disclosed", "consent_confirmed"), "requested"),
+          rule(WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED, Set.of("requested"), "approved"),
+          rule(WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED, Set.of("requested"), "rejected"),
           rule(WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED, Set.of("requested"), "consultant_approved"),
-          rule(WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED, Set.of("consultant_approved", "approved"), "identity_disclosed"),
+          rule(WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED, Set.of("consultant_approved"), "identity_disclosed"),
           rule(WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED, Set.of("identity_disclosed"), "fee_protection_active"),
           rule(WorkflowActionCode.SOURCE_ITEM_REGISTERED, Set.of("absent"), "registered"),
           rule(WorkflowActionCode.INFORMATION_PACKET_CREATED, Set.of("absent"), "created"),
@@ -251,8 +253,11 @@ public final class WorkflowTransitionLegalityPolicy {
           WorkflowActionCode.CONSENT_DECLINED,
           WorkflowActionCode.CONSENT_EXPIRED,
           WorkflowActionCode.CONSENT_REVOKED);
-      case "disclosure" -> List.of(
+      case "unlock_request" -> List.of(
           WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED,
+          WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED,
+          WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED);
+      case "disclosure" -> List.of(
           WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED,
           WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
           WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED);

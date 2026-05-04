@@ -1,8 +1,9 @@
 import { clearPortalSession, loadPortalSession, savePortalSession } from "./authSessionStorage";
 
-export type AccessTokenScope = "consultant" | "client";
+export type AccessTokenScope = "consultant" | "client" | "candidate";
 
 const CLIENT_ACCESS_TOKEN_STORAGE_KEY = "rto.clientAccessToken";
+const CANDIDATE_ACCESS_TOKEN_STORAGE_KEY = "rto.candidateAccessToken";
 const LEGACY_ACCESS_TOKEN_STORAGE_KEY = "rto.portalAccessToken";
 
 export function loadAccessToken(scope: AccessTokenScope): string | null {
@@ -12,6 +13,9 @@ export function loadAccessToken(scope: AccessTokenScope): string | null {
   }
   if (typeof window === "undefined") {
     return null;
+  }
+  if (scope === "candidate") {
+    return normalizeAccessToken(window.localStorage.getItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY));
   }
   return normalizeAccessToken(window.localStorage.getItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY));
 }
@@ -24,6 +28,8 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
   if (!normalized) {
     if (scope === "consultant") {
       clearPortalSession();
+    } else if (scope === "candidate") {
+      window.localStorage.removeItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY);
     } else {
       window.localStorage.removeItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY);
       window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
@@ -38,6 +44,10 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
         accessToken: normalized,
       });
     }
+    return;
+  }
+  if (scope === "candidate") {
+    window.localStorage.setItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY, normalized);
     return;
   }
   window.localStorage.setItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY, normalized);

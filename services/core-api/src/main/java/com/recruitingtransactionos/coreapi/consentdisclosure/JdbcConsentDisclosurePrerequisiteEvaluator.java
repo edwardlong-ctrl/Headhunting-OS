@@ -177,7 +177,7 @@ public final class JdbcConsentDisclosurePrerequisiteEvaluator
       return false;
     }
     DisclosureRecord disclosure = disclosureRecord.orElseThrow();
-    return disclosure.status() == DisclosureStatus.APPROVED
+    return disclosure.status() == DisclosureStatus.CONSULTANT_APPROVED
         && disclosure.disclosureLevel() == requestedLevel
         && disclosure.redactionLevel() == RedactionLevel.L4_IDENTITY_DISCLOSED;
   }

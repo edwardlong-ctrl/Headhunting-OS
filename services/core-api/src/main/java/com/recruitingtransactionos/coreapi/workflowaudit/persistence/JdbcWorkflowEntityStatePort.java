@@ -65,6 +65,13 @@ public class JdbcWorkflowEntityStatePort implements WorkflowEntityStatePort {
           FROM privacy.consent_record
           WHERE organization_id = ? AND workflow_entity_id = ?
           """;
+      case "unlock_request:unlock_request", "workflow:unlock_request" -> """
+          SELECT status
+          FROM privacy.client_unlock_request
+          WHERE organization_id = ? AND workflow_entity_id = ?
+          ORDER BY created_at DESC
+          LIMIT 1
+          """;
       case "disclosure:disclosure", "workflow:disclosure" -> """
           SELECT status
           FROM privacy.disclosure_record

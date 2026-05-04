@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { ClientPortal } from "./features/client-portal/ClientPortal";
+import { CandidatePortal } from "./features/candidate-portal/CandidatePortal";
 import { ConsultantPortal } from "./features/consultant-portal/ConsultantPortal";
 
 type PortalKey = "owner" | "consultant" | "client" | "candidate" | "admin";
@@ -153,7 +154,7 @@ export default function App() {
           <Route path="/owner/*" element={<StaticPortal portalKey="owner" />} />
           <Route path="/consultant/*" element={<ConsultantPortal />} />
           <Route path="/client/*" element={<ClientPortal />} />
-          <Route path="/candidate/*" element={<StaticPortal portalKey="candidate" />} />
+          <Route path="/candidate/*" element={<CandidatePortal />} />
           <Route path="/admin/*" element={<StaticPortal portalKey="admin" />} />
           <Route path="*" element={<Navigate to="/consultant" replace />} />
         </Routes>

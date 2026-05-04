@@ -52,7 +52,7 @@ class ConsultantWorkflowSurfaceServiceTest {
   @Test
   void disclosurePreviewIncludesRealGateBlockers() {
     WorkflowEntityStatePort statePort = (organizationId, namespace, entityType, entityId) ->
-        Optional.of("{\"status\":\"approved\"}");
+        Optional.of("{\"status\":\"consultant_approved\"}");
     ConsentDisclosurePrerequisiteEvaluator evaluator =
         new ConsentDisclosurePrerequisiteEvaluator() {
           @Override
@@ -114,7 +114,7 @@ class ConsultantWorkflowSurfaceServiceTest {
         "DISCLOSURE",
         DISCLOSURE_ENTITY_ID);
 
-    assertThat(response.currentStatus()).isEqualTo("approved");
+    assertThat(response.currentStatus()).isEqualTo("consultant_approved");
     assertThat(response.transitionOptions())
         .anySatisfy(option -> {
           if ("DISCLOSURE_IDENTITY_DISCLOSED".equals(option.actionCode())) {
@@ -174,7 +174,7 @@ class ConsultantWorkflowSurfaceServiceTest {
         "candidate-profile-ref-26",
         "job-ref-26",
         "client-ref-26",
-        DisclosureStatus.APPROVED,
+        DisclosureStatus.CONSULTANT_APPROVED,
         DisclosureLevel.L4_IDENTITY_DISCLOSED,
         com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel.L4_IDENTITY_DISCLOSED,
         "unlock-ref-26",

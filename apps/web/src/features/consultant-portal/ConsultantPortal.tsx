@@ -74,6 +74,7 @@ import {
   type ConsultantWorkflowEvent,
   type ConsultantWorkflowTimeline,
 } from "../../api/consultantWorkflow";
+import { ConsultantUnlockQueuePage } from "./ConsultantUnlockQueuePage";
 import { listConsultantFollowUps, type ConsultantFollowUp } from "../../api/consultantFollowUps";
 import {
   CONSULTANT_MATCH_DIMENSIONS,
@@ -129,6 +130,7 @@ const navItems: NavItem[] = [
   { to: "/consultant/matching", label: "Matching" },
   { to: "/consultant/outreach", label: "Outreach" },
   { to: "/consultant/shortlists", label: "Shortlists" },
+  { to: "/consultant/unlocks", label: "Unlocks" },
   { to: "/consultant/follow-ups", label: "Follow-ups" },
   { to: "/consultant/workflow", label: "Workflow" },
   { to: "/consultant/placements", label: "Placements" },
@@ -3552,6 +3554,7 @@ export function ConsultantPortal() {
         <Route path="jobs/:jobId/shortlist" element={<ShortlistBuilderPage />} />
         <Route path="shortlists" element={<ShortlistsPage />} />
         <Route path="shortlists/:shortlistId" element={<ShortlistDetailPage />} />
+        <Route path="unlocks" element={<ConsultantUnlockQueuePage />} />
         <Route path="follow-ups" element={<FollowUpsPage />} />
         <Route path="outreach" element={<OutreachPage />} />
         <Route path="workflow" element={<WorkflowPage />} />

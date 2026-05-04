@@ -17,6 +17,7 @@ import com.recruitingtransactionos.coreapi.company.service.CompanyService;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ClientUnlockRequest;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ClientUnlockRequestId;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ClientUnlockRequestStatus;
+import com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ClientUnlockRequestPort;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
@@ -95,6 +96,7 @@ public class ClientApiCommandService {
   private final JobService jobService;
   private final ShortlistService shortlistService;
   private final ClientUnlockRequestPort clientUnlockRequestPort;
+  private final UnlockWorkflowService unlockWorkflowService;
   private final CandidateCompanyInteractionService interactionService;
   private final InterviewFeedbackService interviewFeedbackService;
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
@@ -108,6 +110,7 @@ public class ClientApiCommandService {
       JobService jobService,
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
+      UnlockWorkflowService unlockWorkflowService,
       CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
       WorkflowTransitionAuditService workflowTransitionAuditService) {
@@ -118,6 +121,7 @@ public class ClientApiCommandService {
         jobService,
         shortlistService,
         clientUnlockRequestPort,
+        unlockWorkflowService,
         interactionService,
         interviewFeedbackService,
         workflowTransitionAuditService,
@@ -131,6 +135,7 @@ public class ClientApiCommandService {
       JobService jobService,
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
+      UnlockWorkflowService unlockWorkflowService,
       CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
       WorkflowTransitionAuditService workflowTransitionAuditService,
@@ -144,6 +149,8 @@ public class ClientApiCommandService {
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.clientUnlockRequestPort = Objects.requireNonNull(
         clientUnlockRequestPort, "clientUnlockRequestPort must not be null");
+    this.unlockWorkflowService = Objects.requireNonNull(
+        unlockWorkflowService, "unlockWorkflowService must not be null");
     this.interactionService = Objects.requireNonNull(interactionService, "interactionService must not be null");
     this.interviewFeedbackService = Objects.requireNonNull(
         interviewFeedbackService, "interviewFeedbackService must not be null");
@@ -295,32 +302,19 @@ public class ClientApiCommandService {
     ShortlistCandidateCard card = requireShortlistCard(organizationId, shortlistId, cardId);
     requireSelectedForUnlockRequest(card);
     shortlist = ensureSelectionState(shortlist, actorId);
-    Optional<ClientUnlockRequest> existing = clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(
-        organizationId, shortlistId, cardId);
-    if (existing.isPresent()) {
-      ClientUnlockRequest latest = existing.orElseThrow();
-      if (latest.status() == ClientUnlockRequestStatus.REQUESTED
-          || latest.status() == ClientUnlockRequestStatus.UNDER_REVIEW
-          || latest.status() == ClientUnlockRequestStatus.APPROVED) {
-        return toUnlockRequestResponse(latest);
-      }
-    }
-    Instant now = Instant.now();
-    ClientUnlockRequest created = clientUnlockRequestPort.create(ClientUnlockRequest.builder()
-        .clientUnlockRequestId(new ClientUnlockRequestId(UUID.randomUUID()))
-        .organizationId(organizationId)
-        .shortlistId(shortlistId)
-        .shortlistCandidateCardId(cardId)
-        .jobId(shortlist.jobId().value())
-        .clientActorId(actorId)
-        .anonymousCandidateCardRef(opaqueCardRef(card))
-        .requestReason(request.requestReason())
-        .status(ClientUnlockRequestStatus.REQUESTED)
-        .createdAt(now)
-        .updatedAt(now)
-        .build());
-    auditDisclosureUnlockRequest(created, actorId);
-    return toUnlockRequestResponse(created);
+    var result = unlockWorkflowService.createClientRequest(
+        organizationId,
+        actorId,
+        shortlist,
+        card,
+        opaqueCardRef(card),
+        request.requestReason());
+    return toUnlockRequestResponse(
+        result.unlockRequest(),
+        result.blockers(),
+        shortlistId.value().toString(),
+        cardId.value().toString(),
+        opaqueCardRef(card));
   }
 
   public ClientInterviewFeedbackResponse submitInterviewFeedback(
@@ -485,26 +479,6 @@ public class ClientApiCommandService {
     return updated;
   }
 
-  private void auditDisclosureUnlockRequest(ClientUnlockRequest request, UUID actorId) {
-    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
-        .organizationId(request.organizationId())
-        .entityNamespace("workflow")
-        .entityType(WorkflowEntityType.DISCLOSURE.wireValue())
-        .entityId(request.clientUnlockRequestId().value())
-        .entityVersion(request.version())
-        .actionCode(WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED.wireValue())
-        .actorType(ActorRole.CLIENT)
-        .actorId(actorId)
-        .aiInvolvement(WorkflowAiInvolvement.NONE)
-        .beforeState(snapshot("not_disclosed"))
-        .afterState(snapshot("requested"))
-        .reason(request.requestReason())
-        .sourceType("client_api")
-        .sourceRefId(request.clientUnlockRequestId().value())
-        .occurredAt(request.createdAt())
-        .build());
-  }
-
   private Shortlist copyShortlistWithStatus(Shortlist shortlist, ShortlistStatus status, Instant now) {
     return Shortlist.builder()
         .shortlistId(shortlist.shortlistId())
@@ -616,18 +590,44 @@ public class ClientApiCommandService {
         cards);
   }
 
-  private ClientUnlockRequestResponse toUnlockRequestResponse(ClientUnlockRequest request) {
+  private ClientUnlockRequestResponse toUnlockRequestResponse(
+      ClientUnlockRequest request,
+      List<UnlockWorkflowService.UnlockBlocker> blockers,
+      String shortlistId,
+      String cardId,
+      String anonymousCardRef) {
     return new ClientUnlockRequestResponse(
-        request.clientUnlockRequestId().value().toString(),
-        request.shortlistId().value().toString(),
-        request.shortlistCandidateCardId().value().toString(),
-        request.anonymousCandidateCardRef(),
-        request.status().wireValue(),
-        request.requestReason(),
-        request.createdAt().toString(),
-        request.updatedAt().toString(),
-        request.unlockDecisionRef(),
-        request.approvedDisclosureRecordRef());
+        request == null ? null : request.clientUnlockRequestId().value().toString(),
+        shortlistId,
+        cardId,
+        anonymousCardRef,
+        request == null ? "blocked" : request.status().wireValue(),
+        deriveUnlockStage(request, blockers),
+        request == null ? "Unlock blocked by consent/disclosure prerequisites." : request.requestReason(),
+        request == null ? Instant.now().toString() : request.createdAt().toString(),
+        request == null ? Instant.now().toString() : request.updatedAt().toString(),
+        request == null ? null : request.unlockDecisionRef(),
+        request == null ? null : request.approvedDisclosureRecordRef(),
+        blockers.stream()
+            .map(blocker -> new ClientUnlockRequestResponse.Blocker(blocker.code(), blocker.message()))
+            .toList());
+  }
+
+  private static String deriveUnlockStage(
+      ClientUnlockRequest request,
+      List<UnlockWorkflowService.UnlockBlocker> blockers) {
+    if (request == null) {
+      return blockers.isEmpty() ? "blocked" : "blocked_precheck";
+    }
+    return switch (request.status()) {
+      case REQUESTED -> "pending_consultant_review";
+      case UNDER_REVIEW -> "under_review";
+      case APPROVED -> request.approvedDisclosureRecordRef() == null
+          ? "approved_pending_disclosure"
+          : "identity_disclosed";
+      case REJECTED -> "rejected";
+      default -> request.status().wireValue();
+    };
   }
 
   private Optional<ShortlistCandidateCardViewMetadata> metadata(ShortlistCandidateCard card) {

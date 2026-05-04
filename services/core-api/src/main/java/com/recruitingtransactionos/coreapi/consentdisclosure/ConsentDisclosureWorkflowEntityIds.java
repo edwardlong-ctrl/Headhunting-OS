@@ -15,6 +15,10 @@ public final class ConsentDisclosureWorkflowEntityIds {
     return deterministicUuid("disclosure|" + organizationId + "|" + disclosureRecordRef);
   }
 
+  public static UUID unlockRequestEntityId(UUID organizationId, String unlockRequestRef) {
+    return deterministicUuid("unlock_request|" + organizationId + "|" + unlockRequestRef);
+  }
+
   public static UUID candidateEntityId(UUID organizationId, String candidateRef) {
     return deterministicUuid("candidate|" + organizationId + "|" + candidateRef);
   }

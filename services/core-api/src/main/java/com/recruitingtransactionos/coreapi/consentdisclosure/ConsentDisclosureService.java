@@ -308,7 +308,7 @@ public final class ConsentDisclosureService {
 
   private static String beforeState(ConsentDisclosureServiceRequest request) {
     return "{"
-        + "\"status\":\"approved\","
+        + "\"status\":\"consultant_approved\","
         + "\"disclosureRecordRef\":\"" + request.approvedDisclosureRecordRef() + "\","
         + "\"requestedLevel\":\"" + request.requestedLevel().wireValue() + "\""
         + "}";

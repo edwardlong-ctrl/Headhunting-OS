@@ -19,12 +19,14 @@ class WorkflowActionPolicyTest {
       WorkflowEntityType.CANDIDATE,
       WorkflowEntityType.SHORTLIST,
       WorkflowEntityType.CONSENT,
+      WorkflowEntityType.UNLOCK_REQUEST,
       WorkflowEntityType.DISCLOSURE,
       WorkflowEntityType.PLACEMENT,
       WorkflowEntityType.COMMISSION,
       WorkflowEntityType.CLAIM_LEDGER_ITEM,
       WorkflowEntityType.REVIEW_EVENT,
       WorkflowEntityType.AI_TASK_RUN,
+      WorkflowEntityType.REIDENTIFICATION_ASSESSMENT,
       WorkflowEntityType.CANONICAL_WRITE,
       WorkflowEntityType.INFORMATION_PACKET,
       WorkflowEntityType.SOURCE_ITEM);
@@ -83,6 +85,8 @@ class WorkflowActionPolicyTest {
       WorkflowActionCode.CONSENT_EXPIRED,
       WorkflowActionCode.CONSENT_REVOKED,
       WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED,
+      WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED,
+      WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED,
       WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED,
       WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
       WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED,
@@ -102,7 +106,9 @@ class WorkflowActionPolicyTest {
       WorkflowActionCode.COMMISSION_PAID,
       WorkflowActionCode.COMMISSION_WITHHELD,
       WorkflowActionCode.AI_TASK_RUN_RECORDED,
-      WorkflowActionCode.AI_RECOMMENDATION_RECORDED);
+      WorkflowActionCode.AI_RECOMMENDATION_RECORDED,
+      WorkflowActionCode.REIDENTIFICATION_RISK_ASSESSED,
+      WorkflowActionCode.CLIENT_SAFE_REDACTION_BLOCKED);
 
   @Test
   void requiredEntityTypeVocabularyExistsAndIsStableForAuditStorage() {
@@ -171,6 +177,22 @@ class WorkflowActionPolicyTest {
     assertThat(new LinkedHashSet<>(policyActions)).hasSize(policyActions.size());
     assertThat(WorkflowActionRegistry.standard().policies())
         .allSatisfy(policy -> assertThat(policy.allowedEntityTypes()).isNotEmpty());
+  }
+
+  @Test
+  void unlockWorkflowActionsAreBoundToUnlockRequestEntityOnly() {
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED)
+        .allowedEntityTypes())
+        .containsExactly(WorkflowEntityType.UNLOCK_REQUEST);
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED)
+        .allowedEntityTypes())
+        .containsExactly(WorkflowEntityType.UNLOCK_REQUEST);
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED)
+        .allowedEntityTypes())
+        .containsExactly(WorkflowEntityType.UNLOCK_REQUEST);
   }
 
   @Test

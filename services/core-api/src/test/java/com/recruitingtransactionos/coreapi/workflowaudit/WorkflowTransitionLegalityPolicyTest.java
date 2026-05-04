@@ -84,4 +84,59 @@ class WorkflowTransitionLegalityPolicyTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("illegal workflow transition before status");
   }
+
+  @Test
+  void disclosureUnlockApprovalAndRejectionUseCanonicalRequestedTerminalStates() {
+    policy.enforce(
+        WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED,
+        new WorkflowStateSnapshot("{\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"approved\"}"));
+    policy.enforce(
+        WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED,
+        new WorkflowStateSnapshot("{\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"rejected\"}"));
+
+    assertThatThrownBy(() -> policy.enforce(
+        WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED,
+        new WorkflowStateSnapshot("{\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"consultant_approved\"}")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("illegal workflow transition after status");
+  }
+
+  @Test
+  void disclosureConsultantApprovalUsesConsultantApprovedIntermediateState() {
+    policy.enforce(
+        WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED,
+        new WorkflowStateSnapshot("{\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"consultant_approved\"}"));
+    policy.enforce(
+        WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
+        new WorkflowStateSnapshot("{\"status\":\"consultant_approved\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"identity_disclosed\"}"));
+
+    assertThatThrownBy(() -> policy.enforce(
+        WorkflowActionCode.DISCLOSURE_CONSULTANT_APPROVED,
+        new WorkflowStateSnapshot("{\"status\":\"requested\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"approved\"}")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("illegal workflow transition after status");
+  }
+
+  @Test
+  void unlockRequestPreviewListsUnlockActionsWhileDisclosurePreviewDoesNot() {
+    assertThat(policy.previewTransitions("unlock_request", "requested"))
+        .extracting(WorkflowTransitionDecision::actionCode)
+        .containsExactlyInAnyOrder(
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED.wireValue(),
+            WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED.wireValue(),
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED.wireValue());
+
+    assertThat(policy.previewTransitions("disclosure", "requested"))
+        .extracting(WorkflowTransitionDecision::actionCode)
+        .doesNotContain(
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REQUESTED.wireValue(),
+            WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED.wireValue(),
+            WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED.wireValue());
+  }
 }

@@ -38,6 +38,28 @@ export function deriveIdentityAccessStatus(
   return "not_unlocked";
 }
 
+export function deriveUnlockStageLabel(
+  unlockRequestStatus: string | null,
+  approvedDisclosureRecordRef: string | null,
+): string {
+  if (approvedDisclosureRecordRef) {
+    return "identity_disclosed";
+  }
+  if (unlockRequestStatus === "approved") {
+    return "approved_pending_disclosure";
+  }
+  if (unlockRequestStatus === "requested") {
+    return "pending_consultant_review";
+  }
+  if (unlockRequestStatus === "under_review") {
+    return "under_review";
+  }
+  if (unlockRequestStatus === "rejected") {
+    return "rejected";
+  }
+  return "not_requested";
+}
+
 export function shouldWarnApprovedWithoutDisclosure(
   unlockRequestStatus: string | null,
   approvedDisclosureRecordRef: string | null,
