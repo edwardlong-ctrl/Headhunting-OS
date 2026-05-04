@@ -51,6 +51,15 @@ public final class JdbcCandidateCompanyInteractionPersistencePort
       ORDER BY started_at DESC
       """;
 
+  private static final String FIND_BY_CANDIDATE_SQL = """
+      SELECT candidate_company_interaction_id, organization_id, candidate_id,
+        company_id, job_id, interaction_type, status, started_at, ended_at,
+        notes, metadata::text AS metadata, created_at, updated_at, version
+      FROM recruiting.candidate_company_interaction
+      WHERE organization_id = ? AND candidate_id = ?
+      ORDER BY started_at DESC
+      """;
+
   private static final String FIND_BY_JOB_SQL = """
       SELECT candidate_company_interaction_id, organization_id, candidate_id,
         company_id, job_id, interaction_type, status, started_at, ended_at,
@@ -141,6 +150,30 @@ public final class JdbcCandidateCompanyInteractionPersistencePort
     } catch (SQLException exception) {
       throw new IllegalStateException(
           "Failed to find interactions by candidate and company", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<CandidateCompanyInteraction> findByCandidateId(
+      UUID organizationId, CandidateId candidateId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateId, "candidateId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_CANDIDATE_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setObject(2, candidateId.value());
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<CandidateCompanyInteraction> results = new ArrayList<>();
+        while (resultSet.next()) {
+          results.add(toInteraction(resultSet));
+        }
+        return List.copyOf(results);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException(
+          "Failed to find interactions by candidate id", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

@@ -183,6 +183,22 @@ public final class ApiBoundaryContractRules {
           "canonicalWriteStatuses",
           "directWrites");
 
+  private static final Set<String> CANDIDATE_ME_RESPONSE_FIELDS =
+      Set.of("candidateRef", "displayName", "organizationId", "currentProfileVersion",
+          "documentCount", "activeOpportunityCount", "pendingFollowUpCount");
+
+  private static final Set<String> CANDIDATE_PROFILE_REVIEW_RESPONSE_FIELDS =
+      Set.of("candidateRef", "profileVersion", "fields");
+
+  private static final Set<String> CANDIDATE_DOCUMENT_SUMMARY_RESPONSE_FIELDS =
+      Set.of("documentId", "documentType", "title", "status", "fileSizeBytes", "mimeType", "uploadedAt");
+
+  private static final Set<String> CANDIDATE_OPPORTUNITY_RESPONSE_FIELDS =
+      Set.of("interactionId", "jobTitle", "companyName", "status", "interactionType", "startedAt", "updatedAt");
+
+  private static final Set<String> CANDIDATE_TIMELINE_RESPONSE_FIELDS =
+      Set.of("candidateRef", "events");
+
   private static final Set<String> ANONYMOUS_CLIENT_SAFE_REDACTION_LEVELS =
       Set.of(
           "l0_teaser",
@@ -503,6 +519,61 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantIntakePublishResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_INTAKE_PUBLISH_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateMeResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_ME_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateMeResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_ME_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateProfileReviewResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_PROFILE_REVIEW_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateProfileReviewResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_PROFILE_REVIEW_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateDocumentSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_DOCUMENT_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateDocumentSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_DOCUMENT_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateOpportunityResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_OPPORTUNITY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateOpportunityResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_OPPORTUNITY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedCandidateTimelineResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CANDIDATE_TIMELINE_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> candidateTimelineResponseFieldNames() {
+    return new LinkedHashSet<>(CANDIDATE_TIMELINE_RESPONSE_FIELDS);
   }
 
   public static String requireNonBlank(String value, String fieldName) {

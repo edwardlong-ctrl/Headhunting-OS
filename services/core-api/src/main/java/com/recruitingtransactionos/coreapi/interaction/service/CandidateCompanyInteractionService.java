@@ -41,6 +41,13 @@ public final class CandidateCompanyInteractionService {
     return interactionPort.findByCandidateAndCompany(organizationId, candidateId, companyId);
   }
 
+  public List<CandidateCompanyInteraction> findInteractionsByCandidateId(
+      UUID organizationId, CandidateId candidateId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateId, "candidateId must not be null");
+    return interactionPort.findByCandidateId(organizationId, candidateId);
+  }
+
   public List<CandidateCompanyInteraction> findInteractionsByJobId(
       UUID organizationId, JobId jobId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");

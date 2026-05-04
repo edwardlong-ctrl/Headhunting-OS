@@ -1,11 +1,24 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Navigate, NavLink, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { login, type AuthSession } from "../../api/auth";
 import {
   fetchCandidateConsent,
   respondCandidateConsent,
   type CandidateConsentSummary,
 } from "../../api/candidateConsent";
+import {
+  fetchCandidateMe,
+  fetchCandidateProfile,
+  fetchCandidateDocuments,
+  fetchCandidateOpportunities,
+  fetchCandidateTimeline,
+  uploadCandidateDocument,
+  type CandidateMe,
+  type CandidateProfileReview,
+  type CandidateDocument,
+  type CandidateOpportunity,
+  type CandidateTimeline,
+} from "../../api/candidatePortal";
 import { type ApiResult } from "../../api/http";
 import { loadAccessToken, saveAccessToken } from "../../auth/accessTokenStorage";
 
@@ -79,31 +92,35 @@ function formatDate(value?: string | null): string {
   }
 }
 
-function CandidateState({
-  title,
-  detail,
-}: {
-  title: string;
-  detail?: string;
-}) {
+function useCandidateApi<T>(
+  fetcher: () => Promise<ApiResult<T>>,
+): { state: ApiResult<T> | { status: "loading" }; refresh: () => void } {
+  const [state, setState] = useState<ApiResult<T> | { status: "loading" }>({ status: "loading" });
+  async function refresh() {
+    setState({ status: "loading" });
+    setState(await fetcher());
+  }
+  useEffect(() => {
+    void refresh();
+  }, []);
+  return { state, refresh };
+}
+
+function CandidateState({ title, detail }: { title: string; detail?: string }) {
   return (
     <section className="portal-panel">
       <div className="section-header">
         <div>
-          <span className="portal-eyebrow">Candidate consent</span>
+          <span className="portal-eyebrow">Candidate portal</span>
           <h2>{title}</h2>
         </div>
       </div>
-      <p className="helper-copy">{detail ?? "Candidate consent stays versioned and fail-closed."}</p>
+      <p className="helper-copy">{detail ?? "Loading candidate data..."}</p>
     </section>
   );
 }
 
-function CandidateSignIn({
-  onSignedIn,
-}: {
-  onSignedIn: (session: AuthSession) => void;
-}) {
+function CandidateSignIn({ onSignedIn }: { onSignedIn: (session: AuthSession) => void }) {
   const [organizationId, setOrganizationId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -135,7 +152,7 @@ function CandidateSignIn({
       <div className="section-header">
         <div>
           <span className="portal-eyebrow">Candidate portal</span>
-          <h2>Sign in to review consent</h2>
+          <h2>Sign in to review your profile</h2>
         </div>
       </div>
       <form className="workspace-stack" onSubmit={(event) => void handleSubmit(event)}>
@@ -160,38 +177,263 @@ function CandidateSignIn({
   );
 }
 
-function ConsentPage({ session }: { session: CandidateSession }) {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const candidateRef = searchParams.get("candidateRef")?.trim() || session.userAccountId;
-  const candidateProfileRef = searchParams.get("candidateProfileRef")?.trim() || "";
-  const jobRef = searchParams.get("jobRef")?.trim() || "";
-  const [state, setState] = useState<ApiResult<CandidateConsentSummary> | { status: "loading" }>({
-    status: "loading",
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function HomePage({ session }: { session: CandidateSession }) {
+  const { state } = useCandidateApi(() => fetchCandidateMe());
 
-  async function refresh() {
-    if (!candidateProfileRef || !jobRef) {
-      setState({
-        status: "invalid_request",
-        error: "candidateProfileRef and jobRef are required in the URL query.",
-      });
-      return;
-    }
-    setState({ status: "loading" });
-    setState(await fetchCandidateConsent(candidateRef, candidateProfileRef, jobRef));
+  if (state.status === "loading") {
+    return <CandidateState title="Loading dashboard" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Dashboard unavailable" detail={state.error} />;
+  }
+  const me = state.data;
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel shell-header-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Candidate participation portal</span>
+            <h2>Welcome back, {me.displayName}</h2>
+          </div>
+        </div>
+        <dl className="mini-meta key-value-list">
+          <div><dt>Profile version</dt><dd>{me.currentProfileVersion}</dd></div>
+          <div><dt>Documents</dt><dd>{me.documentCount}</dd></div>
+          <div><dt>Opportunities</dt><dd>{me.activeOpportunityCount}</dd></div>
+          <div><dt>Pending follow-ups</dt><dd>{me.pendingFollowUpCount}</dd></div>
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+function ProfilePage({ session }: { session: CandidateSession }) {
+  const { state } = useCandidateApi(() => fetchCandidateProfile(session.userAccountId));
+
+  if (state.status === "loading") {
+    return <CandidateState title="Loading profile" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Profile unavailable" detail={state.error} />;
+  }
+  const profile = state.data;
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">AI-extracted profile review</span>
+            <h2>Review your profile</h2>
+            <p className="helper-copy">
+              Review AI-extracted fields and confirm accuracy. Profile version {profile.profileVersion}.
+            </p>
+          </div>
+        </div>
+      </section>
+      {profile.fields.length > 0 ? (
+        <div className="workspace-stack">
+          {profile.fields.map((field) => (
+            <article key={field.fieldPath} className="portal-panel client-nested-panel">
+              <div className="section-header">
+                <strong>{field.fieldPath}</strong>
+                <span className="badge">{field.status}</span>
+              </div>
+              <pre>{field.jsonValue}</pre>
+              <p className="helper-copy">Source: {field.sourceType} {field.updatedAt ? `· Updated ${formatDate(field.updatedAt)}` : ""}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <section className="portal-panel">
+          <p className="helper-copy">No profile fields available yet.</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function DocumentsPage({ session }: { session: CandidateSession }) {
+  const { state, refresh } = useCandidateApi(() => fetchCandidateDocuments());
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    await uploadCandidateDocument(file);
+    setUploading(false);
+    refresh();
   }
 
-  useEffect(() => {
-    void refresh();
-  }, [candidateRef, candidateProfileRef, jobRef]);
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Resume / profile documents</span>
+            <h2>Your documents</h2>
+          </div>
+        </div>
+        <label className="workspace-stack">
+          <span>Upload new document</span>
+          <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={(e) => void handleFileChange(e)} disabled={uploading} />
+          {uploading ? <span>Uploading...</span> : null}
+        </label>
+      </section>
+      {state.status === "ready" && state.data.items.length > 0 ? (
+        <div className="workspace-stack">
+          {state.data.items.map((doc) => (
+            <article key={doc.documentId} className="portal-panel client-nested-panel">
+              <div className="section-header">
+                <strong>{doc.title}</strong>
+                <span className="badge">{doc.status}</span>
+              </div>
+              <p className="helper-copy">{doc.documentType} · {doc.mimeType} · Uploaded {formatDate(doc.uploadedAt)}</p>
+            </article>
+          ))}
+        </div>
+      ) : state.status !== "loading" ? (
+        <section className="portal-panel">
+          <p className="helper-copy">No documents uploaded yet.</p>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function OpportunitiesPage({ session }: { session: CandidateSession }) {
+  const { state } = useCandidateApi(() => fetchCandidateOpportunities());
+
+  if (state.status === "loading") {
+    return <CandidateState title="Loading opportunities" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Opportunities unavailable" detail={state.error} />;
+  }
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Active opportunities</span>
+            <h2>Your opportunities</h2>
+          </div>
+        </div>
+      </section>
+      {state.data.items.length > 0 ? (
+        <div className="workspace-stack">
+          {state.data.items.map((opp) => (
+            <article key={opp.interactionId} className="portal-panel client-nested-panel">
+              <div className="section-header">
+                <strong>{opp.jobTitle}</strong>
+                <span className="badge">{opp.status}</span>
+              </div>
+              <p className="helper-copy">{opp.companyName} · {opp.interactionType}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <section className="portal-panel">
+          <p className="helper-copy">No active opportunities at this time.</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function TimelinePage({ session }: { session: CandidateSession }) {
+  const { state } = useCandidateApi(() => fetchCandidateTimeline(session.userAccountId));
+
+  if (state.status === "loading") {
+    return <CandidateState title="Loading timeline" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Timeline unavailable" detail={state.error} />;
+  }
+  const timeline = state.data;
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Status timeline</span>
+            <h2>Your activity timeline</h2>
+          </div>
+        </div>
+      </section>
+      {timeline.events.length > 0 ? (
+        <div className="workspace-stack">
+          {timeline.events.map((event, index) => (
+            <article key={index} className="portal-panel client-nested-panel">
+              <div className="section-header">
+                <strong>{event.actionCode}</strong>
+                <span className="badge">{event.eventType}</span>
+              </div>
+              <p className="helper-copy">{event.reason}</p>
+              <p className="helper-copy">{formatDate(event.occurredAt)}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <section className="portal-panel">
+          <p className="helper-copy">No timeline events yet.</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ConsentPage({ session }: { session: CandidateSession }) {
+  const [candidateProfileRef, setCandidateProfileRef] = useState("");
+  const [jobRef, setJobRef] = useState("");
+  const [state, setState] = useState<ApiResult<CandidateConsentSummary> | { status: "loading" } | { status: "idle" }>({ status: "idle" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  async function refresh() {
+    if (!candidateProfileRef || !jobRef) return;
+    setState({ status: "loading" });
+    setState(await fetchCandidateConsent(session.userAccountId, candidateProfileRef, jobRef));
+  }
 
   async function handleDecision(approve: boolean) {
+    if (!candidateProfileRef || !jobRef) return;
     setIsSubmitting(true);
-    const result = await respondCandidateConsent(candidateRef, candidateProfileRef, jobRef, approve);
+    const result = await respondCandidateConsent(session.userAccountId, candidateProfileRef, jobRef, approve);
     setIsSubmitting(false);
     setState(result);
+  }
+
+  if (state.status === "idle") {
+    return (
+      <div className="workspace-stack">
+        <section className="portal-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Consent request</span>
+              <h2>Look up a consent request</h2>
+            </div>
+          </div>
+          <div className="workspace-stack">
+            <label>
+              Profile Reference
+              <input value={candidateProfileRef} onChange={(e) => setCandidateProfileRef(e.target.value)} placeholder="Paste profile reference" />
+            </label>
+            <label>
+              Job Reference
+              <input value={jobRef} onChange={(e) => setJobRef(e.target.value)} placeholder="Paste job reference" />
+            </label>
+            <button type="button" onClick={() => void refresh()} disabled={!candidateProfileRef || !jobRef}>
+              Look up
+            </button>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   if (state.status === "loading") {
@@ -214,8 +456,8 @@ function ConsentPage({ session }: { session: CandidateSession }) {
               Confirming consent authorizes controlled disclosure only for the reviewed profile version.
             </p>
           </div>
-          <button type="button" className="secondary-link" onClick={() => navigate("/candidate/sign-in")}>
-            Switch account
+          <button type="button" className="secondary-link" onClick={() => navigate("/candidate/consent")}>
+            Look up another
           </button>
         </div>
         <dl className="mini-meta key-value-list">
@@ -287,6 +529,11 @@ export function CandidatePortal() {
         <h1 id="candidate-portal-title">Candidate</h1>
       </header>
       <nav className="portal-nav" aria-label="Candidate portal">
+        <NavLink to="/candidate/home">Home</NavLink>
+        <NavLink to="/candidate/profile">Profile</NavLink>
+        <NavLink to="/candidate/documents">Documents</NavLink>
+        <NavLink to="/candidate/opportunities">Opportunities</NavLink>
+        <NavLink to="/candidate/timeline">Timeline</NavLink>
         <NavLink to="/candidate/consent">Consent</NavLink>
         <button
           type="button"
@@ -302,11 +549,31 @@ export function CandidatePortal() {
       <Routes>
         <Route
           path="/"
-          element={<Navigate to={session ? "/candidate/consent" : "/candidate/sign-in"} replace />}
+          element={<Navigate to={session ? "/candidate/home" : "/candidate/sign-in"} replace />}
         />
         <Route
           path="sign-in"
-          element={session ? <Navigate to="/candidate/consent" replace /> : <CandidateSignIn onSignedIn={setSession} />}
+          element={session ? <Navigate to="/candidate/home" replace /> : <CandidateSignIn onSignedIn={setSession} />}
+        />
+        <Route
+          path="home"
+          element={session ? <HomePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="profile"
+          element={session ? <ProfilePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="documents"
+          element={session ? <DocumentsPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="opportunities"
+          element={session ? <OpportunitiesPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="timeline"
+          element={session ? <TimelinePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
           path="consent"

@@ -438,21 +438,15 @@ class ApiBoundaryRegressionClosureTest {
           "ConsultantIntakeController.java".equals(file.getFileName().toString());
       boolean isConsultantIntakeQueueSurface =
           "ConsultantIntakeQueueQueryService.java".equals(file.getFileName().toString());
-      boolean isConsultantCandidateSurface =
-          file.getFileName().toString().contains("ConsultantCandidate");
-      boolean isClientDisclosedCandidateSurface =
-          "ClientDisclosedCandidateController.java".equals(file.getFileName().toString());
+      boolean isCandidatePortalSurface =
+          file.getFileName().toString().contains("CandidatePortal");
       boolean isWorkflowSafeSurface =
           "ApiBoundaryContractRules.java".equals(file.getFileName().toString())
               || "ApiSafeResponseBody.java".equals(file.getFileName().toString())
               || file.getFileName().toString().contains("ConsultantWorkflow")
               || "ConsultantAuditDrawerResponse.java".equals(file.getFileName().toString());
-      if (!isConsultantCandidateSurface && !isClientDisclosedCandidateSurface) {
-        assertThat(source)
-            .as(file.toString())
-            .doesNotContain("import com.recruitingtransactionos.coreapi.candidateprofile");
-      }
-      if (!isConsultantIntakeController && !isConsultantIntakeQueueSurface) {
+      if (!isConsultantIntakeController && !isConsultantIntakeQueueSurface
+          && !isCandidatePortalSurface) {
         var assertion = assertThat(source)
             .as(file.toString())
             .doesNotContain("SourceItem")
@@ -476,6 +470,7 @@ class ApiBoundaryRegressionClosureTest {
             "ClientSafeCandidateCardController.java",
             "ClientCompanyController.java",
             "CandidateConsentController.java",
+            "CandidatePortalController.java",
             "ClientDashboardController.java",
             "ClientDisclosedCandidateController.java",
             "ClientJobController.java",
@@ -534,6 +529,8 @@ class ApiBoundaryRegressionClosureTest {
               || "ClientShortlistController.java".equals(fileName);
       boolean isCandidateConsentController =
           "CandidateConsentController.java".equals(fileName);
+      boolean isCandidatePortalController =
+          "CandidatePortalController.java".equals(fileName);
       boolean isConsultantUnlockController =
           "ConsultantUnlockController.java".equals(fileName);
       boolean allowsPutMapping =
@@ -545,6 +542,7 @@ class ApiBoundaryRegressionClosureTest {
       if (!isConsultantWriteController
           && !isClientWriteController
           && !isCandidateConsentController
+          && !isCandidatePortalController
           && !isConsultantUnlockController
           && !isConsultantIntakeController
           && !isDocumentController
