@@ -4,9 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `2d69ce5`
-- latest main commit: `2d69ce5` (`Merge branch 'task31-candidate-portal-v1'`)
+- current main HEAD: `f3721a5`
+- latest main commit: `f3721a5` (`Complete Task 34 notification and follow-up closure`)
 - latest product baseline merges on main:
+  - `f3721a5` — Task 34: Notification and Follow-up System v1 plus candidate/client portal session closure
   - `2d69ce5` — Task 31: Candidate Portal v1
   - `a74ecd1` — Task 33: Consent, Disclosure, and Unlock End-to-End
   - `aa54f93` — Task 32: Client Portal v1

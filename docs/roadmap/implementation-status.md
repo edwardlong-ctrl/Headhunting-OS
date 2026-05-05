@@ -2,6 +2,8 @@
 
 ## Current Git Main Milestones
 
+- `f3721a5` Complete Task 34 notification and follow-up closure: merged the combined Task 34 delivery into `main`, including V29 notification/follow-up persistence, candidate/client scoped session hardening, consultant/client reminder delivery, role-scoped notification preferences, workflow-audited follow-up submissions, and roadmap drift cleanup.
+
 - `2d69ce5` Merge branch `task31-candidate-portal-v1`: merged Task 31 Candidate Portal v1 into `main`, including dynamic follow-up form submission, candidate opportunity detail/interest capture, requestId-based consent pages, anonymity/truth-boundary hardening, unlock clock stabilization, and roadmap drift cleanup.
 - `1a00715` Complete Task 27 matching and evidence v1: added consultant-internal MatchReport persistence via V22, backend-owned evidence-backed matching assembly, consultant matching GET/POST API, portal workspace consumption, permission hardening, and roadmap/status closure.
 - `beb71d4` Add product specs as source of truth: established `docs/specs/CURRENT_SPEC.md`, v2.1 as current product source of truth, and preserved v2.0 as UI / portal baseline.
