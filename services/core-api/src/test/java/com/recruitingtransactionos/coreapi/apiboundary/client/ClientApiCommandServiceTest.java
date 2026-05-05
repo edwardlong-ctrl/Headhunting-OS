@@ -18,8 +18,18 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteraction;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteractionId;
+import com.recruitingtransactionos.coreapi.interaction.InteractionStatus;
+import com.recruitingtransactionos.coreapi.interaction.InteractionType;
 import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedback;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedbackDecision;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedbackId;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewOutcome;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopResult;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
@@ -90,6 +100,7 @@ class ClientApiCommandServiceTest {
   @Mock private com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService unlockWorkflowService;
   @Mock private CandidateCompanyInteractionService interactionService;
   @Mock private InterviewFeedbackService interviewFeedbackService;
+  @Mock private InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService;
   @Mock private WorkflowTransitionAuditService workflowTransitionAuditService;
   @Mock private com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer permissionEnforcer;
 
@@ -108,6 +119,7 @@ class ClientApiCommandServiceTest {
         unlockWorkflowService,
         interactionService,
         interviewFeedbackService,
+        interviewFeedbackOutcomeLoopService,
         workflowTransitionAuditService,
         permissionEnforcer);
     when(permissionEnforcer.requireAllowed(any()))
@@ -249,7 +261,19 @@ class ClientApiCommandServiceTest {
         ACTOR_ID,
         SHORTLIST_ID,
         CARD_ID,
-        new ClientInterviewFeedbackRequest("maybe", "Anonymous shortlist review note", null, null, 1, null, null)))
+        new ClientInterviewFeedbackRequest(
+            "maybe",
+            "hold",
+            null,
+            null,
+            "Anonymous shortlist review note",
+            null,
+            null,
+            null,
+            1,
+            null,
+            null,
+            List.of())))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("interview_feedback_requires_unlocked_candidate_and_post_unlock_shortlist");
   }
@@ -270,9 +294,134 @@ class ClientApiCommandServiceTest {
         ACTOR_ID,
         SHORTLIST_ID,
         CARD_ID,
-        new ClientInterviewFeedbackRequest("yes", "Needs actual unlocked candidate before interview feedback.", null, null, 1, null, null)))
+        new ClientInterviewFeedbackRequest(
+            "yes",
+            "hold",
+            null,
+            null,
+            "Needs actual unlocked candidate before interview feedback.",
+            null,
+            null,
+            null,
+            1,
+            null,
+            null,
+            List.of())))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("interview_feedback_requires_unlocked_candidate_and_post_unlock_shortlist");
+  }
+
+  @Test
+  void submitInterviewFeedback_usesExplicitWorkspaceInterviewId() {
+    Shortlist interviewing = shortlist(ShortlistStatus.INTERVIEWING, CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120), 5);
+    ShortlistCandidateCard unlockedCard = shortlistCard(ShortlistCandidateCardStatus.UNLOCKED, CLIENT_METADATA);
+    CandidateCompanyInteraction explicitInteraction = interviewInteraction(
+        UUID.fromString("00000000-0000-0000-0000-00000032a021"));
+    InterviewFeedback persistedFeedback = InterviewFeedback.builder()
+        .interviewFeedbackId(new InterviewFeedbackId(UUID.fromString("00000000-0000-0000-0000-00000032a022")))
+        .organizationId(ORGANIZATION_ID)
+        .candidateCompanyInteractionId(explicitInteraction.candidateCompanyInteractionId())
+        .jobId(JOB_ID)
+        .outcome(InterviewOutcome.MAYBE)
+        .decision(InterviewFeedbackDecision.HOLD)
+        .ratings("[]")
+        .notes("Structured panel interview feedback")
+        .submittedByRole("client")
+        .submittedByUserId(ACTOR_ID)
+        .createdAt(CREATED_AT.plusSeconds(240))
+        .updatedAt(CREATED_AT.plusSeconds(240))
+        .build();
+
+    when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob()));
+    when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(Optional.of(interviewing));
+    when(shortlistService.findCardByIdAndOrganizationId(ORGANIZATION_ID, CARD_ID)).thenReturn(Optional.of(unlockedCard));
+    when(jobService.findJobByIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.of(visibleJob()));
+    when(interactionService.findInteractionByIdAndOrganizationId(
+        ORGANIZATION_ID,
+        explicitInteraction.candidateCompanyInteractionId())).thenReturn(Optional.of(explicitInteraction));
+    when(interviewFeedbackService.createFeedback(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.empty());
+    when(interviewFeedbackOutcomeLoopService.processSubmission(any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(new InterviewFeedbackOutcomeLoopResult(
+            persistedFeedback,
+            List.of(),
+            List.of(),
+            null,
+            false));
+
+    var response = service.submitInterviewFeedback(
+        shortlistUpdateAccessRequest,
+        ORGANIZATION_ID,
+        ACTOR_ID,
+        SHORTLIST_ID,
+        CARD_ID,
+        new ClientInterviewFeedbackRequest(
+            "maybe",
+            "hold",
+            explicitInteraction.candidateCompanyInteractionId().value().toString(),
+            null,
+            "Structured panel interview feedback",
+            null,
+            null,
+            null,
+            1,
+            null,
+            null,
+            List.of()));
+
+    assertThat(response.interviewId())
+        .isEqualTo(explicitInteraction.candidateCompanyInteractionId().value().toString());
+    verify(interactionService, Mockito.never()).findInteractionsByCandidateAndCompany(any(), any(), any());
+    verify(interactionService, Mockito.never()).createInteraction(any());
+  }
+
+  @Test
+  void submitInterviewFeedback_rejectsWorkspaceInterviewIdOutsideCardScope() {
+    Shortlist interviewing = shortlist(ShortlistStatus.INTERVIEWING, CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120), 5);
+    ShortlistCandidateCard unlockedCard = shortlistCard(ShortlistCandidateCardStatus.UNLOCKED, CLIENT_METADATA);
+    CandidateCompanyInteraction wrongInteraction = CandidateCompanyInteraction.builder()
+        .candidateCompanyInteractionId(new CandidateCompanyInteractionId(
+            UUID.fromString("00000000-0000-0000-0000-00000032a023")))
+        .organizationId(ORGANIZATION_ID)
+        .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-00000032a024")))
+        .companyId(COMPANY_ID)
+        .jobId(JOB_ID)
+        .interactionType(InteractionType.INTERVIEW)
+        .status(InteractionStatus.ACTIVE)
+        .startedAt(CREATED_AT)
+        .createdAt(CREATED_AT)
+        .updatedAt(CREATED_AT)
+        .build();
+
+    when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob()));
+    when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(Optional.of(interviewing));
+    when(shortlistService.findCardByIdAndOrganizationId(ORGANIZATION_ID, CARD_ID)).thenReturn(Optional.of(unlockedCard));
+    when(jobService.findJobByIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.of(visibleJob()));
+    when(interactionService.findInteractionByIdAndOrganizationId(
+        ORGANIZATION_ID,
+        wrongInteraction.candidateCompanyInteractionId())).thenReturn(Optional.of(wrongInteraction));
+
+    assertThatThrownBy(() -> service.submitInterviewFeedback(
+        shortlistUpdateAccessRequest,
+        ORGANIZATION_ID,
+        ACTOR_ID,
+        SHORTLIST_ID,
+        CARD_ID,
+        new ClientInterviewFeedbackRequest(
+            "maybe",
+            "hold",
+            wrongInteraction.candidateCompanyInteractionId().value().toString(),
+            null,
+            "Structured panel interview feedback",
+            null,
+            null,
+            null,
+            1,
+            null,
+            null,
+            List.of())))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("interview_not_found_in_client_scope");
   }
 
   @Test
@@ -378,6 +527,21 @@ class ClientApiCommandServiceTest {
         .createdAt(CREATED_AT)
         .updatedAt(CREATED_AT)
         .version(1)
+        .build();
+  }
+
+  private CandidateCompanyInteraction interviewInteraction(UUID interactionId) {
+    return CandidateCompanyInteraction.builder()
+        .candidateCompanyInteractionId(new CandidateCompanyInteractionId(interactionId))
+        .organizationId(ORGANIZATION_ID)
+        .candidateId(CANDIDATE_ID)
+        .companyId(COMPANY_ID)
+        .jobId(JOB_ID)
+        .interactionType(InteractionType.INTERVIEW)
+        .status(InteractionStatus.ACTIVE)
+        .startedAt(CREATED_AT.plusSeconds(180))
+        .createdAt(CREATED_AT.plusSeconds(180))
+        .updatedAt(CREATED_AT.plusSeconds(180))
         .build();
   }
 }

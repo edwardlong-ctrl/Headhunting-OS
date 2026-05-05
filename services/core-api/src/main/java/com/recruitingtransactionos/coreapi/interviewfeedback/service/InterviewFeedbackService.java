@@ -23,6 +23,11 @@ public final class InterviewFeedbackService {
     return feedbackPort.create(feedback);
   }
 
+  public InterviewFeedback updateFeedback(InterviewFeedback feedback) {
+    Objects.requireNonNull(feedback, "feedback must not be null");
+    return feedbackPort.update(feedback);
+  }
+
   public Optional<InterviewFeedback> findFeedbackByIdAndOrganizationId(
       UUID organizationId, InterviewFeedbackId feedbackId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");

@@ -32,11 +32,16 @@ import com.recruitingtransactionos.coreapi.interaction.InteractionStatus;
 import com.recruitingtransactionos.coreapi.interaction.InteractionType;
 import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
 import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedback;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedbackDecision;
 import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedbackId;
 import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewOutcome;
+import com.recruitingtransactionos.coreapi.interviewfeedback.RejectReasonTaxonomy;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopResult;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopService;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
+import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
@@ -99,6 +104,7 @@ public class ClientApiCommandService {
   private final UnlockWorkflowService unlockWorkflowService;
   private final CandidateCompanyInteractionService interactionService;
   private final InterviewFeedbackService interviewFeedbackService;
+  private final InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService;
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
   private final PermissionEnforcer permissionEnforcer;
 
@@ -113,6 +119,7 @@ public class ClientApiCommandService {
       UnlockWorkflowService unlockWorkflowService,
       CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
+      InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService,
       WorkflowTransitionAuditService workflowTransitionAuditService) {
     this(
         companyIntakeApplicationService,
@@ -124,6 +131,7 @@ public class ClientApiCommandService {
         unlockWorkflowService,
         interactionService,
         interviewFeedbackService,
+        interviewFeedbackOutcomeLoopService,
         workflowTransitionAuditService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
@@ -138,6 +146,7 @@ public class ClientApiCommandService {
       UnlockWorkflowService unlockWorkflowService,
       CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
+      InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService,
       WorkflowTransitionAuditService workflowTransitionAuditService,
       PermissionEnforcer permissionEnforcer) {
     this.companyIntakeApplicationService = Objects.requireNonNull(
@@ -154,6 +163,8 @@ public class ClientApiCommandService {
     this.interactionService = Objects.requireNonNull(interactionService, "interactionService must not be null");
     this.interviewFeedbackService = Objects.requireNonNull(
         interviewFeedbackService, "interviewFeedbackService must not be null");
+    this.interviewFeedbackOutcomeLoopService = Objects.requireNonNull(
+        interviewFeedbackOutcomeLoopService, "interviewFeedbackOutcomeLoopService must not be null");
     this.workflowTransitionAuditService = Objects.requireNonNull(
         workflowTransitionAuditService, "workflowTransitionAuditService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
@@ -330,7 +341,12 @@ public class ClientApiCommandService {
     requireInterviewFeedbackEligibility(shortlist, card);
     Job job = jobService.findJobByIdAndOrganizationId(organizationId, shortlist.jobId())
         .orElseThrow(() -> new IllegalArgumentException("job_not_found_in_organization"));
-    CandidateCompanyInteraction interaction = findOrCreateInteraction(organizationId, job, card, request.notes());
+    CandidateCompanyInteraction interaction = resolveInterviewInteraction(
+        organizationId,
+        job,
+        card,
+        request.interviewId(),
+        request.notes());
     InterviewFeedback feedback = interviewFeedbackService.createFeedback(InterviewFeedback.builder()
         .interviewFeedbackId(new InterviewFeedbackId(UUID.randomUUID()))
         .organizationId(organizationId)
@@ -339,7 +355,16 @@ public class ClientApiCommandService {
         .interviewerName(request.interviewerName())
         .interviewerRole(request.interviewerRole())
         .interviewRound(request.interviewRound())
+        .interviewDate(request.interviewDate() != null && !request.interviewDate().isBlank()
+            ? Instant.parse(request.interviewDate())
+            : null)
         .outcome(InterviewOutcome.fromWireValue(request.outcome()))
+        .decision(InterviewFeedbackDecision.fromWireValue(request.decision()))
+        .rejectReasonTaxonomy(request.rejectReasonTaxonomy() != null && !request.rejectReasonTaxonomy().isBlank()
+            ? RejectReasonTaxonomy.fromWireValue(request.rejectReasonTaxonomy())
+            : null)
+        .ratings(writeRatingsJson(request.ratings()))
+        .ratingsSchemaVersion("task35-v1")
         .notes(request.notes())
         .strengths(request.strengths())
         .concerns(request.concerns())
@@ -348,18 +373,40 @@ public class ClientApiCommandService {
         .createdAt(Instant.now())
         .updatedAt(Instant.now())
         .build());
+    String scorecardJson = jobService.findActiveScorecardByJobIdAndOrganizationId(organizationId, job.jobId())
+        .map(this::writeScorecardJson)
+        .orElse("{}");
+    InterviewFeedbackOutcomeLoopResult outcomeLoopResult = interviewFeedbackOutcomeLoopService.processSubmission(
+        organizationId,
+        actorId,
+        shortlist,
+        card,
+        job,
+        interaction,
+        feedback,
+        scorecardJson);
+    InterviewFeedback persistedFeedback = outcomeLoopResult.feedback();
     return new ClientInterviewFeedbackResponse(
-        feedback.interviewFeedbackId().value().toString(),
+        persistedFeedback.interviewFeedbackId().value().toString(),
+        interaction.candidateCompanyInteractionId().value().toString(),
         shortlistId.value().toString(),
         cardId.value().toString(),
-        feedback.outcome().wireValue(),
-        feedback.notes(),
-        feedback.strengths(),
-        feedback.concerns(),
-        feedback.interviewRound(),
-        feedback.interviewerName(),
-        feedback.interviewerRole(),
-        feedback.createdAt().toString());
+        persistedFeedback.outcome().wireValue(),
+        persistedFeedback.decision() != null ? persistedFeedback.decision().wireValue() : request.decision(),
+        persistedFeedback.rejectReasonTaxonomy() != null
+            ? persistedFeedback.rejectReasonTaxonomy().wireValue()
+            : request.rejectReasonTaxonomy(),
+        persistedFeedback.notes(),
+        persistedFeedback.strengths(),
+        persistedFeedback.concerns(),
+        persistedFeedback.ratings(),
+        persistedFeedback.interviewRound(),
+        persistedFeedback.interviewerName(),
+        persistedFeedback.interviewerRole(),
+        outcomeLoopResult.structuredSummary(),
+        outcomeLoopResult.suggestions().size(),
+        outcomeLoopResult.aiStructured(),
+        persistedFeedback.createdAt().toString());
   }
 
   private void requireClientContext(
@@ -423,12 +470,16 @@ public class ClientApiCommandService {
   }
 
   private void requireInterviewFeedbackEligibility(Shortlist shortlist, ShortlistCandidateCard card) {
+    if (!isInterviewFeedbackEligible(shortlist, card)) {
+      throw new IllegalArgumentException("interview_feedback_requires_unlocked_candidate_and_post_unlock_shortlist");
+    }
+  }
+
+  static boolean isInterviewFeedbackEligible(Shortlist shortlist, ShortlistCandidateCard card) {
     boolean shortlistReadyForInterviewFeedback = shortlist.status() == ShortlistStatus.CONTACT_UNLOCKED
         || shortlist.status() == ShortlistStatus.INTERVIEWING;
     boolean cardReadyForInterviewFeedback = card.status() == ShortlistCandidateCardStatus.UNLOCKED;
-    if (!shortlistReadyForInterviewFeedback || !cardReadyForInterviewFeedback) {
-      throw new IllegalArgumentException("interview_feedback_requires_unlocked_candidate_and_post_unlock_shortlist");
-    }
+    return shortlistReadyForInterviewFeedback && cardReadyForInterviewFeedback;
   }
 
   private Shortlist ensureSelectionState(Shortlist shortlist, UUID actorId) {
@@ -517,6 +568,29 @@ public class ClientApiCommandService {
         .build();
   }
 
+  private CandidateCompanyInteraction resolveInterviewInteraction(
+      UUID organizationId,
+      Job job,
+      ShortlistCandidateCard card,
+      String interviewId,
+      String notes) {
+    if (interviewId != null && !interviewId.isBlank()) {
+      CandidateCompanyInteraction interaction = interactionService.findInteractionByIdAndOrganizationId(
+              organizationId,
+              new CandidateCompanyInteractionId(parseUuid(interviewId, "interviewId")))
+          .filter(existing -> existing.interactionType() == InteractionType.INTERVIEW)
+          .orElseThrow(() -> new IllegalArgumentException("interview_not_found_in_client_scope"));
+      if (!card.candidateId().equals(interaction.candidateId())
+          || !job.companyId().equals(interaction.companyId())
+          || interaction.jobId() == null
+          || !job.jobId().equals(interaction.jobId())) {
+        throw new IllegalArgumentException("interview_not_found_in_client_scope");
+      }
+      return interaction;
+    }
+    return findOrCreateInteraction(organizationId, job, card, notes);
+  }
+
   private CandidateCompanyInteraction findOrCreateInteraction(
       UUID organizationId,
       Job job,
@@ -543,6 +617,30 @@ public class ClientApiCommandService {
             .createdAt(Instant.now())
             .updatedAt(Instant.now())
             .build()));
+  }
+
+  private static UUID parseUuid(String raw, String fieldName) {
+    try {
+      return UUID.fromString(raw);
+    } catch (IllegalArgumentException exception) {
+      throw new IllegalArgumentException(fieldName + "_must_be_a_valid_uuid");
+    }
+  }
+
+  private String writeRatingsJson(List<ClientInterviewFeedbackRequest.DimensionRating> ratings) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(ratings == null ? List.of() : ratings);
+    } catch (Exception exception) {
+      throw new IllegalArgumentException("ratings_serialization_failed");
+    }
+  }
+
+  private String writeScorecardJson(JobScorecard scorecard) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(scorecard);
+    } catch (Exception exception) {
+      return "{}";
+    }
   }
 
   private ClientShortlistDetailResponse buildShortlistDetail(UUID organizationId, Shortlist shortlist) {

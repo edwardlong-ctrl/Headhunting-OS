@@ -12,6 +12,8 @@ public interface InterviewFeedbackPersistencePort {
 
   InterviewFeedback create(InterviewFeedback feedback);
 
+  InterviewFeedback update(InterviewFeedback feedback);
+
   Optional<InterviewFeedback> findByIdAndOrganizationId(
       UUID organizationId, InterviewFeedbackId feedbackId);
 

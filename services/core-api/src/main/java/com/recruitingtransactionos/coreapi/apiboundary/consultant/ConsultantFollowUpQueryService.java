@@ -16,6 +16,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackSuggestionService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,6 +32,7 @@ public final class ConsultantFollowUpQueryService {
   private final ConsultantIntakeQueueQueryService intakeQueueQueryService;
   private final CandidateService candidateService;
   private final FollowUpSubmissionService followUpSubmissionService;
+  private final InterviewFeedbackSuggestionService interviewFeedbackSuggestionService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
@@ -38,12 +40,14 @@ public final class ConsultantFollowUpQueryService {
       ConsultantDashboardQueryService dashboardQueryService,
       ConsultantIntakeQueueQueryService intakeQueueQueryService,
       CandidateService candidateService,
-      FollowUpSubmissionService followUpSubmissionService) {
+      FollowUpSubmissionService followUpSubmissionService,
+      InterviewFeedbackSuggestionService interviewFeedbackSuggestionService) {
     this(
         dashboardQueryService,
         intakeQueueQueryService,
         candidateService,
         followUpSubmissionService,
+        interviewFeedbackSuggestionService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -52,12 +56,15 @@ public final class ConsultantFollowUpQueryService {
       ConsultantIntakeQueueQueryService intakeQueueQueryService,
       CandidateService candidateService,
       FollowUpSubmissionService followUpSubmissionService,
+      InterviewFeedbackSuggestionService interviewFeedbackSuggestionService,
       PermissionEnforcer permissionEnforcer) {
     this.dashboardQueryService = Objects.requireNonNull(dashboardQueryService, "dashboardQueryService must not be null");
     this.intakeQueueQueryService = Objects.requireNonNull(intakeQueueQueryService, "intakeQueueQueryService must not be null");
     this.candidateService = Objects.requireNonNull(candidateService, "candidateService must not be null");
     this.followUpSubmissionService = Objects.requireNonNull(
         followUpSubmissionService, "followUpSubmissionService must not be null");
+    this.interviewFeedbackSuggestionService = Objects.requireNonNull(
+        interviewFeedbackSuggestionService, "interviewFeedbackSuggestionService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -107,6 +114,16 @@ public final class ConsultantFollowUpQueryService {
             "Candidate follow-up answer for " + submission.fieldPath() + " is waiting for consultant review.",
             "/consultant/follow-ups",
             submission.submittedAt().toString())));
+    interviewFeedbackSuggestionService.listPendingByOrganization(organizationId, 25).forEach(suggestion ->
+        items.add(new ConsultantFollowUpSummaryResponse(
+            "interview_feedback_review",
+            "interview_feedback_suggestion",
+            suggestion.interviewFeedbackSuggestionId().value().toString(),
+            suggestion.title(),
+            suggestion.status().wireValue(),
+            "Interview feedback suggestion is waiting for consultant review.",
+            "/consultant/follow-ups?suggestionId=" + suggestion.interviewFeedbackSuggestionId().value(),
+            suggestion.createdAt().toString())));
     List<ConsultantFollowUpSummaryResponse> paged = items.stream()
         .sorted(Comparator.comparing(ConsultantFollowUpSummaryResponse::occurredAt).reversed())
         .skip(pagedQuery.offset())

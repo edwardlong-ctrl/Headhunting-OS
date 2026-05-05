@@ -28,5 +28,8 @@ rto:
       authenticity-risk-assessor:
         provider: ${RTO_AI_ROUTE_AUTHENTICITY_PROVIDER:deepseek}
         model: ${RTO_AI_ROUTE_AUTHENTICITY_MODEL:deepseek-v4-pro}
+      interview-feedback-structurer:
+        provider: ${RTO_AI_ROUTE_INTERVIEW_FEEDBACK_PROVIDER:deepseek}
+        model: ${RTO_AI_ROUTE_INTERVIEW_FEEDBACK_MODEL:deepseek-v4-pro}
   document-storage:
     root-dir: ${RTO_DOCUMENT_STORAGE_ROOT_DIR:}

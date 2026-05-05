@@ -34,6 +34,7 @@ public sealed interface ApiSafeResponseBody
         ClientUnlockRequestResponse,
         ClientDisclosedCandidateResponse,
         ClientInterviewFeedbackResponse,
+        ClientInterviewFeedbackContextResponse,
         ClientDashboardResponse,
         CandidateConsentSummaryResponse,
         CandidateFollowUpFormResponse,
@@ -54,4 +55,6 @@ public sealed interface ApiSafeResponseBody
         ConsultantIntakeQueueResponse,
         ConsultantIntakeReviewResponse,
         ConsultantIntakePublishResponse,
+        ConsultantInterviewFeedbackSuggestionResponse,
+        ConsultantInterviewFeedbackReviewResponse,
         PagedResult {}

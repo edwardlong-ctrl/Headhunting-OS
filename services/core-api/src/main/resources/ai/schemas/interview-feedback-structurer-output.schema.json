@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["structuredSummary", "outcomeLabel", "confidence", "suggestions", "evidence", "calibrationSignal"],
+  "properties": {
+    "structuredSummary": {"type": "string"},
+    "outcomeLabel": {
+      "type": "string",
+      "enum": [
+        "strong_fit",
+        "compensation_mismatch",
+        "skill_gap",
+        "experience_gap",
+        "communication_concern",
+        "culture_mismatch",
+        "process_hold",
+        "rejected_other"
+      ]
+    },
+    "rejectReasonTaxonomy": {
+      "type": ["string", "null"],
+      "enum": [
+        "compensation_mismatch",
+        "skill_gap",
+        "experience_gap",
+        "culture_mismatch",
+        "communication_concern",
+        "availability_constraint",
+        "location_mismatch",
+        "other",
+        null
+      ]
+    },
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "suggestionType", "title", "payload"],
+        "properties": {
+          "scope": {"type": "string", "enum": ["interaction", "candidate_profile", "company_preference"]},
+          "suggestionType": {"type": "string", "enum": ["outcome_label", "profile_update", "company_preference_update"]},
+          "title": {"type": "string"},
+          "rationale": {"type": ["string", "null"]},
+          "outcomeLabel": {
+            "type": ["string", "null"],
+            "enum": [
+              "strong_fit",
+              "compensation_mismatch",
+              "skill_gap",
+              "experience_gap",
+              "communication_concern",
+              "culture_mismatch",
+              "process_hold",
+              "rejected_other",
+              null
+            ]
+          },
+          "rejectReasonTaxonomy": {
+            "type": ["string", "null"],
+            "enum": [
+              "compensation_mismatch",
+              "skill_gap",
+              "experience_gap",
+              "culture_mismatch",
+              "communication_concern",
+              "availability_constraint",
+              "location_mismatch",
+              "other",
+              null
+            ]
+          },
+          "payload": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "calibrationSignal": {"type": "object"}
+  },
+  "additionalProperties": false
+}

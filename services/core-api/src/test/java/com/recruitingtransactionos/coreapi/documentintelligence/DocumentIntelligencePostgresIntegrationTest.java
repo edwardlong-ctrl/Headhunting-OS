@@ -56,7 +56,7 @@ class DocumentIntelligencePostgresIntegrationTest {
 
   @Test
   void savesAndLoadsLatestParsedDocumentWithinOrganization() {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(29);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(30);
     JdbcDocumentIntelligencePersistencePort port = new JdbcDocumentIntelligencePersistencePort(dataSource);
     Instant now = Instant.parse("2026-05-01T00:00:00Z");
     ParsedDocument parsedDocument = port.saveParsedDocument(new ParsedDocument(

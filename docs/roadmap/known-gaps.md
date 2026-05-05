@@ -139,7 +139,7 @@
   - real pack key/maturity/selection-reason metadata on stored match reports
   - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
   - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
-- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, no final identity-disclosed shortlist release path, and no outcome-label feedback loop. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
+- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, and no final identity-disclosed shortlist release path. Task 35 now adds the first interaction-scoped interview feedback and outcome-loop baseline, but broader cross-job ontology learning, admin eval-feedback tooling, and multi-pack calibration remain future work. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 

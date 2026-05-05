@@ -22,8 +22,16 @@ import com.recruitingtransactionos.coreapi.interaction.persistence.JdbcCandidate
 import com.recruitingtransactionos.coreapi.interaction.port.CandidateCompanyInteractionPersistencePort;
 import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
 import com.recruitingtransactionos.coreapi.interviewfeedback.persistence.JdbcInterviewFeedbackPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.persistence.JdbcInterviewFeedbackSuggestionPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.persistence.JdbcMatchCalibrationSignalPort;
 import com.recruitingtransactionos.coreapi.interviewfeedback.port.InterviewFeedbackPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.port.InterviewFeedbackSuggestionPersistencePort;
+import com.recruitingtransactionos.coreapi.interviewfeedback.port.MatchCalibrationSignalPort;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackReviewService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackSuggestionService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.MatchCalibrationSignalService;
 import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.industrypack.persistence.JdbcIndustryPackReadPort;
@@ -38,6 +46,7 @@ import com.recruitingtransactionos.coreapi.job.port.JobScorecardPersistencePort;
 import com.recruitingtransactionos.coreapi.job.service.JobActivationGateService;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.interviewfeedback.InterviewFeedbackStructurerTaskService;
 import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
 import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
@@ -222,6 +231,59 @@ public class RecruitingDomainConfiguration {
   InterviewFeedbackService interviewFeedbackService(
       InterviewFeedbackPersistencePort interviewFeedbackPersistencePort) {
     return new InterviewFeedbackService(interviewFeedbackPersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackSuggestionPersistencePort.class)
+  InterviewFeedbackSuggestionPersistencePort interviewFeedbackSuggestionPersistencePort(
+      DataSource dataSource) {
+    return new JdbcInterviewFeedbackSuggestionPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackSuggestionService.class)
+  InterviewFeedbackSuggestionService interviewFeedbackSuggestionService(
+      InterviewFeedbackSuggestionPersistencePort interviewFeedbackSuggestionPersistencePort) {
+    return new InterviewFeedbackSuggestionService(interviewFeedbackSuggestionPersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(MatchCalibrationSignalPort.class)
+  MatchCalibrationSignalPort matchCalibrationSignalPort(DataSource dataSource) {
+    return new JdbcMatchCalibrationSignalPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(MatchCalibrationSignalService.class)
+  MatchCalibrationSignalService matchCalibrationSignalService(
+      MatchCalibrationSignalPort matchCalibrationSignalPort) {
+    return new MatchCalibrationSignalService(matchCalibrationSignalPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackOutcomeLoopService.class)
+  InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService(
+      InterviewFeedbackService interviewFeedbackService,
+      InterviewFeedbackSuggestionService interviewFeedbackSuggestionService,
+      MatchCalibrationSignalService matchCalibrationSignalService,
+      InterviewFeedbackStructurerTaskService interviewFeedbackStructurerTaskService) {
+    return new InterviewFeedbackOutcomeLoopService(
+        interviewFeedbackService,
+        interviewFeedbackSuggestionService,
+        matchCalibrationSignalService,
+        interviewFeedbackStructurerTaskService);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(InterviewFeedbackReviewService.class)
+  InterviewFeedbackReviewService interviewFeedbackReviewService(
+      InterviewFeedbackSuggestionService interviewFeedbackSuggestionService,
+      CandidateCompanyInteractionService candidateCompanyInteractionService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
+    return new InterviewFeedbackReviewService(
+        interviewFeedbackSuggestionService,
+        candidateCompanyInteractionService,
+        workflowTransitionAuditService);
   }
 
   @Bean

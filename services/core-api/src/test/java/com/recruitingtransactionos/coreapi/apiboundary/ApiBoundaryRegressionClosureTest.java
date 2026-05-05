@@ -473,6 +473,7 @@ class ApiBoundaryRegressionClosureTest {
             "CandidatePortalController.java",
             "ClientDashboardController.java",
             "ClientDisclosedCandidateController.java",
+            "ClientInterviewFeedbackContextController.java",
             "ClientJobController.java",
             "ClientShortlistController.java",
             "HealthController.java",
@@ -486,6 +487,7 @@ class ApiBoundaryRegressionClosureTest {
             "ConsultantUnlockController.java",
             "ConsultantDocumentController.java",
             "ConsultantFollowUpController.java",
+            "ConsultantInterviewFeedbackReviewController.java",
             "ConsultantWorkflowController.java",
         "AuthenticationController.java");
 
@@ -518,7 +520,8 @@ class ApiBoundaryRegressionClosureTest {
           "ConsultantCompanyController.java".equals(fileName)
               || "ConsultantJobController.java".equals(fileName)
               || "ConsultantMatchingController.java".equals(fileName)
-              || "ConsultantShortlistController.java".equals(fileName);
+              || "ConsultantShortlistController.java".equals(fileName)
+              || "ConsultantInterviewFeedbackReviewController.java".equals(fileName);
       boolean isConsultantIntakeController =
           "ConsultantIntakeController.java".equals(fileName);
       boolean isDocumentController =

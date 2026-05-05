@@ -6,6 +6,7 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.Authe
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityRiskAssessorTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.CandidateProfileParserTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.companyintake.CompanyIntakeTaskService;
+import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.interviewfeedback.InterviewFeedbackStructurerTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.jobintake.JobIntakeTaskService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskHumanReviewStatus;
 import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget;
@@ -61,7 +62,16 @@ public class AITaskRunnerConfiguration {
             "/ai/schemas/authenticity-risk-assessor-input.schema.json",
             "/ai/schemas/authenticity-risk-assessor-output.schema.json",
             AITaskWriteBackTarget.NO_WRITE_BACK,
-            AITaskHumanReviewStatus.NOT_REQUIRED)));
+            AITaskHumanReviewStatus.NOT_REQUIRED),
+        new AITaskDefinition(
+            "interview-feedback-structurer",
+            "interview-feedback-structurer.v1",
+            "prompt.interview-feedback-structurer.v1",
+            "/ai/prompts/interview-feedback-structurer-v1.txt",
+            "/ai/schemas/interview-feedback-structurer-input.schema.json",
+            "/ai/schemas/interview-feedback-structurer-output.schema.json",
+            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
+            AITaskHumanReviewStatus.REQUIRED)));
   }
 
   @Bean
@@ -160,6 +170,13 @@ public class AITaskRunnerConfiguration {
       AITaskRunnerService aiTaskRunnerService,
       ObjectMapper objectMapper) {
     return new AuthenticityRiskAssessorTaskService(aiTaskRunnerService, objectMapper);
+  }
+
+  @Bean
+  InterviewFeedbackStructurerTaskService interviewFeedbackStructurerTaskService(
+      AITaskRunnerService aiTaskRunnerService,
+      ObjectMapper objectMapper) {
+    return new InterviewFeedbackStructurerTaskService(aiTaskRunnerService, objectMapper);
   }
 
   @Bean

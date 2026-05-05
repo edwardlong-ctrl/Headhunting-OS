@@ -19,6 +19,14 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteraction;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteractionId;
+import com.recruitingtransactionos.coreapi.interaction.InteractionStatus;
+import com.recruitingtransactionos.coreapi.interaction.InteractionType;
+import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedback;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewFeedbackId;
+import com.recruitingtransactionos.coreapi.interviewfeedback.InterviewOutcome;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.service.JobActivationGateResult;
@@ -84,6 +92,7 @@ class ClientApiQueryServiceTest {
   @Mock private JobIntakeApplicationService jobIntakeApplicationService;
   @Mock private ShortlistService shortlistService;
   @Mock private ClientUnlockRequestPort clientUnlockRequestPort;
+  @Mock private CandidateCompanyInteractionService interactionService;
   @Mock private InterviewFeedbackService interviewFeedbackService;
   @Mock private NotificationService notificationService;
   @Mock private com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer permissionEnforcer;
@@ -99,6 +108,7 @@ class ClientApiQueryServiceTest {
         jobIntakeApplicationService,
         shortlistService,
         clientUnlockRequestPort,
+        interactionService,
         interviewFeedbackService,
         notificationService,
         permissionEnforcer);
@@ -226,6 +236,63 @@ class ClientApiQueryServiceTest {
     assertThat(response.recentShortlists().get(0).candidateCount()).isEqualTo(1);
   }
 
+  @Test
+  void getInterviewFeedbackContext_requiresUnlockedEligibility() {
+    CandidateCompanyInteraction interviewInteraction = interviewInteraction();
+    Shortlist contactUnlocked = shortlist(ShortlistStatus.CONTACT_UNLOCKED);
+    ShortlistCandidateCard selectedCard = shortlistCard(ShortlistCandidateCardStatus.SELECTED);
+
+    when(interactionService.findInteractionByIdAndOrganizationId(
+        ORGANIZATION_ID,
+        interviewInteraction.candidateCompanyInteractionId())).thenReturn(Optional.of(interviewInteraction));
+    when(jobService.findJobByIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.of(visibleJob()));
+    when(shortlistService.findShortlistsByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID))
+        .thenReturn(List.of(contactUnlocked));
+    when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(List.of(selectedCard));
+
+    var response = service.getInterviewFeedbackContext(
+        shortlistReadAccessRequest,
+        ORGANIZATION_ID,
+        ACTOR_ID,
+        interviewInteraction.candidateCompanyInteractionId());
+
+    assertThat(response).isEmpty();
+  }
+
+  @Test
+  void getInterviewFeedbackContext_returnsWorkspaceForUnlockedInterview() {
+    CandidateCompanyInteraction interviewInteraction = interviewInteraction();
+    Shortlist interviewing = shortlist(ShortlistStatus.INTERVIEWING);
+    ShortlistCandidateCard unlockedCard = shortlistCard(ShortlistCandidateCardStatus.UNLOCKED);
+
+    when(interactionService.findInteractionByIdAndOrganizationId(
+        ORGANIZATION_ID,
+        interviewInteraction.candidateCompanyInteractionId())).thenReturn(Optional.of(interviewInteraction));
+    when(jobService.findJobByIdAndOrganizationId(ORGANIZATION_ID, JOB_ID)).thenReturn(Optional.of(visibleJob()));
+    when(shortlistService.findShortlistsByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID))
+        .thenReturn(List.of(interviewing));
+    when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(List.of(unlockedCard));
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID))
+        .thenReturn(Optional.empty());
+    when(interviewFeedbackService.findFeedbackByInteractionIdAndOrganizationId(
+        ORGANIZATION_ID,
+        interviewInteraction.candidateCompanyInteractionId()))
+        .thenReturn(List.of(feedback(interviewInteraction.candidateCompanyInteractionId())));
+
+    var response = service.getInterviewFeedbackContext(
+        shortlistReadAccessRequest,
+        ORGANIZATION_ID,
+        ACTOR_ID,
+        interviewInteraction.candidateCompanyInteractionId());
+
+    assertThat(response).isPresent();
+    assertThat(response.orElseThrow().interviewId())
+        .isEqualTo(interviewInteraction.candidateCompanyInteractionId().value().toString());
+    assertThat(response.orElseThrow().existingFeedbackCount()).isEqualTo(1);
+  }
+
   private Job visibleJob() {
     return Job.builder()
         .jobId(JOB_ID)
@@ -256,12 +323,16 @@ class ClientApiQueryServiceTest {
   }
 
   private Shortlist shortlist() {
+    return shortlist(ShortlistStatus.CLIENT_VIEWED);
+  }
+
+  private Shortlist shortlist(ShortlistStatus status) {
     return Shortlist.builder()
         .shortlistId(SHORTLIST_ID)
         .organizationId(ORGANIZATION_ID)
         .jobId(JOB_ID)
         .title("DV shortlist")
-        .status(ShortlistStatus.CLIENT_VIEWED)
+        .status(status)
         .sentAt(CREATED_AT.plusSeconds(60))
         .clientViewedAt(CREATED_AT.plusSeconds(120))
         .ownerConsultantId(CONSULTANT_ID)
@@ -291,6 +362,37 @@ class ClientApiQueryServiceTest {
         .createdAt(CREATED_AT)
         .updatedAt(CREATED_AT)
         .version(1)
+        .build();
+  }
+
+  private CandidateCompanyInteraction interviewInteraction() {
+    return CandidateCompanyInteraction.builder()
+        .candidateCompanyInteractionId(new CandidateCompanyInteractionId(
+            UUID.fromString("00000000-0000-0000-0000-00000032c020")))
+        .organizationId(ORGANIZATION_ID)
+        .candidateId(CANDIDATE_ID)
+        .companyId(COMPANY_ID)
+        .jobId(JOB_ID)
+        .interactionType(InteractionType.INTERVIEW)
+        .status(InteractionStatus.ACTIVE)
+        .startedAt(CREATED_AT.plusSeconds(200))
+        .createdAt(CREATED_AT.plusSeconds(200))
+        .updatedAt(CREATED_AT.plusSeconds(200))
+        .build();
+  }
+
+  private InterviewFeedback feedback(CandidateCompanyInteractionId interactionId) {
+    return InterviewFeedback.builder()
+        .interviewFeedbackId(new InterviewFeedbackId(UUID.fromString("00000000-0000-0000-0000-00000032c021")))
+        .organizationId(ORGANIZATION_ID)
+        .candidateCompanyInteractionId(interactionId)
+        .jobId(JOB_ID)
+        .outcome(InterviewOutcome.MAYBE)
+        .notes("Interview feedback")
+        .submittedByRole("client")
+        .submittedByUserId(ACTOR_ID)
+        .createdAt(CREATED_AT.plusSeconds(240))
+        .updatedAt(CREATED_AT.plusSeconds(240))
         .build();
   }
 }

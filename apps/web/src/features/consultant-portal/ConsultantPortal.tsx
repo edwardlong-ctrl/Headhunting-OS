@@ -75,7 +75,13 @@ import {
   type ConsultantWorkflowTimeline,
 } from "../../api/consultantWorkflow";
 import { ConsultantUnlockQueuePage } from "./ConsultantUnlockQueuePage";
-import { listConsultantFollowUps, type ConsultantFollowUp } from "../../api/consultantFollowUps";
+import {
+  fetchConsultantInterviewFeedbackSuggestion,
+  listConsultantFollowUps,
+  reviewConsultantInterviewFeedbackSuggestion,
+  type ConsultantFollowUp,
+  type ConsultantInterviewFeedbackSuggestion,
+} from "../../api/consultantFollowUps";
 import {
   CONSULTANT_MATCH_DIMENSIONS,
   createConsultantMatchGenerationPayload,
@@ -2746,13 +2752,78 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
 }
 
 function FollowUpsPage() {
+  const location = useLocation();
   const state = useLoadable(listConsultantFollowUps, []);
+  const suggestionId = new URLSearchParams(location.search).get("suggestionId") ?? "";
+  const suggestionState = useLoadable(
+    () =>
+      suggestionId
+        ? fetchConsultantInterviewFeedbackSuggestion(suggestionId)
+        : Promise.resolve({
+            status: "ready" as const,
+            data: null as ConsultantInterviewFeedbackSuggestion | null,
+          }),
+    [suggestionId],
+  );
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewBusy, setReviewBusy] = useState<"" | "approve" | "reject" | "defer">("");
   return renderLoadable(state, (result) => (
     <ListPageShell
       title="Follow-up Center"
       eyebrow="Candidate, client, and write-back follow-ups"
       description="One queue for recovery, review, reminders, and next actions."
     >
+      {suggestionId ? renderLoadable(suggestionState, (suggestion) => (
+        suggestion ? (
+          <section className="portal-panel">
+            <div className="section-header">
+              <div>
+                <span className="portal-eyebrow">Interview feedback review</span>
+                <h3>{suggestion.title}</h3>
+              </div>
+              <StatusBadge value={suggestion.status} />
+            </div>
+            <KeyValueList
+              items={[
+                ["Scope", suggestion.scope],
+                ["Suggestion type", suggestion.suggestionType],
+                ["Interview", suggestion.interviewId],
+                ["Outcome label", suggestion.outcomeLabel ?? "not_proposed"],
+                ["Reject reason", suggestion.rejectReasonTaxonomy ?? "not_proposed"],
+                ["Created", formatDate(suggestion.createdAt)],
+              ]}
+            />
+            <p className="helper-copy">{suggestion.rationale ?? "No additional rationale was generated."}</p>
+            <pre className="code-card"><code>{suggestion.payload}</code></pre>
+            <label>
+              Consultant note
+              <textarea
+                rows={3}
+                value={reviewNote}
+                onChange={(event) => setReviewNote(event.target.value)}
+                placeholder="Explain why this suggestion is approved, rejected, or deferred."
+              />
+            </label>
+            <div className="button-row">
+              {(["approve", "reject", "defer"] as const).map((decision) => (
+                <button
+                  key={decision}
+                  type="button"
+                  disabled={reviewBusy.length > 0}
+                  onClick={() => {
+                    setReviewBusy(decision);
+                    void reviewConsultantInterviewFeedbackSuggestion(suggestion.suggestionId, decision, reviewNote)
+                      .then(() => window.location.assign("/consultant/follow-ups"))
+                      .finally(() => setReviewBusy(""));
+                  }}
+                >
+                  {decision === "approve" ? "Approve" : decision === "reject" ? "Reject" : "Defer"}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null
+      )) : null}
       <DataTable
         headers={["Title", "Type", "Status", "Occurred"]}
         rows={result.items.map((item) => [

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["interviewInteractionId", "jobId", "interviewFeedbackId", "decision", "outcome", "ratingsJson"],
+  "properties": {
+    "shortlistId": {"type": ["string", "null"]},
+    "shortlistCardId": {"type": ["string", "null"]},
+    "interviewInteractionId": {"type": "string", "format": "uuid"},
+    "jobId": {"type": "string", "format": "uuid"},
+    "candidateId": {"type": ["string", "null"], "format": "uuid"},
+    "interviewFeedbackId": {"type": "string", "format": "uuid"},
+    "decision": {"type": "string", "enum": ["proceed", "hold", "reject"]},
+    "outcome": {"type": "string", "enum": ["strong_yes", "yes", "maybe", "weak_no", "strong_no"]},
+    "rejectReasonTaxonomy": {"type": ["string", "null"]},
+    "interviewerName": {"type": ["string", "null"]},
+    "interviewerRole": {"type": ["string", "null"]},
+    "interviewRound": {"type": ["integer", "null"]},
+    "interviewDate": {"type": ["string", "null"]},
+    "ratingsJson": {"type": "string"},
+    "strengths": {"type": ["string", "null"]},
+    "concerns": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]},
+    "scorecardJson": {"type": ["string", "null"]},
+    "evidence": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

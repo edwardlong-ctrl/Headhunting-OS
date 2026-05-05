@@ -21,6 +21,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
+import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackOutcomeLoopService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
@@ -230,6 +231,11 @@ class ClientApiCommandServiceTransactionalContractTest {
     }
 
     @Bean
+    InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService() {
+      return mock(InterviewFeedbackOutcomeLoopService.class);
+    }
+
+    @Bean
     WorkflowTransitionAuditService workflowTransitionAuditService() {
       return mock(WorkflowTransitionAuditService.class);
     }
@@ -255,6 +261,7 @@ class ClientApiCommandServiceTransactionalContractTest {
         com.recruitingtransactionos.coreapi.consentdisclosure.UnlockWorkflowService unlockWorkflowService,
         CandidateCompanyInteractionService interactionService,
         InterviewFeedbackService interviewFeedbackService,
+        InterviewFeedbackOutcomeLoopService interviewFeedbackOutcomeLoopService,
         WorkflowTransitionAuditService workflowTransitionAuditService,
         PermissionEnforcer permissionEnforcer) {
       return new ClientApiCommandService(
@@ -267,6 +274,7 @@ class ClientApiCommandServiceTransactionalContractTest {
           unlockWorkflowService,
           interactionService,
           interviewFeedbackService,
+          interviewFeedbackOutcomeLoopService,
           workflowTransitionAuditService,
           permissionEnforcer);
     }

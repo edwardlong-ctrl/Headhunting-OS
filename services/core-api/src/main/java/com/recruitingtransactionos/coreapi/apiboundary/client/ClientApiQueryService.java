@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.apiboundary.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientDashboardResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientCompanyProfileResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ClientInterviewFeedbackContextResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientJobSubmissionStatusResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientPreferenceResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientShortlistDetailResponse;
@@ -23,9 +24,14 @@ import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteraction;
+import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteractionId;
+import com.recruitingtransactionos.coreapi.interaction.InteractionType;
+import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
+import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
@@ -64,6 +70,7 @@ public final class ClientApiQueryService {
   private final JobIntakeApplicationService jobIntakeApplicationService;
   private final ShortlistService shortlistService;
   private final ClientUnlockRequestPort clientUnlockRequestPort;
+  private final CandidateCompanyInteractionService interactionService;
   private final InterviewFeedbackService interviewFeedbackService;
   private final NotificationService notificationService;
   private final PermissionEnforcer permissionEnforcer;
@@ -75,6 +82,7 @@ public final class ClientApiQueryService {
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
+      CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
       NotificationService notificationService) {
     this(
@@ -83,6 +91,7 @@ public final class ClientApiQueryService {
         jobIntakeApplicationService,
         shortlistService,
         clientUnlockRequestPort,
+        interactionService,
         interviewFeedbackService,
         notificationService,
         new PermissionEnforcer(new PermissionEvaluator()));
@@ -94,6 +103,7 @@ public final class ClientApiQueryService {
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
+      CandidateCompanyInteractionService interactionService,
       InterviewFeedbackService interviewFeedbackService,
       NotificationService notificationService,
       PermissionEnforcer permissionEnforcer) {
@@ -104,6 +114,8 @@ public final class ClientApiQueryService {
     this.shortlistService = Objects.requireNonNull(shortlistService, "shortlistService must not be null");
     this.clientUnlockRequestPort = Objects.requireNonNull(
         clientUnlockRequestPort, "clientUnlockRequestPort must not be null");
+    this.interactionService = Objects.requireNonNull(
+        interactionService, "interactionService must not be null");
     this.interviewFeedbackService = Objects.requireNonNull(
         interviewFeedbackService, "interviewFeedbackService must not be null");
     this.notificationService = Objects.requireNonNull(
@@ -209,6 +221,55 @@ public final class ClientApiQueryService {
             organizationId,
             shortlist,
             shortlistService.findCardsByShortlistIdAndOrganizationId(organizationId, shortlistId)));
+  }
+
+  public Optional<ClientInterviewFeedbackContextResponse> getInterviewFeedbackContext(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      UUID actorId,
+      CandidateCompanyInteractionId interviewId) {
+    requireClientContext(accessRequest, ResourceType.SHORTLIST, AccessAction.READ, "shortlist");
+    Optional<CandidateCompanyInteraction> interactionOptional =
+        interactionService.findInteractionByIdAndOrganizationId(organizationId, interviewId)
+            .filter(interaction -> interaction.interactionType() == InteractionType.INTERVIEW);
+    if (interactionOptional.isEmpty()) {
+      return Optional.empty();
+    }
+    CandidateCompanyInteraction interaction = interactionOptional.get();
+    Optional<Job> jobOptional = findVisibleJob(organizationId, actorId, interaction.jobId());
+    if (jobOptional.isEmpty()) {
+      return Optional.empty();
+    }
+    Optional<ShortlistContext> shortlistContext = shortlistService
+        .findShortlistsByJobIdAndOrganizationId(organizationId, interaction.jobId())
+        .stream()
+        .filter(shortlist -> CLIENT_VISIBLE_SHORTLIST_STATUSES.contains(shortlist.status()))
+        .flatMap(shortlist -> shortlistService.findCardsByShortlistIdAndOrganizationId(
+                organizationId, shortlist.shortlistId())
+            .stream()
+            .filter(card -> card.candidateId().equals(interaction.candidateId()))
+            .map(card -> new ShortlistContext(shortlist, card)))
+        .findFirst();
+    if (shortlistContext.isEmpty()) {
+      return Optional.empty();
+    }
+    if (!ClientApiCommandService.isInterviewFeedbackEligible(
+        shortlistContext.get().shortlist(),
+        shortlistContext.get().card())) {
+      return Optional.empty();
+    }
+    String scorecard = jobService.findActiveScorecardByJobIdAndOrganizationId(organizationId, interaction.jobId())
+        .map(this::writeScorecardJson)
+        .orElse("{}");
+    return Optional.of(new ClientInterviewFeedbackContextResponse(
+        interviewId.value().toString(),
+        shortlistContext.get().shortlist().shortlistId().value().toString(),
+        shortlistContext.get().card().shortlistCandidateCardId().value().toString(),
+        interaction.jobId().value().toString(),
+        shortlistContext.get().shortlist().status().wireValue(),
+        scorecard,
+        interviewFeedbackService.findFeedbackByInteractionIdAndOrganizationId(organizationId, interviewId).size(),
+        "/client/feedback/" + interviewId.value()));
   }
 
   private void requireClientContext(
@@ -367,6 +428,14 @@ public final class ClientApiQueryService {
     return "card_" + card.anonymousCandidateCardId().toString().replace("-", "");
   }
 
+  private String writeScorecardJson(JobScorecard scorecard) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(scorecard);
+    } catch (Exception exception) {
+      return "{}";
+    }
+  }
+
   private static String optionalInstant(java.time.Instant instant) {
     return instant != null ? instant.toString() : null;
   }
@@ -399,5 +468,10 @@ public final class ClientApiQueryService {
         JobIntakeApplicationService.clarificationAnswersFromMetadata(job.metadata()),
         gateResult.blockerReasons(),
         gateResult.activationAllowed());
+  }
+
+  private record ShortlistContext(
+      Shortlist shortlist,
+      ShortlistCandidateCard card) {
   }
 }

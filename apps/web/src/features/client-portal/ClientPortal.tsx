@@ -47,7 +47,9 @@ import {
   type ClientUnlockRequest,
 } from "../../api/clientShortlists";
 import {
+  fetchClientFeedbackContext,
   submitClientFeedback,
+  type ClientFeedbackContextResponse,
   type ClientFeedbackResponse,
 } from "../../api/clientFeedback";
 import { type ApiResult } from "../../api/http";
@@ -1428,6 +1430,7 @@ function ShortlistDetailPage() {
   const [unlockResults, setUnlockResults] = useState<Record<string, ClientUnlockRequest>>({});
   const [feedbackNotes, setFeedbackNotes] = useState<Record<string, string>>({});
   const [feedbackOutcomes, setFeedbackOutcomes] = useState<Record<string, string>>({});
+  const [feedbackDecisions, setFeedbackDecisions] = useState<Record<string, string>>({});
   const [feedbackResults, setFeedbackResults] = useState<Record<string, ClientFeedbackResponse>>({});
   const [busyCardId, setBusyCardId] = useState<string | null>(null);
 
@@ -1475,18 +1478,39 @@ function ShortlistDetailPage() {
   async function handleFeedback(card: ClientShortlistCard) {
     const notes = (feedbackNotes[card.shortlistCandidateCardId] ?? "").trim();
     const outcome = feedbackOutcomes[card.shortlistCandidateCardId] ?? "maybe";
+    const decision = feedbackDecisions[card.shortlistCandidateCardId] ?? "hold";
     if (!notes) {
       return;
     }
     setBusyCardId(card.shortlistCandidateCardId);
     const result = await submitClientFeedback(shortlistId, card.shortlistCandidateCardId, {
       outcome,
+      decision,
+      rejectReasonTaxonomy: outcome === "strong_no" || outcome === "weak_no" ? "other" : null,
       notes,
       strengths: null,
       concerns: null,
+      interviewDate: new Date().toISOString(),
       interviewRound: 1,
       interviewerName: null,
       interviewerRole: null,
+      ratings: [
+        {
+          dimensionKey: "overall",
+          label: "Overall interview signal",
+          score:
+            outcome === "strong_yes"
+              ? 5
+              : outcome === "yes"
+                ? 4
+                : outcome === "maybe"
+                  ? 3
+                  : outcome === "weak_no"
+                    ? 2
+                    : 1,
+          notes,
+        },
+      ],
     });
     setBusyCardId(null);
     if (result.status === "ready") {
@@ -1663,6 +1687,23 @@ function ShortlistDetailPage() {
                   </>
                 ) : null}
                 <label>
+                  Decision
+                  <select
+                    disabled={!interviewFeedbackEligible}
+                    value={feedbackDecisions[card.shortlistCandidateCardId] ?? "hold"}
+                    onChange={(event) =>
+                      setFeedbackDecisions((current) => ({
+                        ...current,
+                        [card.shortlistCandidateCardId]: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="proceed">Proceed</option>
+                    <option value="hold">Hold</option>
+                    <option value="reject">Reject</option>
+                  </select>
+                </label>
+                <label>
                   Feedback outcome
                   <select
                     disabled={!interviewFeedbackEligible}
@@ -1717,12 +1758,24 @@ function ShortlistDetailPage() {
                   </p>
                 ) : null}
                 {feedbackResults[card.shortlistCandidateCardId] ? (
-                  <KeyValueList
-                    items={[
-                      ["Feedback outcome", feedbackResults[card.shortlistCandidateCardId].outcome],
-                      ["Feedback created", formatDate(feedbackResults[card.shortlistCandidateCardId].createdAt)],
-                    ]}
-                  />
+                  <>
+                    <KeyValueList
+                      items={[
+                        ["Feedback decision", feedbackResults[card.shortlistCandidateCardId].decision],
+                        ["Feedback outcome", feedbackResults[card.shortlistCandidateCardId].outcome],
+                        ["AI structured", feedbackResults[card.shortlistCandidateCardId].aiStructured ? "yes" : "no"],
+                        ["Feedback created", formatDate(feedbackResults[card.shortlistCandidateCardId].createdAt)],
+                      ]}
+                    />
+                    <div className="button-row">
+                      <NavLink
+                        className="secondary-link"
+                        to={`/client/feedback/${encodeURIComponent(feedbackResults[card.shortlistCandidateCardId].interviewId)}`}
+                      >
+                        Open feedback workspace
+                      </NavLink>
+                    </div>
+                  </>
                 ) : null}
               </article>
               );
@@ -1734,6 +1787,158 @@ function ShortlistDetailPage() {
       </section>
     </div>
   ));
+}
+
+function ClientInterviewFeedbackPage() {
+  const { interviewId = "" } = useParams();
+  const contextState = useLoadable(
+    () => fetchClientFeedbackContext(interviewId),
+    [interviewId],
+  );
+  const [notes, setNotes] = useState("");
+  const [outcome, setOutcome] = useState("maybe");
+  const [decision, setDecision] = useState("hold");
+  const [submitState, setSubmitState] = useState<Loadable<ClientFeedbackResponse>>({ status: "idle" });
+  return renderLoadable(contextState, (context: ClientFeedbackContextResponse) => {
+    let scorecardSummary: Array<{ label: string; detail: string }> = [];
+    try {
+      const parsed = JSON.parse(context.scorecard) as {
+        dimensions?: Array<{ label?: string; requirementSummary?: string | null }>;
+      };
+      scorecardSummary = parsed.dimensions?.map((dimension) => ({
+        label: dimension.label ?? "Scorecard dimension",
+        detail: dimension.requirementSummary ?? "Review against consultant-defined scorecard.",
+      })) ?? [];
+    } catch {
+      scorecardSummary = [];
+    }
+    return (
+      <div className="workspace-stack">
+        <section className="portal-panel shell-header-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Interview feedback workspace</span>
+              <h2>{context.interviewId}</h2>
+              <p className="helper-copy shell-description">
+                Structured feedback stays inside the client-safe workflow and feeds consultant review.
+              </p>
+            </div>
+            <StatusBadge value={context.shortlistStatus} />
+          </div>
+          <KeyValueList
+            items={[
+              ["Interview interaction", context.interviewId],
+              ["Shortlist", context.shortlistId],
+              ["Card", context.shortlistCandidateCardId],
+              ["Job", context.jobId],
+              ["Existing feedback records", String(context.existingFeedbackCount)],
+            ]}
+          />
+        </section>
+        <section className="portal-panel">
+          <h2>Scorecard guidance</h2>
+          {scorecardSummary.length > 0 ? (
+            <ul className="helper-copy">
+              {scorecardSummary.map((dimension) => (
+                <li key={dimension.label}>
+                  <strong>{dimension.label}:</strong> {dimension.detail}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="helper-copy">No structured scorecard was attached to this job yet.</p>
+          )}
+        </section>
+        <section className="portal-panel">
+          <h2>Submit updated feedback</h2>
+          <label>
+            Decision
+            <select value={decision} onChange={(event) => setDecision(event.target.value)}>
+              <option value="proceed">Proceed</option>
+              <option value="hold">Hold</option>
+              <option value="reject">Reject</option>
+            </select>
+          </label>
+          <label>
+            Outcome
+            <select value={outcome} onChange={(event) => setOutcome(event.target.value)}>
+              <option value="strong_yes">Strong yes</option>
+              <option value="yes">Yes</option>
+              <option value="maybe">Maybe</option>
+              <option value="weak_no">Weak no</option>
+              <option value="strong_no">Strong no</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea
+              rows={5}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Summarize the interview outcome, concerns, and next-step recommendation."
+            />
+          </label>
+          <div className="button-row">
+            <button
+              type="button"
+              disabled={!notes.trim() || submitState.status === "loading"}
+              onClick={() => {
+                setSubmitState({ status: "loading" });
+                void submitClientFeedback(context.shortlistId, context.shortlistCandidateCardId, {
+                  outcome,
+                  decision,
+                  interviewId: context.interviewId,
+                  rejectReasonTaxonomy:
+                    outcome === "strong_no" || outcome === "weak_no" ? "other" : null,
+                  notes: notes.trim(),
+                  strengths: null,
+                  concerns: null,
+                  interviewDate: new Date().toISOString(),
+                  interviewRound: 1,
+                  interviewerName: null,
+                  interviewerRole: null,
+                  ratings: [
+                    {
+                      dimensionKey: "overall",
+                      label: "Overall interview signal",
+                      score:
+                        outcome === "strong_yes"
+                          ? 5
+                          : outcome === "yes"
+                            ? 4
+                            : outcome === "maybe"
+                              ? 3
+                              : outcome === "weak_no"
+                                ? 2
+                                : 1,
+                      notes: notes.trim(),
+                    },
+                  ],
+                }).then((result) => setSubmitState(result));
+              }}
+            >
+              Submit updated feedback
+            </button>
+            <NavLink className="secondary-link" to={`/client/shortlists/${encodeURIComponent(context.shortlistId)}`}>
+              Back to shortlist
+            </NavLink>
+          </div>
+          {submitState.status === "ready" ? (
+            <KeyValueList
+              items={[
+                ["Feedback id", submitState.data.interviewFeedbackId],
+                ["AI structured", submitState.data.aiStructured ? "yes" : "no"],
+                ["Suggestions pending", String(submitState.data.pendingSuggestionCount ?? 0)],
+                ["Created", formatDate(submitState.data.createdAt)],
+              ]}
+            />
+          ) : submitState.status !== "idle" && submitState.status !== "loading" ? (
+            <ClientApiState status={submitState.status} error={loadableError(submitState)} />
+          ) : null}
+        </section>
+      </div>
+    );
+  });
 }
 
 function ClientSafeCandidateCardPage() {
@@ -1906,6 +2111,7 @@ export function ClientPortal() {
         <Route path="jobs/:jobId/clarification" element={<ClarificationPage />} />
         <Route path="shortlists" element={<ShortlistsPage />} />
         <Route path="shortlists/:shortlistId" element={<ShortlistDetailPage />} />
+        <Route path="feedback/:interviewId" element={<ClientInterviewFeedbackPage />} />
         <Route path="candidates/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
         <Route path="candidate-cards/:anonymousCardRef" element={<ClientSafeCandidateCardPage />} />
         <Route path="disclosed-candidates/:shortlistId/:cardId" element={<ClientDisclosedCandidatePage />} />

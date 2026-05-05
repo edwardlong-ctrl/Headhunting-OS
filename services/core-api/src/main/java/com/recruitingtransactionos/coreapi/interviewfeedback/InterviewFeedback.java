@@ -16,12 +16,18 @@ public record InterviewFeedback(
     Integer interviewRound,
     Instant interviewDate,
     InterviewOutcome outcome,
+    InterviewFeedbackDecision decision,
+    RejectReasonTaxonomy rejectReasonTaxonomy,
     String ratings,
+    String ratingsSchemaVersion,
     String strengths,
     String concerns,
     String notes,
     String submittedByRole,
     UUID submittedByUserId,
+    UUID aiTaskRunId,
+    UUID reviewedByUserId,
+    Instant reviewedAt,
     String metadata,
     Instant createdAt,
     Instant updatedAt,
@@ -56,12 +62,18 @@ public record InterviewFeedback(
     private Integer interviewRound;
     private Instant interviewDate;
     private InterviewOutcome outcome;
+    private InterviewFeedbackDecision decision;
+    private RejectReasonTaxonomy rejectReasonTaxonomy;
     private String ratings = "{}";
+    private String ratingsSchemaVersion = "task35-v1";
     private String strengths;
     private String concerns;
     private String notes;
     private String submittedByRole;
     private UUID submittedByUserId;
+    private UUID aiTaskRunId;
+    private UUID reviewedByUserId;
+    private Instant reviewedAt;
     private String metadata = "{}";
     private Instant createdAt;
     private Instant updatedAt;
@@ -83,12 +95,24 @@ public record InterviewFeedback(
     public Builder interviewRound(Integer round) { this.interviewRound = round; return this; }
     public Builder interviewDate(Instant date) { this.interviewDate = date; return this; }
     public Builder outcome(InterviewOutcome outcome) { this.outcome = outcome; return this; }
+    public Builder decision(InterviewFeedbackDecision decision) { this.decision = decision; return this; }
+    public Builder rejectReasonTaxonomy(RejectReasonTaxonomy rejectReasonTaxonomy) {
+      this.rejectReasonTaxonomy = rejectReasonTaxonomy; return this;
+    }
     public Builder ratings(String ratings) { this.ratings = ratings; return this; }
+    public Builder ratingsSchemaVersion(String ratingsSchemaVersion) {
+      this.ratingsSchemaVersion = ratingsSchemaVersion; return this;
+    }
     public Builder strengths(String strengths) { this.strengths = strengths; return this; }
     public Builder concerns(String concerns) { this.concerns = concerns; return this; }
     public Builder notes(String notes) { this.notes = notes; return this; }
     public Builder submittedByRole(String role) { this.submittedByRole = role; return this; }
     public Builder submittedByUserId(UUID id) { this.submittedByUserId = id; return this; }
+    public Builder aiTaskRunId(UUID aiTaskRunId) { this.aiTaskRunId = aiTaskRunId; return this; }
+    public Builder reviewedByUserId(UUID reviewedByUserId) {
+      this.reviewedByUserId = reviewedByUserId; return this;
+    }
+    public Builder reviewedAt(Instant reviewedAt) { this.reviewedAt = reviewedAt; return this; }
     public Builder metadata(String metadata) { this.metadata = metadata; return this; }
     public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
     public Builder updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
@@ -97,8 +121,10 @@ public record InterviewFeedback(
     public InterviewFeedback build() {
       return new InterviewFeedback(interviewFeedbackId, organizationId,
           candidateCompanyInteractionId, jobId, interviewerName, interviewerRole,
-          interviewRound, interviewDate, outcome, ratings, strengths, concerns, notes,
-          submittedByRole, submittedByUserId, metadata, createdAt, updatedAt, version);
+          interviewRound, interviewDate, outcome, decision, rejectReasonTaxonomy,
+          ratings, ratingsSchemaVersion, strengths, concerns, notes,
+          submittedByRole, submittedByUserId, aiTaskRunId, reviewedByUserId,
+          reviewedAt, metadata, createdAt, updatedAt, version);
     }
   }
 }
