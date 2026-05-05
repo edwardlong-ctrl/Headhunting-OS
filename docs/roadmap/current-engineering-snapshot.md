@@ -4,8 +4,8 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- current main HEAD: `f3721a5`
-- latest main commit: `f3721a5` (`Complete Task 34 notification and follow-up closure`)
+- current main product baseline commit: `f3721a5`
+- latest Task 34 baseline commit on main: `f3721a5` (`Complete Task 34 notification and follow-up closure`)
 - latest product baseline merges on main:
   - `f3721a5` — Task 34: Notification and Follow-up System v1 plus candidate/client portal session closure
   - `2d69ce5` — Task 31: Candidate Portal v1
