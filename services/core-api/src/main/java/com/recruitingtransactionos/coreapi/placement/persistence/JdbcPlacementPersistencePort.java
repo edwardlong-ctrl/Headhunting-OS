@@ -34,6 +34,23 @@ public final class JdbcPlacementPersistencePort implements PlacementPersistenceP
       ) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.placement
+      SET status = ?,
+          offer_details = ?::jsonb,
+          offer_accepted_at = ?,
+          start_date = ?,
+          onboarded_at = ?,
+          guarantee_days = ?,
+          guarantee_expires_at = ?,
+          cancelled_at = ?,
+          cancel_reason = ?,
+          metadata = ?::jsonb,
+          updated_at = ?,
+          version = version + 1
+      WHERE organization_id = ? AND placement_id = ? AND version = ?
+      """;
+
   private static final String FIND_BY_ID_SQL = """
       SELECT placement_id, organization_id, job_id, candidate_id, company_id,
         status, offer_details::text AS offer_details, offer_accepted_at,
@@ -52,6 +69,17 @@ public final class JdbcPlacementPersistencePort implements PlacementPersistenceP
         created_at, updated_at, version
       FROM recruiting.placement
       WHERE organization_id = ? AND job_id = ?
+      ORDER BY created_at DESC
+      """;
+
+  private static final String FIND_ALL_SQL = """
+      SELECT placement_id, organization_id, job_id, candidate_id, company_id,
+        status, offer_details::text AS offer_details, offer_accepted_at,
+        start_date, onboarded_at, guarantee_days, guarantee_expires_at,
+        cancelled_at, cancel_reason, metadata::text AS metadata,
+        created_at, updated_at, version
+      FROM recruiting.placement
+      WHERE organization_id = ?
       ORDER BY created_at DESC
       """;
 
@@ -135,6 +163,75 @@ public final class JdbcPlacementPersistencePort implements PlacementPersistenceP
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find placement by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Placement update(Placement placement) {
+    Objects.requireNonNull(placement, "placement must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setString(1, placement.status().wireValue());
+      statement.setString(2, placement.offerDetails());
+      statement.setTimestamp(
+          3,
+          placement.offerAcceptedAt() != null ? Timestamp.from(placement.offerAcceptedAt()) : null);
+      if (placement.startDate() != null) {
+        statement.setDate(4, Date.valueOf(placement.startDate()));
+      } else {
+        statement.setNull(4, Types.DATE);
+      }
+      statement.setTimestamp(
+          5,
+          placement.onboardedAt() != null ? Timestamp.from(placement.onboardedAt()) : null);
+      if (placement.guaranteeDays() != null) {
+        statement.setInt(6, placement.guaranteeDays());
+      } else {
+        statement.setNull(6, Types.INTEGER);
+      }
+      if (placement.guaranteeExpiresAt() != null) {
+        statement.setDate(7, Date.valueOf(placement.guaranteeExpiresAt()));
+      } else {
+        statement.setNull(7, Types.DATE);
+      }
+      statement.setTimestamp(
+          8, placement.cancelledAt() != null ? Timestamp.from(placement.cancelledAt()) : null);
+      statement.setString(9, placement.cancelReason());
+      statement.setString(10, placement.metadata());
+      statement.setTimestamp(11, Timestamp.from(placement.updatedAt()));
+      statement.setObject(12, placement.organizationId());
+      statement.setObject(13, placement.placementId().value());
+      statement.setInt(14, placement.version());
+      int updatedRows = statement.executeUpdate();
+      if (updatedRows != 1) {
+        throw new IllegalStateException("placement_update_conflict");
+      }
+      return findByIdAndOrganizationId(placement.organizationId(), placement.placementId())
+          .orElseThrow(() -> new IllegalStateException("placement not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update placement", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<Placement> findAllByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_SQL)) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Placement> results = new ArrayList<>();
+        while (resultSet.next()) {
+          results.add(toPlacement(resultSet));
+        }
+        return List.copyOf(results);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find placements by organization", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

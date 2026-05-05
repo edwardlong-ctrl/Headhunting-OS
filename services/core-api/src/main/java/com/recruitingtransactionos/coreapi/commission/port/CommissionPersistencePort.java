@@ -11,8 +11,12 @@ public interface CommissionPersistencePort {
 
   Commission create(Commission commission);
 
+  Commission update(Commission commission);
+
   Optional<Commission> findByIdAndOrganizationId(
       UUID organizationId, CommissionId commissionId);
+
+  List<Commission> findAllByOrganizationId(UUID organizationId);
 
   List<Commission> findByPlacementIdAndOrganizationId(
       UUID organizationId, PlacementId placementId);

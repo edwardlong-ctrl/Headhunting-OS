@@ -12,7 +12,11 @@ public interface PlacementPersistencePort {
 
   Placement create(Placement placement);
 
+  Placement update(Placement placement);
+
   Optional<Placement> findByIdAndOrganizationId(UUID organizationId, PlacementId placementId);
+
+  List<Placement> findAllByOrganizationId(UUID organizationId);
 
   List<Placement> findByJobIdAndOrganizationId(UUID organizationId, JobId jobId);
 

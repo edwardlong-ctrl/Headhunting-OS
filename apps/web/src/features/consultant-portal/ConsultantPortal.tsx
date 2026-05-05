@@ -109,6 +109,26 @@ import {
 } from "../../api/consultantDocuments";
 import { type ApiResult } from "../../api/http";
 import {
+  activatePlacementGuarantee,
+  completePlacementGuarantee,
+  createConsultantPlacement,
+  listConsultantPlacements,
+  markPlacementInvoiceReady,
+  markPlacementInvoiceSent,
+  markPlacementOfferAccepted,
+  markPlacementOnboarded,
+  markPlacementPaid,
+  requirePlacementReplacement,
+  type ConsultantPlacement,
+} from "../../api/consultantPlacements";
+import {
+  createConsultantCommission,
+  listConsultantCommission,
+  markConsultantCommissionPaid,
+  withholdConsultantCommission,
+  type ConsultantCommission,
+} from "../../api/consultantCommission";
+import {
   SHORTLIST_BUILDER_INITIAL_STATUS,
   CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS,
   canSaveShortlistBuilder,
@@ -3041,17 +3061,407 @@ function WorkflowPage() {
 }
 
 function PlacementsPage() {
+  const [offset, setOffset] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [jobId, setJobId] = useState("");
+  const [candidateId, setCandidateId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [salaryAmount, setSalaryAmount] = useState("");
+  const [salaryCurrency, setSalaryCurrency] = useState("USD");
+  const [feeRatePercentage, setFeeRatePercentage] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [guaranteeDays, setGuaranteeDays] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const placements = useLoadable(
+    () => listConsultantPlacements(DEFAULT_PAGE_SIZE, offset),
+    [offset, refreshKey],
+  );
+
+  async function handleCreatePlacement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setFeedback(null);
+    const result = await createConsultantPlacement({
+      jobId: jobId.trim(),
+      candidateId: candidateId.trim(),
+      companyId: companyId.trim(),
+      salaryAmount: salaryAmount.trim() ? Number(salaryAmount) : null,
+      salaryCurrency: emptyToNull(salaryCurrency) ?? "USD",
+      feeRatePercentage: feeRatePercentage.trim() ? Number(feeRatePercentage) : null,
+      startDate: emptyToNull(startDate),
+      guaranteeDays: guaranteeDays.trim() ? Number(guaranteeDays) : null,
+      notes: emptyToNull(notes),
+    });
+    setSubmitting(false);
+    if (result.status !== "ready") {
+      setFeedback(result.error ?? "Placement request failed.");
+      return;
+    }
+    setJobId("");
+    setCandidateId("");
+    setCompanyId("");
+    setSalaryAmount("");
+    setSalaryCurrency("USD");
+    setFeeRatePercentage("");
+    setStartDate("");
+    setGuaranteeDays("");
+    setNotes("");
+    setFeedback("Placement recorded.");
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function runPlacementAction(
+    placement: ConsultantPlacement,
+    action: (placementId: string, payload: { version: number }) => Promise<ApiResult<ConsultantPlacement>>,
+  ) {
+    setFeedback(null);
+    const result = await action(placement.placementId, { version: placement.version });
+    if (result.status !== "ready") {
+      setFeedback(result.error ?? "Placement update failed.");
+      return;
+    }
+    setFeedback(`Placement moved to ${result.data.status}.`);
+    setRefreshKey((value) => value + 1);
+  }
+
+  function placementActions(placement: ConsultantPlacement) {
+    switch (placement.status) {
+      case "offer_pending":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, markPlacementOfferAccepted)}>
+            Accept offer
+          </button>
+        );
+      case "offer_accepted":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, markPlacementOnboarded)}>
+            Mark onboarded
+          </button>
+        );
+      case "onboarded":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, markPlacementInvoiceReady)}>
+            Invoice ready
+          </button>
+        );
+      case "invoice_ready":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, markPlacementInvoiceSent)}>
+            Invoice sent
+          </button>
+        );
+      case "invoice_sent":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, markPlacementPaid)}>
+            Mark paid
+          </button>
+        );
+      case "paid":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, activatePlacementGuarantee)}>
+            Activate guarantee
+          </button>
+        );
+      case "guarantee_active":
+        return (
+          <div className="button-group-inline">
+            <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, completePlacementGuarantee)}>
+              Complete guarantee
+            </button>
+            <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, requirePlacementReplacement)}>
+              Replacement required
+            </button>
+          </div>
+        );
+      case "guarantee_completed":
+        return (
+          <button type="button" className="secondary-button" onClick={() => void runPlacementAction(placement, requirePlacementReplacement)}>
+            Replacement required
+          </button>
+        );
+      default:
+        return <span className="helper-copy">No action</span>;
+    }
+  }
+
   return (
-    <ListPageShell title="Placements" eyebrow="Unified consultant portal">
-      <EmptyState title="No placement workflow events are available for this consultant organization yet" />
+    <ListPageShell
+      title="Placements"
+      eyebrow="Unified consultant portal"
+      description="Record governed offers, onboardings, invoice/payment status, guarantee periods, and replacement triggers."
+    >
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Create placement</span>
+            <h3>Record offer pending</h3>
+          </div>
+        </div>
+        <form className="stacked-form" onSubmit={handleCreatePlacement}>
+          <div className="grid-form grid-form-two">
+            <label>
+              <span>Job ID</span>
+              <input value={jobId} onChange={(event) => setJobId(event.target.value)} placeholder="UUID from Jobs" required />
+            </label>
+            <label>
+              <span>Candidate ID</span>
+              <input value={candidateId} onChange={(event) => setCandidateId(event.target.value)} placeholder="UUID from Talent Pool" required />
+            </label>
+            <label>
+              <span>Company ID</span>
+              <input value={companyId} onChange={(event) => setCompanyId(event.target.value)} placeholder="UUID from Companies" required />
+            </label>
+            <label>
+              <span>Salary amount</span>
+              <input value={salaryAmount} onChange={(event) => setSalaryAmount(event.target.value)} placeholder="120000" />
+            </label>
+            <label>
+              <span>Currency</span>
+              <input value={salaryCurrency} onChange={(event) => setSalaryCurrency(event.target.value)} placeholder="USD" />
+            </label>
+            <label>
+              <span>Fee rate %</span>
+              <input value={feeRatePercentage} onChange={(event) => setFeeRatePercentage(event.target.value)} placeholder="20" />
+            </label>
+            <label>
+              <span>Start date</span>
+              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+            </label>
+            <label>
+              <span>Guarantee days</span>
+              <input value={guaranteeDays} onChange={(event) => setGuaranteeDays(event.target.value)} placeholder="90" />
+            </label>
+          </div>
+          <label>
+            <span>Notes</span>
+            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Offer notes or commission basis" rows={3} />
+          </label>
+          {feedback ? <p className="helper-copy">{feedback}</p> : null}
+          <div className="button-group-inline">
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? "Recording..." : "Record placement"}
+            </button>
+          </div>
+        </form>
+      </section>
+      {renderLoadable(placements, (result) => (
+        <>
+          <ListToolbar>
+            <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
+          </ListToolbar>
+          <DataTable
+            headers={["Placement", "Status", "Offer", "Start", "Guarantee", "Expected fee", "Action"]}
+            rows={result.items.map((placement) => [
+              <div>
+                <strong>{placement.placementId.slice(0, 8)}</strong>
+                <div className="helper-copy">job {placement.jobId.slice(0, 8)} · candidate {placement.candidateId.slice(0, 8)}</div>
+              </div>,
+              <StatusBadge value={placement.status} />,
+              <div>
+                <div>{formatOptionalMoney(placement.salaryAmount, placement.salaryCurrency, "Not set")}</div>
+                <div className="helper-copy">fee {placement.feeRatePercentage ?? "n/a"}%</div>
+              </div>,
+              placement.startDate ? formatDate(placement.startDate) : "TBD",
+              <div>
+                <div>{placement.guaranteeDays ? `${placement.guaranteeDays} days` : "None"}</div>
+                <div className="helper-copy">{placement.guaranteeExpiresAt ? `expires ${formatDate(placement.guaranteeExpiresAt)}` : "not started"}</div>
+              </div>,
+              formatOptionalMoney(placement.expectedFeeAmount, placement.salaryCurrency),
+              placementActions(placement),
+            ])}
+          />
+          <PaginationControls
+            hasMore={result.hasMore}
+            offset={result.offset}
+            limit={result.limit}
+            onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+            onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
+          />
+        </>
+      ))}
     </ListPageShell>
   );
 }
 
 function CommissionPage() {
+  const [offset, setOffset] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [placementId, setPlacementId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [feeRatePercentage, setFeeRatePercentage] = useState("");
+  const [salaryAmount, setSalaryAmount] = useState("");
+  const [withholdReason, setWithholdReason] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const commissions = useLoadable(
+    () => listConsultantCommission(DEFAULT_PAGE_SIZE, offset),
+    [offset, refreshKey],
+  );
+
+  async function handleCreateCommission(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFeedback(null);
+    const result = await createConsultantCommission({
+      placementId: placementId.trim(),
+      commissionType: "full_fee",
+      amount: amount.trim() ? Number(amount) : null,
+      currency: emptyToNull(currency),
+      splitPercentage: null,
+      salaryAmount: salaryAmount.trim() ? Number(salaryAmount) : null,
+      feeRatePercentage: feeRatePercentage.trim() ? Number(feeRatePercentage) : null,
+    });
+    if (result.status !== "ready") {
+      setFeedback(result.error ?? "Commission create failed.");
+      return;
+    }
+    setPlacementId("");
+    setAmount("");
+    setCurrency("USD");
+    setFeeRatePercentage("");
+    setSalaryAmount("");
+    setFeedback("Commission recorded.");
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function markPaid(commission: ConsultantCommission) {
+    if (commission.amount == null) {
+      setFeedback("Commission amount is required before marking paid.");
+      return;
+    }
+    setFeedback(null);
+    const result = await markConsultantCommissionPaid(commission.commissionId, commission.version);
+    if (result.status !== "ready") {
+      setFeedback(result.error ?? "Commission update failed.");
+      return;
+    }
+    setFeedback(`Commission moved to ${result.data.status}.`);
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function withhold(commission: ConsultantCommission) {
+    const reason = emptyToNull(withholdReason) ?? "manual_withhold";
+    setFeedback(null);
+    const result = await withholdConsultantCommission(commission.commissionId, {
+      version: commission.version,
+      reason,
+    });
+    if (result.status !== "ready") {
+      setFeedback(result.error ?? "Commission update failed.");
+      return;
+    }
+    setWithholdReason("");
+    setFeedback(`Commission moved to ${result.data.status}.`);
+    setRefreshKey((value) => value + 1);
+  }
+
   return (
-    <ListPageShell title="Commission" eyebrow="Unified consultant portal">
-      <EmptyState title="Commission tracking opens after governed placements are recorded" />
+    <ListPageShell
+      title="Commission"
+      eyebrow="Unified consultant portal"
+      description="Track expected fee, payout state, and withholding decisions after placements enter invoice-ready flow."
+    >
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Manual commission</span>
+            <h3>Create or backfill commission</h3>
+          </div>
+        </div>
+        <form className="stacked-form" onSubmit={handleCreateCommission}>
+          <div className="grid-form grid-form-two">
+            <label>
+              <span>Placement ID</span>
+              <input value={placementId} onChange={(event) => setPlacementId(event.target.value)} placeholder="UUID from Placements" required />
+            </label>
+            <label>
+              <span>Expected fee amount</span>
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="24000" />
+            </label>
+            <label>
+              <span>Currency</span>
+              <input value={currency} onChange={(event) => setCurrency(event.target.value)} placeholder="USD" />
+            </label>
+            <label>
+              <span>Base salary</span>
+              <input value={salaryAmount} onChange={(event) => setSalaryAmount(event.target.value)} placeholder="120000" />
+            </label>
+            <label>
+              <span>Fee rate %</span>
+              <input value={feeRatePercentage} onChange={(event) => setFeeRatePercentage(event.target.value)} placeholder="20" />
+            </label>
+            <label>
+              <span>Withhold reason default</span>
+              <input value={withholdReason} onChange={(event) => setWithholdReason(event.target.value)} placeholder="optional default reason" />
+            </label>
+          </div>
+          {feedback ? <p className="helper-copy">{feedback}</p> : null}
+          <div className="button-group-inline">
+            <button type="submit" className="primary-button">Create commission</button>
+          </div>
+        </form>
+      </section>
+      {renderLoadable(commissions, (result) => (
+        <>
+          <ListToolbar>
+            <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
+          </ListToolbar>
+          <DataTable
+            headers={["Commission", "Status", "Amount", "Fee basis", "Paid", "Action"]}
+            rows={result.items.map((commission) => [
+              <div>
+                <strong>{commission.commissionId.slice(0, 8)}</strong>
+                <div className="helper-copy">placement {commission.placementId.slice(0, 8)}</div>
+              </div>,
+              <StatusBadge value={commission.status} />,
+              commission.status === "paid" && commission.amount == null ? (
+                <div>
+                  <div>{formatOptionalMoney(commission.amount, commission.currency)}</div>
+                  <div className="helper-copy">amount missing</div>
+                </div>
+              ) : (
+                formatOptionalMoney(commission.amount, commission.currency)
+              ),
+              <div>
+                <div>{formatOptionalMoney(commission.salaryAmount, commission.currency, "n/a")}</div>
+                <div className="helper-copy">fee {commission.feeRatePercentage ?? "n/a"}%</div>
+              </div>,
+              commission.paidAt ? formatDate(commission.paidAt) : "Not paid",
+              commission.status === "paid" || commission.status === "withheld" ? (
+                <span className="helper-copy">Finalized</span>
+              ) : (
+                <div>
+                  <div className="button-group-inline">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void markPaid(commission)}
+                      disabled={commission.amount == null}
+                      title={commission.amount == null ? "Set a commission amount before marking paid." : undefined}
+                    >
+                      Mark paid
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => void withhold(commission)}>
+                      Withhold
+                    </button>
+                  </div>
+                  {commission.amount == null ? <div className="helper-copy">Set amount before marking paid.</div> : null}
+                </div>
+              ),
+            ])}
+          />
+          <PaginationControls
+            hasMore={result.hasMore}
+            offset={result.offset}
+            limit={result.limit}
+            onPrevious={() => setOffset((value) => Math.max(0, value - DEFAULT_PAGE_SIZE))}
+            onNext={() => setOffset((value) => value + DEFAULT_PAGE_SIZE)}
+          />
+        </>
+      ))}
     </ListPageShell>
   );
 }
@@ -3277,6 +3687,14 @@ function KeyValueList({ items }: { items: Array<[string, string | null | undefin
       ))}
     </dl>
   );
+}
+
+function formatOptionalMoney(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+  fallback = "Pending",
+) {
+  return amount == null ? fallback : `${amount.toLocaleString()} ${currency ?? ""}`.trim();
 }
 
 function CommercialTermsEditor({

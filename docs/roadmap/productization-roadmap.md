@@ -839,6 +839,7 @@ Forbidden scope:
 Acceptance:
 
 - Owner can see expected fee, invoice status, payment status, and guarantee status for an offer_accepted placement.
+- Owner revenue treats expected fee and paid fee as backend-owned supervision metrics: totals aggregate all related commissions, unknown amounts are disclosed as known subtotals with excluded counts, and a commission without `amount` cannot be marked paid.
 
 ## Task 37: Owner and Admin Governance v1
 

@@ -23,11 +23,21 @@ public final class PlacementService {
     return placementPort.create(placement);
   }
 
+  public Placement updatePlacement(Placement placement) {
+    Objects.requireNonNull(placement, "placement must not be null");
+    return placementPort.update(placement);
+  }
+
   public Optional<Placement> findPlacementByIdAndOrganizationId(
       UUID organizationId, PlacementId placementId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(placementId, "placementId must not be null");
     return placementPort.findByIdAndOrganizationId(organizationId, placementId);
+  }
+
+  public List<Placement> findAllPlacementsByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    return placementPort.findAllByOrganizationId(organizationId);
   }
 
   public List<Placement> findPlacementsByJobIdAndOrganizationId(

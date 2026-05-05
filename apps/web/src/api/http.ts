@@ -137,6 +137,9 @@ function loadSessionForScope(scope: AccessTokenScope): AuthRefreshSession | null
   if (scope === "candidate") {
     return loadScopedPortalSession("candidate");
   }
+  if (scope === "owner") {
+    return loadScopedPortalSession("owner");
+  }
   return loadScopedPortalSession("client");
 }
 
@@ -147,6 +150,10 @@ function saveSessionForScope(scope: AccessTokenScope, session: AuthRefreshSessio
   }
   if (scope === "candidate") {
     saveScopedPortalSession("candidate", session);
+    return;
+  }
+  if (scope === "owner") {
+    saveScopedPortalSession("owner", session);
     return;
   }
   saveScopedPortalSession("client", session);
@@ -160,6 +167,10 @@ function clearSessionForScope(scope: AccessTokenScope): void {
   }
   if (scope === "candidate") {
     clearScopedPortalSession("candidate");
+    return;
+  }
+  if (scope === "owner") {
+    clearScopedPortalSession("owner");
     return;
   }
   clearScopedPortalSession("client");

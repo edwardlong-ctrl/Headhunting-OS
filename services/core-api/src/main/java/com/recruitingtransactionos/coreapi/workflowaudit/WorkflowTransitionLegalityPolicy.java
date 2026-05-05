@@ -80,6 +80,7 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED, Set.of("identity_disclosed"), "fee_protection_active"),
           rule(WorkflowActionCode.SOURCE_ITEM_REGISTERED, Set.of("absent"), "registered"),
           rule(WorkflowActionCode.INFORMATION_PACKET_CREATED, Set.of("absent"), "created"),
+          rule(WorkflowActionCode.PLACEMENT_RECORDED, Set.of("absent"), "offer_pending"),
           rule(WorkflowActionCode.OFFER_ACCEPTED, Set.of("offer_pending"), "offer_accepted"),
           rule(WorkflowActionCode.CANDIDATE_ONBOARDED, Set.of("offer_accepted"), "onboarded"),
           rule(WorkflowActionCode.INVOICE_READY, Set.of("onboarded"), "invoice_ready"),
@@ -88,7 +89,7 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.GUARANTEE_ACTIVATED, Set.of("paid"), "guarantee_active"),
           rule(WorkflowActionCode.GUARANTEE_COMPLETED, Set.of("guarantee_active"), "guarantee_completed"),
           rule(WorkflowActionCode.REPLACEMENT_REQUIRED, Set.of("guarantee_active", "guarantee_completed"), "replacement_required"),
-          rule(WorkflowActionCode.COMMISSION_PENDING, Set.of("calculated"), "pending"),
+          rule(WorkflowActionCode.COMMISSION_PENDING, Set.of("absent", "calculated"), "pending"),
           rule(WorkflowActionCode.COMMISSION_PAID, Set.of("pending", "calculated"), "paid"),
           rule(WorkflowActionCode.COMMISSION_WITHHELD, Set.of("pending", "calculated"), "withheld")));
 
@@ -262,6 +263,7 @@ public final class WorkflowTransitionLegalityPolicy {
           WorkflowActionCode.DISCLOSURE_IDENTITY_DISCLOSED,
           WorkflowActionCode.DISCLOSURE_FEE_PROTECTION_ACTIVATED);
       case "placement" -> List.of(
+          WorkflowActionCode.PLACEMENT_RECORDED,
           WorkflowActionCode.OFFER_ACCEPTED,
           WorkflowActionCode.CANDIDATE_ONBOARDED,
           WorkflowActionCode.INVOICE_READY,

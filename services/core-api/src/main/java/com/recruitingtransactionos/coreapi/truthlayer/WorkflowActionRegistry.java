@@ -243,6 +243,7 @@ public final class WorkflowActionRegistry {
     policies.addAll(transitions(WorkflowEntityType.PLACEMENT,
         RiskTier.T4_TRANSACTION_LEGAL_BLOCKING,
         List.of(
+            WorkflowActionCode.PLACEMENT_RECORDED,
             WorkflowActionCode.OFFER_ACCEPTED,
             WorkflowActionCode.CANDIDATE_ONBOARDED,
             WorkflowActionCode.INVOICE_READY,

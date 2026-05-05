@@ -53,6 +53,37 @@ public final class ApiBoundaryContractRules {
           "activatedAt", "closedAt", "closeReason", "createdAt", "updatedAt",
           "requirements", "scorecard");
 
+  private static final Set<String> CONSULTANT_PLACEMENT_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "placementId", "version", "jobId", "candidateId", "companyId", "status",
+          "salaryAmount", "salaryCurrency", "feeRatePercentage", "expectedFeeAmount",
+          "startDate", "guaranteeDays", "guaranteeExpiresAt", "offerAcceptedAt",
+          "onboardedAt", "createdAt", "updatedAt", "notes");
+
+  private static final Set<String> CONSULTANT_COMMISSION_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "commissionId", "version", "placementId", "consultantId", "status",
+          "commissionType", "amount", "currency", "splitPercentage", "salaryAmount",
+          "feeRatePercentage", "paidAt", "withheldReason", "createdAt", "updatedAt");
+
+  private static final Set<String> OWNER_PLACEMENT_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "placementId", "jobId", "candidateId", "companyId", "status", "salaryAmount",
+          "salaryCurrency", "feeRatePercentage", "expectedFeeAmount", "commissionStatuses",
+          "startDate", "guaranteeDays", "guaranteeExpiresAt", "createdAt", "updatedAt");
+
+  private static final Set<String> OWNER_COMMISSION_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "commissionId", "placementId", "consultantId", "status", "commissionType",
+          "amount", "currency", "splitPercentage", "salaryAmount", "feeRatePercentage",
+          "paidAt", "withheldReason", "createdAt", "updatedAt");
+
+  private static final Set<String> OWNER_REVENUE_SUMMARY_RESPONSE_FIELDS =
+      Set.of(
+          "totalExpectedFee", "totalPaidFee", "placementCount", "unknownExpectedFeePlacementCount", "pendingCommissionCount",
+          "paidCommissionCount", "paidCommissionMissingAmountCount", "activeGuaranteeCount", "replacementRequiredCount",
+          "invoiceInFlightCount");
+
   private static final Set<String> CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS =
       Set.of("shortlistId", "title", "jobId", "status", "candidateCount", "createdAt");
 
@@ -333,6 +364,61 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> consultantJobDetailResponseFieldNames() {
     return new LinkedHashSet<>(CONSULTANT_JOB_DETAIL_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantPlacementSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_PLACEMENT_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantPlacementSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_PLACEMENT_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedConsultantCommissionSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return CONSULTANT_COMMISSION_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> consultantCommissionSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(CONSULTANT_COMMISSION_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedOwnerPlacementSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return OWNER_PLACEMENT_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> ownerPlacementSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(OWNER_PLACEMENT_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedOwnerCommissionSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return OWNER_COMMISSION_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> ownerCommissionSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(OWNER_COMMISSION_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedOwnerRevenueSummaryResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return OWNER_REVENUE_SUMMARY_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> ownerRevenueSummaryResponseFieldNames() {
+    return new LinkedHashSet<>(OWNER_REVENUE_SUMMARY_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedConsultantShortlistSummaryResponseField(String fieldName) {

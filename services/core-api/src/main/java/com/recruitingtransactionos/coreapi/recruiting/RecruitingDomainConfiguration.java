@@ -34,6 +34,10 @@ import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFe
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.MatchCalibrationSignalService;
 import com.recruitingtransactionos.coreapi.consultantmatching.persistence.JdbcMatchReportPersistencePort;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
+import com.recruitingtransactionos.coreapi.commission.persistence.JdbcCommissionPersistencePort;
+import com.recruitingtransactionos.coreapi.commission.port.CommissionPersistencePort;
+import com.recruitingtransactionos.coreapi.commission.service.CommissionService;
+import com.recruitingtransactionos.coreapi.commission.service.CommissionWorkflowService;
 import com.recruitingtransactionos.coreapi.industrypack.persistence.JdbcIndustryPackReadPort;
 import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
 import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
@@ -50,6 +54,10 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.interviewfeedback.
 import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
 import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
+import com.recruitingtransactionos.coreapi.placement.persistence.JdbcPlacementPersistencePort;
+import com.recruitingtransactionos.coreapi.placement.port.PlacementPersistencePort;
+import com.recruitingtransactionos.coreapi.placement.service.PlacementService;
+import com.recruitingtransactionos.coreapi.placement.service.PlacementWorkflowService;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.port.ShortlistCandidateCardPersistencePort;
@@ -321,6 +329,62 @@ public class RecruitingDomainConfiguration {
   @ConditionalOnMissingBean(IndustryPackService.class)
   IndustryPackService industryPackService(IndustryPackReadPort industryPackReadPort) {
     return new IndustryPackService(industryPackReadPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(PlacementPersistencePort.class)
+  PlacementPersistencePort placementPersistencePort(DataSource dataSource) {
+    return new JdbcPlacementPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(PlacementService.class)
+  PlacementService placementService(PlacementPersistencePort placementPersistencePort) {
+    return new PlacementService(placementPersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CommissionPersistencePort.class)
+  CommissionPersistencePort commissionPersistencePort(DataSource dataSource) {
+    return new JdbcCommissionPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CommissionService.class)
+  CommissionService commissionService(CommissionPersistencePort commissionPersistencePort) {
+    return new CommissionService(commissionPersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CommissionWorkflowService.class)
+  CommissionWorkflowService commissionWorkflowService(
+      CommissionService commissionService,
+      PlacementService placementService,
+      JobService jobService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
+    return new CommissionWorkflowService(
+        commissionService,
+        placementService,
+        jobService,
+        workflowTransitionAuditService);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(PlacementWorkflowService.class)
+  PlacementWorkflowService placementWorkflowService(
+      PlacementService placementService,
+      JobService jobService,
+      CandidateService candidateService,
+      CompanyService companyService,
+      CommissionWorkflowService commissionWorkflowService,
+      WorkflowTransitionAuditService workflowTransitionAuditService) {
+    return new PlacementWorkflowService(
+        placementService,
+        jobService,
+        candidateService,
+        companyService,
+        commissionWorkflowService,
+        workflowTransitionAuditService);
   }
 
   @Bean

@@ -212,6 +212,102 @@ class ApiBoundaryContractTest {
   }
 
   @Test
+  void placementAndRevenueDtosExposeOnlyAllowlistedFields() {
+    assertThat(ConsultantPlacementSummaryResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "placementId",
+            "version",
+            "jobId",
+            "candidateId",
+            "companyId",
+            "status",
+            "salaryAmount",
+            "salaryCurrency",
+            "feeRatePercentage",
+            "expectedFeeAmount",
+            "startDate",
+            "guaranteeDays",
+            "guaranteeExpiresAt",
+            "offerAcceptedAt",
+            "onboardedAt",
+            "createdAt",
+            "updatedAt",
+            "notes");
+    for (RecordComponent component : ConsultantPlacementSummaryResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedConsultantPlacementSummaryResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+
+    assertThat(ConsultantCommissionSummaryResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "commissionId",
+            "version",
+            "placementId",
+            "consultantId",
+            "status",
+            "commissionType",
+            "amount",
+            "currency",
+            "splitPercentage",
+            "salaryAmount",
+            "feeRatePercentage",
+            "paidAt",
+            "withheldReason",
+            "createdAt",
+            "updatedAt");
+    for (RecordComponent component : ConsultantCommissionSummaryResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedConsultantCommissionSummaryResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+
+    assertThat(OwnerPlacementSummaryResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "placementId",
+            "jobId",
+            "candidateId",
+            "companyId",
+            "status",
+            "salaryAmount",
+            "salaryCurrency",
+            "feeRatePercentage",
+            "expectedFeeAmount",
+            "commissionStatuses",
+            "startDate",
+            "guaranteeDays",
+            "guaranteeExpiresAt",
+            "createdAt",
+            "updatedAt");
+    for (RecordComponent component : OwnerPlacementSummaryResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedOwnerPlacementSummaryResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+    for (RecordComponent component : OwnerCommissionSummaryResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedOwnerCommissionSummaryResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+    assertThat(OwnerRevenueSummaryResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "totalExpectedFee",
+            "totalPaidFee",
+            "placementCount",
+            "unknownExpectedFeePlacementCount",
+            "pendingCommissionCount",
+            "paidCommissionCount",
+            "paidCommissionMissingAmountCount",
+            "activeGuaranteeCount",
+            "replacementRequiredCount",
+            "invoiceInFlightCount");
+    for (RecordComponent component : OwnerRevenueSummaryResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedOwnerRevenueSummaryResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
+  }
+
+  @Test
   void consultantNestedDtosDropInternalLeakageTextButPreserveBusinessFields() {
     ConsultantCompanyDetailResponse.Contact contact = new ConsultantCompanyDetailResponse.Contact(
         "contact-1",

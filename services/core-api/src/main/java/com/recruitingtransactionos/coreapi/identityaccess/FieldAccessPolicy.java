@@ -52,6 +52,10 @@ public final class FieldAccessPolicy {
       return decideConsultantAccess(request);
     }
 
+    if (request.actorRole() == PortalRole.OWNER) {
+      return decideOwnerAccess(request);
+    }
+
     return deny(
         "access_denied_by_default",
         "No allow rule exists for this role, action, resource, and field classification.");
@@ -173,10 +177,12 @@ public final class FieldAccessPolicy {
       }
       if (request.resourceType() == ResourceType.COMPANY
           || request.resourceType() == ResourceType.JOB
-          || request.resourceType() == ResourceType.SHORTLIST) {
+          || request.resourceType() == ResourceType.SHORTLIST
+          || request.resourceType() == ResourceType.PLACEMENT
+          || request.resourceType() == ResourceType.COMMISSION) {
         return AccessDecision.allow(
             "consultant_read_allowed",
-            "Consultant role may read company, job, and shortlist resources.");
+            "Consultant role may read company, job, shortlist, placement, and commission resources.");
       }
       if (request.resourceType() == ResourceType.INFORMATION_PACKET
           && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)
@@ -212,10 +218,12 @@ public final class FieldAccessPolicy {
         || request.action() == AccessAction.UPDATE) {
       if (request.resourceType() == ResourceType.COMPANY
           || request.resourceType() == ResourceType.JOB
-          || request.resourceType() == ResourceType.SHORTLIST) {
+          || request.resourceType() == ResourceType.SHORTLIST
+          || request.resourceType() == ResourceType.PLACEMENT
+          || request.resourceType() == ResourceType.COMMISSION) {
         return AccessDecision.allow(
             "consultant_write_allowed",
-            "Consultant role may create and update company and job resources.");
+            "Consultant role may create and update company, job, shortlist, placement, and commission resources.");
       }
       if (request.resourceType() == ResourceType.INFORMATION_PACKET
           && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)
@@ -253,5 +261,34 @@ public final class FieldAccessPolicy {
     return deny(
         "access_denied_by_default",
         "No consultant allow rule exists for this request.");
+  }
+
+  private static AccessDecision decideOwnerAccess(AccessRequest request) {
+    if (request.action() != AccessAction.READ) {
+      return deny(
+          "owner_read_only_surface",
+          "Owner role is limited to read-only product supervision on this surface.");
+    }
+    if (request.resourceType() != ResourceType.PLACEMENT
+        && request.resourceType() != ResourceType.COMMISSION
+        && request.resourceType() != ResourceType.REVENUE_REPORT) {
+      return deny(
+          "access_denied_by_default",
+          "No owner allow rule exists for this request.");
+    }
+    if (!request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+      return deny(
+          "owner_same_org_scope_required",
+          "Owner role may read only same-organization resources.");
+    }
+    if (request.fieldClassification() != FieldClassification.INTERNAL
+        && request.fieldClassification() != FieldClassification.SYSTEM_GOVERNANCE) {
+      return deny(
+          "owner_internal_read_required",
+          "Owner role may read only internal owner-reporting fields on this surface.");
+    }
+    return AccessDecision.allow(
+        "owner_reporting_read_allowed",
+        "Owner role may read same-organization placement, commission, and revenue reporting views.");
   }
 }

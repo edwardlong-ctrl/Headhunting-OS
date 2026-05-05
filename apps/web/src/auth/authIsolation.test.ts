@@ -41,6 +41,17 @@ describe("auth isolation", () => {
     expect(loadPortalSession()?.accessToken).toBe("consultant-token");
   });
 
+  it("keeps owner tokens isolated from consultant and client storage", () => {
+    savePortalSession(createSession());
+    saveAccessToken("owner-token", "owner");
+    saveAccessToken("client-token", "client");
+
+    expect(loadAccessToken("consultant")).toBe("consultant-token");
+    expect(loadAccessToken("owner")).toBe("owner-token");
+    expect(loadAccessToken("client")).toBe("client-token");
+    expect(loadPortalSession()?.accessToken).toBe("consultant-token");
+  });
+
   it("updates consultant token through the consultant session only", () => {
     savePortalSession(createSession());
 

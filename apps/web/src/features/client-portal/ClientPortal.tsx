@@ -55,11 +55,6 @@ import {
 import { type ApiResult } from "../../api/http";
 import { loadAccessToken, saveAccessToken } from "../../auth/accessTokenStorage";
 import {
-  clearScopedPortalSession,
-  loadScopedPortalSession,
-  saveScopedPortalSession,
-} from "../../auth/scopedPortalSessionStorage";
-import {
   canClientRequestUnlock,
   canClientSelectCandidate,
   canClientSubmitInterviewFeedback,
@@ -67,11 +62,15 @@ import {
   deriveUnlockStageLabel,
   shouldWarnApprovedWithoutDisclosure,
 } from "./clientPortalShortlistUtils";
+import {
+  loadClientPortalSession,
+  saveClientPortalSession,
+  signOutClientSession,
+  type ClientPortalSession,
+} from "./clientSession";
 import { ClientDisclosedCandidatePage } from "./ClientDisclosedCandidatePage";
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
-
-type ClientPortalSession = AuthSession;
 
 type CommercialTermsDraft = {
   feeModel: string;
@@ -98,18 +97,6 @@ const EMPTY_COMMERCIAL_TERMS: CommercialTermsDraft = {
   contractStatus: "",
   notes: "",
 };
-
-function loadClientPortalSession(): ClientPortalSession | null {
-  return loadScopedPortalSession("client");
-}
-
-function saveClientPortalSession(session: AuthSession): void {
-  saveScopedPortalSession("client", session);
-}
-
-function clearClientPortalSession(): void {
-  clearScopedPortalSession("client");
-}
 
 function loadLastJobId(): string {
   if (typeof window === "undefined") {
@@ -408,10 +395,14 @@ function ClientPortalLayout({
   children,
   session,
   onLogout,
+  signingOut,
+  signOutError,
 }: {
   children: React.ReactNode;
   session: ClientPortalSession;
   onLogout: () => void;
+  signingOut: boolean;
+  signOutError: string | null;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -466,9 +457,10 @@ function ClientPortalLayout({
             <p className="helper-copy">
               {session.portalRole} session active for {session.organizationId || "current organization"}.
             </p>
-            <button type="button" className="secondary-button" onClick={onLogout}>
-              Sign out
+            <button type="button" className="secondary-button" onClick={onLogout} disabled={signingOut}>
+              {signingOut ? "Signing out..." : "Sign out"}
             </button>
+            {signOutError ? <p className="helper-copy">{signOutError}</p> : null}
           </div>
 
           <nav className="client-nav" aria-label="Client workspace routes">
@@ -2067,6 +2059,8 @@ function ClientSafeCard({ card }: { card: ClientSafeCandidateCard }) {
 export function ClientPortal() {
   const location = useLocation();
   const [session, setSession] = useState<ClientPortalSession | null>(() => loadClientPortalSession());
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     function syncSession() {
@@ -2083,13 +2077,19 @@ export function ClientPortal() {
   }
 
   async function onLogout() {
-    if (session?.refreshToken) {
-      await logout({ refreshToken: session.refreshToken });
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      const result = await signOutClientSession(session);
+      if (result.status !== "ready") {
+        setSignOutError(result.error ?? "Client sign out failed. Please try again.");
+        return;
+      }
+      saveLastJobId("");
+      setSession(null);
+    } finally {
+      setSigningOut(false);
     }
-    saveAccessToken("", "client");
-    clearClientPortalSession();
-    saveLastJobId("");
-    setSession(null);
   }
 
   if (location.pathname === "/client/sign-in") {
@@ -2101,7 +2101,12 @@ export function ClientPortal() {
   }
 
   return (
-    <ClientPortalLayout session={session} onLogout={() => void onLogout()}>
+    <ClientPortalLayout
+      session={session}
+      onLogout={() => void onLogout()}
+      signingOut={signingOut}
+      signOutError={signOutError}
+    >
       <Routes>
         <Route index element={<DashboardPage session={session} />} />
         <Route path="company-profile" element={<CompanyProfilePage />} />

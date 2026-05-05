@@ -22,6 +22,8 @@ public sealed interface ApiSafeResponseBody
         ConsultantCompanyDetailResponse,
         ConsultantJobSummaryResponse,
         ConsultantJobDetailResponse,
+        ConsultantPlacementSummaryResponse,
+        ConsultantCommissionSummaryResponse,
         ConsultantJobActivationGateResponse,
         ConsultantShortlistSummaryResponse,
         ConsultantShortlistDetailResponse,
@@ -57,4 +59,7 @@ public sealed interface ApiSafeResponseBody
         ConsultantIntakePublishResponse,
         ConsultantInterviewFeedbackSuggestionResponse,
         ConsultantInterviewFeedbackReviewResponse,
+        OwnerPlacementSummaryResponse,
+        OwnerCommissionSummaryResponse,
+        OwnerRevenueSummaryResponse,
         PagedResult {}

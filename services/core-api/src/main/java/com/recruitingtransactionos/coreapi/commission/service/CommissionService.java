@@ -23,11 +23,21 @@ public final class CommissionService {
     return commissionPort.create(commission);
   }
 
+  public Commission updateCommission(Commission commission) {
+    Objects.requireNonNull(commission, "commission must not be null");
+    return commissionPort.update(commission);
+  }
+
   public Optional<Commission> findCommissionByIdAndOrganizationId(
       UUID organizationId, CommissionId commissionId) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(commissionId, "commissionId must not be null");
     return commissionPort.findByIdAndOrganizationId(organizationId, commissionId);
+  }
+
+  public List<Commission> findAllCommissionsByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    return commissionPort.findAllByOrganizationId(organizationId);
   }
 
   public List<Commission> findCommissionsByPlacementIdAndOrganizationId(

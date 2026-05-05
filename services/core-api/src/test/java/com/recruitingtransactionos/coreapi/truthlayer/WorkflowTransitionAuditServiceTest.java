@@ -246,6 +246,42 @@ class WorkflowTransitionAuditServiceTest {
   }
 
   @Test
+  void placementRecordedTransitionIsAuditableFromAbsentToOfferPending() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+
+    WorkflowEventAppendResult result = service(port).record(requestBuilder()
+        .entityType("placement")
+        .entityId(UUID.fromString("00000000-0000-0000-0000-0000000d0201"))
+        .actionCode("PLACEMENT_RECORDED")
+        .beforeState("{\"status\":\"absent\"}")
+        .afterState("{\"status\":\"offer_pending\"}")
+        .reason("consultant recorded placement offer")
+        .build());
+
+    assertThat(result).isEqualTo(port.result);
+    assertThat(port.commands).hasSize(1);
+    assertThat(port.commands.getFirst().action()).isEqualTo("PLACEMENT_RECORDED");
+  }
+
+  @Test
+  void commissionPendingTransitionAllowsInitialAbsentToPendingCreation() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+
+    WorkflowEventAppendResult result = service(port).record(requestBuilder()
+        .entityType("commission")
+        .entityId(UUID.fromString("00000000-0000-0000-0000-0000000d0202"))
+        .actionCode("COMMISSION_PENDING")
+        .beforeState("{\"status\":\"absent\"}")
+        .afterState("{\"status\":\"pending\"}")
+        .reason("expected fee was calculated for invoice-ready placement")
+        .build());
+
+    assertThat(result).isEqualTo(port.result);
+    assertThat(port.commands).hasSize(1);
+    assertThat(port.commands.getFirst().action()).isEqualTo("COMMISSION_PENDING");
+  }
+
+  @Test
   void serviceDoesNotExposeTargetEntityStateMutationOrLookupDependencies() {
     assertThat(publicDeclaredMethodNames(WorkflowTransitionAuditService.class))
         .containsExactly("preview", "record");

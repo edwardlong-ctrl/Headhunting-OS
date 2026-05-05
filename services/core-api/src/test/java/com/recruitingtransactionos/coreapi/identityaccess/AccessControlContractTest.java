@@ -46,6 +46,9 @@ class AccessControlContractTest {
             ResourceType.DISCLOSURE_RECORD,
             ResourceType.JOB,
             ResourceType.COMPANY,
+            ResourceType.PLACEMENT,
+            ResourceType.COMMISSION,
+            ResourceType.REVENUE_REPORT,
             ResourceType.MATCH_REPORT,
             ResourceType.ADMIN_GOVERNANCE);
 
@@ -254,6 +257,59 @@ class AccessControlContractTest {
           false));
 
       assertDenied(denied, "access_denied_by_default");
+    }
+  }
+
+  @Test
+  void consultantCanReadAndUpdatePlacementAndCommissionWithinSameOrganization() {
+    for (ResourceType resourceType : List.of(ResourceType.PLACEMENT, ResourceType.COMMISSION)) {
+      assertAllowed(
+          evaluator.evaluate(new AccessRequest(
+              PortalRole.CONSULTANT,
+              resourceType,
+              AccessAction.READ,
+              FieldClassification.INTERNAL,
+              Set.of(RelationshipScope.SAME_ORGANIZATION),
+              false)),
+          "consultant_read_allowed");
+
+      assertAllowed(
+          evaluator.evaluate(new AccessRequest(
+              PortalRole.CONSULTANT,
+              resourceType,
+              AccessAction.UPDATE,
+              FieldClassification.INTERNAL,
+              Set.of(RelationshipScope.SAME_ORGANIZATION),
+              false)),
+          "consultant_write_allowed");
+    }
+  }
+
+  @Test
+  void ownerCanReadPlacementCommissionAndRevenueButCannotWrite() {
+    for (ResourceType resourceType : List.of(
+        ResourceType.PLACEMENT,
+        ResourceType.COMMISSION,
+        ResourceType.REVENUE_REPORT)) {
+      assertAllowed(
+          evaluator.evaluate(new AccessRequest(
+              PortalRole.OWNER,
+              resourceType,
+              AccessAction.READ,
+              FieldClassification.INTERNAL,
+              Set.of(RelationshipScope.SAME_ORGANIZATION),
+              false)),
+          "owner_reporting_read_allowed");
+
+      assertDenied(
+          evaluator.evaluate(new AccessRequest(
+              PortalRole.OWNER,
+              resourceType,
+              AccessAction.UPDATE,
+              FieldClassification.INTERNAL,
+              Set.of(RelationshipScope.SAME_ORGANIZATION),
+              false)),
+          "owner_read_only_surface");
     }
   }
 

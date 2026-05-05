@@ -5,10 +5,11 @@ import {
   saveScopedPortalSession,
 } from "./scopedPortalSessionStorage";
 
-export type AccessTokenScope = "consultant" | "client" | "candidate";
+export type AccessTokenScope = "consultant" | "client" | "candidate" | "owner";
 
 const CLIENT_ACCESS_TOKEN_STORAGE_KEY = "rto.clientAccessToken";
 const CANDIDATE_ACCESS_TOKEN_STORAGE_KEY = "rto.candidateAccessToken";
+const OWNER_ACCESS_TOKEN_STORAGE_KEY = "rto.ownerAccessToken";
 const LEGACY_ACCESS_TOKEN_STORAGE_KEY = "rto.portalAccessToken";
 
 export function loadAccessToken(scope: AccessTokenScope): string | null {
@@ -23,6 +24,12 @@ export function loadAccessToken(scope: AccessTokenScope): string | null {
     return normalizeAccessToken(
       loadScopedPortalSession("candidate")?.accessToken
         ?? window.localStorage.getItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY),
+    );
+  }
+  if (scope === "owner") {
+    return normalizeAccessToken(
+      loadScopedPortalSession("owner")?.accessToken
+        ?? window.localStorage.getItem(OWNER_ACCESS_TOKEN_STORAGE_KEY),
     );
   }
   return normalizeAccessToken(
@@ -42,6 +49,9 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
     } else if (scope === "candidate") {
       clearScopedPortalSession("candidate");
       window.localStorage.removeItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY);
+    } else if (scope === "owner") {
+      clearScopedPortalSession("owner");
+      window.localStorage.removeItem(OWNER_ACCESS_TOKEN_STORAGE_KEY);
     } else {
       clearScopedPortalSession("client");
       window.localStorage.removeItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY);
@@ -68,6 +78,17 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
       });
     }
     window.localStorage.setItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY, normalized);
+    return;
+  }
+  if (scope === "owner") {
+    const current = loadScopedPortalSession("owner");
+    if (current) {
+      saveScopedPortalSession("owner", {
+        ...current,
+        accessToken: normalized,
+      });
+    }
+    window.localStorage.setItem(OWNER_ACCESS_TOKEN_STORAGE_KEY, normalized);
     return;
   }
   const current = loadScopedPortalSession("client");

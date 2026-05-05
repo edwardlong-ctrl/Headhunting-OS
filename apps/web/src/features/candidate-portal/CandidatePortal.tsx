@@ -1,6 +1,6 @@
 import { type ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { login, logout, type AuthSession } from "../../api/auth";
+import { login, type AuthSession } from "../../api/auth";
 import {
   fetchCandidateConsent,
   respondCandidateConsent,
@@ -39,21 +39,12 @@ import {
   loadScopedPortalSession,
   saveScopedPortalSession,
 } from "../../auth/scopedPortalSessionStorage";
-
-type CandidateSession = AuthSession;
-
-function loadCandidateSession(): CandidateSession | null {
-  return loadScopedPortalSession("candidate");
-}
-
-function saveCandidateSession(session: AuthSession): void {
-  saveScopedPortalSession("candidate", session);
-}
-
-function clearCandidateSession(): void {
-  clearScopedPortalSession("candidate");
-  saveAccessToken("", "candidate");
-}
+import {
+  loadCandidateSession,
+  saveCandidateSession,
+  signOutCandidateSession,
+  type CandidateSession,
+} from "./candidateSession";
 
 function formatDate(value?: string | null): string {
   if (!value) {
@@ -1109,6 +1100,8 @@ function ConsentPage({ session }: { session: CandidateSession }) {
 
 export function CandidatePortal() {
   const [session, setSession] = useState<CandidateSession | null>(() => loadCandidateSession());
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loadAccessToken("candidate")) {
@@ -1117,11 +1110,18 @@ export function CandidatePortal() {
   }, []);
 
   async function handleSignOut() {
-    if (session?.refreshToken) {
-      await logout({ refreshToken: session.refreshToken });
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      const result = await signOutCandidateSession(session);
+      if (result.status !== "ready") {
+        setSignOutError(result.error ?? "Candidate sign out failed. Please try again.");
+        return;
+      }
+      setSession(null);
+    } finally {
+      setSigningOut(false);
     }
-    clearCandidateSession();
-    setSession(null);
   }
 
   return (
@@ -1144,9 +1144,11 @@ export function CandidatePortal() {
           type="button"
           className="secondary-link"
           onClick={() => void handleSignOut()}
+          disabled={signingOut}
         >
-          Sign out
+          {signingOut ? "Signing out..." : "Sign out"}
         </button>
+        {signOutError ? <p className="helper-copy">{signOutError}</p> : null}
       </nav>
       <Routes>
         <Route

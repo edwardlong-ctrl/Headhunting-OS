@@ -32,6 +32,22 @@ public final class JdbcCommissionPersistencePort implements CommissionPersistenc
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb)
       """;
 
+  private static final String UPDATE_SQL = """
+      UPDATE recruiting.commission
+      SET status = ?,
+          commission_type = ?,
+          amount = ?,
+          currency = ?,
+          split_percentage = ?,
+          calculation_details = ?::jsonb,
+          paid_at = ?,
+          withheld_reason = ?,
+          metadata = ?::jsonb,
+          updated_at = ?,
+          version = version + 1
+      WHERE organization_id = ? AND commission_id = ? AND version = ?
+      """;
+
   private static final String FIND_BY_ID_SQL = """
       SELECT commission_id, organization_id, placement_id, consultant_id,
         status, commission_type, amount, currency, split_percentage,
@@ -61,6 +77,17 @@ public final class JdbcCommissionPersistencePort implements CommissionPersistenc
         created_at, updated_at, version
       FROM recruiting.commission
       WHERE organization_id = ? AND consultant_id = ?
+      ORDER BY created_at DESC
+      """;
+
+  private static final String FIND_ALL_SQL = """
+      SELECT commission_id, organization_id, placement_id, consultant_id,
+        status, commission_type, amount, currency, split_percentage,
+        calculation_details::text AS calculation_details,
+        paid_at, withheld_reason, metadata::text AS metadata,
+        created_at, updated_at, version
+      FROM recruiting.commission
+      WHERE organization_id = ?
       ORDER BY created_at DESC
       """;
 
@@ -124,6 +151,65 @@ public final class JdbcCommissionPersistencePort implements CommissionPersistenc
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find commission by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Commission update(Commission commission) {
+    Objects.requireNonNull(commission, "commission must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+      statement.setString(1, commission.status().wireValue());
+      statement.setString(2, commission.commissionType().wireValue());
+      if (commission.amount() != null) {
+        statement.setBigDecimal(3, commission.amount());
+      } else {
+        statement.setNull(3, Types.NUMERIC);
+      }
+      statement.setString(4, commission.currency());
+      if (commission.splitPercentage() != null) {
+        statement.setBigDecimal(5, commission.splitPercentage());
+      } else {
+        statement.setNull(5, Types.NUMERIC);
+      }
+      statement.setString(6, commission.calculationDetails());
+      statement.setTimestamp(7, commission.paidAt() != null ? Timestamp.from(commission.paidAt()) : null);
+      statement.setString(8, commission.withheldReason());
+      statement.setString(9, commission.metadata());
+      statement.setTimestamp(10, Timestamp.from(commission.updatedAt()));
+      statement.setObject(11, commission.organizationId());
+      statement.setObject(12, commission.commissionId().value());
+      statement.setInt(13, commission.version());
+      int updatedRows = statement.executeUpdate();
+      if (updatedRows != 1) {
+        throw new IllegalStateException("commission_update_conflict");
+      }
+      return findByIdAndOrganizationId(commission.organizationId(), commission.commissionId())
+          .orElseThrow(() -> new IllegalStateException("commission not readable after update"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to update commission", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public List<Commission> findAllByOrganizationId(UUID organizationId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_SQL)) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Commission> results = new ArrayList<>();
+        while (resultSet.next()) {
+          results.add(toCommission(resultSet));
+        }
+        return List.copyOf(results);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find commissions by organization", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

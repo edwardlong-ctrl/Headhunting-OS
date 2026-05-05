@@ -419,19 +419,21 @@ identity disclosed -> WorkflowEvent audit
 | 2 | Consultant | Updates: offer accepted by candidate. | Placement state: offer_pending -> offer_accepted. WorkflowEvent records. |
 | 3 | Consultant | Records onboarding confirmation. | Placement state: offer_accepted -> onboarded. Start date confirmed. |
 | 4 | Consultant | Marks invoice ready. | Placement state: onboarded -> invoice_ready. Commission record created with: fee calculation, expected amount. |
-| 5 | Owner | Views /owner/placements and /owner/commission. | Sees: placement table, fee status, guarantee period, commission status (pending). |
-| 6 | Owner | Views /owner/revenue. | Revenue dashboard shows: expected fee, invoice status, pipeline value. |
+| 5 | Owner | Views /owner/placements and /owner/commission. | Sees: placement table, fee status, guarantee period, aggregated commission truth, and explicit `Pending` / `amount missing` states when commission data is incomplete. |
+| 6 | Owner | Views /owner/revenue. | Revenue dashboard shows backend-owned expected fee and paid fee metrics; when some commission amounts are unknown, the UI labels them as known subtotals and discloses excluded counts instead of silently treating them as zero. |
 
 **Expected Outcomes**:
 - Placement lifecycle is tracked from offer to onboarding.
 - Commission record exists with fee calculation inputs.
-- Owner can see expected fee, invoice status, and guarantee status.
+- Owner can see expected fee, invoice status, guarantee status, and revenue disclosures without silent low-reporting.
 - WorkflowEvent records exist for all placement state transitions.
 
 **Safety Assertions**:
 - [ ] Offer, placement, and commission cannot be confirmed by AI alone.
 - [ ] Each placement state transition requires explicit human action.
 - [ ] Commission is not a full accounting system replacement.
+- [ ] A commission without `amount` cannot be marked paid.
+- [ ] Unknown commission amounts are never silently counted as zero in Owner revenue totals.
 - [ ] WorkflowEvent records exist for every state transition.
 - [ ] Placement does not automatically mean invoice or payment.
 
