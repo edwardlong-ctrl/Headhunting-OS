@@ -21,6 +21,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.interviewfeedback.service.InterviewFeedbackService;
 import com.recruitingtransactionos.coreapi.job.Job;
@@ -28,6 +29,7 @@ import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardStatus;
@@ -63,6 +65,7 @@ public final class ClientApiQueryService {
   private final ShortlistService shortlistService;
   private final ClientUnlockRequestPort clientUnlockRequestPort;
   private final InterviewFeedbackService interviewFeedbackService;
+  private final NotificationService notificationService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
@@ -72,7 +75,8 @@ public final class ClientApiQueryService {
       JobIntakeApplicationService jobIntakeApplicationService,
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
-      InterviewFeedbackService interviewFeedbackService) {
+      InterviewFeedbackService interviewFeedbackService,
+      NotificationService notificationService) {
     this(
         companyService,
         jobService,
@@ -80,6 +84,7 @@ public final class ClientApiQueryService {
         shortlistService,
         clientUnlockRequestPort,
         interviewFeedbackService,
+        notificationService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -90,6 +95,7 @@ public final class ClientApiQueryService {
       ShortlistService shortlistService,
       ClientUnlockRequestPort clientUnlockRequestPort,
       InterviewFeedbackService interviewFeedbackService,
+      NotificationService notificationService,
       PermissionEnforcer permissionEnforcer) {
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
@@ -100,6 +106,8 @@ public final class ClientApiQueryService {
         clientUnlockRequestPort, "clientUnlockRequestPort must not be null");
     this.interviewFeedbackService = Objects.requireNonNull(
         interviewFeedbackService, "interviewFeedbackService must not be null");
+    this.notificationService = Objects.requireNonNull(
+        notificationService, "notificationService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -158,15 +166,26 @@ public final class ClientApiQueryService {
         .filter(request -> request.status() == ClientUnlockRequestStatus.REQUESTED
             || request.status() == ClientUnlockRequestStatus.UNDER_REVIEW)
         .count();
+    NotificationService.NotificationPage notifications = notificationService.listNotifications(
+        organizationId,
+        actorId,
+        PortalRole.CLIENT,
+        5,
+        0);
+    int unreadNotificationCount = (int) notifications.items().stream()
+        .filter(item -> !"read".equals(item.status()) && !"dismissed".equals(item.status()))
+        .count();
     return new ClientDashboardResponse(
         company.companyId().value().toString(),
         company.displayName() != null && !company.displayName().isBlank() ? company.displayName() : company.name(),
         true,
         jobs.size(),
         pendingClarificationCount,
+        unreadNotificationCount,
         shortlists.size(),
         pendingUnlockRequestCount,
         feedbackCount,
+        notifications.items().stream().map(NotificationService.NotificationRecord::title).toList(),
         recentShortlists);
   }
 

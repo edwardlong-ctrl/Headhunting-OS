@@ -5,15 +5,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
 import com.recruitingtransactionos.coreapi.company.service.CompanyService;
 import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewQueryService;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobRequirement;
 import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
+import com.recruitingtransactionos.coreapi.truthlayer.port.EntityRef;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowIdempotencyKey;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.time.Instant;
@@ -34,18 +42,26 @@ public final class JobIntakeApplicationService {
   private final CompanyService companyService;
   private final JobActivationGateService activationGateService;
   private final WorkflowTransitionAuditService workflowTransitionAuditService;
+  private final WorkflowEventService workflowEventService;
+  private final NotificationService notificationService;
 
   public JobIntakeApplicationService(
       JobService jobService,
       CompanyService companyService,
       JobActivationGateService activationGateService,
-      WorkflowTransitionAuditService workflowTransitionAuditService) {
+      WorkflowTransitionAuditService workflowTransitionAuditService,
+      WorkflowEventService workflowEventService,
+      NotificationService notificationService) {
     this.jobService = Objects.requireNonNull(jobService, "jobService must not be null");
     this.companyService = Objects.requireNonNull(companyService, "companyService must not be null");
     this.activationGateService = Objects.requireNonNull(
         activationGateService, "activationGateService must not be null");
     this.workflowTransitionAuditService = Objects.requireNonNull(
         workflowTransitionAuditService, "workflowTransitionAuditService must not be null");
+    this.workflowEventService = Objects.requireNonNull(
+        workflowEventService, "workflowEventService must not be null");
+    this.notificationService = Objects.requireNonNull(
+        notificationService, "notificationService must not be null");
   }
 
   public Job createClientJobSubmission(
@@ -96,6 +112,44 @@ public final class JobIntakeApplicationService {
         ActorRole.CLIENT,
         actorId,
         "client portal job intake submitted");
+    notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+        organizationId,
+        actorId,
+        PortalRole.CLIENT,
+        "client_job_submitted",
+        "Job submitted",
+        "Your governed job intake was submitted successfully.",
+        "/client/jobs/" + created.jobId().value(),
+        WorkflowEntityType.JOB.wireValue(),
+        created.jobId().value(),
+        "client-job-submitted:" + created.jobId().value(),
+        null,
+        now));
+    if (!clarificationQuestions.isEmpty()) {
+      notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+          organizationId,
+          actorId,
+          PortalRole.CLIENT,
+          "client_clarification_requested",
+          "Clarification required",
+          "This job still needs clarification details before activation can proceed.",
+          "/client/jobs/" + created.jobId().value(),
+          WorkflowEntityType.JOB.wireValue(),
+          created.jobId().value(),
+          "client-clarification-requested:" + created.jobId().value(),
+          null,
+          now));
+      notificationService.scheduleNotification(new NotificationService.ScheduleNotificationCommand(
+          organizationId,
+          actorId,
+          PortalRole.CLIENT,
+          "client_clarification_reminder",
+          WorkflowEntityType.JOB.wireValue(),
+          created.jobId().value(),
+          now.plusSeconds(72L * 60L * 60L),
+          "{\"jobId\":\"" + created.jobId().value() + "\"}"));
+      appendClarificationRequestedEvent(created, actorId, clarificationQuestions, now);
+    }
     return created;
   }
 
@@ -152,6 +206,36 @@ public final class JobIntakeApplicationService {
         ActorRole.CLIENT,
         actorId,
         "client clarification answers moved job back into intake review");
+    appendClarificationAnsweredEvent(persisted, actorId, answers, now);
+    notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+        organizationId,
+        actorId,
+        PortalRole.CLIENT,
+        "client_clarification_submitted",
+        "Clarification submitted",
+        "Your clarification answers were submitted and moved the job back into intake review.",
+        "/client/jobs/" + persisted.jobId().value(),
+        WorkflowEntityType.JOB.wireValue(),
+        persisted.jobId().value(),
+        "client-clarification-submitted:" + persisted.jobId().value(),
+        null,
+        now));
+    UUID consultantActorId = resolveResponsibleConsultantId(persisted);
+    if (consultantActorId != null) {
+      notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+          organizationId,
+          consultantActorId,
+          PortalRole.CONSULTANT,
+          "client_clarification_answered",
+          "Client clarification answered",
+          "A client answered the outstanding clarification questions for this job.",
+          "/consultant/jobs/" + persisted.jobId().value(),
+          WorkflowEntityType.JOB.wireValue(),
+          persisted.jobId().value(),
+          "consultant-client-clarification-answered:" + persisted.jobId().value(),
+          null,
+          now));
+    }
     return persisted;
   }
 
@@ -343,6 +427,71 @@ public final class JobIntakeApplicationService {
         .sourceRefId(job.jobId().value())
         .occurredAt(Instant.now())
         .build());
+  }
+
+  private void appendClarificationRequestedEvent(
+      Job job,
+      UUID actorId,
+      List<String> clarificationQuestions,
+      Instant occurredAt) {
+    workflowEventService.append(new WorkflowEventAppendCommand(
+        job.organizationId(),
+        "recruiting",
+        new EntityRef(WorkflowEntityType.JOB.wireValue(), job.jobId().value()),
+        job.version(),
+        WorkflowActionCode.CLIENT_CLARIFICATION_REQUESTED.wireValue(),
+        new WorkflowStateSnapshot(clarificationState("not_requested", List.of())),
+        new WorkflowStateSnapshot(clarificationState("requested", clarificationQuestions)),
+        new ActorRef(actorId, ActorRole.CLIENT),
+        "job_intake_application",
+        job.jobId().value(),
+        null,
+        null,
+        "Client clarification request was created for governed job intake.",
+        new WorkflowIdempotencyKey("job-clarification-requested:" + job.jobId().value()),
+        null,
+        null,
+        occurredAt));
+  }
+
+  private void appendClarificationAnsweredEvent(
+      Job job,
+      UUID actorId,
+      List<String> clarificationAnswers,
+      Instant occurredAt) {
+    workflowEventService.append(new WorkflowEventAppendCommand(
+        job.organizationId(),
+        "recruiting",
+        new EntityRef(WorkflowEntityType.JOB.wireValue(), job.jobId().value()),
+        job.version(),
+        WorkflowActionCode.CLIENT_CLARIFICATION_ANSWERED.wireValue(),
+        new WorkflowStateSnapshot(clarificationState(
+            "requested",
+            clarificationQuestionsFromMetadata(job.metadata()))),
+        new WorkflowStateSnapshot(clarificationState("answered", clarificationAnswers)),
+        new ActorRef(actorId, ActorRole.CLIENT),
+        "job_intake_application",
+        job.jobId().value(),
+        null,
+        null,
+        "Client clarification answers were submitted for consultant review.",
+        new WorkflowIdempotencyKey("job-clarification-answered:" + job.jobId().value()),
+        null,
+        null,
+        occurredAt));
+  }
+
+  private UUID resolveResponsibleConsultantId(Job job) {
+    if (job.ownerConsultantId() != null) {
+      return job.ownerConsultantId();
+    }
+    return companyService.findCompanyByIdAndOrganizationId(job.organizationId(), job.companyId())
+        .map(com.recruitingtransactionos.coreapi.company.Company::ownerConsultantId)
+        .orElse(null);
+  }
+
+  private static String clarificationState(String status, List<String> items) {
+    return "{\"status\":\"" + status + "\",\"itemCount\":" + items.size() + "}";
   }
 
   private static Optional<String> firstApprovedValue(

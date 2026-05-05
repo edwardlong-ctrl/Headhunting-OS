@@ -99,6 +99,31 @@ export type CandidateTimeline = {
   events: TimelineEvent[];
 };
 
+export type CandidateNotification = {
+  notificationId: string;
+  notificationType: string;
+  status: string;
+  title: string;
+  bodySummary: string;
+  deepLink: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  sourceRef: string | null;
+  readAt: string | null;
+  dismissedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CandidateNotificationPreference = {
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  reminderEnabled: boolean;
+  unsubscribed: boolean;
+  updatedAt: string | null;
+};
+
 export function fetchCandidateMe(): Promise<ApiResult<CandidateMe>> {
   return apiRequest<CandidateMe>("/api/candidate/me", undefined, "candidate");
 }
@@ -153,6 +178,55 @@ export function fetchCandidateDocuments(
   return apiRequest(
     `/api/candidate/documents?limit=${limit}&offset=${offset}`,
     undefined,
+    "candidate",
+  );
+}
+
+export function fetchCandidateNotifications(
+  limit = 20,
+  offset = 0,
+): Promise<ApiResult<{ items: CandidateNotification[]; totalCount: number; limit: number; offset: number; hasMore: boolean }>> {
+  return apiRequest(
+    `/api/candidate/notifications?limit=${limit}&offset=${offset}`,
+    undefined,
+    "candidate",
+  );
+}
+
+export function markCandidateNotificationRead(
+  notificationId: string,
+): Promise<ApiResult<{ items: CandidateNotification[]; totalCount: number; limit: number; offset: number; hasMore: boolean }>> {
+  return apiRequest(
+    `/api/candidate/notifications/${encodeURIComponent(notificationId)}/read`,
+    asMethodJson("POST", {}),
+    "candidate",
+  );
+}
+
+export function dismissCandidateNotification(
+  notificationId: string,
+): Promise<ApiResult<{ items: CandidateNotification[]; totalCount: number; limit: number; offset: number; hasMore: boolean }>> {
+  return apiRequest(
+    `/api/candidate/notifications/${encodeURIComponent(notificationId)}/dismiss`,
+    asMethodJson("POST", {}),
+    "candidate",
+  );
+}
+
+export function fetchCandidateNotificationPreference(): Promise<ApiResult<CandidateNotificationPreference>> {
+  return apiRequest<CandidateNotificationPreference>(
+    "/api/candidate/preferences/notifications",
+    undefined,
+    "candidate",
+  );
+}
+
+export function saveCandidateNotificationPreference(
+  preference: Partial<CandidateNotificationPreference>,
+): Promise<ApiResult<CandidateNotificationPreference>> {
+  return apiRequest<CandidateNotificationPreference>(
+    "/api/candidate/preferences/notifications",
+    asMethodJson("PUT", preference),
     "candidate",
   );
 }

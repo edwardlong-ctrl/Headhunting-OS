@@ -39,6 +39,7 @@ import com.recruitingtransactionos.coreapi.job.service.JobActivationGateService;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.matching.MatchReportGenerationService;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.privacyredaction.RedactionAuditService;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistCandidateCardPersistencePort;
 import com.recruitingtransactionos.coreapi.shortlist.persistence.JdbcShortlistPersistencePort;
@@ -133,12 +134,16 @@ public class RecruitingDomainConfiguration {
       JobService jobService,
       CompanyService companyService,
       JobActivationGateService jobActivationGateService,
-      WorkflowTransitionAuditService workflowTransitionAuditService) {
+      WorkflowTransitionAuditService workflowTransitionAuditService,
+      com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService workflowEventService,
+      NotificationService notificationService) {
     return new JobIntakeApplicationService(
         jobService,
         companyService,
         jobActivationGateService,
-        workflowTransitionAuditService);
+        workflowTransitionAuditService,
+        workflowEventService,
+        notificationService);
   }
 
   @Bean

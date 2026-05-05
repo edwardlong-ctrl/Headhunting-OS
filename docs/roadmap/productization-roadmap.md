@@ -758,6 +758,10 @@ Priority: P1 for pilot comfort, P0 for low-touch pilot operations
 
 Goal: Make the system push workflow tasks instead of relying on manual refresh.
 
+Current execution note:
+
+- In the current worktree, Task 34 has now been completed together with the remaining candidate-facing portal auth/session hardening and profile-participation closure work from the Task 31/19 follow-up stream. That combined slice was intentional: candidate/client reminders became useful only once candidate/client portal sessions could refresh and logout safely, candidate follow-up submissions created explicit review tasks instead of mutating facts, and the resulting reminders became visible inside the candidate/client/consultant portals with workflow audit coverage.
+
 Must deliver:
 
 - In-app notification.

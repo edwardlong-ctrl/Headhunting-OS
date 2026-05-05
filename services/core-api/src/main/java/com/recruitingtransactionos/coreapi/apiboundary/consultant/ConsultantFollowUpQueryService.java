@@ -8,6 +8,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
 import com.recruitingtransactionos.coreapi.candidate.Candidate;
 import com.recruitingtransactionos.coreapi.candidate.CandidateStatus;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
+import com.recruitingtransactionos.coreapi.followup.FollowUpSubmissionService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -29,17 +30,20 @@ public final class ConsultantFollowUpQueryService {
   private final ConsultantDashboardQueryService dashboardQueryService;
   private final ConsultantIntakeQueueQueryService intakeQueueQueryService;
   private final CandidateService candidateService;
+  private final FollowUpSubmissionService followUpSubmissionService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
   public ConsultantFollowUpQueryService(
       ConsultantDashboardQueryService dashboardQueryService,
       ConsultantIntakeQueueQueryService intakeQueueQueryService,
-      CandidateService candidateService) {
+      CandidateService candidateService,
+      FollowUpSubmissionService followUpSubmissionService) {
     this(
         dashboardQueryService,
         intakeQueueQueryService,
         candidateService,
+        followUpSubmissionService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -47,10 +51,13 @@ public final class ConsultantFollowUpQueryService {
       ConsultantDashboardQueryService dashboardQueryService,
       ConsultantIntakeQueueQueryService intakeQueueQueryService,
       CandidateService candidateService,
+      FollowUpSubmissionService followUpSubmissionService,
       PermissionEnforcer permissionEnforcer) {
     this.dashboardQueryService = Objects.requireNonNull(dashboardQueryService, "dashboardQueryService must not be null");
     this.intakeQueueQueryService = Objects.requireNonNull(intakeQueueQueryService, "intakeQueueQueryService must not be null");
     this.candidateService = Objects.requireNonNull(candidateService, "candidateService must not be null");
+    this.followUpSubmissionService = Objects.requireNonNull(
+        followUpSubmissionService, "followUpSubmissionService must not be null");
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -90,6 +97,16 @@ public final class ConsultantFollowUpQueryService {
           "/consultant/talent/" + candidate.candidateId().value(),
           candidate.updatedAt().toString()));
     }
+    followUpSubmissionService.listPendingByOrganization(organizationId, 25).forEach(submission ->
+        items.add(new ConsultantFollowUpSummaryResponse(
+            "candidate_follow_up_submission",
+            "follow_up_submission",
+            submission.followUpSubmissionId().toString(),
+            "Candidate follow-up submitted",
+            submission.status(),
+            "Candidate follow-up answer for " + submission.fieldPath() + " is waiting for consultant review.",
+            "/consultant/follow-ups",
+            submission.submittedAt().toString())));
     List<ConsultantFollowUpSummaryResponse> paged = items.stream()
         .sorted(Comparator.comparing(ConsultantFollowUpSummaryResponse::occurredAt).reversed())
         .skip(pagedQuery.offset())

@@ -26,6 +26,7 @@ import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCardId;
@@ -84,6 +85,7 @@ class ClientApiQueryServiceTest {
   @Mock private ShortlistService shortlistService;
   @Mock private ClientUnlockRequestPort clientUnlockRequestPort;
   @Mock private InterviewFeedbackService interviewFeedbackService;
+  @Mock private NotificationService notificationService;
   @Mock private com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer permissionEnforcer;
 
   private ClientApiQueryService service;
@@ -98,6 +100,7 @@ class ClientApiQueryServiceTest {
         shortlistService,
         clientUnlockRequestPort,
         interviewFeedbackService,
+        notificationService,
         permissionEnforcer);
     when(permissionEnforcer.requireAllowed(any()))
         .thenReturn(new AccessDecision(true, "allowed_for_test", "Allowed for focused unit test."));
@@ -214,6 +217,8 @@ class ClientApiQueryServiceTest {
     when(interviewFeedbackService.findFeedbackByJobIdAndOrganizationId(ORGANIZATION_ID, JOB_ID))
         .thenReturn(List.of());
     when(clientUnlockRequestPort.findByClientActorId(ORGANIZATION_ID, ACTOR_ID)).thenReturn(List.of());
+    when(notificationService.listNotifications(ORGANIZATION_ID, ACTOR_ID, PortalRole.CLIENT, 5, 0))
+        .thenReturn(new NotificationService.NotificationPage(List.of(), 0, 5, 0));
 
     var response = service.getDashboard(shortlistReadAccessRequest, ORGANIZATION_ID, ACTOR_ID);
 

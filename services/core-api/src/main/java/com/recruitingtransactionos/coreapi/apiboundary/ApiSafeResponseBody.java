@@ -38,6 +38,8 @@ public sealed interface ApiSafeResponseBody
         CandidateConsentSummaryResponse,
         CandidateFollowUpFormResponse,
         CandidateMeResponse,
+        CandidateNotificationPreferenceResponse,
+        CandidateNotificationResponse,
         CandidateOpportunityDetailResponse,
         CandidateProfileReviewResponse,
         CandidateDocumentSummaryResponse,

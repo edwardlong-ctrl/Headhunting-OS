@@ -81,7 +81,7 @@ class JdbcMatchReportPersistencePortIntegrationTest {
 
   @Test
   void roundTripsOpaqueRefsAndRealCapRiskSemantics() {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(28);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(29);
     JdbcMatchReportPersistencePort port = new JdbcMatchReportPersistencePort(dataSource);
     StoredMatchReport stored = sampleStoredMatchReport();
 

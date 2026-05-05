@@ -19,6 +19,22 @@ export type LoginPayload = {
   portalRole: string;
 };
 
+export type RefreshPayload = {
+  refreshToken: string;
+};
+
+export type LogoutPayload = {
+  refreshToken: string;
+};
+
 export function login(payload: LoginPayload): Promise<ApiResult<AuthSession>> {
   return apiRequest<AuthSession>("/api/auth/login", asJson(payload));
+}
+
+export function refresh(payload: RefreshPayload): Promise<ApiResult<AuthSession>> {
+  return apiRequest<AuthSession>("/api/auth/refresh", asJson(payload));
+}
+
+export function logout(payload: LogoutPayload): Promise<ApiResult<{ loggedOut: boolean }>> {
+  return apiRequest<{ loggedOut: boolean }>("/api/auth/logout", asJson(payload));
 }

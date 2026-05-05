@@ -76,9 +76,11 @@ export type ClientDashboard = {
   companyProfileReady: boolean;
   activeJobCount: number;
   pendingClarificationCount: number;
+  unreadNotificationCount: number;
   shortlistCount: number;
   pendingUnlockRequestCount: number;
   feedbackCount: number;
+  recentNotifications: string[];
   recentShortlists: ClientShortlistSummary[];
 };
 

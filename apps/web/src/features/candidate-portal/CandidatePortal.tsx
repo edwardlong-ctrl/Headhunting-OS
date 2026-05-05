@@ -1,6 +1,6 @@
 import { type ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { login, type AuthSession } from "../../api/auth";
+import { login, logout, type AuthSession } from "../../api/auth";
 import {
   fetchCandidateConsent,
   respondCandidateConsent,
@@ -11,15 +11,22 @@ import {
   fetchCandidateDocuments,
   fetchCandidateFollowUp,
   fetchCandidateMe,
+  fetchCandidateNotificationPreference,
+  fetchCandidateNotifications,
   fetchCandidateOpportunityDetail,
   fetchCandidateOpportunities,
   fetchCandidateProfile,
   fetchCandidateTimeline,
+  dismissCandidateNotification,
+  markCandidateNotificationRead,
   recordCandidateOpportunityInterest,
+  saveCandidateNotificationPreference,
   submitCandidateFollowUp,
   uploadCandidateDocument,
   type CandidateDocument,
   type CandidateFollowUpForm,
+  type CandidateNotification,
+  type CandidateNotificationPreference,
   type CandidateOpportunity,
   type CandidateOpportunityDetail,
   type CandidateProfileReview,
@@ -27,60 +34,24 @@ import {
 } from "../../api/candidatePortal";
 import { type ApiResult } from "../../api/http";
 import { loadAccessToken, saveAccessToken } from "../../auth/accessTokenStorage";
+import {
+  clearScopedPortalSession,
+  loadScopedPortalSession,
+  saveScopedPortalSession,
+} from "../../auth/scopedPortalSessionStorage";
 
-type CandidateSession = Pick<
-  AuthSession,
-  "organizationId" | "userAccountId" | "displayName" | "portalRole" | "accessTokenExpiresAt"
->;
-
-const CANDIDATE_SESSION_STORAGE_KEY = "rto.candidatePortalSession";
+type CandidateSession = AuthSession;
 
 function loadCandidateSession(): CandidateSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const raw = window.localStorage.getItem(CANDIDATE_SESSION_STORAGE_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<CandidateSession>;
-    if (!parsed.userAccountId || parsed.portalRole !== "candidate") {
-      return null;
-    }
-    return {
-      organizationId: parsed.organizationId ?? "",
-      userAccountId: parsed.userAccountId,
-      displayName: parsed.displayName ?? "Candidate",
-      portalRole: "candidate",
-      accessTokenExpiresAt: parsed.accessTokenExpiresAt ?? "",
-    };
-  } catch {
-    return null;
-  }
+  return loadScopedPortalSession("candidate");
 }
 
 function saveCandidateSession(session: AuthSession): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(
-    CANDIDATE_SESSION_STORAGE_KEY,
-    JSON.stringify({
-      organizationId: session.organizationId,
-      userAccountId: session.userAccountId,
-      displayName: session.displayName,
-      portalRole: session.portalRole,
-      accessTokenExpiresAt: session.accessTokenExpiresAt,
-    } satisfies CandidateSession),
-  );
+  saveScopedPortalSession("candidate", session);
 }
 
 function clearCandidateSession(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(CANDIDATE_SESSION_STORAGE_KEY);
+  clearScopedPortalSession("candidate");
   saveAccessToken("", "candidate");
 }
 
@@ -187,7 +158,7 @@ function CandidateSignIn({ onSignedIn }: { onSignedIn: (session: AuthSession) =>
     setIsSubmitting(true);
     setError(null);
     const result = await login({
-      organizationId,
+      organizationId: organizationId.trim() || undefined,
       email,
       password,
       portalRole: "candidate",
@@ -212,7 +183,7 @@ function CandidateSignIn({ onSignedIn }: { onSignedIn: (session: AuthSession) =>
       </div>
       <form className="workspace-stack" onSubmit={(event) => void handleSubmit(event)}>
         <label>
-          Organization ID
+          Organization ID (optional)
           <input value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} />
         </label>
         <label>
@@ -223,9 +194,12 @@ function CandidateSignIn({ onSignedIn }: { onSignedIn: (session: AuthSession) =>
           Password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
         </label>
-        <button type="submit" disabled={isSubmitting || !organizationId.trim() || !email.trim() || !password.trim()}>
+        <button type="submit" disabled={isSubmitting || !email.trim() || !password.trim()}>
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
+        <p className="helper-copy">
+          Leave organization blank unless support asked you to enter one.
+        </p>
         {error ? <p className="helper-copy">{error}</p> : null}
       </form>
     </section>
@@ -234,6 +208,7 @@ function CandidateSignIn({ onSignedIn }: { onSignedIn: (session: AuthSession) =>
 
 function HomePage() {
   const { state } = useCandidateApi(() => fetchCandidateMe(), []);
+  const { state: notificationState } = useCandidateApi(() => fetchCandidateNotifications(10, 0), []);
 
   if (state.status === "loading") {
     return <CandidateState title="Loading dashboard" />;
@@ -242,6 +217,9 @@ function HomePage() {
     return <CandidateState title="Dashboard unavailable" detail={state.error} />;
   }
   const me = state.data;
+  const unreadCount = notificationState.status === "ready"
+    ? notificationState.data.items.filter((item) => item.status !== "read" && item.status !== "dismissed").length
+    : 0;
 
   return (
     <div className="workspace-stack">
@@ -257,6 +235,7 @@ function HomePage() {
           <div><dt>Documents</dt><dd>{me.documentCount}</dd></div>
           <div><dt>Opportunities</dt><dd>{me.activeOpportunityCount}</dd></div>
           <div><dt>Pending follow-ups</dt><dd>{me.pendingFollowUpCount}</dd></div>
+          <div><dt>Unread notifications</dt><dd>{unreadCount}</dd></div>
         </dl>
         <div className="client-action-grid">
           <NavLink className="secondary-link" to="/candidate/profile">
@@ -265,9 +244,182 @@ function HomePage() {
           <NavLink className="secondary-link" to="/candidate/follow-up/current-profile">
             Open follow-up form
           </NavLink>
+          <NavLink className="secondary-link" to="/candidate/notifications">
+            Open notifications
+          </NavLink>
         </div>
       </section>
     </div>
+  );
+}
+
+function NotificationsPage() {
+  const { state, refresh } = useCandidateApi(() => fetchCandidateNotifications(20, 0), []);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function handleMarkRead(notificationId: string) {
+    setBusyId(notificationId);
+    await markCandidateNotificationRead(notificationId);
+    setBusyId(null);
+    refresh();
+  }
+
+  async function handleDismiss(notificationId: string) {
+    setBusyId(notificationId);
+    await dismissCandidateNotification(notificationId);
+    setBusyId(null);
+    refresh();
+  }
+
+  if (state.status === "loading") {
+    return <CandidateState title="Loading notifications" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Notifications unavailable" detail={state.error} />;
+  }
+
+  return (
+    <div className="workspace-stack">
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Notifications</span>
+            <h2>Inbox</h2>
+          </div>
+        </div>
+        {state.data.items.length === 0 ? (
+          <p className="helper-copy">No notifications yet.</p>
+        ) : (
+          <div className="workspace-stack">
+            {state.data.items.map((item: CandidateNotification) => (
+              <article key={item.notificationId} className="portal-panel client-nested-panel">
+                <div className="section-header">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p className="helper-copy">{item.bodySummary}</p>
+                  </div>
+                  <span className="badge">{item.status}</span>
+                </div>
+                <p className="helper-copy">
+                  {item.createdAt ? `Created ${formatDate(item.createdAt)}` : "Recently created"}
+                </p>
+                <div className="client-action-grid">
+                  {item.deepLink ? (
+                    <NavLink className="secondary-link" to={item.deepLink}>
+                      Open
+                    </NavLink>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleMarkRead(item.notificationId)}
+                    disabled={busyId === item.notificationId || item.status === "read"}
+                  >
+                    {busyId === item.notificationId ? "Updating..." : "Mark read"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDismiss(item.notificationId)}
+                    disabled={busyId === item.notificationId || item.status === "dismissed"}
+                  >
+                    {busyId === item.notificationId ? "Updating..." : "Dismiss"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function NotificationPreferencesPage() {
+  const { state, refresh } = useCandidateApi(() => fetchCandidateNotificationPreference(), []);
+  const [draft, setDraft] = useState<CandidateNotificationPreference | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state.status === "ready") {
+      setDraft(state.data);
+    }
+  }, [state]);
+
+  async function handleSave() {
+    if (!draft) {
+      return;
+    }
+    const result = await saveCandidateNotificationPreference(draft);
+    if (result.status !== "ready") {
+      setMessage(result.error ?? "Preferences could not be saved.");
+      return;
+    }
+    setDraft(result.data);
+    setMessage("Notification preferences saved.");
+    refresh();
+  }
+
+  if (state.status === "loading" || !draft) {
+    return <CandidateState title="Loading preferences" />;
+  }
+  if (state.status !== "ready") {
+    return <CandidateState title="Preferences unavailable" detail={state.error} />;
+  }
+
+  return (
+    <section className="portal-panel">
+      <div className="section-header">
+        <div>
+          <span className="portal-eyebrow">Notification preferences</span>
+          <h2>Manage notification delivery</h2>
+        </div>
+      </div>
+      <div className="workspace-stack">
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.inAppEnabled}
+            onChange={(event) => setDraft({ ...draft, inAppEnabled: event.target.checked })}
+          />
+          In-app notifications
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.emailEnabled}
+            onChange={(event) => setDraft({ ...draft, emailEnabled: event.target.checked })}
+          />
+          Email delivery
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.smsEnabled}
+            onChange={(event) => setDraft({ ...draft, smsEnabled: event.target.checked })}
+          />
+          SMS placeholder
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.reminderEnabled}
+            onChange={(event) => setDraft({ ...draft, reminderEnabled: event.target.checked })}
+          />
+          Reminder scheduling
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.unsubscribed}
+            onChange={(event) => setDraft({ ...draft, unsubscribed: event.target.checked })}
+          />
+          Unsubscribe from non-essential delivery
+        </label>
+        <button type="button" onClick={() => void handleSave()}>
+          Save preferences
+        </button>
+        {message ? <p className="helper-copy">{message}</p> : null}
+      </div>
+    </section>
   );
 }
 
@@ -964,6 +1116,14 @@ export function CandidatePortal() {
     }
   }, []);
 
+  async function handleSignOut() {
+    if (session?.refreshToken) {
+      await logout({ refreshToken: session.refreshToken });
+    }
+    clearCandidateSession();
+    setSession(null);
+  }
+
   return (
     <section className="portal-layout" aria-labelledby="candidate-portal-title">
       <header className="portal-heading">
@@ -974,6 +1134,8 @@ export function CandidatePortal() {
         <NavLink to="/candidate/home">Home</NavLink>
         <NavLink to="/candidate/profile">Profile</NavLink>
         <NavLink to="/candidate/follow-up/current-profile">Follow-up</NavLink>
+        <NavLink to="/candidate/notifications">Notifications</NavLink>
+        <NavLink to="/candidate/preferences">Preferences</NavLink>
         <NavLink to="/candidate/documents">Documents</NavLink>
         <NavLink to="/candidate/opportunities">Opportunities</NavLink>
         <NavLink to="/candidate/timeline">Timeline</NavLink>
@@ -981,10 +1143,7 @@ export function CandidatePortal() {
         <button
           type="button"
           className="secondary-link"
-          onClick={() => {
-            clearCandidateSession();
-            setSession(null);
-          }}
+          onClick={() => void handleSignOut()}
         >
           Sign out
         </button>
@@ -1009,6 +1168,14 @@ export function CandidatePortal() {
         <Route
           path="follow-up/:formId"
           element={session ? <FollowUpPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="notifications"
+          element={session ? <NotificationsPage /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
+          path="preferences"
+          element={session ? <NotificationPreferencesPage /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
           path="documents"

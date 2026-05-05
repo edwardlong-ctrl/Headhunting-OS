@@ -534,7 +534,9 @@ class ApiBoundaryRegressionClosureTest {
       boolean isConsultantUnlockController =
           "ConsultantUnlockController.java".equals(fileName);
       boolean allowsPutMapping =
-          isConsultantWriteController || "ClientCompanyController.java".equals(fileName);
+          isConsultantWriteController
+              || "ClientCompanyController.java".equals(fileName)
+              || "CandidatePortalController.java".equals(fileName);
 
       boolean isAuthenticationController =
           "AuthenticationController.java".equals(fileName);

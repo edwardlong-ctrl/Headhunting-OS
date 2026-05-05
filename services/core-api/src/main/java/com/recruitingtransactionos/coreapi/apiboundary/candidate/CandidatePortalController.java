@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -109,6 +110,60 @@ public final class CandidatePortalController {
     requireCandidateRole(principal.portalRole());
     return ResponseEntity.ok(ApiResponseEnvelope.success(
         portalQueryService.listDocuments(principal.organizationId(), principal.userAccountId(), limit, offset)));
+  }
+
+  @GetMapping("/notifications")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> notifications(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestParam(defaultValue = "20") int limit,
+      @RequestParam(defaultValue = "0") int offset) {
+    requireCandidateRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.listNotifications(principal.organizationId(), principal.userAccountId(), limit, offset)));
+  }
+
+  @PostMapping("/notifications/{notificationId}/read")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> markNotificationRead(
+      @PathVariable String notificationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    portalQueryService.markNotificationRead(principal.organizationId(), principal.userAccountId(), notificationId);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.listNotifications(principal.organizationId(), principal.userAccountId(), 20, 0)));
+  }
+
+  @PostMapping("/notifications/{notificationId}/dismiss")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> dismissNotification(
+      @PathVariable String notificationId,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    portalQueryService.dismissNotification(principal.organizationId(), principal.userAccountId(), notificationId);
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.listNotifications(principal.organizationId(), principal.userAccountId(), 20, 0)));
+  }
+
+  @GetMapping("/preferences/notifications")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> notificationPreference(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.loadNotificationPreference(principal.organizationId(), principal.userAccountId())));
+  }
+
+  @PutMapping("/preferences/notifications")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> updateNotificationPreference(
+      @RequestBody CandidateNotificationPreferenceUpsertRequest request,
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireCandidateRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(
+        portalQueryService.updateNotificationPreference(
+            principal.organizationId(),
+            principal.userAccountId(),
+            request == null || request.inAppEnabled() == null ? true : request.inAppEnabled(),
+            request != null && Boolean.TRUE.equals(request.emailEnabled()),
+            request != null && Boolean.TRUE.equals(request.smsEnabled()),
+            request == null || request.reminderEnabled() == null ? true : request.reminderEnabled(),
+            request != null && Boolean.TRUE.equals(request.unsubscribed()))));
   }
 
   @GetMapping("/opportunities")
@@ -217,4 +272,11 @@ public final class CandidatePortalController {
   public record CandidateFollowUpSubmissionRequest(String fieldPath, String answer) {}
 
   public record CandidateOpportunityInterestRequest(String interestStatus, String note) {}
+
+  public record CandidateNotificationPreferenceUpsertRequest(
+      Boolean inAppEnabled,
+      Boolean emailEnabled,
+      Boolean smsEnabled,
+      Boolean reminderEnabled,
+      Boolean unsubscribed) {}
 }

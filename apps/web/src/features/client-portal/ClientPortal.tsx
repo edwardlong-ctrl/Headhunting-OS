@@ -9,7 +9,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
-import { login, type AuthSession } from "../../api/auth";
+import { login, logout, type AuthSession } from "../../api/auth";
 import {
   fetchClientCompanyProfile,
   saveClientCompanyProfile,
@@ -53,6 +53,11 @@ import {
 import { type ApiResult } from "../../api/http";
 import { loadAccessToken, saveAccessToken } from "../../auth/accessTokenStorage";
 import {
+  clearScopedPortalSession,
+  loadScopedPortalSession,
+  saveScopedPortalSession,
+} from "../../auth/scopedPortalSessionStorage";
+import {
   canClientRequestUnlock,
   canClientSelectCandidate,
   canClientSubmitInterviewFeedback,
@@ -64,10 +69,7 @@ import { ClientDisclosedCandidatePage } from "./ClientDisclosedCandidatePage";
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 
-type ClientPortalSession = Pick<
-  AuthSession,
-  "organizationId" | "userAccountId" | "displayName" | "portalRole" | "accessTokenExpiresAt"
->;
+type ClientPortalSession = AuthSession;
 
 type CommercialTermsDraft = {
   feeModel: string;
@@ -77,7 +79,6 @@ type CommercialTermsDraft = {
   notes: string;
 };
 
-const CLIENT_SESSION_STORAGE_KEY = "rto.clientPortalSession";
 const CLIENT_LAST_JOB_ID_STORAGE_KEY = "rto.clientLastJobId";
 
 const CLIENT_NAV_ITEMS = [
@@ -97,49 +98,15 @@ const EMPTY_COMMERCIAL_TERMS: CommercialTermsDraft = {
 };
 
 function loadClientPortalSession(): ClientPortalSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const raw = window.localStorage.getItem(CLIENT_SESSION_STORAGE_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<ClientPortalSession>;
-    if (!parsed.portalRole) {
-      return null;
-    }
-    return {
-      organizationId: parsed.organizationId ?? "",
-      userAccountId: parsed.userAccountId ?? "",
-      displayName: parsed.displayName ?? "Client",
-      portalRole: parsed.portalRole,
-      accessTokenExpiresAt: parsed.accessTokenExpiresAt ?? "",
-    };
-  } catch {
-    return null;
-  }
+  return loadScopedPortalSession("client");
 }
 
 function saveClientPortalSession(session: AuthSession): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  const payload: ClientPortalSession = {
-    organizationId: session.organizationId,
-    userAccountId: session.userAccountId,
-    displayName: session.displayName,
-    portalRole: session.portalRole,
-    accessTokenExpiresAt: session.accessTokenExpiresAt,
-  };
-  window.localStorage.setItem(CLIENT_SESSION_STORAGE_KEY, JSON.stringify(payload));
+  saveScopedPortalSession("client", session);
 }
 
 function clearClientPortalSession(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(CLIENT_SESSION_STORAGE_KEY);
+  clearScopedPortalSession("client");
 }
 
 function loadLastJobId(): string {
@@ -722,6 +689,11 @@ function DashboardPage({ session }: { session: ClientPortalSession }) {
             </small>
           </article>
           <article className="metric-card">
+            <span>Notifications</span>
+            <strong>{dashboardState.status === "ready" ? dashboardState.data.unreadNotificationCount : "..."}</strong>
+            <small>Recent clarification and reminder prompts for this client workspace</small>
+          </article>
+          <article className="metric-card">
             <span>Shortlists</span>
             <strong>{dashboardState.status === "ready" ? dashboardState.data.shortlistCount : "..."}</strong>
             <small>
@@ -784,6 +756,26 @@ function DashboardPage({ session }: { session: ClientPortalSession }) {
               ["Updated", formatDate(companyState.data.updatedAt)],
             ]}
           />
+        </section>
+      ) : null}
+
+      {dashboardState.status === "ready" ? (
+        <section className="portal-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Recent reminders</span>
+              <h2>Client notification summary</h2>
+            </div>
+          </div>
+          {dashboardState.data.recentNotifications.length > 0 ? (
+            <ul className="workspace-stack">
+              {dashboardState.data.recentNotifications.map((item) => (
+                <li key={item} className="helper-copy">{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="helper-copy">No pending reminders have been generated for this client workspace.</p>
+          )}
         </section>
       ) : null}
 
@@ -1885,7 +1877,10 @@ export function ClientPortal() {
     setSession(loadClientPortalSession());
   }
 
-  function onLogout() {
+  async function onLogout() {
+    if (session?.refreshToken) {
+      await logout({ refreshToken: session.refreshToken });
+    }
     saveAccessToken("", "client");
     clearClientPortalSession();
     saveLastJobId("");
@@ -1901,7 +1896,7 @@ export function ClientPortal() {
   }
 
   return (
-    <ClientPortalLayout session={session} onLogout={onLogout}>
+    <ClientPortalLayout session={session} onLogout={() => void onLogout()}>
       <Routes>
         <Route index element={<DashboardPage session={session} />} />
         <Route path="company-profile" element={<CompanyProfilePage />} />

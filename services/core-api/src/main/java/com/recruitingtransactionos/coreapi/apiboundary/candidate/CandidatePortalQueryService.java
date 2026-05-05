@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateDocumentSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateFollowUpFormResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateMeResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.CandidateNotificationPreferenceResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.CandidateNotificationResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateOpportunityDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateOpportunityResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.CandidateProfileReviewResponse;
@@ -36,6 +38,7 @@ import com.recruitingtransactionos.coreapi.consentdisclosure.CandidateConsentWor
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWorkflowEntityIds;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
+import com.recruitingtransactionos.coreapi.followup.FollowUpSubmissionService;
 import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadCommand;
 import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadResult;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketType;
@@ -43,12 +46,14 @@ import com.recruitingtransactionos.coreapi.governedintake.IntendedEntityType;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemOrigin;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemType;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteraction;
 import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteractionId;
 import com.recruitingtransactionos.coreapi.interaction.service.CandidateCompanyInteractionService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
@@ -65,11 +70,9 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -79,7 +82,6 @@ import org.springframework.web.multipart.MultipartFile;
 public final class CandidatePortalQueryService {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String FOLLOW_UP_SUBMISSION_NOTE_KIND = "candidate_follow_up_submission";
 
   private final CandidateService candidateService;
   private final CandidateProfileService candidateProfileService;
@@ -92,6 +94,8 @@ public final class CandidatePortalQueryService {
   private final CandidateConsentWorkflowService candidateConsentWorkflowService;
   private final ConsentRecordPort consentRecordPort;
   private final WorkflowEventService workflowEventService;
+  private final FollowUpSubmissionService followUpSubmissionService;
+  private final NotificationService notificationService;
 
   @Autowired
   public CandidatePortalQueryService(
@@ -105,7 +109,9 @@ public final class CandidatePortalQueryService {
       CompanyService companyService,
       CandidateConsentWorkflowService candidateConsentWorkflowService,
       ConsentRecordPort consentRecordPort,
-      WorkflowEventService workflowEventService) {
+      WorkflowEventService workflowEventService,
+      FollowUpSubmissionService followUpSubmissionService,
+      NotificationService notificationService) {
     this.candidateService = Objects.requireNonNull(candidateService, "candidateService must not be null");
     this.candidateProfileService = Objects.requireNonNull(
         candidateProfileService, "candidateProfileService must not be null");
@@ -123,6 +129,10 @@ public final class CandidatePortalQueryService {
     this.consentRecordPort = Objects.requireNonNull(consentRecordPort, "consentRecordPort must not be null");
     this.workflowEventService = Objects.requireNonNull(
         workflowEventService, "workflowEventService must not be null");
+    this.followUpSubmissionService = Objects.requireNonNull(
+        followUpSubmissionService, "followUpSubmissionService must not be null");
+    this.notificationService = Objects.requireNonNull(
+        notificationService, "notificationService must not be null");
   }
 
   public CandidateMeResponse buildMe(UUID organizationId, UUID userAccountId, String defaultDisplayName) {
@@ -150,6 +160,70 @@ public final class CandidatePortalQueryService {
         documentCount,
         opportunityCount,
         pendingFollowUpCount);
+  }
+
+  public PagedResult<CandidateNotificationResponse> listNotifications(
+      UUID organizationId,
+      UUID userAccountId,
+      int limit,
+      int offset) {
+    NotificationService.NotificationPage page = notificationService.listNotifications(
+        organizationId,
+        userAccountId,
+        PortalRole.CANDIDATE,
+        limit,
+        offset);
+    List<CandidateNotificationResponse> items = page.items().stream()
+        .map(this::toCandidateNotification)
+        .toList();
+    return PagedResult.of(items, page.totalCount(), page.limit(), page.offset());
+  }
+
+  public void markNotificationRead(UUID organizationId, UUID userAccountId, String notificationId) {
+    notificationService.markRead(
+        organizationId,
+        userAccountId,
+        PortalRole.CANDIDATE,
+        UUID.fromString(notificationId));
+  }
+
+  public void dismissNotification(UUID organizationId, UUID userAccountId, String notificationId) {
+    notificationService.dismiss(
+        organizationId,
+        userAccountId,
+        PortalRole.CANDIDATE,
+        UUID.fromString(notificationId));
+  }
+
+  public CandidateNotificationPreferenceResponse loadNotificationPreference(
+      UUID organizationId,
+      UUID userAccountId) {
+    NotificationService.NotificationPreferenceRecord preference = notificationService.loadPreference(
+        organizationId,
+        userAccountId,
+        PortalRole.CANDIDATE);
+    return toCandidateNotificationPreference(preference);
+  }
+
+  public CandidateNotificationPreferenceResponse updateNotificationPreference(
+      UUID organizationId,
+      UUID userAccountId,
+      boolean inAppEnabled,
+      boolean emailEnabled,
+      boolean smsEnabled,
+      boolean reminderEnabled,
+      boolean unsubscribed) {
+    NotificationService.NotificationPreferenceRecord preference = notificationService.upsertPreference(
+        organizationId,
+        userAccountId,
+        PortalRole.CANDIDATE,
+        inAppEnabled,
+        emailEnabled,
+        smsEnabled,
+        reminderEnabled,
+        unsubscribed,
+        userAccountId);
+    return toCandidateNotificationPreference(preference);
   }
 
   public CandidateProfileReviewResponse buildProfileReview(UUID organizationId, String candidateRef) {
@@ -180,7 +254,7 @@ public final class CandidatePortalQueryService {
     CandidateProfile profile = findCandidateProfile(organizationId, candidateRef)
         .orElseThrow(() -> new IllegalArgumentException("candidate_profile_not_found"));
     List<CandidateProfileField> actionableFields = profile.fields().stream()
-        .filter(CandidatePortalQueryService::requiresCandidateFollowUp)
+        .filter(field -> requiresCandidateFollowUp(profile, field))
         .toList();
     if (actionableFields.isEmpty()) {
       return buildProfileReview(organizationId, candidateRef);
@@ -224,6 +298,19 @@ public final class CandidatePortalQueryService {
         remainingBefore,
         remainingAfter,
         confirmedAt);
+    notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+        organizationId,
+        candidateActorId,
+        PortalRole.CANDIDATE,
+        "candidate_profile_confirmed",
+        "Profile confirmation saved",
+        "Your profile confirmation was recorded successfully.",
+        "/candidate/profile",
+        WorkflowEntityType.CANDIDATE.wireValue(),
+        profile.candidateProfileId().value(),
+        "candidate:" + candidateRef + ":profile-confirmed:" + existing.fieldPath().value(),
+        null,
+        confirmedAt));
     return buildProfileReview(organizationId, candidateRef);
   }
 
@@ -240,8 +327,8 @@ public final class CandidatePortalQueryService {
     }
     CandidateProfile currentProfile = profile.orElseThrow();
     List<CandidateFollowUpFormResponse.FollowUpItem> items = currentProfile.fields().stream()
-        .filter(CandidatePortalQueryService::requiresCandidateFollowUp)
-        .map(this::toFollowUpItem)
+        .filter(field -> requiresCandidateFollowUp(currentProfile, field))
+        .map(field -> toFollowUpItem(currentProfile, field))
         .toList();
     return new CandidateFollowUpFormResponse(
         candidateRef,
@@ -272,7 +359,7 @@ public final class CandidatePortalQueryService {
     CandidateProfile profile = findCandidateProfile(organizationId, candidateRef)
         .orElseThrow(() -> new IllegalArgumentException("candidate_profile_not_found"));
     List<CandidateProfileField> followUpFields = profile.fields().stream()
-        .filter(CandidatePortalQueryService::isCandidateVisibleFollowUpField)
+        .filter(field -> isCandidateVisibleFollowUpField(profile, field))
         .toList();
     CandidateProfileField existing = followUpFields.stream()
         .filter(field -> field.fieldPath().value().equals(targetFieldPath))
@@ -280,24 +367,62 @@ public final class CandidatePortalQueryService {
         .orElseThrow(() -> new IllegalArgumentException(
             "candidate_follow_up_field_not_allowed:" + targetFieldPath));
     Instant answeredAt = Instant.now();
-    candidateProfileService.upsertCandidateProfileField(UpsertCandidateProfileFieldRequest.builder()
-        .organizationId(organizationId)
-        .candidateProfileId(profile.candidateProfileId())
-        .fieldPath(existing.fieldPath())
-        .value(existing.value())
-        .fieldStatus(existing.fieldStatus())
-        .lineage(existing.lineage())
-        .conflict(existing.conflict())
-        .staleness(existing.staleness())
-        .lastReviewedAt(existing.lastReviewedAt())
-        .confirmedByActorId(existing.confirmedByActorId())
-        .confirmedAgainstProfileVersion(existing.confirmedAgainstProfileVersion())
-        .sourceClaimId(existing.sourceClaimId())
-        .sourceReviewEventId(existing.sourceReviewEventId())
-        .sourceWorkflowEventId(existing.sourceWorkflowEventId())
-        .notes(encodeFollowUpSubmissionNotes(existing.notes(), normalizedAnswer, answeredAt))
-        .bulkApproval(false)
-        .build());
+    String answerJson = toFollowUpAnswerJson(existing, normalizedAnswer);
+    UUID submissionId = UUID.randomUUID();
+    UUID workflowEventId = appendCandidateFollowUpSubmittedEvent(
+        organizationId,
+        submissionId,
+        profile,
+        candidateRef,
+        candidateActorId,
+        formId,
+        targetFieldPath,
+        normalizedAnswer,
+        answeredAt);
+    FollowUpSubmissionService.FollowUpSubmission submission =
+        followUpSubmissionService.create(new FollowUpSubmissionService.CreateFollowUpSubmissionCommand(
+        submissionId,
+        organizationId,
+        profile.candidateId().value(),
+        profile.candidateProfileId().value(),
+        formId,
+        targetFieldPath,
+        answerJson,
+        "submitted",
+        candidateActorId,
+        workflowEventId,
+        "candidate portal follow-up submission",
+        answeredAt));
+    notificationService.createNotification(new NotificationService.CreateNotificationCommand(
+        organizationId,
+        candidateActorId,
+        PortalRole.CANDIDATE,
+        "candidate_follow_up_submitted",
+        "Follow-up submitted",
+        "Your answer was submitted and is now waiting for consultant review.",
+        "/candidate/follow-up/" + formId,
+        WorkflowEntityType.FOLLOW_UP_SUBMISSION.wireValue(),
+        submission.followUpSubmissionId(),
+        "candidate:" + candidateRef + ":follow-up:" + targetFieldPath,
+        null,
+        answeredAt));
+    candidateService.findCandidateByIdAndOrganizationId(organizationId, profile.candidateId())
+        .map(Candidate::ownerConsultantId)
+        .filter(Objects::nonNull)
+        .ifPresent(consultantActorId -> notificationService.createNotification(
+            new NotificationService.CreateNotificationCommand(
+                organizationId,
+                consultantActorId,
+                PortalRole.CONSULTANT,
+                "candidate_follow_up_submitted",
+                "Candidate follow-up submitted",
+                "A candidate follow-up answer for " + targetFieldPath + " is waiting for review.",
+                "/consultant/follow-ups",
+                WorkflowEntityType.FOLLOW_UP_SUBMISSION.wireValue(),
+                submission.followUpSubmissionId(),
+                "consultant:candidate:" + candidateRef + ":follow-up:" + targetFieldPath,
+                null,
+                answeredAt)));
     return buildFollowUpForm(organizationId, candidateRef, formId);
   }
 
@@ -622,6 +747,66 @@ public final class CandidatePortalQueryService {
         occurredAt));
   }
 
+  private UUID appendCandidateFollowUpSubmittedEvent(
+      UUID organizationId,
+      UUID submissionId,
+      CandidateProfile profile,
+      String candidateRef,
+      UUID candidateActorId,
+      String formId,
+      String fieldPath,
+      String answer,
+      Instant occurredAt) {
+    return workflowEventService.append(new WorkflowEventAppendCommand(
+        organizationId,
+        "operations",
+        new EntityRef(WorkflowEntityType.FOLLOW_UP_SUBMISSION.wireValue(), submissionId),
+        profile.profileVersion().value(),
+        WorkflowActionCode.CANDIDATE_FOLLOW_UP_SUBMITTED.wireValue(),
+        new WorkflowStateSnapshot(candidateFollowUpSubmissionState(formId, fieldPath, "pending_candidate_response")),
+        new WorkflowStateSnapshot(candidateFollowUpSubmissionState(formId, fieldPath, "submitted_for_consultant_review")),
+        new ActorRef(candidateActorId, ActorRole.CANDIDATE),
+        "candidate_portal",
+        profile.candidateProfileId().value(),
+        null,
+        null,
+        "Candidate submitted follow-up answer for " + fieldPath + ": " + answer,
+        new WorkflowIdempotencyKey(
+            "candidate-follow-up-submitted:"
+                + candidateRef + ":" + profile.profileVersion().value() + ":" + fieldPath + ":" + occurredAt),
+        null,
+        null,
+        occurredAt)).workflowEventId().value();
+  }
+
+  private CandidateNotificationResponse toCandidateNotification(NotificationService.NotificationRecord record) {
+    return new CandidateNotificationResponse(
+        record.notificationId().toString(),
+        record.notificationType(),
+        record.status(),
+        record.title(),
+        record.bodySummary(),
+        record.deepLink(),
+        record.entityType(),
+        record.entityId() == null ? null : record.entityId().toString(),
+        record.sourceRef(),
+        record.readAt() == null ? null : record.readAt().toString(),
+        record.dismissedAt() == null ? null : record.dismissedAt().toString(),
+        record.createdAt().toString(),
+        record.updatedAt().toString());
+  }
+
+  private CandidateNotificationPreferenceResponse toCandidateNotificationPreference(
+      NotificationService.NotificationPreferenceRecord preference) {
+    return new CandidateNotificationPreferenceResponse(
+        preference.inAppEnabled(),
+        preference.emailEnabled(),
+        preference.smsEnabled(),
+        preference.reminderEnabled(),
+        preference.unsubscribed(),
+        preference.updatedAt() == null ? null : preference.updatedAt().toString());
+  }
+
   private CandidateTimelineResponse.TimelineEvent toTimelineEvent(WorkflowAuditRecord record) {
     return new CandidateTimelineResponse.TimelineEvent(
         record.entityType().toLowerCase(),
@@ -658,15 +843,15 @@ public final class CandidatePortalQueryService {
         .orElseThrow(() -> new IllegalArgumentException("job_not_found"));
   }
 
-  private static boolean requiresCandidateFollowUp(CandidateProfileField field) {
-    if (hasPendingConsultantReviewSubmission(field)) {
+  private boolean requiresCandidateFollowUp(CandidateProfile profile, CandidateProfileField field) {
+    if (hasPendingConsultantReviewSubmission(profile, field)) {
       return false;
     }
     return hasFollowUpRequirement(field);
   }
 
-  private static boolean isCandidateVisibleFollowUpField(CandidateProfileField field) {
-    return hasFollowUpRequirement(field) || hasPendingConsultantReviewSubmission(field);
+  private boolean isCandidateVisibleFollowUpField(CandidateProfile profile, CandidateProfileField field) {
+    return hasFollowUpRequirement(field) || hasPendingConsultantReviewSubmission(profile, field);
   }
 
   private static boolean hasFollowUpRequirement(CandidateProfileField field) {
@@ -677,7 +862,7 @@ public final class CandidatePortalQueryService {
 
   private int countPendingFollowUps(CandidateProfile profile) {
     return (int) profile.fields().stream()
-        .filter(CandidatePortalQueryService::requiresCandidateFollowUp)
+        .filter(field -> requiresCandidateFollowUp(profile, field))
         .count();
   }
 
@@ -689,24 +874,23 @@ public final class CandidatePortalQueryService {
     return normalized;
   }
 
-  private CandidateFollowUpFormResponse.FollowUpItem toFollowUpItem(CandidateProfileField field) {
-    Optional<FollowUpSubmission> submission = parseFollowUpSubmission(field.notes());
+  private CandidateFollowUpFormResponse.FollowUpItem toFollowUpItem(
+      CandidateProfile profile,
+      CandidateProfileField field) {
+    Optional<FollowUpSubmissionService.FollowUpSubmission> submission = latestFollowUpSubmission(profile, field);
+    Instant lastUpdatedAt = submission.map(FollowUpSubmissionService.FollowUpSubmission::submittedAt)
+        .orElse(field.lastReviewedAt());
     return new CandidateFollowUpFormResponse.FollowUpItem(
         field.fieldPath().value(),
         followUpPrompt(field.fieldPath().value()),
         followUpInputType(field.fieldPath().value()),
-        submission.map(FollowUpSubmission::answer)
+        submission.map(item -> renderJsonValue(item.answerJson()))
             .orElse(firstNonBlank(renderJsonValue(field.value().jsonValue()), "Pending answer")),
         submission.isPresent() ? "submitted_for_consultant_review" : field.fieldStatus().wireValue(),
         field.lineage().sourceReferences().isEmpty()
             ? "unknown"
             : field.lineage().sourceReferences().get(0).sourceType().wireValue(),
-        submission.map(FollowUpSubmission::submittedAt)
-            .orElse(field.lastReviewedAt()) != null
-                ? submission.map(FollowUpSubmission::submittedAt)
-                    .orElse(field.lastReviewedAt())
-                    .toString()
-                : null);
+        lastUpdatedAt != null ? lastUpdatedAt.toString() : null);
   }
 
   private static String followUpPrompt(String fieldPath) {
@@ -754,48 +938,17 @@ public final class CandidatePortalQueryService {
     return OBJECT_MAPPER.valueToTree(answer).toString();
   }
 
-  private static boolean hasPendingConsultantReviewSubmission(CandidateProfileField field) {
-    return parseFollowUpSubmission(field.notes()).isPresent();
+  private boolean hasPendingConsultantReviewSubmission(CandidateProfile profile, CandidateProfileField field) {
+    return latestFollowUpSubmission(profile, field).isPresent();
   }
 
-  private static String encodeFollowUpSubmissionNotes(
-      String existingNotes,
-      String answer,
-      Instant submittedAt) {
-    ObjectNode root = OBJECT_MAPPER.createObjectNode();
-    root.put("kind", FOLLOW_UP_SUBMISSION_NOTE_KIND);
-    root.put("answer", answer);
-    root.put("submittedAt", submittedAt.toString());
-    if (existingNotes != null && !existingNotes.isBlank()) {
-      parseFollowUpSubmission(existingNotes)
-          .flatMap(FollowUpSubmission::baseNotes)
-          .or(() -> Optional.of(existingNotes))
-          .ifPresent(baseNotes -> root.put("baseNotes", baseNotes));
-    }
-    return root.toString();
-  }
-
-  private static Optional<FollowUpSubmission> parseFollowUpSubmission(String notes) {
-    if (notes == null || notes.isBlank()) {
-      return Optional.empty();
-    }
-    try {
-      JsonNode root = OBJECT_MAPPER.readTree(notes);
-      if (!FOLLOW_UP_SUBMISSION_NOTE_KIND.equals(root.path("kind").asText())) {
-        return Optional.empty();
-      }
-      String answer = root.path("answer").asText(null);
-      String submittedAt = root.path("submittedAt").asText(null);
-      if (answer == null || answer.isBlank() || submittedAt == null || submittedAt.isBlank()) {
-        return Optional.empty();
-      }
-      return Optional.of(new FollowUpSubmission(
-          answer,
-          Instant.parse(submittedAt),
-          root.hasNonNull("baseNotes") ? Optional.of(root.get("baseNotes").asText()) : Optional.empty()));
-    } catch (Exception exception) {
-      return Optional.empty();
-    }
+  private Optional<FollowUpSubmissionService.FollowUpSubmission> latestFollowUpSubmission(
+      CandidateProfile profile,
+      CandidateProfileField field) {
+    return followUpSubmissionService.findLatestForField(
+        profile.organizationId(),
+        profile.candidateProfileId().value(),
+        field.fieldPath().value());
   }
 
   private String resolveDisplayName(Optional<CandidateProfile> profile, String defaultDisplayName) {
@@ -980,6 +1133,17 @@ public final class CandidatePortalQueryService {
         .toString();
   }
 
+  private static String candidateFollowUpSubmissionState(
+      String formId,
+      String fieldPath,
+      String status) {
+    return OBJECT_MAPPER.createObjectNode()
+        .put("formId", formId)
+        .put("fieldPath", fieldPath)
+        .put("status", status)
+        .toString();
+  }
+
   private static String opportunityInterestState(String interactionId, String interestStatus) {
     return OBJECT_MAPPER.createObjectNode()
         .put("status", interestStatus)
@@ -992,9 +1156,4 @@ public final class CandidatePortalQueryService {
       String interestNote,
       Instant interestUpdatedAt,
       String fitExplanation) {}
-
-  private record FollowUpSubmission(
-      String answer,
-      Instant submittedAt,
-      Optional<String> baseNotes) {}
 }

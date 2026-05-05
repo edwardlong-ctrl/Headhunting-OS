@@ -137,6 +137,10 @@ public final class WorkflowActionRegistry {
             WorkflowActionCode.JOB_CLOSED,
             WorkflowActionCode.JOB_PAUSED,
             WorkflowActionCode.JOB_CANCELLED)));
+    policies.addAll(transitions(WorkflowEntityType.JOB, RiskTier.T2_MEDIUM_RISK,
+        List.of(
+            WorkflowActionCode.CLIENT_CLARIFICATION_REQUESTED,
+            WorkflowActionCode.CLIENT_CLARIFICATION_ANSWERED)));
 
     policies.addAll(transitions(WorkflowEntityType.CANDIDATE, RiskTier.T2_MEDIUM_RISK,
         List.of(
@@ -146,6 +150,11 @@ public final class WorkflowActionRegistry {
             WorkflowActionCode.CANDIDATE_MATCHED_TO_JOB,
             WorkflowActionCode.CANDIDATE_OUTREACH_STARTED,
             WorkflowActionCode.CANDIDATE_INTEREST_RECORDED)));
+    policies.add(transition(
+        WorkflowActionCode.CANDIDATE_FOLLOW_UP_SUBMITTED,
+        RiskTier.T2_MEDIUM_RISK,
+        "Candidate follow-up submission was recorded for consultant review.",
+        WorkflowEntityType.FOLLOW_UP_SUBMISSION));
     policies.addAll(transitions(WorkflowEntityType.CANDIDATE, RiskTier.T3_HIGH_RISK,
         List.of(
             WorkflowActionCode.CANDIDATE_MARKED_AVAILABLE,
@@ -277,6 +286,13 @@ public final class WorkflowActionRegistry {
         false,
         "Client-safe projection was blocked because re-identification risk could not be reduced. Recorded by the redaction system actor; downstream review still requires human attention.",
         WorkflowEntityType.REIDENTIFICATION_ASSESSMENT));
+    policies.add(auditOnly(
+        WorkflowActionCode.NOTIFICATION_REMINDER_TRIGGERED,
+        RiskTier.T1_LOW_RISK,
+        false,
+        false,
+        "Notification reminder execution was recorded.",
+        WorkflowEntityType.NOTIFICATION));
 
     return new WorkflowActionRegistry(policies.values());
   }

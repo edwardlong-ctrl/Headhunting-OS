@@ -20,6 +20,18 @@ public enum PortalRole {
     return wireValue;
   }
 
+  public static PortalRole fromWireValue(String wireValue) {
+    if (wireValue == null) {
+      return UNKNOWN;
+    }
+    for (PortalRole value : values()) {
+      if (value.wireValue.equalsIgnoreCase(wireValue)) {
+        return value;
+      }
+    }
+    return UNKNOWN;
+  }
+
   boolean isGovernanceOrAutomationRole() {
     return this == ADMIN || this == SYSTEM || this == AI_ASSISTANT;
   }

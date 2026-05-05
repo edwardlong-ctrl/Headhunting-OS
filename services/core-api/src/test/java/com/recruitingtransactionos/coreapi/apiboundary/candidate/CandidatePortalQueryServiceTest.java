@@ -42,6 +42,7 @@ import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentStatus;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
+import com.recruitingtransactionos.coreapi.followup.FollowUpSubmissionService;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
 import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteraction;
 import com.recruitingtransactionos.coreapi.interaction.CandidateCompanyInteractionId;
@@ -52,6 +53,7 @@ import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.notification.NotificationService;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowAiInvolvement;
 import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
@@ -59,7 +61,9 @@ import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditQuery;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendCommand;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventId;
+import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventAppendResult;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowStateSnapshot;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowAuditQueryService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
@@ -82,6 +86,7 @@ class CandidatePortalQueryServiceTest {
   private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-00000031aa02");
   private static final UUID PROFILE_ID = UUID.fromString("00000000-0000-0000-0000-00000031aa03");
   private static final UUID JOB_ID = UUID.fromString("00000000-0000-0000-0000-00000031aa04");
+  private static final UUID CONSULTANT_ID = UUID.fromString("00000000-0000-0000-0000-00000031aa05");
 
   @Mock private CandidateService candidateService;
   @Mock private CandidateProfileService candidateProfileService;
@@ -94,6 +99,8 @@ class CandidatePortalQueryServiceTest {
   @Mock private CandidateConsentWorkflowService candidateConsentWorkflowService;
   @Mock private ConsentRecordPort consentRecordPort;
   @Mock private WorkflowEventService workflowEventService;
+  @Mock private FollowUpSubmissionService followUpSubmissionService;
+  @Mock private NotificationService notificationService;
 
   private CandidatePortalQueryService service;
 
@@ -110,7 +117,9 @@ class CandidatePortalQueryServiceTest {
         companyService,
         candidateConsentWorkflowService,
         consentRecordPort,
-        workflowEventService);
+        workflowEventService,
+        followUpSubmissionService,
+        notificationService);
   }
 
   @Test
@@ -216,10 +225,34 @@ class CandidatePortalQueryServiceTest {
   void submitFollowUpAnswer_preservesCanonicalFieldAndLeavesConsultantGateIntact() {
     CandidateProfile initialProfile = candidateProfile(List.of(
         profileField("availability.notice_period", "30 days", CandidateProfileFieldStatus.NEEDS_CONFIRMATION, null, stale())));
+    when(candidateService.findCandidateByIdAndOrganizationId(ORGANIZATION_ID, new CandidateId(USER_ID)))
+        .thenReturn(Optional.of(candidate()));
     when(candidateProfileService.findCandidateProfileByCandidateIdAndOrganizationId(
         ORGANIZATION_ID, new CandidateId(USER_ID))).thenReturn(Optional.of(initialProfile), Optional.of(initialProfile));
-    when(candidateProfileService.upsertCandidateProfileField(any()))
-        .thenAnswer(invocation -> invocation.getArgument(0, UpsertCandidateProfileFieldRequest.class).toCandidateProfileField());
+    when(workflowEventService.append(any())).thenReturn(
+        new WorkflowEventAppendResult(new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-00000031aa99"))));
+    when(followUpSubmissionService.create(any())).thenAnswer(invocation -> {
+      FollowUpSubmissionService.CreateFollowUpSubmissionCommand command =
+          invocation.getArgument(0, FollowUpSubmissionService.CreateFollowUpSubmissionCommand.class);
+      return new FollowUpSubmissionService.FollowUpSubmission(
+          command.followUpSubmissionId(),
+          command.organizationId(),
+          command.candidateId(),
+          command.candidateProfileId(),
+          command.formId(),
+          command.fieldPath(),
+          command.answerJson(),
+          command.status(),
+          command.submittedByUserId(),
+          null,
+          command.workflowEventId(),
+          command.submittedAt(),
+          null,
+          command.notes(),
+          command.submittedAt(),
+          command.submittedAt(),
+          1);
+    });
 
     service.submitFollowUpAnswer(
         ORGANIZATION_ID,
@@ -229,16 +262,34 @@ class CandidatePortalQueryServiceTest {
         "availability.notice_period",
         "Available in 2 weeks");
 
-    ArgumentCaptor<UpsertCandidateProfileFieldRequest> captor =
-        ArgumentCaptor.forClass(UpsertCandidateProfileFieldRequest.class);
-    verify(candidateProfileService).upsertCandidateProfileField(captor.capture());
-    UpsertCandidateProfileFieldRequest request = captor.getValue();
-    assertThat(request.value().jsonValue()).isEqualTo("\"30 days\"");
-    assertThat(request.fieldStatus()).isEqualTo(CandidateProfileFieldStatus.NEEDS_CONFIRMATION);
-    assertThat(request.confirmedByActorId()).isNull();
-    assertThat(request.notes()).contains("candidate_follow_up_submission");
-    assertThat(request.notes()).contains("Available in 2 weeks");
-    verify(workflowEventService, never()).append(any());
+    verify(candidateProfileService, never()).upsertCandidateProfileField(any());
+    ArgumentCaptor<WorkflowEventAppendCommand> workflowEventCaptor =
+        ArgumentCaptor.forClass(WorkflowEventAppendCommand.class);
+    verify(workflowEventService).append(workflowEventCaptor.capture());
+    ArgumentCaptor<FollowUpSubmissionService.CreateFollowUpSubmissionCommand> submissionCaptor =
+        ArgumentCaptor.forClass(FollowUpSubmissionService.CreateFollowUpSubmissionCommand.class);
+    verify(followUpSubmissionService).create(submissionCaptor.capture());
+    ArgumentCaptor<NotificationService.CreateNotificationCommand> notificationCaptor =
+        ArgumentCaptor.forClass(NotificationService.CreateNotificationCommand.class);
+    verify(notificationService, times(2)).createNotification(notificationCaptor.capture());
+    UUID submissionId = submissionCaptor.getValue().followUpSubmissionId();
+    assertThat(notificationCaptor.getAllValues()).anySatisfy(command -> {
+      assertThat(command.recipientUserAccountId()).isEqualTo(USER_ID);
+      assertThat(command.recipientPortalRole()).isEqualTo(com.recruitingtransactionos.coreapi.identityaccess.PortalRole.CANDIDATE);
+      assertThat(command.entityType()).isEqualTo(WorkflowEntityType.FOLLOW_UP_SUBMISSION.wireValue());
+      assertThat(command.entityId()).isEqualTo(submissionId);
+    });
+    assertThat(notificationCaptor.getAllValues()).anySatisfy(command -> {
+      assertThat(command.recipientUserAccountId()).isEqualTo(CONSULTANT_ID);
+      assertThat(command.recipientPortalRole()).isEqualTo(com.recruitingtransactionos.coreapi.identityaccess.PortalRole.CONSULTANT);
+      assertThat(command.notificationType()).isEqualTo("candidate_follow_up_submitted");
+      assertThat(command.deepLink()).isEqualTo("/consultant/follow-ups");
+      assertThat(command.entityId()).isEqualTo(submissionId);
+    });
+    assertThat(workflowEventCaptor.getValue().entity().entityType())
+        .isEqualTo(WorkflowEntityType.FOLLOW_UP_SUBMISSION.wireValue());
+    assertThat(workflowEventCaptor.getValue().entity().entityId())
+        .isEqualTo(submissionId);
   }
 
   @Test
@@ -335,6 +386,7 @@ class CandidatePortalQueryServiceTest {
         .status(CandidateStatus.CONSENT_PENDING)
         .currentProfileId(new CandidateProfileId(PROFILE_ID))
         .privacyStatus("internal_only")
+        .ownerConsultantId(CONSULTANT_ID)
         .createdAt(now)
         .updatedAt(now)
         .build();

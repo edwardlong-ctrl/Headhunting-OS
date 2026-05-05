@@ -18,7 +18,9 @@ public enum WorkflowEntityType {
   CANONICAL_WRITE,
   INFORMATION_PACKET,
   SOURCE_ITEM,
-  REIDENTIFICATION_ASSESSMENT;
+  REIDENTIFICATION_ASSESSMENT,
+  FOLLOW_UP_SUBMISSION,
+  NOTIFICATION;
 
   public String wireValue() {
     return name();

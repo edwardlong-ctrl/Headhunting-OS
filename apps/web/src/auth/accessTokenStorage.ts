@@ -1,4 +1,9 @@
 import { clearPortalSession, loadPortalSession, savePortalSession } from "./authSessionStorage";
+import {
+  clearScopedPortalSession,
+  loadScopedPortalSession,
+  saveScopedPortalSession,
+} from "./scopedPortalSessionStorage";
 
 export type AccessTokenScope = "consultant" | "client" | "candidate";
 
@@ -15,9 +20,15 @@ export function loadAccessToken(scope: AccessTokenScope): string | null {
     return null;
   }
   if (scope === "candidate") {
-    return normalizeAccessToken(window.localStorage.getItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY));
+    return normalizeAccessToken(
+      loadScopedPortalSession("candidate")?.accessToken
+        ?? window.localStorage.getItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY),
+    );
   }
-  return normalizeAccessToken(window.localStorage.getItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY));
+  return normalizeAccessToken(
+    loadScopedPortalSession("client")?.accessToken
+      ?? window.localStorage.getItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY),
+  );
 }
 
 export function saveAccessToken(accessToken: string, scope: AccessTokenScope): void {
@@ -29,8 +40,10 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
     if (scope === "consultant") {
       clearPortalSession();
     } else if (scope === "candidate") {
+      clearScopedPortalSession("candidate");
       window.localStorage.removeItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY);
     } else {
+      clearScopedPortalSession("client");
       window.localStorage.removeItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY);
       window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
     }
@@ -47,8 +60,22 @@ export function saveAccessToken(accessToken: string, scope: AccessTokenScope): v
     return;
   }
   if (scope === "candidate") {
+    const current = loadScopedPortalSession("candidate");
+    if (current) {
+      saveScopedPortalSession("candidate", {
+        ...current,
+        accessToken: normalized,
+      });
+    }
     window.localStorage.setItem(CANDIDATE_ACCESS_TOKEN_STORAGE_KEY, normalized);
     return;
+  }
+  const current = loadScopedPortalSession("client");
+  if (current) {
+    saveScopedPortalSession("client", {
+      ...current,
+      accessToken: normalized,
+    });
   }
   window.localStorage.setItem(CLIENT_ACCESS_TOKEN_STORAGE_KEY, normalized);
   window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
