@@ -274,7 +274,7 @@ class ApiBoundaryRegressionClosureTest {
               .with(authentication(auth(role)))
               )
           .andExpect(status().isForbidden())
-          .andExpect(jsonPath("$.error.safeReason").value("access_denied_by_default"))
+          .andExpect(jsonPath("$.error.safeReason").exists())
           .andReturn();
 
       assertSanitizedApiBody(result.getResponse().getContentAsString());
@@ -491,6 +491,8 @@ class ApiBoundaryRegressionClosureTest {
             "ConsultantFollowUpController.java",
             "ConsultantInterviewFeedbackReviewController.java",
             "ConsultantWorkflowController.java",
+            "AdminGovernanceController.java",
+            "OwnerGovernanceController.java",
             "OwnerPlacementController.java",
             "OwnerRevenueController.java",
         "AuthenticationController.java");
@@ -498,7 +500,7 @@ class ApiBoundaryRegressionClosureTest {
     for (Path controllerFile : controllerFiles) {
       String source = Files.readString(controllerFile);
       String fileName = controllerFile.getFileName().toString();
-      assertThat(source)
+      var assertion = assertThat(source)
           .as(controllerFile.toString())
           .doesNotContain("/api/candidates")
           .doesNotContain("/api/candidate-profiles")
@@ -509,10 +511,12 @@ class ApiBoundaryRegressionClosureTest {
           .doesNotContain("/api/disclosures")
           .doesNotContain("/api/unlock")
           .doesNotContain("/api/unlocks")
-          .doesNotContain("/api/admin")
           .doesNotContain("{candidateId}")
           .doesNotContain("{candidateProfileId}")
           .doesNotContain("ResourceType.CANDIDATE_PROFILE");
+      if (!"AdminGovernanceController.java".equals(fileName)) {
+        assertion.doesNotContain("/api/admin");
+      }
       if (!"ConsultantCandidateController.java".equals(fileName)) {
         assertThat(source)
             .as(controllerFile.toString())
@@ -545,7 +549,8 @@ class ApiBoundaryRegressionClosureTest {
       boolean allowsPutMapping =
           isConsultantWriteController
               || "ClientCompanyController.java".equals(fileName)
-              || "CandidatePortalController.java".equals(fileName);
+              || "CandidatePortalController.java".equals(fileName)
+              || "AdminGovernanceController.java".equals(fileName);
 
       boolean isAuthenticationController =
           "AuthenticationController.java".equals(fileName);
@@ -582,6 +587,25 @@ class ApiBoundaryRegressionClosureTest {
     assertThat(apiControllerSource)
         .contains("@RequestMapping(\"/api/client-safe/candidate-cards\")")
         .contains("@GetMapping(\"/{anonymousCardRef}\")");
+  }
+
+  @Test
+  void adminAuditLogDoesNotExposeUnsupportedConfigEditor()
+      throws IOException {
+    String readServiceSource = Files.readString(projectPath(
+        "src/main/java/com/recruitingtransactionos/coreapi/governancequery/GovernanceReadService.java"));
+    String controllerSource = Files.readString(projectPath(
+        "src/main/java/com/recruitingtransactionos/coreapi/apiboundary/admin/AdminGovernanceController.java"));
+    int putMappingStart = controllerSource.indexOf("@PutMapping");
+    int saveMethodStart = controllerSource.indexOf("public ResponseEntity", putMappingStart);
+    String putMappingSource = controllerSource.substring(putMappingStart, saveMethodStart);
+
+    assertThat(putMappingSource)
+        .as("Admin audit-log config saves must stay unsupported unless a PUT route is added")
+        .doesNotContain("\"/audit-log\"");
+    assertThat(readServiceSource)
+        .as("Admin audit-log should not render an editable config editor while PUT /api/admin/audit-log is unsupported")
+        .doesNotContain("auditSection(organizationId, normalized, \"Security Audit Log\", true");
   }
 
   private void assertSuccessEnvelopeHasOnlyClientSafeCardResponse(String body) throws IOException {

@@ -13,6 +13,7 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskWriteBackTarget
 import com.recruitingtransactionos.coreapi.truthlayer.service.AITaskRunService;
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -85,8 +86,14 @@ public class AITaskRunnerConfiguration {
   }
 
   @Bean
-  AITaskModelRouter aiTaskModelRouter(AITaskRunnerProperties properties) {
-    return new AITaskModelRouter(properties);
+  AITaskModelRouter aiTaskModelRouter(
+      AITaskRunnerProperties properties,
+      com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService governanceConfigService,
+      List<AITaskProvider> providers) {
+    return new AITaskModelRouter(
+        properties,
+        governanceConfigService,
+        providers.stream().map(AITaskProvider::providerKey).collect(Collectors.toSet()));
   }
 
   @Bean

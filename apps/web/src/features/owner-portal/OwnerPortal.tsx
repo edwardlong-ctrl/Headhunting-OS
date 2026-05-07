@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { login, type AuthSession } from "../../api/auth";
+import { fetchOwnerGovernanceSection, type GovernanceSection } from "../../api/governance";
 import { fetchOwnerRevenueSummary, type OwnerRevenueSummary } from "../../api/ownerRevenue";
 import { listOwnerCommission, listOwnerPlacements, type OwnerCommission, type OwnerPlacement } from "../../api/ownerPlacements";
 import { type ApiResult, type PagedResult } from "../../api/http";
@@ -10,6 +11,15 @@ import { loadOwnerSession, saveOwnerSession, signOutOwnerSession } from "./owner
 const DEFAULT_PAGE_SIZE = 10;
 
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
+type GovernanceSectionKey =
+  | "dashboard"
+  | "pipeline"
+  | "consultants"
+  | "clients"
+  | "risk"
+  | "data-quality"
+  | "ai-quality"
+  | "audit";
 
 function useLoadable<T>(loader: () => Promise<ApiResult<T>>, deps: unknown[]): Loadable<T> {
   const [state, setState] = useState<Loadable<T>>({ status: "loading" });
@@ -139,9 +149,17 @@ function PortalShell({ title, eyebrow, children }: { title: string; eyebrow: str
         <h1>{title}</h1>
       </header>
       <nav className="portal-nav" aria-label="Owner sections">
+        <NavLink to="/owner/dashboard">Dashboard</NavLink>
+        <NavLink to="/owner/pipeline">Pipeline</NavLink>
+        <NavLink to="/owner/consultants">Consultants</NavLink>
+        <NavLink to="/owner/clients">Clients</NavLink>
         <NavLink to="/owner/placements">Placements</NavLink>
         <NavLink to="/owner/commission">Commission</NavLink>
         <NavLink to="/owner/revenue">Revenue</NavLink>
+        <NavLink to="/owner/risk">Risk</NavLink>
+        <NavLink to="/owner/data-quality">Data Quality</NavLink>
+        <NavLink to="/owner/ai-quality">AI Quality</NavLink>
+        <NavLink to="/owner/audit">Audit</NavLink>
       </nav>
       <div className="workspace-stack">{children}</div>
     </section>
@@ -366,6 +384,61 @@ function OwnerRevenuePage() {
   ));
 }
 
+function OwnerGovernanceSectionPage({ sectionKey }: { sectionKey: GovernanceSectionKey }) {
+  const state = useLoadable(() => fetchOwnerGovernanceSection(sectionKey), [sectionKey]);
+
+  return renderLoadable(state, (section: GovernanceSection) => (
+    <section className="portal-panel">
+      <div className="section-header">
+        <div>
+          <span className="portal-eyebrow">{section.sectionKey}</span>
+          <h2>{section.title}</h2>
+          <p className="helper-copy">{section.description}</p>
+        </div>
+        <StatusBadge value={section.editable ? "editable" : "read-only"} />
+      </div>
+      <div className="portal-grid" aria-label={`${section.title} metrics`}>
+        {section.metrics.map((metric) => (
+          <section key={metric.key} className="portal-panel">
+            <span className="portal-eyebrow">{metric.label}</span>
+            <h3>{metric.value}</h3>
+            <p className="helper-copy">{metric.helperText}</p>
+          </section>
+        ))}
+      </div>
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Records</span>
+            <h3>Recent governance rows</h3>
+          </div>
+        </div>
+        {section.items.length === 0 ? (
+          <p className="helper-copy">No rows returned.</p>
+        ) : (
+          <div className="stack-form">
+            {section.items.map((item, index) => (
+              <article key={`${item.primaryText}-${index}`} className="portal-panel">
+                <div className="section-header">
+                  <div>
+                    <h3>{item.primaryText}</h3>
+                    <p className="helper-copy">{item.secondaryText}</p>
+                  </div>
+                  <StatusBadge value={item.status} />
+                </div>
+                <p className="helper-copy">{item.detail}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+      {section.warnings.map((warning) => (
+        <p key={warning} className="helper-copy">{warning}</p>
+      ))}
+    </section>
+  ));
+}
+
 export function OwnerPortal() {
   const [session, setSession] = useState<AuthSession | null>(() => loadOwnerSession());
   const [signingOut, setSigningOut] = useState(false);
@@ -413,11 +486,19 @@ export function OwnerPortal() {
         {signOutError ? <p className="helper-copy">{signOutError}</p> : null}
       </section>
       <Routes>
-        <Route path="/" element={<Navigate to="placements" replace />} />
+        <Route path="/" element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<OwnerGovernanceSectionPage sectionKey="dashboard" />} />
+        <Route path="pipeline" element={<OwnerGovernanceSectionPage sectionKey="pipeline" />} />
+        <Route path="consultants" element={<OwnerGovernanceSectionPage sectionKey="consultants" />} />
+        <Route path="clients" element={<OwnerGovernanceSectionPage sectionKey="clients" />} />
         <Route path="placements" element={<OwnerPlacementsPage />} />
         <Route path="commission" element={<OwnerCommissionPage />} />
         <Route path="revenue" element={<OwnerRevenuePage />} />
-        <Route path="*" element={<Navigate to="placements" replace />} />
+        <Route path="risk" element={<OwnerGovernanceSectionPage sectionKey="risk" />} />
+        <Route path="data-quality" element={<OwnerGovernanceSectionPage sectionKey="data-quality" />} />
+        <Route path="ai-quality" element={<OwnerGovernanceSectionPage sectionKey="ai-quality" />} />
+        <Route path="audit" element={<OwnerGovernanceSectionPage sectionKey="audit" />} />
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Routes>
     </PortalShell>
   );

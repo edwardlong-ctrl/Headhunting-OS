@@ -1,6 +1,6 @@
 import type { AuthSession } from "../api/auth";
 
-export type ScopedPortalScope = "candidate" | "client" | "owner";
+export type ScopedPortalScope = "candidate" | "client" | "owner" | "admin";
 
 export type ScopedPortalSession = AuthSession;
 
@@ -8,6 +8,7 @@ const STORAGE_KEYS: Record<ScopedPortalScope, string> = {
   candidate: "rto.candidatePortalSession",
   client: "rto.clientPortalSession",
   owner: "rto.ownerPortalSession",
+  admin: "rto.adminPortalSession",
 };
 
 export function loadScopedPortalSession(scope: ScopedPortalScope): ScopedPortalSession | null {
@@ -27,7 +28,13 @@ export function loadScopedPortalSession(scope: ScopedPortalScope): ScopedPortalS
       organizationId: parsed.organizationId ?? "",
       userAccountId: parsed.userAccountId,
       displayName: parsed.displayName ?? (
-        scope === "candidate" ? "Candidate" : scope === "client" ? "Client" : "Owner"
+        scope === "candidate"
+          ? "Candidate"
+          : scope === "client"
+            ? "Client"
+            : scope === "owner"
+              ? "Owner"
+              : "Admin"
       ),
       portalRole: parsed.portalRole,
       tokenType: parsed.tokenType ?? "Bearer",

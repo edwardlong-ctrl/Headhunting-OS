@@ -56,7 +56,7 @@ public final class AITaskRunnerService {
     Objects.requireNonNull(request, "request must not be null");
     AITaskDefinition definition = definitionRegistry.findRequired(request.taskKey(), request.taskVersion());
     schemaValidator.validate(definition.inputSchemaResourcePath(), request.inputPayload(), "input");
-    AITaskModelRoute modelRoute = modelRouter.routeFor(definition.taskKey());
+    AITaskModelRoute modelRoute = modelRouter.routeFor(request.organizationId(), definition.taskKey());
     definitionCatalog.ensureRegistered(request.organizationId(), definition, modelRoute);
     AITaskProvider provider = requireProvider(modelRoute.providerKey());
     String prompt = promptRegistry.loadPrompt(definition);

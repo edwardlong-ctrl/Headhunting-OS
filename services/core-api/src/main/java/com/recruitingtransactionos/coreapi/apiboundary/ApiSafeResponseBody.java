@@ -62,4 +62,6 @@ public sealed interface ApiSafeResponseBody
         OwnerPlacementSummaryResponse,
         OwnerCommissionSummaryResponse,
         OwnerRevenueSummaryResponse,
+        GovernanceSectionResponse,
+        GovernanceConfigUpdateResponse,
         PagedResult {}

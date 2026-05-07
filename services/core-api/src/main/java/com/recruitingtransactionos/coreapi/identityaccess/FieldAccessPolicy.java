@@ -56,6 +56,10 @@ public final class FieldAccessPolicy {
       return decideOwnerAccess(request);
     }
 
+    if (request.actorRole() == PortalRole.ADMIN || request.actorRole() == PortalRole.SYSTEM) {
+      return decideAdminAccess(request);
+    }
+
     return deny(
         "access_denied_by_default",
         "No allow rule exists for this role, action, resource, and field classification.");
@@ -271,7 +275,11 @@ public final class FieldAccessPolicy {
     }
     if (request.resourceType() != ResourceType.PLACEMENT
         && request.resourceType() != ResourceType.COMMISSION
-        && request.resourceType() != ResourceType.REVENUE_REPORT) {
+        && request.resourceType() != ResourceType.REVENUE_REPORT
+        && request.resourceType() != ResourceType.REVIEW_EVENT
+        && request.resourceType() != ResourceType.WORKFLOW_EVENT
+        && request.resourceType() != ResourceType.CLAIM_LEDGER_ITEM
+        && request.resourceType() != ResourceType.ADMIN_GOVERNANCE) {
       return deny(
           "access_denied_by_default",
           "No owner allow rule exists for this request.");
@@ -289,6 +297,39 @@ public final class FieldAccessPolicy {
     }
     return AccessDecision.allow(
         "owner_reporting_read_allowed",
-        "Owner role may read same-organization placement, commission, and revenue reporting views.");
+        "Owner role may read same-organization operating and governance reporting views.");
+  }
+
+  private static AccessDecision decideAdminAccess(AccessRequest request) {
+    if (!request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+      return deny(
+          "admin_same_org_scope_required",
+          "Admin governance access is limited to same-organization resources.");
+    }
+    if (request.resourceType() == ResourceType.ADMIN_GOVERNANCE
+        && (request.action() == AccessAction.READ
+            || request.action() == AccessAction.CREATE
+            || request.action() == AccessAction.UPDATE
+            || request.action() == AccessAction.APPROVE)
+        && (request.fieldClassification() == FieldClassification.INTERNAL
+            || request.fieldClassification() == FieldClassification.SYSTEM_GOVERNANCE)) {
+      return AccessDecision.allow(
+          "admin_governance_allowed",
+          "Admin role may read and update same-organization governance configuration surfaces.");
+    }
+    if (request.action() == AccessAction.READ
+        && (request.resourceType() == ResourceType.REVIEW_EVENT
+            || request.resourceType() == ResourceType.WORKFLOW_EVENT
+            || request.resourceType() == ResourceType.CLAIM_LEDGER_ITEM
+            || request.resourceType() == ResourceType.REVENUE_REPORT)
+        && (request.fieldClassification() == FieldClassification.INTERNAL
+            || request.fieldClassification() == FieldClassification.SYSTEM_GOVERNANCE)) {
+      return AccessDecision.allow(
+          "admin_governance_read_allowed",
+          "Admin role may read same-organization governance facts and audit views.");
+    }
+    return deny(
+        "access_denied_by_default",
+        "No admin allow rule exists for this request.");
   }
 }

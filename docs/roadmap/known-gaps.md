@@ -72,7 +72,7 @@
 - Remaining gaps:
   - The curated company / chip vocabulary is intentionally narrow; v1 prioritizes the acceptance scenario. Production rollout will need a maintained vocabulary pack — likely as part of the industry-pack baseline (Task 28 follow-up).
   - The risk score is hand-curated weights, not a learned classifier. v1 chose policy-as-code for explainability and audit; a future task may introduce calibrated scoring once outcome-label feedback is available.
-  - No admin UI exists for browsing / re-querying persisted assessments. The Postgres rows + `findRecentByCandidateCardId` are sufficient for backend tooling but not for consultant or admin self-service review.
+  - Task 37 adds the first Admin governance UI and API surface, including privacy-redaction visibility inside the real Admin portal, but deeper assessment browsing, richer filtering, and dedicated persisted-assessment re-query tooling still remain follow-up work.
 
 ## Task 20 Document Storage v1 Baseline; Full Document Management Deferred
 
@@ -105,7 +105,7 @@
   - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from document parsing outputs yet.
   - No client-safe evidence exposure yet.
   - Task 23 backend/API plus Task 24 now add governed AI extraction, clean-fact generation, and the first consultant-facing upload/review/publish UI, but broader productization still remains: no async worker orchestration, no automatic reviewer workflow, and no broader company/job canonical publish path.
-  - No automatic human review workflow, AI governance API/UI, or broader product integration yet.
+  - No automatic human review workflow or broader AI product integration yet. Task 37 now adds the first owner/admin governance API/UI and admin-side AI governance workbench surface, but deeper runtime execution control, richer task-level replay tooling, and automatic reviewer orchestration remain future work.
   - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
 
 ## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Task 28 Seeds One Real Industry Pack; Broader Matching Engine Still Deferred
@@ -241,7 +241,7 @@
 - Task 10C strengthens `packages/contracts/schemas/ai-task-run.schema.json` so write-back target and human-review status vocabularies are explicit metadata-only schema vocabulary, not executable write-back or approval behavior.
 - Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract exists, AITaskRun metadata persistence exists, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back, and no canonical mutation.
 - Task 21 adds the first real AI execution baseline on top of that governance kernel: prompt registry, schema validator, model router, DeepSeek provider adapter, replay, and two audited executable tasks.
-- Broader AI gaps remain: no document intelligence/OCR/text extraction, no AI task queue/worker, no retries scheduler, no actual write-back execution, no AI governance API/UI, no automatic human review workflow, and no canonical write execution from AI governance.
+- Broader AI gaps remain: no document intelligence/OCR/text extraction, no AI task queue/worker, no retries scheduler, no actual write-back execution, no automatic human review workflow, and no canonical write execution from AI governance. Task 37 now adds the first owner/admin governance API/UI surface and governance-config workbench, but not full AI runtime control-plane productization.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 
@@ -336,7 +336,7 @@
 - Workflow mutation still remains service-owned; Task 26 does not introduce a generic engine that directly mutates arbitrary entity rows.
 - No SLA/automation workflow engine exists yet.
 - No due-date placeholder, reminder queue, or automatic escalation behavior exists yet.
-- Owner/Admin workflow analytics and broader cross-portal workflow surfaces remain future work.
+- Task 37 now adds the first Owner/Admin workflow analytics and cross-portal governance surfaces, but broader workflow drill-down depth, automation-aware operating views, and richer cross-portal workflow control remain future work.
 - Task 5 governed-intake minimal slice exists, but the broader governed intake orchestration engine remains future work.
 
 ## Workflow Read Model Remaining Gaps

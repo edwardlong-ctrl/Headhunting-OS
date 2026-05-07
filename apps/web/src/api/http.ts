@@ -140,6 +140,9 @@ function loadSessionForScope(scope: AccessTokenScope): AuthRefreshSession | null
   if (scope === "owner") {
     return loadScopedPortalSession("owner");
   }
+  if (scope === "admin") {
+    return loadScopedPortalSession("admin");
+  }
   return loadScopedPortalSession("client");
 }
 
@@ -154,6 +157,10 @@ function saveSessionForScope(scope: AccessTokenScope, session: AuthRefreshSessio
   }
   if (scope === "owner") {
     saveScopedPortalSession("owner", session);
+    return;
+  }
+  if (scope === "admin") {
+    saveScopedPortalSession("admin", session);
     return;
   }
   saveScopedPortalSession("client", session);
@@ -171,6 +178,10 @@ function clearSessionForScope(scope: AccessTokenScope): void {
   }
   if (scope === "owner") {
     clearScopedPortalSession("owner");
+    return;
+  }
+  if (scope === "admin") {
+    clearScopedPortalSession("admin");
     return;
   }
   clearScopedPortalSession("client");

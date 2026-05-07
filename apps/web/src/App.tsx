@@ -8,6 +8,7 @@ import {
 import { ClientPortal } from "./features/client-portal/ClientPortal";
 import { CandidatePortal } from "./features/candidate-portal/CandidatePortal";
 import { ConsultantPortal } from "./features/consultant-portal/ConsultantPortal";
+import { AdminPortal } from "./features/admin-portal/AdminPortal";
 import { OwnerPortal } from "./features/owner-portal/OwnerPortal";
 
 type PortalKey = "owner" | "consultant" | "client" | "candidate" | "admin";
@@ -132,7 +133,8 @@ export default function App() {
   const location = useLocation();
   const fullPortalRouteActive = location.pathname.startsWith("/owner")
     || location.pathname.startsWith("/consultant")
-    || location.pathname.startsWith("/client");
+    || location.pathname.startsWith("/client")
+    || location.pathname.startsWith("/admin");
 
   return (
     <div className={`app-shell${fullPortalRouteActive ? " app-shell-consultant" : ""}`}>
@@ -157,7 +159,7 @@ export default function App() {
           <Route path="/consultant/*" element={<ConsultantPortal />} />
           <Route path="/client/*" element={<ClientPortal />} />
           <Route path="/candidate/*" element={<CandidatePortal />} />
-          <Route path="/admin/*" element={<StaticPortal portalKey="admin" />} />
+          <Route path="/admin/*" element={<AdminPortal />} />
           <Route path="*" element={<Navigate to="/consultant" replace />} />
         </Routes>
       </main>
