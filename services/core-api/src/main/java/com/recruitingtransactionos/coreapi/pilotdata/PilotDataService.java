@@ -561,6 +561,7 @@ public final class PilotDataService {
         UUID sourceItemId = sourceDocumentIds.get(candidate.sourceDocumentRef());
         CandidateProfileId profileId = candidateProfileService.createCandidateProfile(new CreateCandidateProfileRequest(
             dataset.organization().organizationId(),
+            new CandidateProfileId(UUID.fromString(candidate.profileId())),
             typedCandidateId,
             new CandidateProfileVersion(1),
             candidateProfileFields(candidate, sourceItemId, ownerConsultantId)))

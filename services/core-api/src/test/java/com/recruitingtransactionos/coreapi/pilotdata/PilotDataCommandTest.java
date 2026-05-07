@@ -51,6 +51,16 @@ class PilotDataCommandTest {
   }
 
   @Test
+  void pilotDataShellScriptCompilesCliBeforeRunningExecJava()
+      throws IOException {
+    String script = Files.readString(Path.of("../../scripts/pilot-data.sh"));
+
+    assertThat(script).contains("compile");
+    assertThat(script.indexOf("compile"))
+        .isLessThan(script.indexOf("org.codehaus.mojo:exec-maven-plugin"));
+  }
+
+  @Test
   void pilotDataProductionCodeOnlyUsesDirectSqlForIdentityBootstrapAndResetCleanup()
       throws IOException {
     Pattern writePattern = Pattern.compile(

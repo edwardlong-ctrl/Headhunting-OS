@@ -25,7 +25,9 @@ public final class CandidateProfileService {
     Objects.requireNonNull(request, "request must not be null");
     Instant now = Instant.now();
     CandidateProfile candidateProfile = CandidateProfile.builder()
-        .candidateProfileId(new CandidateProfileId(UUID.randomUUID()))
+        .candidateProfileId(request.candidateProfileId() != null
+            ? request.candidateProfileId()
+            : new CandidateProfileId(UUID.randomUUID()))
         .organizationId(request.organizationId())
         .candidateId(request.candidateId())
         .profileVersion(request.profileVersion())

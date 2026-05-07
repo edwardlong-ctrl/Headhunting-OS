@@ -10,4 +10,5 @@ exec mvn \
   -DskipTests \
   -Dexec.mainClass=com.recruitingtransactionos.coreapi.pilotdata.PilotDataCliApplication \
   -Dexec.args="${COMMAND}" \
+  compile \
   org.codehaus.mojo:exec-maven-plugin:3.5.0:java
