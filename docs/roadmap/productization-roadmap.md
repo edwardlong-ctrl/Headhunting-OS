@@ -688,7 +688,7 @@ shortlists, request unlock, and submit feedback.
 
 Current baseline:
 
-- Client dashboard, manual job creation, clarification, shortlist review, anonymous candidate detail, unlock request capture, feedback submission, and client profile/preferences are implemented in the current worktree state.
+- Client dashboard, manual job creation, clarification, shortlist review, anonymous candidate detail, unlock request capture, feedback submission, and client profile/preferences are implemented in the current main baseline.
 - Unlock remains request-only in this task; final identity disclosure release still belongs to Task 33.
 - JD upload remains deferred; the current intake path is manual job submission plus clarification.
 
@@ -760,7 +760,7 @@ Goal: Make the system push workflow tasks instead of relying on manual refresh.
 
 Current execution note:
 
-- In the current worktree, Task 34 has now been completed together with the remaining candidate-facing portal auth/session hardening and profile-participation closure work from the Task 31/19 follow-up stream. That combined slice was intentional: candidate/client reminders became useful only once candidate/client portal sessions could refresh and logout safely, candidate follow-up submissions created explicit review tasks instead of mutating facts, and the resulting reminders became visible inside the candidate/client/consultant portals with workflow audit coverage.
+- Task 34 has been completed on main together with the remaining candidate-facing portal auth/session hardening and profile-participation closure work from the Task 31/19 follow-up stream. That combined slice was intentional: candidate/client reminders became useful only once candidate/client portal sessions could refresh and logout safely, candidate follow-up submissions created explicit review tasks instead of mutating facts, and the resulting reminders became visible inside the candidate/client/consultant portals with workflow audit coverage.
 
 Must deliver:
 
