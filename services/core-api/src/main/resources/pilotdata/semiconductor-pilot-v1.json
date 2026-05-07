@@ -1,0 +1,104 @@
+{
+  "version": "semiconductor-pilot-v1",
+  "organization": {
+    "organizationId": "00000000-0000-0000-0000-000000380001",
+    "legalName": "Pilot Semiconductor Recruiting OS Example",
+    "displayName": "Pilot Semiconductor Recruiting OS",
+    "defaultTimezone": "Asia/Shanghai"
+  },
+  "consultantUserAccountId": "00000000-0000-0000-0000-000000380102",
+  "candidateCount": 75,
+  "activeJobCount": 5,
+  "underReviewJobCount": 3,
+  "accounts": [
+    {
+      "userAccountId": "00000000-0000-0000-0000-000000380101",
+      "email": "owner@pilot.example.test",
+      "displayName": "Pilot Owner",
+      "role": "owner",
+      "password": "PilotData38!"
+    },
+    {
+      "userAccountId": "00000000-0000-0000-0000-000000380102",
+      "email": "consultant@pilot.example.test",
+      "displayName": "Pilot Consultant",
+      "role": "consultant",
+      "password": "PilotData38!"
+    },
+    {
+      "userAccountId": "00000000-0000-0000-0000-000000380103",
+      "email": "client@pilot.example.test",
+      "displayName": "Pilot Client",
+      "role": "client",
+      "password": "PilotData38!"
+    },
+    {
+      "userAccountId": "00000000-0000-0000-0000-000000380104",
+      "email": "candidate@pilot.example.test",
+      "displayName": "Pilot Candidate",
+      "role": "candidate",
+      "password": "PilotData38!"
+    },
+    {
+      "userAccountId": "00000000-0000-0000-0000-000000380105",
+      "email": "admin@pilot.example.test",
+      "displayName": "Pilot Admin",
+      "role": "admin",
+      "password": "PilotData38!"
+    }
+  ],
+  "companies": [
+    {
+      "companyId": "00000000-0000-0000-0000-000000380201",
+      "name": "Pilot Aurora Micro Systems",
+      "industry": "semiconductor",
+      "headquartersLocation": "Shanghai",
+      "sizeBand": "1000-5000"
+    },
+    {
+      "companyId": "00000000-0000-0000-0000-000000380202",
+      "name": "Pilot Vector Silicon Labs",
+      "industry": "semiconductor",
+      "headquartersLocation": "Singapore",
+      "sizeBand": "500-1000"
+    },
+    {
+      "companyId": "00000000-0000-0000-0000-000000380203",
+      "name": "Pilot Northstar Chip Design",
+      "industry": "semiconductor",
+      "headquartersLocation": "Austin",
+      "sizeBand": "200-500"
+    },
+    {
+      "companyId": "00000000-0000-0000-0000-000000380204",
+      "name": "Pilot Helio Verification Group",
+      "industry": "semiconductor",
+      "headquartersLocation": "Hsinchu",
+      "sizeBand": "100-200"
+    }
+  ],
+  "roleFamilies": [
+    {
+      "label": "Design Verification",
+      "skills": ["UVM", "SystemVerilog", "coverage closure", "formal verification"]
+    },
+    {
+      "label": "Physical Design",
+      "skills": ["STA", "floorplanning", "place and route", "timing closure"]
+    },
+    {
+      "label": "DFT",
+      "skills": ["scan insertion", "ATPG", "JTAG", "yield debug"]
+    },
+    {
+      "label": "Analog Mixed Signal",
+      "skills": ["PLL", "SerDes", "ADC", "signal integrity"]
+    },
+    {
+      "label": "Firmware Validation",
+      "skills": ["bring-up", "embedded C", "Python automation", "lab debug"]
+    }
+  ],
+  "seniorityBands": ["senior", "staff", "principal", "lead"],
+  "locations": ["Shanghai", "Singapore", "Austin", "Hsinchu", "Remote APAC"]
+}

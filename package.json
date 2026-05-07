@@ -14,6 +14,11 @@
     "build:web": "npm --workspace @rto/web run build",
     "ci:intended": "npm run typecheck:web && npm run build:web && mvn -f services/core-api/pom.xml clean verify",
     "dev:web": "npm --workspace @rto/web run dev",
+    "pilot:data:export": "bash scripts/pilot-data.sh export",
+    "pilot:data:import": "bash scripts/pilot-data.sh import",
+    "pilot:data:rebuild": "bash scripts/pilot-data.sh rebuild",
+    "pilot:data:reset": "bash scripts/pilot-data.sh reset",
+    "pilot:data:validate": "bash scripts/pilot-data.sh validate",
     "test:core-api": "mvn -f services/core-api/pom.xml test",
     "typecheck:web": "npm --workspace @rto/web run typecheck"
   },

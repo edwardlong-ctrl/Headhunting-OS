@@ -1,0 +1,4 @@
+Synthetic pilot job intake template for Task 38.
+
+All job intake documents generated from this resource are fictional and use
+generalized semiconductor requirements only.
