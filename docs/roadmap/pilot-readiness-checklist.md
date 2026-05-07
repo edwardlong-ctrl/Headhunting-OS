@@ -144,9 +144,9 @@ privacy, audit, or workflow gates.
 ## Gate 10: Deployment, Operations, Security
 
 - [ ] Staging environment exists.
-- [ ] Production-like environment exists.
-- [ ] Environment variable validation fails fast.
-- [ ] PostgreSQL migration runbook exists.
+- [x] Production-like deployment baseline exists (Task 39 provider-neutral local-production compose, image build path, and runbooks; not production-ready).
+- [x] Environment variable validation fails fast for staging / production profiles.
+- [x] PostgreSQL migration runbook exists for empty-database Flyway startup plus Task 38 pilot import.
 - [ ] Backup/restore test passes.
 - [ ] Object storage is configured and tested.
 - [ ] HTTPS/domain is configured.

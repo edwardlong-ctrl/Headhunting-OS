@@ -1,0 +1,11 @@
+.git
+.codex
+.claude
+.trae
+node_modules
+**/node_modules
+**/dist
+**/target
+**/.cache
+**/.DS_Store
+*.log

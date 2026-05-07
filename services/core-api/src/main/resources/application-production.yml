@@ -1,0 +1,40 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    enabled: ${CORE_API_FLYWAY_ENABLED:true}
+
+rto:
+  auth:
+    jwt:
+      issuer: ${RTO_AUTH_JWT_ISSUER:recruiting-transaction-os}
+      secret: ${RTO_AUTH_JWT_SECRET}
+  document-storage:
+    root-dir: ${RTO_DOCUMENT_STORAGE_ROOT_DIR}
+    virus-scan:
+      mode: ${RTO_DOCUMENT_STORAGE_VIRUS_SCAN_MODE}
+  ai:
+    deepseek:
+      api-key: ${RTO_AI_DEEPSEEK_API_KEY}
+    routes:
+      candidate-profile-parser:
+        model: ${RTO_AI_ROUTE_CANDIDATE_PROFILE_MODEL:deepseek-v4-pro}
+      authenticity-risk-assessor:
+        model: ${RTO_AI_ROUTE_AUTHENTICITY_MODEL:deepseek-v4-pro}
+      interview-feedback-structurer:
+        model: ${RTO_AI_ROUTE_INTERVIEW_FEEDBACK_MODEL:deepseek-v4-pro}
+  deployment:
+    frontend-origin: ${RTO_FRONTEND_ORIGIN}
+    public-base-url: ${RTO_PUBLIC_BASE_URL}
+    database:
+      managed: ${RTO_DEPLOYMENT_DATABASE_MANAGED}
+    object-storage:
+      provider: ${RTO_OBJECT_STORAGE_PROVIDER}
+      bucket: ${RTO_OBJECT_STORAGE_BUCKET}
+      endpoint: ${RTO_OBJECT_STORAGE_ENDPOINT}
+      local-root-dir: ${RTO_OBJECT_STORAGE_LOCAL_ROOT_DIR:${RTO_DOCUMENT_STORAGE_ROOT_DIR}}
