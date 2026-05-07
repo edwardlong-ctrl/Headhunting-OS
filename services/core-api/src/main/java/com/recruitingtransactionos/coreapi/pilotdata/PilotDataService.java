@@ -50,10 +50,12 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -103,20 +105,13 @@ public final class PilotDataService {
 
   public PilotDataReport importDataset(PilotDataset dataset) {
     Objects.requireNonNull(dataset, "dataset must not be null");
+    PilotDataValidationResult structureResult = validateImportPreconditions(dataset);
+    if (!structureResult.valid()) {
+      return invalidImportReport(structureResult);
+    }
     PilotDataValidationResult privacyResult = privacyValidator.validate(dataset);
     if (!privacyResult.valid()) {
-      return new PilotDataReport(
-          "import",
-          false,
-          Map.of(),
-          Map.of("passed", false),
-          Map.of(),
-          Map.of(),
-          privacyResult.issues().stream()
-              .map(PilotDataValidationResult.Issue::code)
-              .distinct()
-              .toList(),
-          privacyResult.issues());
+      return invalidImportReport(privacyResult);
     }
     try (Connection connection = dataSource.getConnection()) {
       connection.setAutoCommit(false);
@@ -138,6 +133,106 @@ public final class PilotDataService {
     insertSourceDocuments(dataset);
     insertCandidates(dataset);
     return validate(dataset.organization().organizationId()).withCommand("import");
+  }
+
+  private static PilotDataValidationResult validateImportPreconditions(PilotDataset dataset) {
+    List<PilotDataValidationResult.Issue> issues = new ArrayList<>();
+    Set<UUID> accountIds = new HashSet<>();
+    boolean consultantPresent = false;
+    for (PilotDataset.AccountSeed account : dataset.accounts()) {
+      accountIds.add(account.userAccountId());
+      if ("consultant".equals(account.role())) {
+        consultantPresent = true;
+      }
+    }
+    if (!consultantPresent) {
+      issues.add(new PilotDataValidationResult.Issue(
+          "pilot_consultant_account_missing",
+          "accounts",
+          "Pilot import requires one consultant account for source lineage and ownership"));
+    }
+
+    Set<UUID> companyIds = new HashSet<>();
+    for (PilotDataset.CompanySeed company : dataset.companies()) {
+      companyIds.add(company.companyId());
+      UUID ownerConsultantId = parseUuid(
+          company.ownerConsultantId(),
+          "company_owner_account_malformed",
+          company.companyId().toString(),
+          "Company ownerConsultantId must be a UUID",
+          issues);
+      if (ownerConsultantId != null && !accountIds.contains(ownerConsultantId)) {
+        issues.add(new PilotDataValidationResult.Issue(
+            "company_owner_account_missing",
+            company.companyId().toString(),
+            "Company ownerConsultantId is not present in seeded accounts"));
+      }
+    }
+
+    for (PilotDataset.JobSeed job : dataset.jobs()) {
+      if (!companyIds.contains(job.companyId())) {
+        issues.add(new PilotDataValidationResult.Issue(
+            "job_company_missing",
+            job.jobId().toString(),
+            "Job references a company that is not present in seeded companies"));
+      }
+      UUID ownerConsultantId = parseUuid(
+          job.ownerConsultantId(),
+          "job_owner_account_malformed",
+          job.jobId().toString(),
+          "Job ownerConsultantId must be a UUID",
+          issues);
+      if (ownerConsultantId != null && !accountIds.contains(ownerConsultantId)) {
+        issues.add(new PilotDataValidationResult.Issue(
+            "job_owner_account_missing",
+            job.jobId().toString(),
+            "Job ownerConsultantId is not present in seeded accounts"));
+      }
+    }
+
+    Set<String> sourceDocumentRefs = new HashSet<>();
+    for (PilotDataset.SourceDocumentSeed sourceDocument : dataset.sourceDocuments()) {
+      sourceDocumentRefs.add(sourceDocument.documentRef());
+    }
+    for (PilotDataset.CandidateSeed candidate : dataset.candidates()) {
+      if (!sourceDocumentRefs.contains(candidate.sourceDocumentRef())) {
+        issues.add(new PilotDataValidationResult.Issue(
+            "candidate_missing_source_document",
+            candidate.candidateId(),
+            "Candidate sourceDocumentRef is not present in seeded source documents"));
+      }
+    }
+
+    return new PilotDataValidationResult(issues.isEmpty(), issues);
+  }
+
+  private static UUID parseUuid(
+      String rawValue,
+      String code,
+      String subject,
+      String message,
+      List<PilotDataValidationResult.Issue> issues) {
+    try {
+      return UUID.fromString(rawValue);
+    } catch (IllegalArgumentException exception) {
+      issues.add(new PilotDataValidationResult.Issue(code, subject, message));
+      return null;
+    }
+  }
+
+  private static PilotDataReport invalidImportReport(PilotDataValidationResult validationResult) {
+    return new PilotDataReport(
+        "import",
+        false,
+        Map.of(),
+        Map.of("passed", false),
+        Map.of(),
+        Map.of(),
+        validationResult.issues().stream()
+            .map(PilotDataValidationResult.Issue::code)
+            .distinct()
+            .toList(),
+        validationResult.issues());
   }
 
   public PilotDataReport validate(UUID organizationId) {

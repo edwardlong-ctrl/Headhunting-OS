@@ -137,6 +137,79 @@ class PilotDataPostgresIntegrationTest {
   }
 
   @Test
+  void importFailsClosedBeforeWritesWhenDatasetReferencesMissingSourceDocuments()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataset.CandidateSeed first = dataset.candidates().getFirst();
+    PilotDataset invalidDataset = dataset.withCandidates(List.of(new PilotDataset.CandidateSeed(
+        first.candidateId(),
+        first.profileId(),
+        first.syntheticName(),
+        first.email(),
+        first.roleFamily(),
+        first.seniorityBand(),
+        first.locationRegion(),
+        first.status(),
+        first.skills(),
+        first.summary(),
+        "missing-source-document",
+        first.metadata())));
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.reset(dataset.organization().organizationId(), true);
+    PilotDataReport report = service.importDataset(invalidDataset);
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.failedGateReasons()).contains("candidate_missing_source_document");
+    assertThat(countRows("identity.organization", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.job", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("intake.source_item", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
+  }
+
+  @Test
+  void importFailsClosedBeforeWritesWhenDatasetOwnerReferencesAreMalformed()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataset.CompanySeed firstCompany = dataset.companies().getFirst();
+    PilotDataset invalidDataset = new PilotDataset(
+        dataset.version(),
+        dataset.organization(),
+        dataset.accounts(),
+        List.of(new PilotDataset.CompanySeed(
+            firstCompany.companyId(),
+            firstCompany.name(),
+            firstCompany.industry(),
+            firstCompany.headquartersLocation(),
+            firstCompany.sizeBand(),
+            "not-a-uuid",
+            firstCompany.metadata())),
+        dataset.jobs(),
+        dataset.candidates(),
+        dataset.sourceDocuments());
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.reset(dataset.organization().organizationId(), true);
+    PilotDataReport report = service.importDataset(invalidDataset);
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.failedGateReasons()).contains("company_owner_account_malformed");
+    assertThat(countRows("identity.organization", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.job", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
+  }
+
+  @Test
   void validateFailsClosedWhenStoredCandidateProfileFieldsContainUnsupportedEmailDomains()
       throws SQLException {
     PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
