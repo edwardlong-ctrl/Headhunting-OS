@@ -176,6 +176,7 @@ public final class PilotDataService {
             job.jobId().toString(),
             "Job references a company that is not present in seeded companies"));
       }
+      validateJobStatus(job.status(), job.jobId().toString(), issues);
       UUID ownerConsultantId = parseUuid(
           job.ownerConsultantId(),
           "job_owner_account_malformed",
@@ -193,8 +194,25 @@ public final class PilotDataService {
     Set<String> sourceDocumentRefs = new HashSet<>();
     for (PilotDataset.SourceDocumentSeed sourceDocument : dataset.sourceDocuments()) {
       sourceDocumentRefs.add(sourceDocument.documentRef());
+      validateSourceDocumentType(
+          sourceDocument.sourceType(),
+          sourceDocument.sourceItemId().toString(),
+          issues);
     }
     for (PilotDataset.CandidateSeed candidate : dataset.candidates()) {
+      parseUuid(
+          candidate.candidateId(),
+          "candidate_id_malformed",
+          candidate.candidateId(),
+          "Candidate candidateId must be a UUID",
+          issues);
+      parseUuid(
+          candidate.profileId(),
+          "candidate_profile_id_malformed",
+          candidate.candidateId(),
+          "Candidate profileId must be a UUID",
+          issues);
+      validateCandidateStatus(candidate.status(), candidate.candidateId(), issues);
       if (!sourceDocumentRefs.contains(candidate.sourceDocumentRef())) {
         issues.add(new PilotDataValidationResult.Issue(
             "candidate_missing_source_document",
@@ -217,6 +235,48 @@ public final class PilotDataService {
     } catch (IllegalArgumentException exception) {
       issues.add(new PilotDataValidationResult.Issue(code, subject, message));
       return null;
+    }
+  }
+
+  private static void validateJobStatus(
+      String rawValue,
+      String subject,
+      List<PilotDataValidationResult.Issue> issues) {
+    try {
+      JobStatus.fromWireValue(rawValue);
+    } catch (IllegalArgumentException exception) {
+      issues.add(new PilotDataValidationResult.Issue(
+          "job_status_unsupported",
+          subject,
+          "Job status is not supported by the domain model"));
+    }
+  }
+
+  private static void validateCandidateStatus(
+      String rawValue,
+      String subject,
+      List<PilotDataValidationResult.Issue> issues) {
+    try {
+      CandidateStatus.fromWireValue(rawValue);
+    } catch (IllegalArgumentException exception) {
+      issues.add(new PilotDataValidationResult.Issue(
+          "candidate_status_unsupported",
+          subject,
+          "Candidate status is not supported by the domain model"));
+    }
+  }
+
+  private static void validateSourceDocumentType(
+      String rawValue,
+      String subject,
+      List<PilotDataValidationResult.Issue> issues) {
+    try {
+      SourceItemType.fromWireValue(rawValue);
+    } catch (IllegalArgumentException exception) {
+      issues.add(new PilotDataValidationResult.Issue(
+          "source_document_type_unsupported",
+          subject,
+          "Source document type is not supported by governed intake"));
     }
   }
 

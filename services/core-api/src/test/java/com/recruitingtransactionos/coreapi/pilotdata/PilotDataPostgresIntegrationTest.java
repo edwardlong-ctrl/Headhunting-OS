@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -206,6 +207,76 @@ class PilotDataPostgresIntegrationTest {
     assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isZero();
     assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isZero();
     assertThat(countRows("recruiting.job", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
+  }
+
+  @Test
+  void importFailsClosedBeforeWritesWhenDatasetRuntimeParseFieldsAreInvalid()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataset.JobSeed firstJob = dataset.jobs().getFirst();
+    PilotDataset.CandidateSeed firstCandidate = dataset.candidates().getFirst();
+    PilotDataset.SourceDocumentSeed firstSourceDocument = dataset.sourceDocuments().getFirst();
+    List<PilotDataset.SourceDocumentSeed> sourceDocuments = new ArrayList<>(dataset.sourceDocuments());
+    sourceDocuments.set(0, new PilotDataset.SourceDocumentSeed(
+        firstSourceDocument.sourceItemId(),
+        firstSourceDocument.documentRef(),
+        "NOT_A_SOURCE_TYPE",
+        firstSourceDocument.title(),
+        firstSourceDocument.filename(),
+        firstSourceDocument.body(),
+        firstSourceDocument.metadata()));
+    PilotDataset invalidDataset = new PilotDataset(
+        dataset.version(),
+        dataset.organization(),
+        dataset.accounts(),
+        dataset.companies(),
+        List.of(new PilotDataset.JobSeed(
+            firstJob.jobId(),
+            firstJob.companyId(),
+            firstJob.title(),
+            "not_a_job_status",
+            firstJob.roleFamily(),
+            firstJob.seniorityBand(),
+            firstJob.location(),
+            firstJob.compensation(),
+            firstJob.ownerConsultantId(),
+            firstJob.sourceDocumentRef(),
+            firstJob.metadata())),
+        List.of(new PilotDataset.CandidateSeed(
+            "not-a-candidate-uuid",
+            "not-a-profile-uuid",
+            firstCandidate.syntheticName(),
+            firstCandidate.email(),
+            firstCandidate.roleFamily(),
+            firstCandidate.seniorityBand(),
+            firstCandidate.locationRegion(),
+            "not_a_candidate_status",
+            firstCandidate.skills(),
+            firstCandidate.summary(),
+            firstCandidate.sourceDocumentRef(),
+            firstCandidate.metadata())),
+        sourceDocuments);
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.reset(dataset.organization().organizationId(), true);
+    PilotDataReport report = service.importDataset(invalidDataset);
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.failedGateReasons()).contains(
+        "job_status_unsupported",
+        "candidate_id_malformed",
+        "candidate_profile_id_malformed",
+        "candidate_status_unsupported",
+        "source_document_type_unsupported");
+    assertThat(countRows("identity.organization", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.job", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("intake.source_item", dataset.organization().organizationId())).isZero();
     assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
   }
 
