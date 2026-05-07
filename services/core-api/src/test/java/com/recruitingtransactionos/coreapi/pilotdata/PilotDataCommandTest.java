@@ -69,7 +69,8 @@ class PilotDataCommandTest {
             && List.of("organization", "user_account", "role_assignment").contains(table);
         boolean resetCleanup = matcher.group(1).toUpperCase().startsWith("DELETE");
         boolean resetCurrentProfileBreak = matcher.group().contains("UPDATE recruiting.candidate");
-        if (!identityBootstrap && !resetCleanup && !resetCurrentProfileBreak) {
+        boolean resetReviewCycleBreak = matcher.group().contains("UPDATE governance.claim_ledger_item");
+        if (!identityBootstrap && !resetCleanup && !resetCurrentProfileBreak && !resetReviewCycleBreak) {
           disallowedWrites.add(file + " contains " + matcher.group());
         }
       }

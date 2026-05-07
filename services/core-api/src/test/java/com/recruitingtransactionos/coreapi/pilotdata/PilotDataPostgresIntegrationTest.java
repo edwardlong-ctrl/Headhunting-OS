@@ -239,6 +239,98 @@ class PilotDataPostgresIntegrationTest {
     assertThat(countRows("identity.organization", organizationId)).isZero();
   }
 
+  @Test
+  void resetRemovesWorkflowEventsBeforeTheirGovernanceParents()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.rebuild(dataset);
+    UUID organizationId = dataset.organization().organizationId();
+    UUID userAccountId = dataset.accounts().getFirst().userAccountId();
+    UUID claimLedgerItemId = UUID.fromString("00000000-0000-0000-0000-000000389006");
+    UUID reviewEventId = UUID.fromString("00000000-0000-0000-0000-000000389007");
+    UUID workflowEventId = UUID.fromString("00000000-0000-0000-0000-000000389008");
+    UUID aiTaskDefinitionId = UUID.fromString("00000000-0000-0000-0000-000000389009");
+    UUID aiTaskRunId = UUID.fromString("00000000-0000-0000-0000-000000389010");
+
+    executeUpdate("""
+        INSERT INTO governance.ai_task_definition (
+          ai_task_definition_id, organization_id, task_key, task_version,
+          status, input_schema_version, output_schema_version,
+          human_review_policy, write_back_target
+        ) VALUES (
+          ?, ?, 'pilot-reset-ordering', '1.0', 'active',
+          'pilot-input.v1', 'pilot-output.v1', '{}'::jsonb, 'workflow_event'
+        )
+        """, aiTaskDefinitionId, organizationId);
+    executeUpdate("""
+        INSERT INTO governance.ai_task_run (
+          ai_task_run_id, organization_id, ai_task_definition_id, task_version,
+          status, input_schema_version, output_schema_version, prompt_version,
+          model_provider, model_name, target_entity_type, target_entity_id,
+          write_back_target, human_review_status, started_at, completed_at
+        ) VALUES (
+          ?, ?, ?, '1.0', 'succeeded', 'pilot-input.v1', 'pilot-output.v1',
+          'pilot-reset-ordering.v1', 'test-provider', 'test-model',
+          'candidate', ?, 'workflow_event', 'reviewed', now(), now()
+        )
+        """, aiTaskRunId, organizationId, aiTaskDefinitionId, userAccountId);
+
+    executeUpdate("""
+        INSERT INTO governance.claim_ledger_item (
+          claim_ledger_item_id, organization_id, entity_type, entity_id,
+          claim_type, assertion_strength, source_span_ref, speaker,
+          verification_status, ai_task_run_id, confidence, created_by
+        ) VALUES (
+          ?, ?, 'candidate', ?, 'fact'::governance.claim_type,
+          'explicit'::governance.assertion_strength, 'pilot-span-1',
+          'consultant'::governance.actor_role,
+          'human_acknowledged'::governance.verification_status, ?, 0.80, ?
+        )
+        """, claimLedgerItemId, organizationId, userAccountId, aiTaskRunId, userAccountId);
+    executeUpdate("""
+        INSERT INTO governance.review_event (
+          review_event_id, organization_id, reviewer_user_id, target_entity_type,
+          target_entity_id, field_path, risk_tier, decision, duration_ms,
+          claim_ledger_item_id
+        ) VALUES (
+          ?, ?, ?, 'candidate', ?, 'profile.summary',
+          'T2_MEDIUM_RISK'::governance.risk_tier, 'approved', 10, ?
+        )
+        """, reviewEventId, organizationId, userAccountId, userAccountId, claimLedgerItemId);
+    executeUpdate("""
+        INSERT INTO workflow.workflow_event (
+          workflow_event_id, organization_id, entity_namespace, entity_type,
+          entity_id, action, before_state, after_state, actor_role,
+          actor_user_id, source_type, ai_task_run_id, review_event_id, reason,
+          occurred_at
+        ) VALUES (
+          ?, ?, 'governance', 'review_event', ?, 'review.approved',
+          '{"status":"draft"}'::jsonb, '{"status":"approved"}'::jsonb,
+          'consultant', ?, 'test', ?, ?, 'pilot reset ordering test', now()
+        )
+        """, workflowEventId, organizationId, reviewEventId, userAccountId, aiTaskRunId, reviewEventId);
+    executeUpdate("""
+        UPDATE governance.claim_ledger_item
+        SET review_event_id = ?
+        WHERE organization_id = ? AND claim_ledger_item_id = ?
+        """, reviewEventId, organizationId, claimLedgerItemId);
+
+    PilotDataReport reset = service.reset(organizationId, true);
+
+    assertThat(reset.valid()).isTrue();
+    assertThat(countRows("workflow.workflow_event", organizationId)).isZero();
+    assertThat(countRows("governance.review_event", organizationId)).isZero();
+    assertThat(countRows("governance.claim_ledger_item", organizationId)).isZero();
+    assertThat(countRows("governance.ai_task_run", organizationId)).isZero();
+    assertThat(countRows("governance.ai_task_definition", organizationId)).isZero();
+    assertThat(countRows("identity.organization", organizationId)).isZero();
+  }
+
   private static int countRows(String tableName, UUID organizationId) throws SQLException {
     return countRowsWhere(tableName, organizationId, "true");
   }

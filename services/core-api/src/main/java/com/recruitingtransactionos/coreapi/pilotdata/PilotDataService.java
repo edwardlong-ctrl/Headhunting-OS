@@ -512,12 +512,12 @@ public final class PilotDataService {
         "recruiting.source_item",
         "recruiting.information_packet",
         "governance.canonical_write_attempt",
-        "governance.ai_task_run",
-        "governance.ai_task_definition",
+        "workflow.workflow_event",
         "governance.review_event",
         "governance.claim_ledger_item",
+        "governance.ai_task_run",
+        "governance.ai_task_definition",
         "governance.config_entry",
-        "workflow.workflow_event",
         "identity.session",
         "identity.role_assignment",
         "identity.user_account",
@@ -525,6 +525,15 @@ public final class PilotDataService {
     };
     try (PreparedStatement statement = connection.prepareStatement(
         "UPDATE recruiting." + "candidate SET current_profile_id = NULL WHERE organization_id = ?")) {
+      statement.setObject(1, organizationId);
+      statement.executeUpdate();
+    } catch (SQLException exception) {
+      if (!"42P01".equals(exception.getSQLState())) {
+        throw exception;
+      }
+    }
+    try (PreparedStatement statement = connection.prepareStatement(
+        "UPDATE governance.claim_ledger_item SET review_event_id = NULL WHERE organization_id = ?")) {
       statement.setObject(1, organizationId);
       statement.executeUpdate();
     } catch (SQLException exception) {
