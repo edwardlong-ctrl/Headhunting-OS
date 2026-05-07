@@ -9,7 +9,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -111,8 +113,8 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
       statement.setString(11, job.status().wireValue());
       statement.setString(12, job.commercialTerms());
       statement.setObject(13, job.ownerConsultantId());
-      statement.setObject(14, job.activatedAt());
-      statement.setObject(15, job.closedAt());
+      statement.setObject(14, offsetDateTime(job.activatedAt()));
+      statement.setObject(15, offsetDateTime(job.closedAt()));
       statement.setString(16, job.closeReason());
       statement.setObject(17, job.industryPackId());
       statement.setString(18, job.metadata());
@@ -142,8 +144,8 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
       statement.setString(9, job.status().wireValue());
       statement.setString(10, job.commercialTerms());
       statement.setObject(11, job.ownerConsultantId());
-      statement.setObject(12, job.activatedAt());
-      statement.setObject(13, job.closedAt());
+      statement.setObject(12, offsetDateTime(job.activatedAt()));
+      statement.setObject(13, offsetDateTime(job.closedAt()));
       statement.setString(14, job.closeReason());
       statement.setObject(15, job.industryPackId());
       statement.setString(16, job.metadata());
@@ -264,5 +266,9 @@ public final class JdbcJobPersistencePort implements JobPersistencePort {
         .updatedAt(rs.getObject("updated_at", OffsetDateTime.class).toInstant())
         .version(rs.getInt("version"))
         .build();
+  }
+
+  private static OffsetDateTime offsetDateTime(Instant instant) {
+    return instant == null ? null : OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
   }
 }

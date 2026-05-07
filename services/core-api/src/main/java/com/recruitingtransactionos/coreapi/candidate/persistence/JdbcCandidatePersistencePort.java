@@ -58,6 +58,22 @@ public final class JdbcCandidatePersistencePort implements CandidatePersistenceP
       ORDER BY created_at DESC, candidate_id
       """;
 
+  private static final String LINK_CURRENT_PROFILE_SQL = """
+      UPDATE recruiting.candidate
+      SET current_profile_id = ?,
+          updated_at = NOW(),
+          version = version + 1
+      WHERE organization_id = ?
+        AND candidate_id = ?
+        AND EXISTS (
+          SELECT 1
+          FROM recruiting.candidate_profile
+          WHERE organization_id = ?
+            AND candidate_id = ?
+            AND candidate_profile_id = ?
+        )
+      """;
+
   private final DataSource dataSource;
 
   public JdbcCandidatePersistencePort(DataSource dataSource) {
@@ -109,6 +125,35 @@ public final class JdbcCandidatePersistencePort implements CandidatePersistenceP
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to find candidate by id", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
+  @Override
+  public Candidate linkCurrentProfile(
+      UUID organizationId,
+      CandidateId candidateId,
+      CandidateProfileId candidateProfileId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateId, "candidateId must not be null");
+    Objects.requireNonNull(candidateProfileId, "candidateProfileId must not be null");
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(LINK_CURRENT_PROFILE_SQL)) {
+      statement.setObject(1, candidateProfileId.value());
+      statement.setObject(2, organizationId);
+      statement.setObject(3, candidateId.value());
+      statement.setObject(4, organizationId);
+      statement.setObject(5, candidateId.value());
+      statement.setObject(6, candidateProfileId.value());
+      int updated = statement.executeUpdate();
+      if (updated != 1) {
+        throw new IllegalArgumentException("candidate profile not found in organization");
+      }
+      return findByIdAndOrganizationId(organizationId, candidateId)
+          .orElseThrow(() -> new IllegalStateException("candidate not readable after profile link"));
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to link current candidate profile", exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

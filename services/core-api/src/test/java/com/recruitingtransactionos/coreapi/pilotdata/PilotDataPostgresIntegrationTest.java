@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -63,9 +64,19 @@ class PilotDataPostgresIntegrationTest {
     assertThat(report.counts().get("seededShortlists")).isZero();
     assertThat(report.counts().get("seededDisclosureRecords")).isZero();
     assertThat(report.counts().get("canonicalWriteAttempts")).isZero();
+    assertThat(report.privacyChecks().get("passed")).isEqualTo(true);
+    assertThat(report.seededAccountChecks().get("accountsPresent")).isEqualTo(true);
+    assertThat(report.workflowAuditChecks().get("noShortcutShortlists")).isEqualTo(true);
+    assertThat(report.workflowAuditChecks().get("noShortcutDisclosureRecords")).isEqualTo(true);
+    assertThat(report.workflowAuditChecks().get("candidateCurrentProfilesLinked")).isEqualTo(true);
+    assertThat(report.failedGateReasons()).isEmpty();
     assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isEqualTo(5);
     assertThatSeededAccountsCanAuthenticate(dataset);
     assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isEqualTo(75);
+    assertThat(countRowsWhere(
+        "recruiting.candidate",
+        dataset.organization().organizationId(),
+        "current_profile_id IS NOT NULL")).isEqualTo(75);
     assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isEqualTo(4);
     assertThat(countRows("intake.source_item", dataset.organization().organizationId()))
         .isGreaterThanOrEqualTo(83);
@@ -92,10 +103,75 @@ class PilotDataPostgresIntegrationTest {
         .hasMessage("pilot_data_reset_requires_RTO_PILOT_DATA_ALLOW_RESET_true");
   }
 
+  @Test
+  void importFailsClosedBeforeWritesWhenDatasetViolatesPrivacyRules()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataset.CandidateSeed first = dataset.candidates().getFirst();
+    PilotDataset invalidDataset = dataset.withCandidates(List.of(new PilotDataset.CandidateSeed(
+        first.candidateId(),
+        first.profileId(),
+        first.syntheticName(),
+        "not-synthetic@example.com",
+        first.roleFamily(),
+        first.seniorityBand(),
+        first.locationRegion(),
+        first.status(),
+        first.skills(),
+        first.summary(),
+        first.sourceDocumentRef(),
+        first.metadata())));
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.reset(dataset.organization().organizationId(), true);
+    PilotDataReport report = service.importDataset(invalidDataset);
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.failedGateReasons()).contains("unsupported_email_domain");
+    assertThat(countRows("identity.organization", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("identity.user_account", dataset.organization().organizationId())).isZero();
+    assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
+  }
+
+  @Test
+  void validateFailsClosedWhenStoredCandidateProfileFieldsContainUnsupportedEmailDomains()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+
+    service.rebuild(dataset);
+    executeUpdate(
+        """
+        UPDATE recruiting.candidate_profile
+        SET metadata = replace(metadata::text, '@candidate.example.test', '@gmail.com')::jsonb
+        WHERE organization_id = ?
+        """,
+        dataset.organization().organizationId());
+
+    PilotDataReport report = service.validate(dataset.organization().organizationId());
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.privacyChecks().get("passed")).isEqualTo(false);
+    assertThat(report.failedGateReasons()).contains("candidate_profile_unsupported_email_domain");
+  }
+
   private static int countRows(String tableName, UUID organizationId) throws SQLException {
+    return countRowsWhere(tableName, organizationId, "true");
+  }
+
+  private static int countRowsWhere(
+      String tableName,
+      UUID organizationId,
+      String whereClause) throws SQLException {
     try (Connection connection = dataSource.getConnection();
          var statement = connection.prepareStatement(
-             "SELECT count(*) FROM " + tableName + " WHERE organization_id = ?")) {
+             "SELECT count(*) FROM " + tableName + " WHERE organization_id = ? AND " + whereClause)) {
       statement.setObject(1, organizationId);
       try (ResultSet resultSet = statement.executeQuery()) {
         resultSet.next();
@@ -122,6 +198,14 @@ class PilotDataPostgresIntegrationTest {
           assertThat(resultSet.next()).isFalse();
         }
       }
+    }
+  }
+
+  private static void executeUpdate(String sql, UUID organizationId) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement(sql)) {
+      statement.setObject(1, organizationId);
+      statement.executeUpdate();
     }
   }
 

@@ -4,6 +4,7 @@ import com.recruitingtransactionos.coreapi.candidate.Candidate;
 import com.recruitingtransactionos.coreapi.candidate.CandidateStatus;
 import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileField;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldLineage;
@@ -11,11 +12,34 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFiel
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldSourceReference;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldStatus;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileFieldValue;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
 import com.recruitingtransactionos.coreapi.candidateprofile.persistence.JdbcCandidateProfilePersistencePort;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CreateCandidateProfileRequest;
+import com.recruitingtransactionos.coreapi.company.Company;
+import com.recruitingtransactionos.coreapi.company.CompanyId;
+import com.recruitingtransactionos.coreapi.company.CompanyStatus;
+import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyContactPersistencePort;
+import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPersistencePort;
+import com.recruitingtransactionos.coreapi.company.persistence.JdbcCompanyPreferencePersistencePort;
+import com.recruitingtransactionos.coreapi.company.service.CompanyService;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemOrigin;
 import com.recruitingtransactionos.coreapi.governedintake.SourceItemId;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemRegistrationCommand;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemStatus;
+import com.recruitingtransactionos.coreapi.governedintake.SourceItemType;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcInformationPacketPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcSourceItemPersistencePort;
+import com.recruitingtransactionos.coreapi.governedintake.service.GovernedIntakeService;
+import com.recruitingtransactionos.coreapi.job.Job;
+import com.recruitingtransactionos.coreapi.job.JobId;
+import com.recruitingtransactionos.coreapi.job.JobStatus;
+import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobPersistencePort;
+import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobRequirementPersistencePort;
+import com.recruitingtransactionos.coreapi.job.persistence.JdbcJobScorecardPersistencePort;
+import com.recruitingtransactionos.coreapi.job.service.JobService;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -23,8 +47,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,6 +67,9 @@ public final class PilotDataService {
   private final PilotDataPrivacyValidator privacyValidator;
   private final CandidateService candidateService;
   private final CandidateProfileService candidateProfileService;
+  private final CompanyService companyService;
+  private final JobService jobService;
+  private final GovernedIntakeService governedIntakeService;
 
   public PilotDataService(
       DataSource dataSource,
@@ -54,29 +81,48 @@ public final class PilotDataService {
     this.candidateService = new CandidateService(new JdbcCandidatePersistencePort(dataSource));
     this.candidateProfileService = new CandidateProfileService(
         new JdbcCandidateProfilePersistencePort(dataSource));
+    this.companyService = new CompanyService(
+        new JdbcCompanyPersistencePort(dataSource),
+        new JdbcCompanyContactPersistencePort(dataSource),
+        new JdbcCompanyPreferencePersistencePort(dataSource));
+    this.jobService = new JobService(
+        new JdbcJobPersistencePort(dataSource),
+        new JdbcJobRequirementPersistencePort(dataSource),
+        new JdbcJobScorecardPersistencePort(dataSource));
+    this.governedIntakeService = new GovernedIntakeService(
+        new JdbcSourceItemPersistencePort(dataSource),
+        new JdbcInformationPacketPersistencePort(dataSource));
   }
 
   public PilotDataReport rebuild(PilotDataset dataset) {
     reset(dataset.organization().organizationId(), true);
     importDataset(dataset);
     PilotDataReport validation = validate(dataset.organization().organizationId());
-    return new PilotDataReport("rebuild", validation.valid(), validation.counts(), validation.issues());
+    return validation.withCommand("rebuild");
   }
 
   public PilotDataReport importDataset(PilotDataset dataset) {
     Objects.requireNonNull(dataset, "dataset must not be null");
     PilotDataValidationResult privacyResult = privacyValidator.validate(dataset);
     if (!privacyResult.valid()) {
-      return new PilotDataReport("import", false, Map.of(), privacyResult.issues());
+      return new PilotDataReport(
+          "import",
+          false,
+          Map.of(),
+          Map.of("passed", false),
+          Map.of(),
+          Map.of(),
+          privacyResult.issues().stream()
+              .map(PilotDataValidationResult.Issue::code)
+              .distinct()
+              .toList(),
+          privacyResult.issues());
     }
     try (Connection connection = dataSource.getConnection()) {
       connection.setAutoCommit(false);
       try {
         insertOrganization(connection, dataset.organization());
         insertAccounts(connection, dataset);
-        insertCompanies(connection, dataset);
-        insertJobs(connection, dataset);
-        insertSourceDocuments(connection, dataset);
         connection.commit();
       } catch (RuntimeException | SQLException exception) {
         connection.rollback();
@@ -87,6 +133,9 @@ public final class PilotDataService {
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to import pilot dataset", exception);
     }
+    insertCompanies(dataset);
+    insertJobs(dataset);
+    insertSourceDocuments(dataset);
     insertCandidates(dataset);
     return validate(dataset.organization().organizationId()).withCommand("import");
   }
@@ -107,16 +156,57 @@ public final class PilotDataService {
       counts.put("seededShortlists", count(connection, "recruiting.shortlist", organizationId));
       counts.put("seededDisclosureRecords", count(connection, "privacy.disclosure_record", organizationId));
       counts.put("canonicalWriteAttempts", count(connection, "governance.canonical_write_attempt", organizationId));
-      boolean valid = counts.get("accounts") == 5
-          && counts.get("seededRoleAssignments") == 5
-          && counts.get("candidates") == 75
-          && counts.get("activeJobs") == 5
-          && counts.get("underReviewJobs") == 3
-          && counts.get("sourceDocuments") >= 83
-          && counts.get("seededShortlists") == 0
-          && counts.get("seededDisclosureRecords") == 0
-          && counts.get("canonicalWriteAttempts") == 0;
-      return new PilotDataReport("validate", valid, counts, List.of());
+      counts.put(
+          "candidatesWithCurrentProfiles",
+          countWhere(connection, "recruiting.candidate", organizationId, "current_profile_id IS NOT NULL"));
+      counts.put(
+          "unsupportedAccountEmailDomains",
+          countWhere(
+              connection,
+              "identity.user_account",
+              organizationId,
+              "email NOT LIKE '%.example.test'"));
+      List<PilotDataValidationResult.Issue> storedProfilePrivacyIssues =
+          storedProfilePrivacyIssues(organizationId);
+      counts.put("candidateProfilePrivacyIssues", storedProfilePrivacyIssues.size());
+
+      Map<String, Boolean> privacyChecks = new LinkedHashMap<>();
+      privacyChecks.put("passed",
+          counts.get("unsupportedAccountEmailDomains") == 0
+              && storedProfilePrivacyIssues.isEmpty());
+      privacyChecks.put("reservedAccountEmailDomains", counts.get("unsupportedAccountEmailDomains") == 0);
+      privacyChecks.put("candidateProfileFields", storedProfilePrivacyIssues.isEmpty());
+
+      Map<String, Boolean> seededAccountChecks = new LinkedHashMap<>();
+      seededAccountChecks.put("accountsPresent", counts.get("accounts") == 5);
+      seededAccountChecks.put("roleAssignmentsPresent", counts.get("seededRoleAssignments") == 5);
+
+      Map<String, Boolean> workflowAuditChecks = new LinkedHashMap<>();
+      workflowAuditChecks.put("candidateCurrentProfilesLinked", counts.get("candidatesWithCurrentProfiles") == 75);
+      workflowAuditChecks.put("noShortcutShortlists", counts.get("seededShortlists") == 0);
+      workflowAuditChecks.put("noShortcutDisclosureRecords", counts.get("seededDisclosureRecords") == 0);
+      workflowAuditChecks.put("noCanonicalWriteAttemptsSeeded", counts.get("canonicalWriteAttempts") == 0);
+      workflowAuditChecks.put("sourceDocumentsPresent", counts.get("sourceDocuments") >= 83);
+
+      List<String> failedGateReasons = new ArrayList<>(failedGateReasons(
+          counts,
+          privacyChecks,
+          workflowAuditChecks,
+          seededAccountChecks));
+      storedProfilePrivacyIssues.stream()
+          .map(PilotDataValidationResult.Issue::code)
+          .distinct()
+          .forEach(failedGateReasons::add);
+      boolean valid = failedGateReasons.isEmpty();
+      return new PilotDataReport(
+          "validate",
+          valid,
+          counts,
+          privacyChecks,
+          workflowAuditChecks,
+          seededAccountChecks,
+          failedGateReasons,
+          storedProfilePrivacyIssues);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to validate pilot dataset", exception);
     }
@@ -124,7 +214,7 @@ public final class PilotDataService {
 
   public PilotDataReport export(UUID organizationId) {
     PilotDataReport report = validate(organizationId);
-    return new PilotDataReport("export", report.valid(), report.counts(), report.issues());
+    return report.withCommand("export");
   }
 
   public PilotDataReport reset(UUID organizationId, boolean allowReset) {
@@ -217,56 +307,64 @@ public final class PilotDataService {
     }
   }
 
-  private static void insertCompanies(Connection connection, PilotDataset dataset) throws SQLException {
+  private void insertCompanies(PilotDataset dataset) {
     for (PilotDataset.CompanySeed company : dataset.companies()) {
-      try (PreparedStatement statement = connection.prepareStatement("""
-          INSERT INTO recruiting.company (
-            company_id, organization_id, name, display_name, industry, headquarters_location,
-            size_band, status, owner_consultant_id, metadata
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?::jsonb)
-          ON CONFLICT (company_id) DO NOTHING
-          """)) {
-        statement.setObject(1, company.companyId());
-        statement.setObject(2, dataset.organization().organizationId());
-        statement.setString(3, company.name());
-        statement.setString(4, company.name());
-        statement.setString(5, company.industry());
-        statement.setString(6, company.headquartersLocation());
-        statement.setString(7, company.sizeBand());
-        statement.setObject(8, UUID.fromString(company.ownerConsultantId()));
-        statement.setString(9, company.metadata());
-        statement.executeUpdate();
+      CompanyId companyId = new CompanyId(company.companyId());
+      if (companyService.findCompanyByIdAndOrganizationId(
+          dataset.organization().organizationId(),
+          companyId).isPresent()) {
+        continue;
       }
+      Instant now = Instant.now();
+      companyService.createCompany(Company.builder()
+          .companyId(companyId)
+          .organizationId(dataset.organization().organizationId())
+          .name(company.name())
+          .displayName(company.name())
+          .industry(company.industry())
+          .headquartersLocation(company.headquartersLocation())
+          .sizeBand(company.sizeBand())
+          .status(CompanyStatus.ACTIVE)
+          .ownerConsultantId(UUID.fromString(company.ownerConsultantId()))
+          .metadata(company.metadata())
+          .createdAt(now)
+          .updatedAt(now)
+          .version(1)
+          .build());
     }
   }
 
-  private static void insertJobs(Connection connection, PilotDataset dataset) throws SQLException {
+  private void insertJobs(PilotDataset dataset) {
     UUID semiconductorIndustryPackId = UUID.fromString("00000000-0000-0000-0000-000000280002");
     for (PilotDataset.JobSeed job : dataset.jobs()) {
-      try (PreparedStatement statement = connection.prepareStatement("""
-          INSERT INTO recruiting.job (
-            job_id, organization_id, company_id, title, description, location, seniority_band,
-            role_family, employment_type, compensation, status, commercial_terms,
-            owner_consultant_id, industry_pack_id, metadata
-          ) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, 'full_time', ?::jsonb, ?, ?::jsonb, ?, ?, ?::jsonb)
-          ON CONFLICT (job_id) DO NOTHING
-          """)) {
-        statement.setObject(1, job.jobId());
-        statement.setObject(2, dataset.organization().organizationId());
-        statement.setObject(3, job.companyId());
-        statement.setString(4, job.title());
-        statement.setString(5, "Synthetic pilot job for " + job.roleFamily());
-        statement.setString(6, job.location());
-        statement.setString(7, job.seniorityBand());
-        statement.setString(8, job.roleFamily());
-        statement.setString(9, job.compensation());
-        statement.setString(10, job.status());
-        statement.setString(11, "{\"feeRate\":\"25%\",\"synthetic\":true}");
-        statement.setObject(12, UUID.fromString(job.ownerConsultantId()));
-        statement.setObject(13, semiconductorIndustryPackId);
-        statement.setString(14, job.metadata());
-        statement.executeUpdate();
+      JobId jobId = new JobId(job.jobId());
+      if (jobService.findJobByIdAndOrganizationId(
+          dataset.organization().organizationId(),
+          jobId).isPresent()) {
+        continue;
       }
+      Instant now = Instant.now();
+      jobService.createJob(Job.builder()
+          .jobId(jobId)
+          .organizationId(dataset.organization().organizationId())
+          .companyId(new CompanyId(job.companyId()))
+          .title(job.title())
+          .description("Synthetic pilot job for " + job.roleFamily())
+          .location(job.location())
+          .seniorityBand(job.seniorityBand())
+          .roleFamily(job.roleFamily())
+          .employmentType("full_time")
+          .compensation(job.compensation())
+          .status(JobStatus.fromWireValue(job.status()))
+          .commercialTerms("{\"feeRate\":\"25%\",\"synthetic\":true}")
+          .ownerConsultantId(UUID.fromString(job.ownerConsultantId()))
+          .activatedAt("activated".equals(job.status()) ? now : null)
+          .industryPackId(semiconductorIndustryPackId)
+          .metadata(job.metadata())
+          .createdAt(now)
+          .updatedAt(now)
+          .version(1)
+          .build());
     }
   }
 
@@ -306,46 +404,68 @@ public final class PilotDataService {
           dataset.organization().organizationId(),
           typedCandidateId).isEmpty()) {
         UUID sourceItemId = sourceDocumentIds.get(candidate.sourceDocumentRef());
-        candidateProfileService.createCandidateProfile(new CreateCandidateProfileRequest(
+        CandidateProfileId profileId = candidateProfileService.createCandidateProfile(new CreateCandidateProfileRequest(
             dataset.organization().organizationId(),
             typedCandidateId,
             new CandidateProfileVersion(1),
-            candidateProfileFields(candidate, sourceItemId, ownerConsultantId)));
+            candidateProfileFields(candidate, sourceItemId, ownerConsultantId)))
+            .candidateProfileId();
+        candidateService.linkCurrentProfile(
+            dataset.organization().organizationId(),
+            typedCandidateId,
+            profileId);
+      } else {
+        CandidateProfileId profileId = candidateProfileService.findCandidateProfileByCandidateIdAndOrganizationId(
+            dataset.organization().organizationId(),
+            typedCandidateId)
+            .orElseThrow()
+            .candidateProfileId();
+        candidateService.findCandidateByIdAndOrganizationId(
+            dataset.organization().organizationId(),
+            typedCandidateId)
+            .filter(existing -> existing.currentProfileId() == null)
+            .ifPresent(existing -> candidateService.linkCurrentProfile(
+                dataset.organization().organizationId(),
+                typedCandidateId,
+                profileId));
       }
     }
   }
 
-  private static void insertSourceDocuments(Connection connection, PilotDataset dataset) throws SQLException {
+  private void insertSourceDocuments(PilotDataset dataset) {
     UUID consultantActorId = dataset.accounts().stream()
         .filter(account -> "consultant".equals(account.role()))
         .findFirst()
         .orElseThrow()
         .userAccountId();
     for (PilotDataset.SourceDocumentSeed sourceDocument : dataset.sourceDocuments()) {
-      try (PreparedStatement statement = connection.prepareStatement("""
-          INSERT INTO intake.source_item (
-            source_item_id, organization_id, source_type, origin, title, content_hash,
-            external_ref, storage_ref, raw_ref, language, uploaded_by_actor_type,
-            uploaded_by_actor_id, received_at, metadata_json, status, mime_type,
-            file_size_bytes, original_filename, scan_status
-          ) VALUES (?, ?, ?, 'SYSTEM_IMPORT', ?, ?, ?, ?, ?, 'en', 'consultant',
-            ?, now(), ?::jsonb, 'REGISTERED', 'text/plain', ?, ?, 'not_scanned')
-          ON CONFLICT (source_item_id) DO NOTHING
-          """)) {
-        statement.setObject(1, sourceDocument.sourceItemId());
-        statement.setObject(2, dataset.organization().organizationId());
-        statement.setString(3, sourceDocument.sourceType());
-        statement.setString(4, sourceDocument.title());
-        statement.setString(5, sha256(sourceDocument.body()));
-        statement.setString(6, sourceDocument.documentRef());
-        statement.setString(7, "pilotdata/" + sourceDocument.filename());
-        statement.setString(8, sourceDocument.documentRef());
-        statement.setObject(9, consultantActorId);
-        statement.setString(10, sourceDocument.metadata());
-        statement.setLong(11, sourceDocument.body().getBytes(StandardCharsets.UTF_8).length);
-        statement.setString(12, sourceDocument.filename());
-        statement.executeUpdate();
+      SourceItemId sourceItemId = new SourceItemId(sourceDocument.sourceItemId());
+      if (governedIntakeService.findSourceItem(
+          dataset.organization().organizationId(),
+          sourceItemId).isPresent()) {
+        continue;
       }
+      governedIntakeService.registerSourceItem(SourceItemRegistrationCommand.builder()
+          .organizationId(dataset.organization().organizationId())
+          .sourceType(SourceItemType.fromWireValue(sourceDocument.sourceType()))
+          .origin(SourceItemOrigin.SYSTEM_IMPORT)
+          .title(sourceDocument.title())
+          .contentHash(sha256(sourceDocument.body()))
+          .externalRef(sourceDocument.documentRef())
+          .storageRef("pilotdata/" + sourceDocument.filename())
+          .rawRef(sourceDocument.documentRef())
+          .language("en")
+          .uploadedByActorType(ActorRole.CONSULTANT)
+          .uploadedByActorId(consultantActorId)
+          .receivedAt(Instant.now())
+          .metadataJson(sourceDocument.metadata())
+          .status(SourceItemStatus.REGISTERED)
+          .mimeType("text/plain")
+          .fileSizeBytes((long) sourceDocument.body().getBytes(StandardCharsets.UTF_8).length)
+          .originalFilename(sourceDocument.filename())
+          .scanStatus("not_scanned")
+          .sourceItemId(sourceItemId)
+          .build());
     }
   }
 
@@ -420,6 +540,20 @@ public final class PilotDataService {
     }
   }
 
+  private List<PilotDataValidationResult.Issue> storedProfilePrivacyIssues(UUID organizationId) {
+    List<PilotDataValidationResult.Issue> issues = new ArrayList<>();
+    for (Candidate candidate : candidateService.findAllCandidatesByOrganizationId(organizationId)) {
+      candidateProfileService.findCandidateProfileByCandidateIdAndOrganizationId(
+              organizationId,
+              candidate.candidateId())
+          .map(CandidateProfile::fields)
+          .ifPresent(fields -> issues.addAll(privacyValidator.validateCandidateProfileFields(
+              candidate.candidateId().value().toString(),
+              fields)));
+    }
+    return List.copyOf(issues);
+  }
+
   private static int count(Connection connection, String tableName, UUID organizationId) throws SQLException {
     return countWhere(connection, tableName, organizationId, "true");
   }
@@ -437,6 +571,54 @@ public final class PilotDataService {
         return resultSet.getInt(1);
       }
     }
+  }
+
+  private static List<String> failedGateReasons(
+      Map<String, Integer> counts,
+      Map<String, Boolean> privacyChecks,
+      Map<String, Boolean> workflowAuditChecks,
+      Map<String, Boolean> seededAccountChecks) {
+    List<String> reasons = new ArrayList<>();
+    requireCount(counts, "accounts", 5, reasons);
+    requireCount(counts, "seededRoleAssignments", 5, reasons);
+    requireCount(counts, "candidates", 75, reasons);
+    requireCount(counts, "activeJobs", 5, reasons);
+    requireCount(counts, "underReviewJobs", 3, reasons);
+    requireAtLeast(counts, "sourceDocuments", 83, reasons);
+    collectFailedChecks("privacy", privacyChecks, reasons);
+    collectFailedChecks("workflow", workflowAuditChecks, reasons);
+    collectFailedChecks("seeded_accounts", seededAccountChecks, reasons);
+    return List.copyOf(reasons);
+  }
+
+  private static void requireCount(
+      Map<String, Integer> counts,
+      String key,
+      int expected,
+      List<String> reasons) {
+    if (counts.getOrDefault(key, -1) != expected) {
+      reasons.add(key + "_expected_" + expected);
+    }
+  }
+
+  private static void requireAtLeast(
+      Map<String, Integer> counts,
+      String key,
+      int minimum,
+      List<String> reasons) {
+    if (counts.getOrDefault(key, -1) < minimum) {
+      reasons.add(key + "_below_" + minimum);
+    }
+  }
+
+  private static void collectFailedChecks(
+      String namespace,
+      Map<String, Boolean> checks,
+      List<String> reasons) {
+    checks.entrySet().stream()
+        .filter(entry -> !entry.getValue())
+        .map(entry -> namespace + "_" + entry.getKey())
+        .forEach(reasons::add);
   }
 
   private static UUID uuid(String seed) {

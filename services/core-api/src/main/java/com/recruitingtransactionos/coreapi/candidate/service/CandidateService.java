@@ -4,6 +4,7 @@ import com.recruitingtransactionos.coreapi.candidate.Candidate;
 import com.recruitingtransactionos.coreapi.candidate.CandidateStatus;
 import com.recruitingtransactionos.coreapi.candidate.port.CandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
+import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,6 +21,16 @@ public final class CandidateService {
   public Candidate createCandidate(Candidate candidate) {
     Objects.requireNonNull(candidate, "candidate must not be null");
     return candidatePort.create(candidate);
+  }
+
+  public Candidate linkCurrentProfile(
+      UUID organizationId,
+      CandidateId candidateId,
+      CandidateProfileId candidateProfileId) {
+    Objects.requireNonNull(organizationId, "organizationId must not be null");
+    Objects.requireNonNull(candidateId, "candidateId must not be null");
+    Objects.requireNonNull(candidateProfileId, "candidateProfileId must not be null");
+    return candidatePort.linkCurrentProfile(organizationId, candidateId, candidateProfileId);
   }
 
   public Optional<Candidate> findCandidateByIdAndOrganizationId(
