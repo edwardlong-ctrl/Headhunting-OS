@@ -51,10 +51,14 @@ public class DeploymentEnvironmentConfiguration {
         .build());
   }
 
-  private static String activeProfile(Environment environment) {
-    return Arrays.stream(environment.getActiveProfiles())
-        .filter(profile -> "production".equals(profile) || "staging".equals(profile))
-        .findFirst()
-        .orElse("");
+  static String activeProfile(Environment environment) {
+    String[] activeProfiles = environment.getActiveProfiles();
+    if (Arrays.stream(activeProfiles).anyMatch("production"::equals)) {
+      return "production";
+    }
+    if (Arrays.stream(activeProfiles).anyMatch("staging"::equals)) {
+      return "staging";
+    }
+    return "";
   }
 }
