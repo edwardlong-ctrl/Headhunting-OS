@@ -317,6 +317,13 @@ public final class FieldAccessPolicy {
           "admin_governance_allowed",
           "Admin role may read and update same-organization governance configuration surfaces.");
     }
+    if (request.action() == AccessAction.EXPORT
+        && request.resourceType() == ResourceType.DISCLOSURE_RECORD
+        && request.fieldClassification() == FieldClassification.SYSTEM_GOVERNANCE) {
+      return AccessDecision.allow(
+          "admin_disclosure_audit_export_allowed",
+          "Admin role may export same-organization disclosure audit bundles.");
+    }
     if (request.action() == AccessAction.READ
         && (request.resourceType() == ResourceType.REVIEW_EVENT
             || request.resourceType() == ResourceType.WORKFLOW_EVENT

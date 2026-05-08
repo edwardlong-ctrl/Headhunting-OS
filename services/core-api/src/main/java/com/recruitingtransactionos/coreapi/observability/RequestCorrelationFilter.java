@@ -25,6 +25,10 @@ public final class RequestCorrelationFilter extends OncePerRequestFilter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RequestCorrelationFilter.class);
   private static final Pattern SAFE_REQUEST_ID = Pattern.compile("[A-Za-z0-9._:-]{8,64}");
+  private static final Pattern UUID_PATH_SEGMENT = Pattern.compile(
+      "(?i)(^|/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)");
+  private static final Pattern EMAIL_PATH_SEGMENT = Pattern.compile(
+      "(?i)(^|/)[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,190}\\.[A-Z]{2,24}(?=/|$)");
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -78,7 +82,10 @@ public final class RequestCorrelationFilter extends OncePerRequestFilter {
     if (route == null || route.isBlank()) {
       return "unknown";
     }
-    return route.replaceAll("[^A-Za-z0-9/_{}:.-]", "_");
+    String sanitized = route.replaceAll("[^A-Za-z0-9/_{}:@%+.-]", "_");
+    sanitized = UUID_PATH_SEGMENT.matcher(sanitized).replaceAll("$1{uuid}");
+    sanitized = EMAIL_PATH_SEGMENT.matcher(sanitized).replaceAll("$1{email}");
+    return sanitized;
   }
 
   private static RtoAuthenticatedPrincipal currentPrincipal() {

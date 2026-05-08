@@ -14,6 +14,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityDisclosureAuditExportResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityWorkflowEventSearchResponse;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityReadService;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityWorkflowEventQuery;
@@ -110,6 +111,43 @@ class AdminObservabilityControllerPolicyTest {
     assertThat(captor.getValue().actorId()).isEqualTo(actorId);
     assertThat(captor.getValue().occurredFrom()).isEqualTo(occurredFrom);
     assertThat(captor.getValue().occurredTo()).isEqualTo(occurredTo);
+  }
+
+  @Test
+  void disclosureAuditExportUsesExplicitAdminExportPolicy() {
+    when(observabilityReadService.disclosureAuditExport(any()))
+        .thenReturn(new ObservabilityDisclosureAuditExportResponse(
+            "disclosure_ref_1",
+            "missing_disclosure_record",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            List.of("missing_disclosure_record"),
+            List.of(),
+            List.of(),
+            List.of()));
+
+    controller.disclosureAuditExport(principal(PortalRole.ADMIN), "disclosure_ref_1");
+
+    AccessRequest accessRequest = capturedAccessRequest();
+    assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);
+    assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.DISCLOSURE_RECORD);
+    assertThat(accessRequest.action()).isEqualTo(AccessAction.EXPORT);
+    assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
   }
 
   private AccessRequest capturedAccessRequest() {

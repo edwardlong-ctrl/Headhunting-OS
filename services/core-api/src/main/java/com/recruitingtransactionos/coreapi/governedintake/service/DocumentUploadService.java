@@ -103,6 +103,7 @@ public final class DocumentUploadService {
     Objects.requireNonNull(command, "command must not be null");
     Objects.requireNonNull(content, "content must not be null");
 
+    validateOriginalFilename(command.originalFilename());
     validateMimeType(command.mimeType());
     validateFileSize(command.mimeType(), command.contentLength());
 
@@ -320,6 +321,22 @@ public final class DocumentUploadService {
   private static void validateMimeType(String mimeType) {
     if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
       throw new DocumentUploadException("Unsupported MIME type: " + mimeType);
+    }
+  }
+
+  private static void validateOriginalFilename(String originalFilename) {
+    if (originalFilename == null) {
+      return;
+    }
+    if (originalFilename.contains("/")
+        || originalFilename.contains("\\")
+        || originalFilename.contains("..")) {
+      throw new DocumentUploadException("Unsafe original filename");
+    }
+    for (int index = 0; index < originalFilename.length(); index++) {
+      if (Character.isISOControl(originalFilename.charAt(index))) {
+        throw new DocumentUploadException("Unsafe original filename");
+      }
     }
   }
 

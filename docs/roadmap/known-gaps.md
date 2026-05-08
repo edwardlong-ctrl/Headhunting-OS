@@ -1,5 +1,22 @@
 # Known Gaps
 
+## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
+
+- Task 41 adds a controlled-pilot backend hardening baseline for login input
+  policy, auth/document rate limiting, unsafe upload filename rejection,
+  UUID/email URL-path masking in request logs, explicit Admin disclosure-audit
+  export permission, data-retention policy baseline, vulnerability scan
+  baseline, and focused privacy/security regressions.
+- Remaining gaps:
+  - No MFA, password reset, email verification, SSO/OIDC, account lockout
+    persistence, or multi-organization membership switching.
+  - Rate limiting is in-memory and per-node, not distributed or gateway-level.
+  - No complete product-wide PII log audit proves all existing loggers are safe.
+  - No automated data-retention/deletion executor exists.
+  - No formal dependency vulnerability remediation report or penetration test
+    exists.
+  - No production malware scanner is shipped by this task.
+
 ## Task 40 Observability v1 Baseline Exists; Product-wide Operations Still Deferred
 
 - Task 40 adds request correlation middleware for `/api/**`, including safe

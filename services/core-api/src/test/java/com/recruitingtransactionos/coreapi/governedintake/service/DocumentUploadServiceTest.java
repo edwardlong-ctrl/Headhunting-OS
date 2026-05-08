@@ -251,6 +251,20 @@ class DocumentUploadServiceTest {
   }
 
   @Test
+  void rejectsUnsafeOriginalFilenameBeforeStorageOrPersistence() {
+    DocumentUploadCommand command = uploadCommand(ORG_A)
+        .originalFilename("../../candidate\r\ncv.pdf")
+        .build();
+
+    assertThatThrownBy(() -> uploadService.upload(command,
+        new ByteArrayInputStream(FILE_CONTENT)))
+        .isInstanceOf(DocumentUploadException.class)
+        .hasMessage("Unsafe original filename");
+
+    assertThat(sourceItemPort.allSourceItems()).isEmpty();
+  }
+
+  @Test
   void requiresOrganizationId() {
     assertThatThrownBy(() -> new DocumentUploadCommand.Builder(null,
         SourceItemType.CV, SourceItemOrigin.CONSULTANT_UPLOAD, ActorRole.CONSULTANT))

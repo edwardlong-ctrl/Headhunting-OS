@@ -342,6 +342,35 @@ class AccessControlContractTest {
   }
 
   @Test
+  void disclosureAuditExportRequiresAdminExportPermissionAndSameOrganizationScope() {
+    AccessDecision adminExport = evaluator.evaluate(new AccessRequest(
+        PortalRole.ADMIN,
+        ResourceType.DISCLOSURE_RECORD,
+        AccessAction.EXPORT,
+        FieldClassification.SYSTEM_GOVERNANCE,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false));
+
+    assertAllowed(adminExport, "admin_disclosure_audit_export_allowed");
+
+    assertDenied(evaluator.evaluate(new AccessRequest(
+        PortalRole.OWNER,
+        ResourceType.DISCLOSURE_RECORD,
+        AccessAction.EXPORT,
+        FieldClassification.SYSTEM_GOVERNANCE,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false)), "owner_read_only_surface");
+
+    assertDenied(evaluator.evaluate(new AccessRequest(
+        PortalRole.ADMIN,
+        ResourceType.DISCLOSURE_RECORD,
+        AccessAction.EXPORT,
+        FieldClassification.SYSTEM_GOVERNANCE,
+        Set.of(RelationshipScope.GOVERNANCE),
+        false)), "admin_same_org_scope_required");
+  }
+
+  @Test
   void evaluatorHasNoApiControllerSpringSecurityOrDatabaseDependency() throws IOException {
     List<Path> productionFiles = identityAccessProductionFiles();
 

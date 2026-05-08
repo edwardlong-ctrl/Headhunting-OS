@@ -121,6 +121,36 @@ class RequestCorrelationFilterTest {
     }
   }
 
+  @Test
+  void requestLogMasksIdentifiersAndPiiInUrlPath() throws Exception {
+    ch.qos.logback.classic.Logger logger =
+        (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(RequestCorrelationFilter.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    UUID sourceItemId = UUID.fromString("00000000-0000-0000-0000-000000410301");
+    try {
+      RequestCorrelationFilter filter = new RequestCorrelationFilter();
+      MockHttpServletRequest request = new MockHttpServletRequest(
+          "GET",
+          "/api/consultant/documents/" + sourceItemId + "/download/jane.candidate@example.com");
+      request.addHeader(RequestCorrelationFilter.REQUEST_ID_HEADER, "task41-request-0001");
+      MockHttpServletResponse response = new MockHttpServletResponse();
+
+      filter.doFilter(request, response, new CapturingChain());
+
+      assertThat(appender.list).hasSize(1);
+      assertThat(appender.list.getFirst().getFormattedMessage())
+          .contains("route=/api/consultant/documents/{uuid}/download/{email}")
+          .doesNotContain(sourceItemId.toString())
+          .doesNotContain("jane.candidate@example.com");
+    } finally {
+      logger.detachAppender(appender);
+      SecurityContextHolder.clearContext();
+      MDC.clear();
+    }
+  }
+
   private static final class CapturingChain implements FilterChain {
     private String requestIdDuringChain;
 

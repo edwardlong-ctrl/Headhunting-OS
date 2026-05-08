@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.apiboundary.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -131,6 +132,23 @@ class AuthenticationControllerTest {
         .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
         .andReturn();
 
+    assertSanitized(result.getResponse().getContentAsString());
+  }
+
+  @Test
+  void weakLoginPayloadIsRejectedBeforeAuthenticationService() throws Exception {
+    MvcResult result = mockMvc.perform(post("/api/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(Map.of(
+                "organizationId", "00000000-0000-0000-0000-000000190031",
+                "email", "not-an-email",
+                "password", "short",
+                "portalRole", "consultant"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.errorCode").value("validation_failed"))
+        .andReturn();
+
+    verifyNoInteractions(authenticationService);
     assertSanitized(result.getResponse().getContentAsString());
   }
 

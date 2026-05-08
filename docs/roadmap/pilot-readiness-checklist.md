@@ -12,7 +12,7 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
-| Gate | Required for pilot | Current status after Task 40 baseline |
+| Gate | Required for pilot | Current status after Task 41 baseline |
 | --- | --- | --- |
 | Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |
 | Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Product model baseline exists; downstream disclosure/placement/commercial depth still partial |
@@ -25,7 +25,7 @@ privacy, audit, or workflow gates.
 | Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
 | Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction and request-only unlock exist; final identity disclosure workflow still partial |
 | Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Partial: Task 39 local-production deployment baseline plus Task 40 provider-neutral observability/API/runbook baseline exist; not production-ready |
-| Security | Auth hardening, file security, PII logs, export controls, access audit | Not yet |
+| Security | Auth hardening, file security, PII logs, export controls, access audit | Partial: Task 41 backend baseline covers login input policy, rate limiting, unsafe filename rejection, URL-path masking, and explicit disclosure-audit export permission; production security still deferred |
 
 ## Gate 1: Product Boundary and Planning
 
@@ -152,11 +152,11 @@ privacy, audit, or workflow gates.
 - [ ] HTTPS/domain is configured.
 - [x] Structured logs and correlation IDs exist for `/api/**` request boundaries and staging/production log patterns.
 - [x] AITaskRun trace and WorkflowEvent search exist through Admin observability APIs.
-- [ ] PII is masked in ordinary logs product-wide.
+- [ ] PII is masked in ordinary logs product-wide. Task 41 masks UUID/email path segments in normal request logs only.
 - [ ] Access audit exists.
-- [ ] Export permissions exist.
-- [ ] File upload security tests exist.
-- [ ] Rate limiting exists on sensitive endpoints.
+- [x] Export permissions exist for Admin disclosure-audit export.
+- [x] File upload security tests exist for unsafe original filename rejection.
+- [x] Rate limiting exists on auth login/refresh and consultant document endpoints.
 - [x] Incident runbook exists for request id lookup, audit search, disclosure export, AI replay investigation, and forbidden log handling.
 
 ## Pilot E2E Acceptance Flows

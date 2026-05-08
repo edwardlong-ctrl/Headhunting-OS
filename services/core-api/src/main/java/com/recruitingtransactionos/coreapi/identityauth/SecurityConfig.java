@@ -24,6 +24,7 @@ public class SecurityConfig {
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       JwtAuthenticationFilter jwtFilter,
+      SensitiveEndpointRateLimitFilter sensitiveEndpointRateLimitFilter,
       ObjectMapper objectMapper) throws Exception {
     return http
         .csrf(AbstractHttpConfigurer::disable)
@@ -47,6 +48,7 @@ public class SecurityConfig {
             .requestMatchers("/health").permitAll()
             .requestMatchers("/api/**").authenticated()
             .anyRequest().permitAll())
+        .addFilterBefore(sensitiveEndpointRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
         .build();
   }
@@ -72,6 +74,26 @@ public class SecurityConfig {
       Clock clock,
       ObjectMapper objectMapper) {
     return new JwtAuthenticationFilter(jwtService, port, clock, objectMapper);
+  }
+
+  @Bean
+  SensitiveEndpointRateLimitFilter sensitiveEndpointRateLimitFilter(
+      @Value("${rto.security.rate-limit.enabled:true}") boolean enabled,
+      @Value("${rto.security.rate-limit.auth.max-attempts:120}") int authMaxAttempts,
+      @Value("${rto.security.rate-limit.auth.window-seconds:60}") long authWindowSeconds,
+      @Value("${rto.security.rate-limit.document.max-attempts:300}") int documentMaxAttempts,
+      @Value("${rto.security.rate-limit.document.window-seconds:60}") long documentWindowSeconds,
+      Clock clock,
+      ObjectMapper objectMapper) {
+    return new SensitiveEndpointRateLimitFilter(
+        new SensitiveEndpointRateLimitFilter.RateLimitPolicy(
+            enabled,
+            authMaxAttempts,
+            authWindowSeconds,
+            documentMaxAttempts,
+            documentWindowSeconds),
+        clock,
+        objectMapper);
   }
 
   @Bean

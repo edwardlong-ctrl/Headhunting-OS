@@ -165,7 +165,7 @@ public final class AdminObservabilityController {
     if (denied != null) {
       return denied;
     }
-    permissionEnforcer.requireAllowed(adminGovernanceReadAccessRequest(principal.portalRole()));
+    permissionEnforcer.requireAllowed(adminDisclosureExportAccessRequest(principal.portalRole()));
     return ResponseEntity.ok(ApiResponseEnvelope.success(observabilityReadService.disclosureAuditExport(
         new ObservabilityDisclosureAuditExportQuery(principal.organizationId(), disclosureRecordRef))));
   }
@@ -203,6 +203,16 @@ public final class AdminObservabilityController {
         portalRole,
         ResourceType.ADMIN_GOVERNANCE,
         AccessAction.READ,
+        FieldClassification.SYSTEM_GOVERNANCE,
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
+        false);
+  }
+
+  private static AccessRequest adminDisclosureExportAccessRequest(PortalRole portalRole) {
+    return new AccessRequest(
+        portalRole,
+        ResourceType.DISCLOSURE_RECORD,
+        AccessAction.EXPORT,
         FieldClassification.SYSTEM_GOVERNANCE,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
