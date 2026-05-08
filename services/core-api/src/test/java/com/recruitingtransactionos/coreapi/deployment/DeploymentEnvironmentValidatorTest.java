@@ -54,6 +54,34 @@ class DeploymentEnvironmentValidatorTest {
   }
 
   @Test
+  void stagingProfileAcceptsLocalMinioEndpointForProductionLikeDeploymentInputs() {
+    DeploymentEnvironmentSettings settings = DeploymentEnvironmentSettings.builder("staging")
+        .springDatasourceUrl("jdbc:postgresql://postgres:5432/recruiting_os")
+        .springDatasourceUsername("rto_app")
+        .springDatasourcePassword("not-a-real-secret-for-test")
+        .flywayEnabled(true)
+        .jwtSecret("0123456789abcdef0123456789abcdef")
+        .documentStorageRootDir("/var/lib/rto/documents")
+        .virusScanMode("noop")
+        .deepSeekApiKey("test_deepseek_key_not_real")
+        .candidateProfileModel("deepseek-v4-pro")
+        .authenticityRiskModel("deepseek-v4-pro")
+        .interviewFeedbackModel("deepseek-v4-pro")
+        .frontendOrigin("https://staging.example.invalid")
+        .publicBaseUrl("https://api.staging.example.invalid")
+        .databaseManaged(false)
+        .objectStorageProvider("minio")
+        .objectStorageBucket("rto-documents")
+        .objectStorageEndpoint("http://minio:9000")
+        .objectStorageAccessKey("test-object-storage-access-key")
+        .objectStorageSecretKey("test-object-storage-secret-key")
+        .build();
+
+    assertThatCode(() -> DeploymentEnvironmentValidator.validate(settings))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   void productionProfileAcceptsProviderNeutralManagedDeploymentInputs() {
     DeploymentEnvironmentSettings settings = DeploymentEnvironmentSettings.builder("production")
         .springDatasourceUrl("jdbc:postgresql://managed-postgres.internal:5432/recruiting_os")
@@ -109,6 +137,36 @@ class DeploymentEnvironmentValidatorTest {
     assertThatThrownBy(() -> DeploymentEnvironmentValidator.validate(settings))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("spring.flyway.enabled must be true for staging and production");
+  }
+
+  @Test
+  void productionProfileFailsFastWhenMinioEndpointIsNotHttps() {
+    DeploymentEnvironmentSettings settings = DeploymentEnvironmentSettings.builder("production")
+        .springDatasourceUrl("jdbc:postgresql://managed-postgres.internal:5432/recruiting_os")
+        .springDatasourceUsername("rto_app")
+        .springDatasourcePassword("managed-database-password-from-secret-store")
+        .flywayEnabled(true)
+        .jwtSecret("0123456789abcdef0123456789abcdef")
+        .documentStorageRootDir("/var/lib/rto/documents")
+        .virusScanMode("fail_closed")
+        .deepSeekApiKey("test_deepseek_key_not_real")
+        .candidateProfileModel("deepseek-v4-pro")
+        .authenticityRiskModel("deepseek-v4-pro")
+        .interviewFeedbackModel("deepseek-v4-pro")
+        .frontendOrigin("https://app.example.invalid")
+        .publicBaseUrl("https://api.example.invalid")
+        .databaseManaged(true)
+        .objectStorageProvider("minio")
+        .objectStorageBucket("rto-documents")
+        .objectStorageEndpoint("http://minio:9000")
+        .objectStorageAccessKey("test-object-storage-access-key")
+        .objectStorageSecretKey("test-object-storage-secret-key")
+        .build();
+
+    assertThatThrownBy(() -> DeploymentEnvironmentValidator.validate(settings))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining(
+            "rto.deployment.object-storage.endpoint must be an https URL for production or external object storage");
   }
 
   @Test

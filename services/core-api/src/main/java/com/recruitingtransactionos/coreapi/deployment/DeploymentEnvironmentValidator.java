@@ -85,7 +85,7 @@ public final class DeploymentEnvironmentValidator {
     }
     if ("minio".equals(provider) || "external-object-storage".equals(provider)) {
       requireText(settings.objectStorageBucket(), "rto.deployment.object-storage.bucket must be configured", errors);
-      requireHttpsUrl(settings.objectStorageEndpoint(), "rto.deployment.object-storage.endpoint", errors);
+      validateObjectStorageEndpoint(settings.objectStorageEndpoint(), provider, production, errors);
       requireText(
           settings.objectStorageAccessKey(),
           "rto.deployment.object-storage.access-key must be configured",
@@ -94,6 +94,23 @@ public final class DeploymentEnvironmentValidator {
           settings.objectStorageSecretKey(),
           "rto.deployment.object-storage.secret-key must be configured",
           errors);
+    }
+  }
+
+  private static void validateObjectStorageEndpoint(
+      String endpoint,
+      String provider,
+      boolean production,
+      List<String> errors) {
+    if (production || "external-object-storage".equals(provider)) {
+      if (!hasText(endpoint) || !endpoint.startsWith("https://")) {
+        errors.add(
+            "rto.deployment.object-storage.endpoint must be an https URL for production or external object storage");
+      }
+      return;
+    }
+    if (!hasText(endpoint) || !(endpoint.startsWith("http://") || endpoint.startsWith("https://"))) {
+      errors.add("rto.deployment.object-storage.endpoint must be an http or https URL for staging MinIO");
     }
   }
 
