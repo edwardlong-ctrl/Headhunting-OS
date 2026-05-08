@@ -212,7 +212,7 @@
   - real pack key/maturity/selection-reason metadata on stored match reports
   - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
   - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
-- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, and no final identity-disclosed shortlist release path. Task 35 now adds the first interaction-scoped interview feedback and outcome-loop baseline, but broader cross-job ontology learning, admin eval-feedback tooling, and multi-pack calibration remain future work. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
+- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, and no Task 42 browser E2E proof for the full match-to-shortlist-to-disclosure release path. Task 33 adds the first identity-disclosed client read path after approved unlock, and Task 35 adds the first interaction-scoped interview feedback and outcome-loop baseline, but broader cross-job ontology learning, admin eval-feedback tooling, and multi-pack calibration remain future work. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 
@@ -292,9 +292,9 @@
 - L4 identity disclosure requires confirmed non-expired/non-revoked consent, approved human unlock decision, approved disclosure record, and explicit T4 `DISCLOSURE_IDENTITY_DISCLOSED` WorkflowEvent/audit boundary metadata.
 - Raw Candidate and raw CandidateProfile exposure remain denied even when consent, disclosure, unlock, and audit metadata are present.
 - Task 12A tests prove missing, invalid, expired, revoked, or not-human-approved consent/disclosure/unlock state fails closed, and role alone cannot grant L4 disclosure.
-- No Consent/Disclosure REST/controller/API or UI exists yet.
+- Task 12 itself did not add Consent/Disclosure REST/controller/API or UI; later Task 33 adds the first candidate consent, consultant unlock, and client disclosed-candidate product path.
 - Real auth/login/session infrastructure now exists, and product-endpoint enforcement now runs through JWT-backed `SecurityContext` with Task 19C strong session revocation.
-- No full WorkflowEvent-driven workflow engine, transition legality validation, prior-contact/prior-application review flow, fee-agreement validation, job-activation lookup, or identity-disclosed Client read behavior exists yet.
+- No full WorkflowEvent-driven workflow engine, prior-contact/prior-application review flow, fee-agreement validation, or Task 42 browser E2E proof exists yet.
 
 ## Task 10 Metadata Governance + Task 21 Audited Execution Baseline Exist; Full AI Productization Deferred
 
@@ -395,8 +395,8 @@
 - Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, `PermissionEnforcer` exists, a sensitive backend guard slice exists, and five-portal boundary negative tests exist.
 - Real auth/login/session baseline now exists. Spring Security and JWT are now the enforcement source for product controllers, with Task 19C adding strong session checks before principal establishment.
 - No API/controller/UI exists for this access layer.
-- No Consent/Disclosure/Unlock product workflow exists beyond the current backend-only Task 12A/12B/14 policy, persistence, service, and hardening kernel.
-- No identity-disclosed Client access behavior exists.
+- Task 33 now adds the first Consent/Disclosure/Unlock product workflow beyond the earlier Task 12A/12B/14 backend kernel, while Task 8 still proves role-alone L4/identity access is denied.
+- Identity-disclosed Client access behavior now exists only through the approved Task 33 unlock/disclosure path; it is not granted by generic Client role.
 - No complete product-wide RBAC/ABAC enforcement exists beyond the Task 8B/8C backend guard surfaces and regression tests.
 
 ## Workflow Engine Remaining Gaps

@@ -952,6 +952,11 @@ UI、外部 observability vendor、product-wide PII log audit 仍然后续延期
 
 目标：判断系统是否真的进入 Usable v1 / Controlled Commercial Pilot Ready。
 
+当前 gate 状态：`NOT_READY`。Task 42 acceptance-gate model 和报告已经存在，
+但系统还不能称为 controlled-pilot-ready，因为 8 条 pilot flow 尚无单路径
+browser E2E 证据，Task 38 pilot CLI 命令未在当前 gate 下重跑，backup/restore
+也没有当前执行证据。详见 `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`。
+
 必须跑通 8 条流程：
 
 1. 顾问上传 CV + note -> AI claims -> review -> canonical profile。
@@ -1319,7 +1324,7 @@ UI、外部 observability vendor、product-wide PII log audit 仍然后续延期
 - 不要让 RAG/MCP/LLM vendor/low-code tool 成为事实源。
 - 不要优先做装饰性 UI，而忽略真实 workflow、privacy gates、consent、disclosure、audit。
 - 不要让 seed data 绕过真实 workflow。
-- Task 42 前不要声称 pilot-ready。
+- Task 42 gate 通过前不要声称 pilot-ready。
 - Task 60 前不要声称 full product 100%。
 
 ## 后续每个任务的固定格式

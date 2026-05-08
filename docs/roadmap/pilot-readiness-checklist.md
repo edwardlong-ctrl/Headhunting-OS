@@ -17,7 +17,7 @@ pilot flows, negative gates, and required validation evidence in
 `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`; partial seam coverage is
 not treated as controlled-pilot readiness.
 
-| Gate | Required for pilot | Current status after Task 41 baseline |
+| Gate | Required for pilot | Current status after Task 42 baseline |
 | --- | --- | --- |
 | Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |
 | Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Product model baseline exists; downstream disclosure/placement/commercial depth still partial |
@@ -25,10 +25,10 @@ not treated as controlled-pilot readiness.
 | Real intake | File/text upload, source lineage, AI claim extraction, review, canonical write | Governed intake/document parsing baseline exists; JD upload and broader async orchestration still partial |
 | Real AI execution | Provider routing, prompt registry, schema validation, AITaskRun replay | Audited runner baseline exists; no queue/worker or governed write-back execution |
 | Consultant portal | Daily workflow for intake, review, talent, jobs, matching, shortlist, timeline | Real unified workflow surface exists for the current product slice |
-| Client portal | Job creation, clarification, shortlist review, unlock, feedback | Unified client workspace now exists; JD upload and final disclosure remain missing |
-| Candidate portal | Upload, profile review, follow-up, opportunity, consent | Route shell only |
+| Client portal | Job creation, clarification, shortlist review, unlock, feedback | Unified client workspace now exists; identity-disclosed read exists after approved unlock; JD upload and external delivery remain missing |
+| Candidate portal | Upload, profile review, follow-up, opportunity, consent | Candidate portal v1 exists for follow-up, opportunity, and consent confirmation; broader upload/profile review remains partial |
 | Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
-| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction and request-only unlock exist; final identity disclosure workflow still partial |
+| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction plus consent/unlock/disclosure workflow baseline exists; prior-contact/fee-protection depth and Task 42 E2E evidence remain partial |
 | Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Partial: Task 39 local-production deployment baseline plus Task 40 provider-neutral observability/API/runbook baseline exist; not production-ready |
 | Security | Auth hardening, file security, PII logs, export controls, access audit | Partial: Task 41 backend baseline covers login input policy, rate limiting, unsafe filename rejection, URL-path masking, explicit disclosure-audit export permission, and persistent access audit for Task 41 sensitive document/export surfaces; production security still deferred |
 
