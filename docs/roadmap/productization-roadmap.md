@@ -971,7 +971,7 @@ Priority: P0
 
 Goal: Make real candidate/client data safe enough for controlled pilot.
 
-Status after Task 41 worktree baseline: a controlled-pilot backend hardening
+Status on `main` through `58529e4`: a controlled-pilot backend hardening
 slice exists for login input policy, auth/document rate limiting, upload
 filename rejection, URL-path PII masking in request logs, explicit Admin
 disclosure-audit export permission, persistent access audit for Task 41
