@@ -23,6 +23,9 @@ public final class DeploymentEnvironmentValidator {
     }
     requireText(settings.springDatasourceUsername(), "spring.datasource.username must be configured", errors);
     requireText(settings.springDatasourcePassword(), "spring.datasource.password must be configured", errors);
+    if (!settings.flywayEnabled()) {
+      errors.add("spring.flyway.enabled must be true for staging and production");
+    }
     if (!hasText(settings.jwtSecret()) || settings.jwtSecret().getBytes().length < 32) {
       errors.add("rto.auth.jwt.secret must be at least 32 bytes");
     }

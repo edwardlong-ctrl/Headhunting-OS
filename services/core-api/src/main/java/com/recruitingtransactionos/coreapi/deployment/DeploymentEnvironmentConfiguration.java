@@ -21,6 +21,7 @@ public class DeploymentEnvironmentConfiguration {
       @Value("${spring.datasource.url:}") String springDatasourceUrl,
       @Value("${spring.datasource.username:}") String springDatasourceUsername,
       @Value("${spring.datasource.password:}") String springDatasourcePassword,
+      @Value("${spring.flyway.enabled:false}") boolean flywayEnabled,
       @Value("${rto.auth.jwt.secret:}") String jwtSecret,
       @Value("${rto.document-storage.root-dir:}") String documentStorageRootDir,
       @Value("${rto.document-storage.virus-scan.mode:noop}") String virusScanMode,
@@ -32,6 +33,7 @@ public class DeploymentEnvironmentConfiguration {
         .springDatasourceUrl(springDatasourceUrl)
         .springDatasourceUsername(springDatasourceUsername)
         .springDatasourcePassword(springDatasourcePassword)
+        .flywayEnabled(flywayEnabled)
         .jwtSecret(jwtSecret)
         .documentStorageRootDir(documentStorageRootDir)
         .virusScanMode(virusScanMode)

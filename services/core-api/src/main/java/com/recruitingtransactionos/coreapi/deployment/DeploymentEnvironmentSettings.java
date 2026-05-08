@@ -5,6 +5,7 @@ public record DeploymentEnvironmentSettings(
     String springDatasourceUrl,
     String springDatasourceUsername,
     String springDatasourcePassword,
+    boolean flywayEnabled,
     String jwtSecret,
     String documentStorageRootDir,
     String virusScanMode,
@@ -29,6 +30,7 @@ public record DeploymentEnvironmentSettings(
     private String springDatasourceUrl;
     private String springDatasourceUsername;
     private String springDatasourcePassword;
+    private boolean flywayEnabled;
     private String jwtSecret;
     private String documentStorageRootDir;
     private String virusScanMode;
@@ -60,6 +62,11 @@ public record DeploymentEnvironmentSettings(
 
     public Builder springDatasourcePassword(String value) {
       this.springDatasourcePassword = value;
+      return this;
+    }
+
+    public Builder flywayEnabled(boolean value) {
+      this.flywayEnabled = value;
       return this;
     }
 
@@ -139,6 +146,7 @@ public record DeploymentEnvironmentSettings(
           springDatasourceUrl,
           springDatasourceUsername,
           springDatasourcePassword,
+          flywayEnabled,
           jwtSecret,
           documentStorageRootDir,
           virusScanMode,
