@@ -25,7 +25,7 @@ privacy, audit, or workflow gates.
 | Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
 | Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction and request-only unlock exist; final identity disclosure workflow still partial |
 | Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Partial: Task 39 local-production deployment baseline plus Task 40 provider-neutral observability/API/runbook baseline exist; not production-ready |
-| Security | Auth hardening, file security, PII logs, export controls, access audit | Partial: Task 41 backend baseline covers login input policy, rate limiting, unsafe filename rejection, URL-path masking, and explicit disclosure-audit export permission; production security still deferred |
+| Security | Auth hardening, file security, PII logs, export controls, access audit | Partial: Task 41 backend baseline covers login input policy, rate limiting, unsafe filename rejection, URL-path masking, explicit disclosure-audit export permission, and persistent access audit for Task 41 sensitive document/export surfaces; production security still deferred |
 
 ## Gate 1: Product Boundary and Planning
 
@@ -153,7 +153,7 @@ privacy, audit, or workflow gates.
 - [x] Structured logs and correlation IDs exist for `/api/**` request boundaries and staging/production log patterns.
 - [x] AITaskRun trace and WorkflowEvent search exist through Admin observability APIs.
 - [ ] PII is masked in ordinary logs product-wide. Task 41 masks UUID/email path segments in normal request logs only.
-- [ ] Access audit exists.
+- [x] Access audit exists for Task 41 sensitive document/export surfaces. Product-wide field-level access audit remains future hardening.
 - [x] Export permissions exist for Admin disclosure-audit export.
 - [x] File upload security tests exist for unsafe original filename rejection.
 - [x] Rate limiting exists on auth login/refresh and consultant document endpoints.

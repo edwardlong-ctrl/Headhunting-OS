@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.governedintake.DocumentUploadResult;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadException;
 import com.recruitingtransactionos.coreapi.governedintake.service.DocumentUploadService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAuditContext;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
@@ -37,6 +38,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -65,6 +67,16 @@ public final class ConsultantDocumentController {
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
+  public ConsultantDocumentController(
+      DocumentUploadService documentUploadService,
+      DocumentParsingService documentParsingService,
+      ObjectProvider<PermissionEnforcer> permissionEnforcerProvider) {
+    this(
+        documentUploadService,
+        documentParsingService,
+        permissionEnforcerProvider.getIfAvailable(() -> new PermissionEnforcer(new PermissionEvaluator())));
+  }
+
   public ConsultantDocumentController(
       DocumentUploadService documentUploadService,
       DocumentParsingService documentParsingService) {
@@ -96,8 +108,8 @@ public final class ConsultantDocumentController {
       @RequestParam(value = "title", required = false) String title,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
-    requireRawSourceAccess(principal.portalRole(), AccessAction.CREATE);
     UUID orgId = principal.organizationId();
+    requireRawSourceAccess(principal, AccessAction.CREATE, orgId);
 
     try {
       DocumentUploadCommand command = DocumentUploadCommand.fromWireValues(
@@ -139,9 +151,9 @@ public final class ConsultantDocumentController {
       @PathVariable String sourceItemId,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
 
-    requireRawSourceAccess(principal.portalRole(), AccessAction.READ);
     UUID orgId = principal.organizationId();
     UUID sid = parseDocumentId(sourceItemId);
+    requireRawSourceAccess(principal, AccessAction.READ, sid);
 
     DocumentRetrievalResult result;
     try {
@@ -165,9 +177,9 @@ public final class ConsultantDocumentController {
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> parseDocument(
       @PathVariable String sourceItemId,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
-    requireRawSourceAccess(principal.portalRole(), AccessAction.UPDATE);
     UUID orgId = principal.organizationId();
     UUID sid = parseDocumentId(sourceItemId);
+    requireRawSourceAccess(principal, AccessAction.UPDATE, sid);
     ParsedDocument parsedDocument = documentParsingService.parseDocument(orgId, sid);
     return ResponseEntity.ok(ApiResponseEnvelope.success(toParsedDocumentResponse(sid, parsedDocument, orgId)));
   }
@@ -176,9 +188,9 @@ public final class ConsultantDocumentController {
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> parsedDocument(
       @PathVariable String sourceItemId,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
-    requireRawSourceAccess(principal.portalRole(), AccessAction.READ);
     UUID orgId = principal.organizationId();
     UUID sid = parseDocumentId(sourceItemId);
+    requireRawSourceAccess(principal, AccessAction.READ, sid);
     ParsedDocument parsedDocument = documentParsingService.findLatestParsedDocumentByDocumentId(orgId, sid)
         .orElseThrow(() -> new DocumentResourceNotFoundException("parsed document unavailable"));
     return ResponseEntity.ok(ApiResponseEnvelope.success(toParsedDocumentResponse(sid, parsedDocument, orgId)));
@@ -190,9 +202,9 @@ public final class ConsultantDocumentController {
       @RequestParam(value = "query", required = false) String query,
       @RequestParam(value = "limit", required = false, defaultValue = "5") int limit,
       @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
-    requireRawSourceAccess(principal.portalRole(), AccessAction.READ);
     UUID orgId = principal.organizationId();
     UUID sid = parseDocumentId(sourceItemId);
+    requireRawSourceAccess(principal, AccessAction.READ, sid);
     DocumentEvidenceRetrievalResult result =
         documentParsingService.retrieveDocumentEvidence(orgId, sid, query, limit);
     return ResponseEntity.ok(ApiResponseEnvelope.success(new ConsultantDocumentEvidenceResponse(
@@ -249,14 +261,22 @@ public final class ConsultantDocumentController {
             "Request failed."));
   }
 
-  private void requireRawSourceAccess(PortalRole portalRole, AccessAction action) {
+  private void requireRawSourceAccess(
+      RtoAuthenticatedPrincipal principal,
+      AccessAction action,
+      UUID targetEntityId) {
     permissionEnforcer.requireAllowed(new AccessRequest(
-        portalRole,
+        principal.portalRole(),
         ResourceType.SOURCE_ITEM,
         action,
         FieldClassification.RAW_SOURCE,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
-        false));
+        false),
+        new AccessAuditContext(
+            principal.organizationId(),
+            principal.userAccountId(),
+            targetEntityId,
+            FieldClassification.RAW_SOURCE.wireValue()));
   }
 
   private ConsultantParsedDocumentResponse toParsedDocumentResponse(

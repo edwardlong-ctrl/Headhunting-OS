@@ -974,10 +974,12 @@ Goal: Make real candidate/client data safe enough for controlled pilot.
 Status after Task 41 worktree baseline: a controlled-pilot backend hardening
 slice exists for login input policy, auth/document rate limiting, upload
 filename rejection, URL-path PII masking in request logs, explicit Admin
-disclosure-audit export permission, data-retention policy baseline, and
-focused privacy/security regressions. This is not a production security
-certification, distributed rate limiter, full PII log audit, MFA/lockout suite,
-or vulnerability remediation report.
+disclosure-audit export permission, persistent access audit for Task 41
+sensitive document/export surfaces, data-retention policy baseline, pinned
+dependency-check configuration, and focused privacy/security regressions. This
+is not a production security certification, distributed rate limiter, full PII
+log audit, MFA/lockout suite, product-wide field-level access audit, or
+vulnerability remediation report.
 
 Must deliver:
 

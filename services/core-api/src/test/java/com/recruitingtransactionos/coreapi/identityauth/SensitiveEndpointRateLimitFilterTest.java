@@ -42,6 +42,46 @@ class SensitiveEndpointRateLimitFilterTest {
   }
 
   @Test
+  void throttlesRefreshAttemptsWithAuthPolicy() throws Exception {
+    SensitiveEndpointRateLimitFilter filter = new SensitiveEndpointRateLimitFilter(
+        new SensitiveEndpointRateLimitFilter.RateLimitPolicy(true, 1, 60, 5, 60),
+        Clock.fixed(Instant.parse("2026-05-08T00:00:00Z"), ZoneOffset.UTC),
+        new ObjectMapper());
+    CountingChain chain = new CountingChain();
+
+    assertThat(doFilter(filter, request("POST", "/api/auth/refresh", "203.0.113.11"), chain)
+        .getStatus()).isEqualTo(200);
+    MockHttpServletResponse throttled =
+        doFilter(filter, request("POST", "/api/auth/refresh", "203.0.113.11"), chain);
+
+    assertThat(throttled.getStatus()).isEqualTo(429);
+    assertThat(chain.count).isEqualTo(1);
+  }
+
+  @Test
+  void throttlesEachConsultantDocumentEndpointWithDocumentPolicy() throws Exception {
+    for (Endpoint endpoint : new Endpoint[] {
+        new Endpoint("POST", "/api/consultant/documents/upload"),
+        new Endpoint("GET", "/api/consultant/documents/00000000-0000-0000-0000-000000200033/download"),
+        new Endpoint("POST", "/api/consultant/documents/00000000-0000-0000-0000-000000200033/parse"),
+        new Endpoint("GET", "/api/consultant/documents/00000000-0000-0000-0000-000000200033/parsed"),
+        new Endpoint("GET", "/api/consultant/documents/00000000-0000-0000-0000-000000200033/evidence")
+    }) {
+      SensitiveEndpointRateLimitFilter filter = new SensitiveEndpointRateLimitFilter(
+          new SensitiveEndpointRateLimitFilter.RateLimitPolicy(true, 5, 60, 1, 60),
+          Clock.fixed(Instant.parse("2026-05-08T00:00:00Z"), ZoneOffset.UTC),
+          new ObjectMapper());
+      CountingChain chain = new CountingChain();
+
+      assertThat(doFilter(filter, request(endpoint.method(), endpoint.path(), "203.0.113.12"), chain)
+          .getStatus()).as(endpoint.path()).isEqualTo(200);
+      assertThat(doFilter(filter, request(endpoint.method(), endpoint.path(), "203.0.113.12"), chain)
+          .getStatus()).as(endpoint.path()).isEqualTo(429);
+      assertThat(chain.count).as(endpoint.path()).isEqualTo(1);
+    }
+  }
+
+  @Test
   void doesNotThrottleNonSensitiveApiRoutes() throws Exception {
     SensitiveEndpointRateLimitFilter filter = new SensitiveEndpointRateLimitFilter(
         new SensitiveEndpointRateLimitFilter.RateLimitPolicy(true, 1, 60, 1, 60),
@@ -113,4 +153,6 @@ class SensitiveEndpointRateLimitFilterTest {
       return now;
     }
   }
+
+  private record Endpoint(String method, String path) {}
 }

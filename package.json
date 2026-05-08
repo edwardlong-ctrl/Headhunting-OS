@@ -19,6 +19,7 @@
     "pilot:data:rebuild": "bash scripts/pilot-data.sh rebuild",
     "pilot:data:reset": "bash scripts/pilot-data.sh reset",
     "pilot:data:validate": "bash scripts/pilot-data.sh validate",
+    "security:core-api:dependency-check": "bash scripts/security/dependency-check-core-api.sh",
     "test:core-api": "mvn -f services/core-api/pom.xml test",
     "typecheck:web": "npm --workspace @rto/web run typecheck"
   },

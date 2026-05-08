@@ -5,10 +5,19 @@ import java.util.Objects;
 public final class PermissionEnforcer {
 
   private final PermissionEvaluator permissionEvaluator;
+  private final AccessAuditRecorder accessAuditRecorder;
 
   public PermissionEnforcer(PermissionEvaluator permissionEvaluator) {
+    this(permissionEvaluator, AccessAuditRecorder.noop());
+  }
+
+  public PermissionEnforcer(
+      PermissionEvaluator permissionEvaluator,
+      AccessAuditRecorder accessAuditRecorder) {
     this.permissionEvaluator =
         Objects.requireNonNull(permissionEvaluator, "permissionEvaluator must not be null");
+    this.accessAuditRecorder =
+        Objects.requireNonNull(accessAuditRecorder, "accessAuditRecorder must not be null");
   }
 
   public AccessDecision evaluate(AccessRequest request) {
@@ -32,6 +41,16 @@ public final class PermissionEnforcer {
 
   public AccessDecision requireAllowed(AccessRequest request) {
     AccessDecision decision = evaluate(request);
+    if (!decision.allowed()) {
+      throw new AccessDeniedException(decision);
+    }
+    return decision;
+  }
+
+  public AccessDecision requireAllowed(AccessRequest request, AccessAuditContext auditContext) {
+    Objects.requireNonNull(auditContext, "auditContext must not be null");
+    AccessDecision decision = evaluate(request);
+    accessAuditRecorder.record(new AccessAuditEvent(request, decision, auditContext));
     if (!decision.allowed()) {
       throw new AccessDeniedException(decision);
     }

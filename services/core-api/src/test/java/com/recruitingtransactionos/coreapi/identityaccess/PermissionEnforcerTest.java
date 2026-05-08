@@ -6,8 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +50,42 @@ class PermissionEnforcerTest {
           assertThat(exception.decision().safeExplanation()).isNotBlank();
           assertThat(exception.getMessage()).contains("client_raw_candidate_profile_denied");
         });
+  }
+
+  @Test
+  void auditedRequireAllowedRecordsAllowedAndDeniedAccessDecisionsBeforeReturningOrThrowing() {
+    RecordingAccessAuditRecorder recorder = new RecordingAccessAuditRecorder();
+    PermissionEnforcer auditedEnforcer = new PermissionEnforcer(new PermissionEvaluator(), recorder);
+    AccessAuditContext auditContext = new AccessAuditContext(
+        UUID.fromString("00000000-0000-0000-0000-000000410001"),
+        UUID.fromString("00000000-0000-0000-0000-000000410002"),
+        UUID.fromString("00000000-0000-0000-0000-000000410003"),
+        "client_safe");
+
+    auditedEnforcer.requireAllowed(new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.CLIENT_SAFE_CANDIDATE_CARD,
+        AccessAction.READ,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(),
+        false), auditContext);
+
+    assertThatThrownBy(() -> auditedEnforcer.requireAllowed(new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.CANDIDATE_PROFILE,
+        AccessAction.READ,
+        FieldClassification.PII,
+        Set.of(),
+        false), auditContext))
+        .isInstanceOf(AccessDeniedException.class);
+
+    assertThat(recorder.events).hasSize(2);
+    assertThat(recorder.events.get(0).decision().allowed()).isTrue();
+    assertThat(recorder.events.get(0).request().resourceType())
+        .isEqualTo(ResourceType.CLIENT_SAFE_CANDIDATE_CARD);
+    assertThat(recorder.events.get(1).decision().allowed()).isFalse();
+    assertThat(recorder.events.get(1).decision().reasonCode())
+        .isEqualTo("client_raw_candidate_profile_denied");
   }
 
   @Test
@@ -213,5 +251,14 @@ class PermissionEnforcerTest {
       return direct;
     }
     return userDir.resolve("services/core-api").resolve(relativePath);
+  }
+
+  private static final class RecordingAccessAuditRecorder implements AccessAuditRecorder {
+    private final List<AccessAuditEvent> events = new ArrayList<>();
+
+    @Override
+    public void record(AccessAuditEvent event) {
+      events.add(event);
+    }
   }
 }

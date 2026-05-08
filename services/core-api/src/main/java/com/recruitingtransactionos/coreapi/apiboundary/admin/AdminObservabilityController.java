@@ -5,6 +5,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAuditContext;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
@@ -20,11 +21,13 @@ import com.recruitingtransactionos.coreapi.observability.ObservabilityDisclosure
 import com.recruitingtransactionos.coreapi.observability.ObservabilityReadService;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityReviewEventQuery;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityWorkflowEventQuery;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -43,8 +46,18 @@ public final class AdminObservabilityController {
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
+  public AdminObservabilityController(
+      ObservabilityReadService observabilityReadService,
+      ObjectProvider<PermissionEnforcer> permissionEnforcerProvider) {
+    this(
+        observabilityReadService,
+        permissionEnforcerProvider.getIfAvailable(() -> new PermissionEnforcer(new PermissionEvaluator())));
+  }
+
   public AdminObservabilityController(ObservabilityReadService observabilityReadService) {
-    this(observabilityReadService, new PermissionEnforcer(new PermissionEvaluator()));
+    this(
+        observabilityReadService,
+        new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   AdminObservabilityController(
@@ -165,7 +178,13 @@ public final class AdminObservabilityController {
     if (denied != null) {
       return denied;
     }
-    permissionEnforcer.requireAllowed(adminDisclosureExportAccessRequest(principal.portalRole()));
+    permissionEnforcer.requireAllowed(
+        adminDisclosureExportAccessRequest(principal.portalRole()),
+        new AccessAuditContext(
+            principal.organizationId(),
+            principal.userAccountId(),
+            auditTargetId(disclosureRecordRef),
+            FieldClassification.SYSTEM_GOVERNANCE.wireValue()));
     return ResponseEntity.ok(ApiResponseEnvelope.success(observabilityReadService.disclosureAuditExport(
         new ObservabilityDisclosureAuditExportQuery(principal.organizationId(), disclosureRecordRef))));
   }
@@ -216,5 +235,17 @@ public final class AdminObservabilityController {
         FieldClassification.SYSTEM_GOVERNANCE,
         Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
+  }
+
+  private static UUID auditTargetId(String disclosureRecordRef) {
+    if (disclosureRecordRef != null) {
+      try {
+        return UUID.fromString(disclosureRecordRef);
+      } catch (IllegalArgumentException ignored) {
+        return UUID.nameUUIDFromBytes(
+            ("disclosure_record:" + disclosureRecordRef).getBytes(StandardCharsets.UTF_8));
+      }
+    }
+    return UUID.nameUUIDFromBytes("disclosure_record:null".getBytes(StandardCharsets.UTF_8));
   }
 }

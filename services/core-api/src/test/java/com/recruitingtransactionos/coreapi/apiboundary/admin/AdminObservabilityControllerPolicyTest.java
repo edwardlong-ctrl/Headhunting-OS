@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
+import com.recruitingtransactionos.coreapi.identityaccess.AccessAuditContext;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
@@ -39,7 +40,9 @@ class AdminObservabilityControllerPolicyTest {
   void setUp() {
     observabilityReadService = mock(ObservabilityReadService.class);
     permissionEnforcer = mock(PermissionEnforcer.class);
-    when(permissionEnforcer.requireAllowed(any()))
+    when(permissionEnforcer.requireAllowed(any(AccessRequest.class)))
+        .thenReturn(new AccessDecision(true, "allowed", "allowed"));
+    when(permissionEnforcer.requireAllowed(any(AccessRequest.class), any(AccessAuditContext.class)))
         .thenReturn(new AccessDecision(true, "allowed", "allowed"));
     controller = new AdminObservabilityController(observabilityReadService, permissionEnforcer);
   }
@@ -73,7 +76,7 @@ class AdminObservabilityControllerPolicyTest {
 
   @Test
   void clientRoleIsDeniedBeforeObservabilitySearchRuns() {
-    when(permissionEnforcer.requireAllowed(any()))
+    when(permissionEnforcer.requireAllowed(any(AccessRequest.class)))
         .thenReturn(new AccessDecision(true, "allowed", "allowed"));
 
     var response = controller.workflowEvents(
@@ -143,16 +146,33 @@ class AdminObservabilityControllerPolicyTest {
 
     controller.disclosureAuditExport(principal(PortalRole.ADMIN), "disclosure_ref_1");
 
-    AccessRequest accessRequest = capturedAccessRequest();
+    AccessRequest accessRequest = capturedAuditedAccessRequest();
     assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);
     assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.DISCLOSURE_RECORD);
     assertThat(accessRequest.action()).isEqualTo(AccessAction.EXPORT);
     assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
+
+    AccessAuditContext auditContext = capturedAccessAuditContext();
+    assertThat(auditContext.organizationId()).isEqualTo(ORGANIZATION_ID);
+    assertThat(auditContext.actorUserId()).isEqualTo(USER_ID);
+    assertThat(auditContext.sensitivityLevel()).isEqualTo("system_governance");
   }
 
   private AccessRequest capturedAccessRequest() {
     ArgumentCaptor<AccessRequest> captor = ArgumentCaptor.forClass(AccessRequest.class);
     verify(permissionEnforcer).requireAllowed(captor.capture());
+    return captor.getValue();
+  }
+
+  private AccessRequest capturedAuditedAccessRequest() {
+    ArgumentCaptor<AccessRequest> captor = ArgumentCaptor.forClass(AccessRequest.class);
+    verify(permissionEnforcer).requireAllowed(captor.capture(), any(AccessAuditContext.class));
+    return captor.getValue();
+  }
+
+  private AccessAuditContext capturedAccessAuditContext() {
+    ArgumentCaptor<AccessAuditContext> captor = ArgumentCaptor.forClass(AccessAuditContext.class);
+    verify(permissionEnforcer).requireAllowed(any(AccessRequest.class), captor.capture());
     return captor.getValue();
   }
 

@@ -24,9 +24,15 @@ statement.
 - Disclosure audit export now uses explicit same-organization Admin `EXPORT`
   permission on `DISCLOSURE_RECORD` instead of reusing a generic governance
   read policy.
+- Access decisions on Task 41 sensitive surfaces now have a persistent audit
+  path. `PermissionEnforcer.requireAllowed(request, auditContext)` records
+  allow/deny decisions to `audit.audit_log` through `JdbcAccessAuditRecorder`.
+  The first wired surfaces are consultant source-document access
+  (upload/download/parse/parsed/evidence) and Admin disclosure-audit export.
 - Focused privacy/security regressions cover weak login payloads, throttling,
-  unsafe upload filenames, URL-path PII masking, and export permission
-  enforcement.
+  unsafe upload filenames, URL-path PII masking, export permission enforcement,
+  persistent access-audit recording, and endpoint-level rate-limit coverage for
+  auth refresh plus consultant document upload/download/parse/parsed/evidence.
 
 ## Data Retention Policy Baseline
 
@@ -47,12 +53,19 @@ Run these before claiming pilot security readiness:
 
 ```sh
 npm audit --omit=dev
-PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml org.owasp:dependency-check-maven:check
+NVD_API_KEY=... npm run security:core-api:dependency-check
 ```
 
-Current task validation is regression and build oriented. Any scanner findings
-must be tracked to remediation or explicit risk acceptance before production
-security claims.
+The Maven scan is pinned in `services/core-api/pom.xml` via
+`org.owasp:dependency-check-maven:12.2.0` and reads the NVD API key through
+`nvdApiKeyEnvironmentVariable`. The wrapper fails fast by default when
+`NVD_API_KEY` is absent because unkeyed first-run NVD updates are too slow for
+review gates and can appear stalled. Explicit alternatives are
+`DEPENDENCY_CHECK_PREWARMED_CACHE=1` for a prepared local data cache or
+`DEPENDENCY_CHECK_ALLOW_SLOW_UNKEYED=1` for a deliberate slow unkeyed update.
+The wrapper also fails if the expected HTML and JSON baseline reports are not
+created. Any scanner findings must be tracked to remediation or explicit risk
+acceptance before production security claims.
 
 ## Remaining Gaps
 
@@ -65,3 +78,5 @@ security claims.
 - No formal vulnerability remediation report or penetration test exists.
 - File malware scanning still depends on the configured `VirusScanPort`; the
   baseline rejects unsafe scanner results but does not ship a production scanner.
+- Access audit is wired for Task 41 sensitive document/export surfaces; it is
+  not yet a product-wide field-level access-audit rollout for every API.
