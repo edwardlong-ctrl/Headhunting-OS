@@ -12,7 +12,7 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
-| Gate | Required for pilot | Current status after Task 40 worktree |
+| Gate | Required for pilot | Current status after Task 40 baseline |
 | --- | --- | --- |
 | Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |
 | Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Product model baseline exists; downstream disclosure/placement/commercial depth still partial |

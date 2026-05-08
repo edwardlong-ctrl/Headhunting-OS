@@ -936,6 +936,13 @@ Priority: P1, with P0 subset for pilot
 
 Goal: Make production failures traceable and replayable.
 
+Status after `68647b5`: the provider-neutral backend/API/runbook subset is
+complete on `main` through safe request correlation, structured staging/
+production log patterns, admin audit search APIs, AITaskRun trace/replay
+visibility, disclosure audit export, and the incident runbook. Error dashboard,
+AI cost/latency dashboard UI, external observability vendors, and product-wide
+PII log audit remain deferred.
+
 Must deliver:
 
 - Structured logs.
