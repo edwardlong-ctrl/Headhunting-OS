@@ -445,15 +445,21 @@ class ApiBoundaryRegressionClosureTest {
               || "ApiSafeResponseBody.java".equals(file.getFileName().toString())
               || file.getFileName().toString().contains("ConsultantWorkflow")
               || "ConsultantAuditDrawerResponse.java".equals(file.getFileName().toString());
+      boolean isObservabilitySafeSurface =
+          file.getFileName().toString().contains("Observability")
+              || "AdminObservabilityController.java".equals(file.getFileName().toString())
+              || "ApiSafeResponseBody.java".equals(file.getFileName().toString());
       if (!isConsultantIntakeController && !isConsultantIntakeQueueSurface
           && !isCandidatePortalSurface) {
         var assertion = assertThat(source)
             .as(file.toString())
             .doesNotContain("SourceItem")
             .doesNotContain("InformationPacket")
-            .doesNotContain("ClaimLedgerItem")
-            .doesNotContain("ReviewEvent");
-        if (!isWorkflowSafeSurface) {
+            .doesNotContain("ClaimLedgerItem");
+        if (!isObservabilitySafeSurface) {
+          assertion.doesNotContain("ReviewEvent");
+        }
+        if (!isWorkflowSafeSurface && !isObservabilitySafeSurface) {
           assertion.doesNotContain("WorkflowEvent");
         }
       }
@@ -492,6 +498,7 @@ class ApiBoundaryRegressionClosureTest {
             "ConsultantInterviewFeedbackReviewController.java",
             "ConsultantWorkflowController.java",
             "AdminGovernanceController.java",
+            "AdminObservabilityController.java",
             "OwnerGovernanceController.java",
             "OwnerPlacementController.java",
             "OwnerRevenueController.java",
@@ -514,7 +521,8 @@ class ApiBoundaryRegressionClosureTest {
           .doesNotContain("{candidateId}")
           .doesNotContain("{candidateProfileId}")
           .doesNotContain("ResourceType.CANDIDATE_PROFILE");
-      if (!"AdminGovernanceController.java".equals(fileName)) {
+      if (!"AdminGovernanceController.java".equals(fileName)
+          && !"AdminObservabilityController.java".equals(fileName)) {
         assertion.doesNotContain("/api/admin");
       }
       if (!"ConsultantCandidateController.java".equals(fileName)) {

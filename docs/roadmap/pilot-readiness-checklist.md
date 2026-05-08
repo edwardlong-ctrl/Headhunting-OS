@@ -12,7 +12,7 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
-| Gate | Required for pilot | Current status after Task 32 |
+| Gate | Required for pilot | Current status after Task 40 worktree |
 | --- | --- | --- |
 | Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |
 | Real business data model | Candidate, Company, Job, Document, Interaction, Shortlist, Consent, Disclosure, Placement basics | Product model baseline exists; downstream disclosure/placement/commercial depth still partial |
@@ -24,7 +24,7 @@ privacy, audit, or workflow gates.
 | Candidate portal | Upload, profile review, follow-up, opportunity, consent | Route shell only |
 | Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
 | Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction and request-only unlock exist; final identity disclosure workflow still partial |
-| Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Not yet |
+| Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Partial: Task 39 local-production deployment baseline plus Task 40 provider-neutral observability/API/runbook baseline exist; not production-ready |
 | Security | Auth hardening, file security, PII logs, export controls, access audit | Not yet |
 
 ## Gate 1: Product Boundary and Planning
@@ -150,14 +150,14 @@ privacy, audit, or workflow gates.
 - [ ] Backup/restore test passes.
 - [ ] Object storage is configured and tested.
 - [ ] HTTPS/domain is configured.
-- [ ] Structured logs and correlation IDs exist.
-- [ ] AITaskRun trace and WorkflowEvent search exist.
-- [ ] PII is masked in ordinary logs.
+- [x] Structured logs and correlation IDs exist for `/api/**` request boundaries and staging/production log patterns.
+- [x] AITaskRun trace and WorkflowEvent search exist through Admin observability APIs.
+- [ ] PII is masked in ordinary logs product-wide.
 - [ ] Access audit exists.
 - [ ] Export permissions exist.
 - [ ] File upload security tests exist.
 - [ ] Rate limiting exists on sensitive endpoints.
-- [ ] Incident runbook exists.
+- [x] Incident runbook exists for request id lookup, audit search, disclosure export, AI replay investigation, and forbidden log handling.
 
 ## Pilot E2E Acceptance Flows
 

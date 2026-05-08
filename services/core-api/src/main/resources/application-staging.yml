@@ -40,3 +40,7 @@ rto:
       local-root-dir: ${RTO_OBJECT_STORAGE_LOCAL_ROOT_DIR:${RTO_DOCUMENT_STORAGE_ROOT_DIR}}
       access-key: ${RTO_OBJECT_STORAGE_ACCESS_KEY:}
       secret-key: ${RTO_OBJECT_STORAGE_SECRET_KEY:}
+
+logging:
+  pattern:
+    console: "ts=%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%p service=core-api requestId=%X{requestId:-none} organizationId=%X{organizationId:-unknown} actorRole=%X{actorRole:-unknown} errorCode=%X{errorCode:-none} logger=%logger{36} msg=%replace(%m){'[\r\n]','_'}%n"

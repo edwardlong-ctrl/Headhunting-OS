@@ -1,5 +1,38 @@
 # Known Gaps
 
+## Task 40 Observability v1 Baseline Exists; Product-wide Operations Still Deferred
+
+- Task 40 adds request correlation middleware for `/api/**`, including safe
+  `X-Request-Id` preservation/generation, response headers, MDC propagation, and
+  safe request log fields.
+- Staging and production profiles now use key-value structured log patterns for
+  timestamp, level, service, request id, organization id, actor role, error
+  code, logger, and sanitized message text.
+- Admin-only observability APIs now expose safe WorkflowEvent search,
+  ReviewEvent search, AITaskRun trace/search, and disclosure audit export.
+- AITaskRun trace/search returns safe task/model/prompt/schema/cost/latency/
+  replay metadata without reading or returning raw input/output/tool payloads.
+- Disclosure audit export reports explicit `missing_*` reason codes when
+  records or links are absent instead of inferring facts, and includes safe
+  consent version/status plus unlock approver metadata when those records are
+  explicitly linked.
+- Remaining gaps:
+  - No external observability vendor, OpenTelemetry collector, Prometheus
+    backend, or distributed tracing exists.
+  - No frontend dashboard exists for error summaries, AI cost/latency summaries,
+    or incident exploration.
+  - No product-wide log audit proves every existing logger masks PII; Task 40
+    only verifies the new request-correlation and observability surfaces.
+  - No owner raw audit export exists; owner-facing observability should remain
+    aggregated unless a later task defines safe owner DTOs.
+  - Disclosure requester metadata is not yet linked by a dedicated safe read
+    model; Task 40 reports `missing_requester_link` rather than guessing from
+    adjacent events.
+  - PostgreSQL/Testcontainers coverage for the new observability JDBC readers is
+    still narrower than the full plan; existing WorkflowEvent/AITaskRun/
+    ReviewEvent/Disclosure persistence suites remain the deeper persistence
+    coverage.
+
 ## Task 19A/19B/19C Auth Baseline, Controller Migration, and Hardening Complete; Extended Identity Features Deferred
 
 - Task 19A adds V15 auth persistence baseline through `identity.user_account.password_hash` and `identity.session`.

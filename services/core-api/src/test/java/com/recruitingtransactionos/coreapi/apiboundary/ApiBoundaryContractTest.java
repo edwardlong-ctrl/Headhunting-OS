@@ -163,6 +163,9 @@ class ApiBoundaryContractTest {
         ClientSafeCandidateCardResponse.class,
         ConsultantParsedDocumentResponse.class,
         ConsultantDocumentEvidenceResponse.class,
+        ObservabilityWorkflowEventSearchResponse.class,
+        ObservabilityReviewEventSearchResponse.class,
+        ObservabilityAITaskRunSearchResponse.class,
         AuthSessionResponse.class,
         AuthLogoutResponse.class);
 
