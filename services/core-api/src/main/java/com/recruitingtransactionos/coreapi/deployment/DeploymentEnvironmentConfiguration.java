@@ -48,6 +48,8 @@ public class DeploymentEnvironmentConfiguration {
         .objectStorageBucket(deploymentProperties.getObjectStorage().getBucket())
         .objectStorageEndpoint(deploymentProperties.getObjectStorage().getEndpoint())
         .objectStorageLocalRootDir(deploymentProperties.getObjectStorage().getLocalRootDir())
+        .objectStorageAccessKey(deploymentProperties.getObjectStorage().getAccessKey())
+        .objectStorageSecretKey(deploymentProperties.getObjectStorage().getSecretKey())
         .build());
   }
 

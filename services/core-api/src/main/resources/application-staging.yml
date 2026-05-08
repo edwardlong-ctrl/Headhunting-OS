@@ -38,3 +38,5 @@ rto:
       bucket: ${RTO_OBJECT_STORAGE_BUCKET:}
       endpoint: ${RTO_OBJECT_STORAGE_ENDPOINT:}
       local-root-dir: ${RTO_OBJECT_STORAGE_LOCAL_ROOT_DIR:${RTO_DOCUMENT_STORAGE_ROOT_DIR}}
+      access-key: ${RTO_OBJECT_STORAGE_ACCESS_KEY:}
+      secret-key: ${RTO_OBJECT_STORAGE_SECRET_KEY:}

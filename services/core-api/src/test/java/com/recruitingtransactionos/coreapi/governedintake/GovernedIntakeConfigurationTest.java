@@ -58,6 +58,28 @@ class GovernedIntakeConfigurationTest {
   }
 
   @Test
+  void configurationWiresMinioDocumentStoreWhenObjectStorageProviderIsMinio() throws Exception {
+    Path tempDirectory = Files.createTempDirectory("governed-intake-config-test-minio");
+
+    new ApplicationContextRunner()
+        .withPropertyValues(
+            "rto.document-storage.root-dir=" + tempDirectory,
+            "rto.deployment.object-storage.provider=minio",
+            "rto.deployment.object-storage.bucket=rto-documents",
+            "rto.deployment.object-storage.endpoint=http://minio:9000",
+            "rto.deployment.object-storage.access-key=minio-access-key",
+            "rto.deployment.object-storage.secret-key=minio-secret-key")
+        .withUserConfiguration(GovernedIntakeConfiguration.class, WiringProbeConfiguration.class)
+        .withBean(DataSource.class, () -> mock(DataSource.class))
+        .withBean(PlatformTransactionManager.class, () -> mock(PlatformTransactionManager.class))
+        .run(context -> {
+          assertThat(context).hasSingleBean(DocumentStore.class);
+          assertThat(context.getBean(DocumentStore.class).getClass().getSimpleName())
+              .isEqualTo("MinioDocumentStore");
+        });
+  }
+
+  @Test
   void configurationFailsClosedWhenDocumentStorageRootIsMissing() {
     new ApplicationContextRunner()
         .withUserConfiguration(GovernedIntakeConfiguration.class, WiringProbeConfiguration.class)

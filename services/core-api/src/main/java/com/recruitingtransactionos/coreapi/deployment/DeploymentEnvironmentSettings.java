@@ -19,7 +19,9 @@ public record DeploymentEnvironmentSettings(
     String objectStorageProvider,
     String objectStorageBucket,
     String objectStorageEndpoint,
-    String objectStorageLocalRootDir) {
+    String objectStorageLocalRootDir,
+    String objectStorageAccessKey,
+    String objectStorageSecretKey) {
 
   public static Builder builder(String profile) {
     return new Builder(profile);
@@ -45,6 +47,8 @@ public record DeploymentEnvironmentSettings(
     private String objectStorageBucket;
     private String objectStorageEndpoint;
     private String objectStorageLocalRootDir;
+    private String objectStorageAccessKey;
+    private String objectStorageSecretKey;
 
     private Builder(String profile) {
       this.profile = profile;
@@ -140,6 +144,16 @@ public record DeploymentEnvironmentSettings(
       return this;
     }
 
+    public Builder objectStorageAccessKey(String value) {
+      this.objectStorageAccessKey = value;
+      return this;
+    }
+
+    public Builder objectStorageSecretKey(String value) {
+      this.objectStorageSecretKey = value;
+      return this;
+    }
+
     public DeploymentEnvironmentSettings build() {
       return new DeploymentEnvironmentSettings(
           profile,
@@ -160,7 +174,9 @@ public record DeploymentEnvironmentSettings(
           objectStorageProvider,
           objectStorageBucket,
           objectStorageEndpoint,
-          objectStorageLocalRootDir);
+          objectStorageLocalRootDir,
+          objectStorageAccessKey,
+          objectStorageSecretKey);
     }
   }
 }

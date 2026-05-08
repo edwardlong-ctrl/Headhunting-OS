@@ -44,7 +44,9 @@ class DeploymentArtifactsContractTest {
         "RTO_DEPLOYMENT_DATABASE_MANAGED",
         "RTO_OBJECT_STORAGE_PROVIDER",
         "RTO_OBJECT_STORAGE_BUCKET",
-        "RTO_OBJECT_STORAGE_ENDPOINT");
+        "RTO_OBJECT_STORAGE_ENDPOINT",
+        "RTO_OBJECT_STORAGE_ACCESS_KEY",
+        "RTO_OBJECT_STORAGE_SECRET_KEY");
 
     for (String key : requiredKeys) {
       assertThat(content).contains(key + "=");

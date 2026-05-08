@@ -74,6 +74,8 @@ class DeploymentEnvironmentValidatorTest {
         .objectStorageBucket("rto-documents")
         .objectStorageEndpoint("https://object-storage.example.invalid")
         .objectStorageLocalRootDir("/var/lib/rto/documents")
+        .objectStorageAccessKey("test-object-storage-access-key")
+        .objectStorageSecretKey("test-object-storage-secret-key")
         .build();
 
     assertThatCode(() -> DeploymentEnvironmentValidator.validate(settings))
@@ -100,10 +102,41 @@ class DeploymentEnvironmentValidatorTest {
         .objectStorageBucket("rto-documents")
         .objectStorageEndpoint("https://object-storage.example.invalid")
         .objectStorageLocalRootDir("/var/lib/rto/documents")
+        .objectStorageAccessKey("test-object-storage-access-key")
+        .objectStorageSecretKey("test-object-storage-secret-key")
         .build();
 
     assertThatThrownBy(() -> DeploymentEnvironmentValidator.validate(settings))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("spring.flyway.enabled must be true for staging and production");
+  }
+
+  @Test
+  void productionProfileFailsFastWhenObjectStorageCredentialsAreMissing() {
+    DeploymentEnvironmentSettings settings = DeploymentEnvironmentSettings.builder("production")
+        .springDatasourceUrl("jdbc:postgresql://managed-postgres.internal:5432/recruiting_os")
+        .springDatasourceUsername("rto_app")
+        .springDatasourcePassword("managed-database-password-from-secret-store")
+        .flywayEnabled(true)
+        .jwtSecret("0123456789abcdef0123456789abcdef")
+        .documentStorageRootDir("/var/lib/rto/documents")
+        .virusScanMode("fail_closed")
+        .deepSeekApiKey("test_deepseek_key_not_real")
+        .candidateProfileModel("deepseek-v4-pro")
+        .authenticityRiskModel("deepseek-v4-pro")
+        .interviewFeedbackModel("deepseek-v4-pro")
+        .frontendOrigin("https://app.example.invalid")
+        .publicBaseUrl("https://api.example.invalid")
+        .databaseManaged(true)
+        .objectStorageProvider("minio")
+        .objectStorageBucket("rto-documents")
+        .objectStorageEndpoint("https://object-storage.example.invalid")
+        .objectStorageLocalRootDir("/var/lib/rto/documents")
+        .build();
+
+    assertThatThrownBy(() -> DeploymentEnvironmentValidator.validate(settings))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("rto.deployment.object-storage.access-key must be configured")
+        .hasMessageContaining("rto.deployment.object-storage.secret-key must be configured");
   }
 }

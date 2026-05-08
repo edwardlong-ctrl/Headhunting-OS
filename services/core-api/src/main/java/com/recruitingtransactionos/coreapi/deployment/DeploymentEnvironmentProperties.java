@@ -51,6 +51,8 @@ public class DeploymentEnvironmentProperties {
     private String bucket;
     private String endpoint;
     private String localRootDir;
+    private String accessKey;
+    private String secretKey;
 
     public String getProvider() {
       return provider;
@@ -82,6 +84,22 @@ public class DeploymentEnvironmentProperties {
 
     public void setLocalRootDir(String localRootDir) {
       this.localRootDir = localRootDir;
+    }
+
+    public String getAccessKey() {
+      return accessKey;
+    }
+
+    public void setAccessKey(String accessKey) {
+      this.accessKey = accessKey;
+    }
+
+    public String getSecretKey() {
+      return secretKey;
+    }
+
+    public void setSecretKey(String secretKey) {
+      this.secretKey = secretKey;
     }
   }
 }

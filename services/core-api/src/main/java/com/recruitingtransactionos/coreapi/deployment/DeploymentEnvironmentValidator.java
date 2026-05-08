@@ -86,6 +86,14 @@ public final class DeploymentEnvironmentValidator {
     if ("minio".equals(provider) || "external-object-storage".equals(provider)) {
       requireText(settings.objectStorageBucket(), "rto.deployment.object-storage.bucket must be configured", errors);
       requireHttpsUrl(settings.objectStorageEndpoint(), "rto.deployment.object-storage.endpoint", errors);
+      requireText(
+          settings.objectStorageAccessKey(),
+          "rto.deployment.object-storage.access-key must be configured",
+          errors);
+      requireText(
+          settings.objectStorageSecretKey(),
+          "rto.deployment.object-storage.secret-key must be configured",
+          errors);
     }
   }
 

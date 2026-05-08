@@ -3,8 +3,10 @@ package com.recruitingtransactionos.coreapi.governedintake;
 import com.recruitingtransactionos.coreapi.documentstorage.DocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.FailClosedVirusScanPort;
 import com.recruitingtransactionos.coreapi.documentstorage.LocalFilesystemDocumentStore;
+import com.recruitingtransactionos.coreapi.documentstorage.MinioDocumentStore;
 import com.recruitingtransactionos.coreapi.documentstorage.NoOpVirusScanPort;
 import com.recruitingtransactionos.coreapi.documentstorage.VirusScanPort;
+import com.recruitingtransactionos.coreapi.deployment.DeploymentEnvironmentProperties;
 import com.recruitingtransactionos.coreapi.documentintelligence.DocumentIntelligencePersistencePort;
 import com.recruitingtransactionos.coreapi.documentintelligence.persistence.JdbcDocumentIntelligencePersistencePort;
 import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentConversionWorkerPort;
@@ -53,12 +55,14 @@ import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransition
 import java.nio.file.Path;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(DeploymentEnvironmentProperties.class)
 public class GovernedIntakeConfiguration {
 
   @Bean
@@ -122,8 +126,21 @@ public class GovernedIntakeConfiguration {
   @Bean
   DocumentStore documentStore(
       @Value("${rto.document-storage.root-dir:}")
-      String rootDirectory) {
-    return new LocalFilesystemDocumentStore(Path.of(requireConfiguredStorageRoot(rootDirectory)));
+      String rootDirectory,
+      DeploymentEnvironmentProperties deploymentProperties) {
+    DeploymentEnvironmentProperties.ObjectStorage objectStorage =
+        deploymentProperties.getObjectStorage();
+    return switch (normalizeProvider(objectStorage.getProvider())) {
+      case "local-filesystem" -> new LocalFilesystemDocumentStore(
+          Path.of(requireConfiguredStorageRoot(objectStorage.getLocalRootDir(), rootDirectory)));
+      case "minio", "external-object-storage" -> new MinioDocumentStore(
+          requireConfiguredObjectStorageValue(objectStorage.getEndpoint(), "rto.deployment.object-storage.endpoint"),
+          requireConfiguredObjectStorageValue(objectStorage.getBucket(), "rto.deployment.object-storage.bucket"),
+          requireConfiguredObjectStorageValue(objectStorage.getAccessKey(), "rto.deployment.object-storage.access-key"),
+          requireConfiguredObjectStorageValue(objectStorage.getSecretKey(), "rto.deployment.object-storage.secret-key"));
+      default -> throw new IllegalStateException(
+          "rto.deployment.object-storage.provider must be local-filesystem, minio, or external-object-storage");
+    };
   }
 
   @Bean
@@ -309,11 +326,28 @@ public class GovernedIntakeConfiguration {
         jobIntakeApplicationService);
   }
 
-  private static String requireConfiguredStorageRoot(String rootDirectory) {
+  private static String requireConfiguredStorageRoot(String objectStorageRoot, String documentStorageRoot) {
+    String rootDirectory = objectStorageRoot == null || objectStorageRoot.isBlank()
+        ? documentStorageRoot
+        : objectStorageRoot;
     if (rootDirectory == null || rootDirectory.isBlank()) {
       throw new IllegalStateException(
           "rto.document-storage.root-dir must be configured to a persistent location");
     }
     return rootDirectory.strip();
+  }
+
+  private static String requireConfiguredObjectStorageValue(String value, String propertyName) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalStateException(propertyName + " must be configured");
+    }
+    return value.strip();
+  }
+
+  private static String normalizeProvider(String provider) {
+    if (provider == null || provider.isBlank()) {
+      return "local-filesystem";
+    }
+    return provider.strip().toLowerCase();
   }
 }
