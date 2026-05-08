@@ -12,6 +12,11 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
+Task 42 gate result: **NOT READY**. The gate now explicitly tracks the eight
+pilot flows, negative gates, and required validation evidence in
+`docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`; partial seam coverage is
+not treated as controlled-pilot readiness.
+
 | Gate | Required for pilot | Current status after Task 41 baseline |
 | --- | --- | --- |
 | Product scope boundary | Must define kernel vs product vs pilot | Roadmap/status docs exist; still not pilot-acceptance complete |

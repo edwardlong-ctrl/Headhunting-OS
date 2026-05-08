@@ -1,5 +1,24 @@
 # Known Gaps
 
+## Task 42 Pilot E2E Acceptance Gate Exists; Controlled Pilot Readiness Not Yet Passed
+
+- Task 42 now has an explicit backend acceptance-gate model and report artifact
+  that tracks 8 pilot flows, 10 negative gates, and 8 validation/operations
+  gates.
+- Current result is `NOT_READY`; partial unit, controller, and integration
+  coverage is no longer treated as pilot readiness.
+- Remaining gaps:
+  - No browser E2E harness currently proves the eight pilot flows through normal
+    product workflows.
+  - The consultant CV-to-canonical and client/JD-to-job-activation paths still
+    need single-path pilot evidence instead of distributed seam evidence.
+  - High re-identification risk blocking on actual shortlist send needs E2E
+    proof.
+  - Task 38 pilot data rebuild / validate / export / guarded reset commands
+    need current Task 42 execution evidence.
+  - Task 39 backup / restore validation needs current Task 42 execution
+    evidence.
+
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 
 - Task 41 adds a controlled-pilot backend hardening baseline for login input

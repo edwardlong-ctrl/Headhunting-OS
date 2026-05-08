@@ -1010,6 +1010,12 @@ Priority: P0
 
 Goal: Decide whether the product is honestly Usable v1 / Controlled Pilot Ready.
 
+Current gate status: `NOT_READY`. The Task 42 acceptance-gate model and report
+now exist, but the product is not yet controlled-pilot-ready because the eight
+pilot flows do not have single-path browser E2E evidence, Task 38 pilot CLI
+commands have not been rerun for the gate, and backup/restore validation is not
+currently evidenced. See `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`.
+
 Must pass:
 
 - Consultant uploads CV + note -> AI claims -> review -> canonical profile.

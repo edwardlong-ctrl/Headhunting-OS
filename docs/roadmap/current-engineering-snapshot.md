@@ -5,6 +5,8 @@ This file contains mutable short-term engineering state. Update it after future 
 ## Current Main Baseline
 
 - latest product/security baseline commit: `58529e4`
+- latest Task 42 gate baseline in current worktree: Task 42 Pilot E2E
+  Acceptance Gate model/report exists and currently returns `NOT_READY`.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
   - `58529e4` / `b31e2e3` — Task 41: Security and Privacy Hardening v1, including login input policy, auth/document rate limiting, upload filename rejection, URL-path PII masking in request logs, explicit Admin disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused privacy/security regressions.
@@ -30,7 +32,10 @@ This file contains mutable short-term engineering state. Update it after future 
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
 - latest documented validation snapshot after the Task 41 merge: `rtk git diff --check`, `rtk npm audit --omit=dev`, `DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check`, and `rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1000 tests, 0 failures, 0 errors, and 3 skipped. Dependency-check produced Task 41 HTML/JSON reports for 91 dependencies with 0 reported vulnerabilities. The default wrapper fails fast without `NVD_API_KEY`; an explicit slow unkeyed NVD update reached only 10,000/348,959 records after roughly 10 minutes and was stopped as unsuitable for review gating.
 - merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 16-Hardening.
-- next recommended task: proceed to Task 42 Pilot E2E Acceptance Gate unless new Task 41 security findings are raised.
+- next recommended task: continue Task 42 by adding browser E2E evidence for the
+  eight pilot flows, rerunning Task 38 pilot data CLI commands, and executing
+  backup/restore validation. Do not call the system Controlled Pilot Ready until
+  the Task 42 gate returns ready with explicit evidence.
 
 ## Completed Major Tasks
 
@@ -211,8 +216,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Next Recommended Task
 
-Task 41 security/privacy hardening is merged. Proceed to Task 42 Pilot E2E
-Acceptance Gate unless new Task 41 security findings are raised. Use:
+Task 42 Pilot E2E Acceptance Gate baseline now exists and currently returns
+`NOT_READY`. Continue Task 42 by adding browser E2E evidence for the eight pilot
+flows, rerunning Task 38 pilot data CLI commands, and executing backup/restore
+validation. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`
