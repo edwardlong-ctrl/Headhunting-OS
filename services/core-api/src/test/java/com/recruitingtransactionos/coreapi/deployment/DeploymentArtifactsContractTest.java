@@ -74,7 +74,13 @@ class DeploymentArtifactsContractTest {
         .contains("previous image");
     assertThat(backup)
         .contains("pg_dump")
-        .contains("restore");
+        .contains("restore")
+        .contains("POSTGRES_BACKUP_URL")
+        .contains("RTO_DOCUMENT_STORAGE_BACKUP_PATH")
+        .contains("Document storage backup")
+        .contains("Document storage restore")
+        .doesNotContain("pg_dump \"$SPRING_DATASOURCE_URL\"")
+        .doesNotContain("pg_restore --dbname \"$SPRING_DATASOURCE_URL\"");
     assertThat(smoke)
         .contains("consultant@pilot.example.test")
         .contains("intake")
