@@ -61,6 +61,25 @@ class DeploymentArtifactsContractTest {
   }
 
   @Test
+  void productionLikeComposeCreatesLocalMinioBucketBeforeCoreApiStartup() throws Exception {
+    String compose = Files.readString(REPO_ROOT.resolve("infra/docker/compose.production-like.yml"));
+    String env = Files.readString(REPO_ROOT.resolve("infra/deployment/production-like.env.example"));
+    String coreApiDockerfile = Files.readString(REPO_ROOT.resolve("services/core-api/Dockerfile"));
+
+    assertThat(env)
+        .contains("RTO_OBJECT_STORAGE_PROVIDER=minio")
+        .contains("RTO_OBJECT_STORAGE_ENDPOINT=http://minio:9000")
+        .contains("RTO_OBJECT_STORAGE_BUCKET=rto-documents");
+    assertThat(compose)
+        .contains("minio-init:")
+        .contains("mc mb --ignore-existing")
+        .contains("condition: service_completed_successfully");
+    assertThat(coreApiDockerfile)
+        .contains("curl")
+        .contains("rm -rf /var/lib/apt/lists/*");
+  }
+
+  @Test
   void deploymentRunbooksKeepTask39ProviderNeutralBoundary() throws Exception {
     String migration = Files.readString(REPO_ROOT.resolve("infra/deployment/migration-runbook.md"));
     String rollback = Files.readString(REPO_ROOT.resolve("infra/deployment/rollback-runbook.md"));

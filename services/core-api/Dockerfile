@@ -8,7 +8,10 @@ RUN mvn -f services/core-api/pom.xml -DskipTests package
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
-RUN useradd --create-home --uid 10001 rto \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 rto \
     && mkdir -p /var/lib/rto/documents \
     && chown -R rto:rto /app /var/lib/rto
 COPY --from=build /workspace/services/core-api/target/core-api-0.1.0-SNAPSHOT.jar /app/core-api.jar

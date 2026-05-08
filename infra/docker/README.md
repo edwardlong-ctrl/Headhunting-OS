@@ -17,4 +17,4 @@ docker compose \
   up --build
 ```
 
-This baseline defines application image build paths for `services/core-api` and `apps/web`, PostgreSQL, MinIO as a local object-storage equivalent, and health-gated startup ordering. It does not create cloud resources, HTTPS certificates, or a real production domain.
+This baseline defines application image build paths for `services/core-api` and `apps/web`, PostgreSQL, MinIO as a local object-storage equivalent, and health-gated startup ordering. The `minio-init` service creates the configured local bucket before `core-api` starts. It does not create cloud resources, HTTPS certificates, or a real production domain.
