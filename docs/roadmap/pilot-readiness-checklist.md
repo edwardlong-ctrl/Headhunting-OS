@@ -108,7 +108,9 @@ partial seam coverage is not treated as controlled-pilot readiness.
 - [ ] Every key transition writes WorkflowEvent with actor, entity, action, before_state, after_state, reason, timestamp, AI involvement, correlation, causation.
 - [x] Illegal transition attempts are blocked and auditably visible.
 - [x] Timeline API exists.
-- [ ] SLA due-date placeholder exists for follow-ups and blocked tasks.
+- [x] SLA due-date baseline exists for Task 45 workflow automation rules,
+  consultant queue output, and timeline export; external dispatch and persisted
+  runtime task orchestration remain future work.
 
 ## Gate 7: Matching, Industry Pack, and Shortlist
 

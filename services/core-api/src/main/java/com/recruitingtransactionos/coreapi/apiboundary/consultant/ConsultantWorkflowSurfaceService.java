@@ -1,10 +1,13 @@
 package com.recruitingtransactionos.coreapi.apiboundary.consultant;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantAuditDrawerResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowAutomationItemResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowAutomationQueueResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowBlockerResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowEntityStateResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowEventResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTimelineResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTimelineExportResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTransitionOptionResponse;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosurePrerequisiteEvaluator;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosurePrerequisites;
@@ -26,6 +29,10 @@ import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditQuery;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditRecord;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowAuditQueryService;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowAutomationAssessment;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowAutomationPolicy;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowAutomationStatus;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowTimelineExport;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRef;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.workflowaudit.WorkflowTransitionBlocker;
@@ -48,6 +55,7 @@ public final class ConsultantWorkflowSurfaceService {
   private final WorkflowAuditQueryService workflowAuditQueryService;
   private final WorkflowEntityStatePort workflowEntityStatePort;
   private final WorkflowTransitionLegalityPolicy legalityPolicy;
+  private final WorkflowAutomationPolicy workflowAutomationPolicy;
   private final ConsentDisclosurePrerequisiteEvaluator consentDisclosurePrerequisiteEvaluator;
   private final DisclosureRecordPort disclosureRecordPort;
   private final UnlockDecisionPort unlockDecisionPort;
@@ -64,6 +72,7 @@ public final class ConsultantWorkflowSurfaceService {
         workflowAuditQueryService,
         workflowEntityStatePort,
         WorkflowTransitionLegalityPolicy.standard(),
+        WorkflowAutomationPolicy.standard(),
         consentDisclosurePrerequisiteEvaluator,
         disclosureRecordPort,
         unlockDecisionPort,
@@ -74,6 +83,7 @@ public final class ConsultantWorkflowSurfaceService {
       WorkflowAuditQueryService workflowAuditQueryService,
       WorkflowEntityStatePort workflowEntityStatePort,
       WorkflowTransitionLegalityPolicy legalityPolicy,
+      WorkflowAutomationPolicy workflowAutomationPolicy,
       ConsentDisclosurePrerequisiteEvaluator consentDisclosurePrerequisiteEvaluator,
       DisclosureRecordPort disclosureRecordPort,
       UnlockDecisionPort unlockDecisionPort,
@@ -81,6 +91,9 @@ public final class ConsultantWorkflowSurfaceService {
     this.workflowAuditQueryService = Objects.requireNonNull(workflowAuditQueryService, "workflowAuditQueryService must not be null");
     this.workflowEntityStatePort = Objects.requireNonNull(workflowEntityStatePort, "workflowEntityStatePort must not be null");
     this.legalityPolicy = Objects.requireNonNull(legalityPolicy, "legalityPolicy must not be null");
+    this.workflowAutomationPolicy = Objects.requireNonNull(
+        workflowAutomationPolicy,
+        "workflowAutomationPolicy must not be null");
     this.consentDisclosurePrerequisiteEvaluator = Objects.requireNonNull(
         consentDisclosurePrerequisiteEvaluator,
         "consentDisclosurePrerequisiteEvaluator must not be null");
@@ -135,6 +148,57 @@ public final class ConsultantWorkflowSurfaceService {
     return new ConsultantAuditDrawerResponse(entityType, entityId.toString(), items);
   }
 
+  public ConsultantWorkflowAutomationQueueResponse automationQueue(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      int limit,
+      Instant now) {
+    requireRead(accessRequest);
+    Objects.requireNonNull(now, "now must not be null");
+    int normalizedLimit = Math.max(1, Math.min(limit, WorkflowAuditQuery.MAX_LIMIT));
+    List<ConsultantWorkflowAutomationItemResponse> items = workflowAuditQueryService.search(
+            WorkflowAuditQuery.builder(organizationId)
+                .limit(WorkflowAuditQuery.MAX_LIMIT)
+                .offset(0)
+                .build())
+        .stream()
+        .map(record -> workflowAutomationPolicy.assess(record, now))
+        .flatMap(Optional::stream)
+        .filter(assessment -> assessment.ownerRole() == PortalRole.CONSULTANT)
+        .filter(assessment -> assessment.status() != WorkflowAutomationStatus.PENDING)
+        .map(this::toAutomationItemResponse)
+        .limit(normalizedLimit)
+        .toList();
+    return new ConsultantWorkflowAutomationQueueResponse(items, now.toString());
+  }
+
+  public ConsultantWorkflowTimelineExportResponse timelineExport(
+      AccessRequest accessRequest,
+      UUID organizationId,
+      String entityType,
+      UUID entityId,
+      int limit,
+      Instant now) {
+    requireRead(accessRequest);
+    Objects.requireNonNull(now, "now must not be null");
+    WorkflowAuditQuery.Builder builder = WorkflowAuditQuery.builder(organizationId)
+        .limit(Math.max(1, Math.min(limit, WorkflowAuditQuery.MAX_LIMIT)))
+        .offset(0);
+    if (entityType != null && !entityType.isBlank()) {
+      builder.entityType(entityType);
+    }
+    if (entityId != null) {
+      builder.entityId(entityId);
+    }
+    List<WorkflowAuditRecord> records = workflowAuditQueryService.search(builder.build());
+    List<WorkflowAutomationAssessment> assessments = records.stream()
+        .map(record -> workflowAutomationPolicy.assess(record, now))
+        .flatMap(Optional::stream)
+        .toList();
+    WorkflowTimelineExport export = WorkflowTimelineExport.from(records, assessments);
+    return new ConsultantWorkflowTimelineExportResponse(export.format(), export.content(), now.toString());
+  }
+
   public ConsultantWorkflowEntityStateResponse entityState(
       AccessRequest accessRequest,
       UUID organizationId,
@@ -178,6 +242,24 @@ public final class ConsultantWorkflowSurfaceService {
         extractCardStatus(record.afterState().json()),
         record.reason(),
         record.occurredAt().toString());
+  }
+
+  private ConsultantWorkflowAutomationItemResponse toAutomationItemResponse(
+      WorkflowAutomationAssessment assessment) {
+    return new ConsultantWorkflowAutomationItemResponse(
+        assessment.workflowEventId().toString(),
+        assessment.entityType(),
+        assessment.entityId().toString(),
+        assessment.actionCode(),
+        assessment.workflowFamily(),
+        assessment.ownerRole().wireValue(),
+        assessment.occurredAt().toString(),
+        assessment.dueAt().toString(),
+        assessment.reminderAt().toString(),
+        assessment.escalationAt().toString(),
+        assessment.status().name(),
+        assessment.blockerCode(),
+        assessment.nextBestAction());
   }
 
   private ConsultantWorkflowTransitionOptionResponse toTransitionOptionResponse(

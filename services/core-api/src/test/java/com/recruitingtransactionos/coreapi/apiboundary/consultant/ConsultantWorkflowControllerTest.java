@@ -9,9 +9,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowBlockerResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowAutomationItemResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowAutomationQueueResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowEntityStateResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowEventResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTimelineResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTimelineExportResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantWorkflowTransitionOptionResponse;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityauth.IdentityAuthenticationPort;
@@ -127,6 +130,54 @@ class ConsultantWorkflowControllerTest {
         .andExpect(jsonPath("$.data.items[0].beforeStatus").value("contract_pending"))
         .andExpect(jsonPath("$.data.items[0].afterStatus").value("activated"))
         .andExpect(jsonPath("$.data.entityStates[0].currentStatus").value("activated"));
+  }
+
+  @Test
+  void automationQueueReturnsConsultantOwnedSlaItems() throws Exception {
+    when(workflowSurfaceService.automationQueue(any(), eq(ORG_ID), eq(50), any()))
+        .thenReturn(new ConsultantWorkflowAutomationQueueResponse(
+            List.of(new ConsultantWorkflowAutomationItemResponse(
+                EVENT_ID.toString(),
+                "CANDIDATE",
+                ENTITY_ID.toString(),
+                "CONSENT_REQUESTED",
+                "consent",
+                "consultant",
+                "2026-05-01T00:00:00Z",
+                "2026-05-03T00:00:00Z",
+                "2026-05-02T00:00:00Z",
+                "2026-05-04T00:00:00Z",
+                "ESCALATED",
+                "sla_escalated",
+                "Send a consent follow-up and verify the candidate-visible disclosure scope.")),
+            "2026-05-04T01:00:00Z"));
+
+    mockMvc.perform(get("/api/consultant/workflow/automation")
+            .with(authentication(auth("consultant"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.items[0].workflowFamily").value("consent"))
+        .andExpect(jsonPath("$.data.items[0].ownerRole").value("consultant"))
+        .andExpect(jsonPath("$.data.items[0].dueAt").value("2026-05-03T00:00:00Z"))
+        .andExpect(jsonPath("$.data.items[0].blockerCode").value("sla_escalated"));
+  }
+
+  @Test
+  void timelineExportReturnsCsvPayload() throws Exception {
+    when(workflowSurfaceService.timelineExport(any(), eq(ORG_ID), eq("CANDIDATE"), eq(ENTITY_ID), eq(100), any()))
+        .thenReturn(new ConsultantWorkflowTimelineExportResponse(
+            "csv",
+            "workflow_event_id,entity_type,entity_id,action_code,occurred_at,due_at,automation_status,next_best_action\n"
+                + EVENT_ID + ",CANDIDATE," + ENTITY_ID + ",CONSENT_REQUESTED,2026-05-01T00:00:00Z,2026-05-03T00:00:00Z,ESCALATED,Send a consent follow-up\n",
+            "2026-05-04T01:00:00Z"));
+
+    mockMvc.perform(get("/api/consultant/workflow/export")
+            .param("entityType", "CANDIDATE")
+            .param("entityId", ENTITY_ID.toString())
+            .with(authentication(auth("consultant"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.format").value("csv"))
+        .andExpect(jsonPath("$.data.content").value(org.hamcrest.Matchers.containsString("CONSENT_REQUESTED")))
+        .andExpect(jsonPath("$.data.content").value(org.hamcrest.Matchers.containsString("2026-05-03T00:00:00Z")));
   }
 
   private static Authentication auth(String portalRole) {

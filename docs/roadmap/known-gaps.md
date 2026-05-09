@@ -451,8 +451,8 @@
 - `WorkflowTransitionAuditService` now performs preview-time legality checks, fail-closed current-state validation through entity-state lookup, and append-boundary audit recording for requested transitions.
 - Consultant workflow API/UI now expose timeline before/after state, current entity status, legal next actions, and blockers.
 - Workflow mutation still remains service-owned; Task 26 does not introduce a generic engine that directly mutates arbitrary entity rows.
-- No SLA/automation workflow engine exists yet.
-- No due-date placeholder, reminder queue, or automatic escalation behavior exists yet.
+- No persisted SLA/automation workflow task queue or full BPMN-style engine exists yet.
+- Task 45 now covers deterministic due dates, reminder thresholds, escalation thresholds, owner assignment, consultant queue output, Admin rule visibility, and timeline export; external dispatch and persisted runtime task orchestration remain future work.
 - Task 37 now adds the first Owner/Admin workflow analytics and cross-portal governance surfaces, but broader workflow drill-down depth, automation-aware operating views, and richer cross-portal workflow control remain future work.
 - Task 5 governed-intake minimal slice exists, but the broader governed intake orchestration engine remains future work.
 

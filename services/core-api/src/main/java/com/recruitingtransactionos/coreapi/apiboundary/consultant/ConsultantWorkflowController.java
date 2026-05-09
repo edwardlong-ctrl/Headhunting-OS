@@ -14,6 +14,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -59,6 +60,26 @@ public final class ConsultantWorkflowController {
     requireConsultantRole(principal.portalRole());
     return ResponseEntity.ok(ApiResponseEnvelope.success(workflowSurfaceService.auditDrawer(
         buildAccessRequest(), principal.organizationId(), entityType, parseUuid(entityId), limit)));
+  }
+
+  @GetMapping("/automation")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> automationQueue(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestParam(defaultValue = "50") int limit) {
+    requireConsultantRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(workflowSurfaceService.automationQueue(
+        buildAccessRequest(), principal.organizationId(), limit, Instant.now())));
+  }
+
+  @GetMapping("/export")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> timelineExport(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestParam(required = false) String entityType,
+      @RequestParam(required = false) String entityId,
+      @RequestParam(defaultValue = "100") int limit) {
+    requireConsultantRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(workflowSurfaceService.timelineExport(
+        buildAccessRequest(), principal.organizationId(), entityType, parseOptionalUuid(entityId), limit, Instant.now())));
   }
 
   @GetMapping("/entity-state")

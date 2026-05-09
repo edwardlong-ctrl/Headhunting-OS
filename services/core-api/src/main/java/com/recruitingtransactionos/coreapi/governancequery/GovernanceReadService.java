@@ -11,6 +11,8 @@ import com.recruitingtransactionos.coreapi.apiboundary.GovernanceMetricResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigRecord;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowAutomationPolicy;
+import com.recruitingtransactionos.coreapi.workflowautomation.WorkflowAutomationRule;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -325,13 +327,29 @@ public final class GovernanceReadService {
   }
 
   private GovernanceSectionResponse workflowRules(UUID organizationId) {
+    WorkflowAutomationPolicy automationPolicy = WorkflowAutomationPolicy.standard();
+    List<WorkflowAutomationRule> rules = automationPolicy.rules();
     return configBackedSection(
         organizationId,
         "workflow-rules",
         "Workflow Rules",
-        "Stored workflow overlays on top of the built-in transition legality policy.",
-        List.of(metric("overlays", "Stored Overlays", String.valueOf(governanceConfigService.list(organizationId, "workflow-rules").size()), "info", "Workflow rule overrides")),
-        List.of(item("workflow-rules", "governance config", "read-only", "Runtime overlay wiring is deferred; built-in rules remain authoritative.", "admin/workflow-rules")),
+        "Built-in transition rules plus Task 45 SLA, reminder, escalation, and next-best-action automation coverage.",
+        List.of(
+            metric("overlays", "Stored Overlays", String.valueOf(governanceConfigService.list(organizationId, "workflow-rules").size()), "info", "Workflow rule overrides"),
+            metric("slaRules", "SLA Rules", String.valueOf(rules.size()), "success", "Task 45 workflow automation rules"),
+            metric("reminderRules", "Reminder Rules", String.valueOf(rules.size()), "success", "Rules with due-date reminders")),
+        rules.stream()
+            .map(rule -> item(
+                rule.label(),
+                rule.workflowFamily() + " owner:" + rule.ownerRole().wireValue(),
+                "active",
+                "action:" + rule.actionCode()
+                    + " due:" + rule.dueAfter()
+                    + " reminder:" + rule.reminderAfter()
+                    + " escalation:" + rule.escalationAfter()
+                    + " nextBestAction:" + rule.nextBestAction(),
+                "admin/workflow-rules"))
+            .toList(),
         false);
   }
 

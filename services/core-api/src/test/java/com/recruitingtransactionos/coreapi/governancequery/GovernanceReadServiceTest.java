@@ -77,6 +77,41 @@ class GovernanceReadServiceTest {
             "replayHistory:0");
   }
 
+  @Test
+  void workflowRulesExposeTask45AutomationCoverage() throws Exception {
+    DataSource dataSource = mock(DataSource.class);
+    Connection connection = mock(Connection.class);
+    PreparedStatement statement = mock(PreparedStatement.class);
+    ResultSet overlayCount = countResultSet(2);
+    when(dataSource.getConnection()).thenReturn(connection);
+    when(connection.prepareStatement(anyString())).thenReturn(statement);
+    when(statement.executeQuery()).thenReturn(overlayCount);
+
+    GovernanceReadService service = new GovernanceReadService(
+        dataSource,
+        new GovernanceConfigService(new EmptyGovernanceConfigPort(), new ObjectMapper()),
+        new ObjectMapper(),
+        new AITaskRunnerConfiguration().aiTaskDefinitionRegistry(),
+        new AITaskModelRouter(new AITaskRunnerProperties()));
+
+    GovernanceSectionResponse response = service.loadAdminSection(ORGANIZATION_ID, "workflow-rules");
+
+    assertThat(response.description())
+        .contains("SLA", "reminder", "escalation", "next-best-action");
+    assertThat(response.metrics())
+        .anySatisfy(metric -> {
+          assertThat(metric.key()).isEqualTo("slaRules");
+          assertThat(metric.value()).isEqualTo("7");
+        });
+    assertThat(response.items())
+        .anySatisfy(item -> {
+          assertThat(item.primaryText()).isEqualTo("Consent SLA");
+          assertThat(item.detail())
+              .contains("due:PT48H", "reminder:PT24H", "escalation:PT72H");
+        })
+        .noneSatisfy(item -> assertThat(item.detail()).contains("deferred"));
+  }
+
   private static ResultSet countResultSet(long value) throws Exception {
     ResultSet resultSet = mock(ResultSet.class);
     when(resultSet.next()).thenReturn(true);

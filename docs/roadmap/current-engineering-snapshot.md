@@ -48,11 +48,18 @@ This file contains mutable short-term engineering state. Update it after future 
   default governed model route inspection, and definition-first Admin
   `/admin/ai-task-registry` cost/latency/replay visibility. This is not yet a
   main merge line until the branch is merged.
+- current Task 45 branch baseline: backend-owned workflow automation and SLA
+  coverage now exists for consent, clarification, feedback, interview, offer,
+  invoice, and guarantee workflows. Consultant workflow exposes an automation
+  queue and CSV timeline export from the existing `WorkflowEvent` read model;
+  Admin `/admin/workflow-rules` shows SLA/reminder/escalation coverage; manual
+  override requests require a reason. This is still a task-branch baseline
+  until merged and does not add a full workflow/BPMN runtime.
 - latest documented validation snapshot for the local Task 42 main baseline: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
 - latest Task 43 validation snapshot: `rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts`, `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk git diff --check`, `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,GovernanceReadServicePostgresIntegrationTest#onlyRuntimeWiredAdminSectionsAreEditable test`, and `rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. Browser smoke on `http://127.0.0.1:5173` covered the strict Client/Candidate/Admin Task 43 deep links and rendered guarded sign-in/admin shell states without blank pages.
 - merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 16-Hardening.
-- next recommended task: after Task 44 is merged, continue Tasks 45-60 for
-  workflow/SLA automation, data lifecycle, ontology, commercial workflows,
+- next recommended task: after Tasks 44-45 are merged, continue Tasks 46-60 for
+  data lifecycle, ontology, commercial workflows,
   integrations, production operations, support workflows, managed deployment,
   and final full-product acceptance. Task 42 readiness is scoped to the
   controlled-pilot Usable v1 gate, not public production certification.
@@ -224,7 +231,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - No broad redaction pipeline or automatic text rewriting exists beyond the current deterministic client-safe summary pipeline and its shortlist/query integrations.
 - Task 22 closes the first document intelligence slice for consultant-facing evidence retrieval: TXT/PDF/DOCX parsing, parsed-document/chunk/span persistence, consultant parse/summary/evidence APIs, and OCR/STT fail-closed boundary status now exist. Real OCR/STT execution, async worker orchestration, client-safe evidence exposure, and AI claim generation remain future work.
 - No AI task queue/worker, retry scheduler, multi-provider productization, automatic human review workflow, ClaimLedger/review queue write-back from AI outputs, or canonical write execution from AI governance exists yet. Task 37 adds the first owner/admin governance API/UI and admin-side AI governance workbench surface, but not full AI runtime control-plane productization.
-- Workflow legality validation and audited transition preview now exist through Task 26, but broader cross-portal workflow execution, automation, and SLA handling remain future work.
+- Workflow legality validation and audited transition preview now exist through Task 26, and Task 45 now adds deterministic SLA/reminder/escalation rules plus consultant automation queue and timeline export. Broader cross-portal workflow execution, external dispatch, persisted task queues, and full BPMN automation remain future work.
 - No stale detection engine.
 - No conflict resolution workflow.
 - No full CandidateProfile engine.

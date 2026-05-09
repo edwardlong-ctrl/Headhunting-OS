@@ -492,7 +492,8 @@ Current baseline:
 
 - WorkflowEvent append/audit/read-model skeleton exists.
 - Transition legality validation, blocker modeling, consultant workflow timeline enrichment, and entity-state preview are now implemented on main in `c63d79a`.
-- SLA due-date placeholders and automation remain deferred.
+- SLA due-date placeholders and automation were deferred from Task 26 and are
+  now partially covered by Task 45's deterministic backend-owned SLA baseline.
 
 Must deliver:
 
@@ -1127,6 +1128,17 @@ Must deliver:
 Acceptance:
 
 - Stalled consent, clarification, feedback, interview, offer, invoice, and guarantee workflows surface to the right owner with due dates and audit trail.
+
+Closeout status: completed for the first backend-owned workflow automation and
+SLA baseline. `WorkflowAutomationPolicy` now defines SLA, reminder, escalation,
+owner, blocker, and next-best-action rules for consent, clarification,
+feedback, interview, offer, invoice, and guarantee workflows. Consultant
+workflow now exposes an automation queue and CSV timeline export derived from
+the existing `WorkflowEvent` read model; manual override requests require a
+non-blank reason. Admin `/admin/workflow-rules` now reads the built-in Task 45
+automation coverage instead of a deferred placeholder. This does not add
+external email/SMS dispatch beyond the existing notification baseline, a
+persisted AIActionRecommendation table, or a full workflow/BPMN runtime.
 
 ## Task 46: Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge
 
