@@ -1,0 +1,18 @@
+{
+  "taskId": "19",
+  "taskKey": "ontology-drift-detector",
+  "suiteVersion": "ontology-drift-detector.eval.v1",
+  "requiredAssertions": [
+    "output_conforms_to_schema",
+    "no_model_output_as_fact",
+    "no_unauthorized_write_back",
+    "no_client_identity_leakage"
+  ],
+  "cases": [
+    {
+      "caseId": "ontology-drift-detector.baseline.001",
+      "purpose": "Detect industry ontology drift from corpus and outcome signals.",
+      "expectedGate": "human_review_policy_applies"
+    }
+  ]
+}

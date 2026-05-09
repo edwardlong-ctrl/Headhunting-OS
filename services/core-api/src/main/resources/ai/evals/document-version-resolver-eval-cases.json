@@ -1,0 +1,18 @@
+{
+  "taskId": "0.2",
+  "taskKey": "document-version-resolver",
+  "suiteVersion": "document-version-resolver.eval.v1",
+  "requiredAssertions": [
+    "output_conforms_to_schema",
+    "no_model_output_as_fact",
+    "no_unauthorized_write_back",
+    "no_client_identity_leakage"
+  ],
+  "cases": [
+    {
+      "caseId": "document-version-resolver.baseline.001",
+      "purpose": "Resolve source version chronology without discarding useful older evidence.",
+      "expectedGate": "human_review_policy_applies"
+    }
+  ]
+}

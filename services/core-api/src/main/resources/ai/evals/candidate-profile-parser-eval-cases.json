@@ -1,0 +1,18 @@
+{
+  "taskId": "3",
+  "taskKey": "candidate-profile-parser",
+  "suiteVersion": "candidate-profile-parser.eval.v1",
+  "requiredAssertions": [
+    "output_conforms_to_schema",
+    "no_model_output_as_fact",
+    "no_unauthorized_write_back",
+    "no_client_identity_leakage"
+  ],
+  "cases": [
+    {
+      "caseId": "candidate-profile-parser.baseline.001",
+      "purpose": "Parse candidate materials into governed candidate claims.",
+      "expectedGate": "human_review_policy_applies"
+    }
+  ]
+}

@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskModelRouter;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskRunnerConfiguration;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskRunnerProperties;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigRecord;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
@@ -60,7 +63,9 @@ class GovernanceReadServicePostgresIntegrationTest {
     readService = new GovernanceReadService(
         dataSource,
         configService,
-        objectMapper);
+        objectMapper,
+        new AITaskRunnerConfiguration().aiTaskDefinitionRegistry(),
+        new AITaskModelRouter(defaultRouteProperties()));
 
     try (Connection connection = dataSource.getConnection();
         PreparedStatement organizationStatement = connection.prepareStatement("""
@@ -131,6 +136,15 @@ class GovernanceReadServicePostgresIntegrationTest {
       blockAttemptStatement.setObject(4, ACTOR_USER_ID);
       blockAttemptStatement.executeUpdate();
     }
+  }
+
+  private static AITaskRunnerProperties defaultRouteProperties() {
+    AITaskRunnerProperties properties = new AITaskRunnerProperties();
+    AITaskRunnerProperties.Route defaultRoute = new AITaskRunnerProperties.Route();
+    defaultRoute.setProvider("deepseek");
+    defaultRoute.setModel("deepseek-v4-pro");
+    properties.getRoutes().put("default", defaultRoute);
+    return properties;
   }
 
   @Test
@@ -220,6 +234,20 @@ class GovernanceReadServicePostgresIntegrationTest {
           .as(sectionKey)
           .isFalse();
     }
+  }
+
+  @Test
+  void aiTaskRegistryListsAllProductionDefinitionsAgainstRealSchema() {
+    GovernanceSectionResponse section = readService.loadAdminSection(ORGANIZATION_ID, "ai-task-registry");
+
+    assertThat(metricValue(section, "taskDefinitions")).isEqualTo("28");
+    assertThat(section.items()).hasSize(28);
+    assertThat(section.items().getFirst().detail())
+        .contains(
+            "schema:/ai/schemas/source-classifier-input.schema.json",
+            "evalResult:registered",
+            "latencyMs:n/a",
+            "replayHistory:0");
   }
 
   private static String metricValue(GovernanceSectionResponse section, String metricKey) {

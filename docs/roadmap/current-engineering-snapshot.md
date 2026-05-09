@@ -10,6 +10,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - latest task closure: Task 43 Full Portal Depth and UX Completion
   route-depth gate, documented in
   `docs/roadmap/task-43-full-portal-depth-and-ux-completion.md`.
+- current task-branch closure: Task 44 Full AI Task Registry Production
+  Coverage, documented in
+  `docs/roadmap/task-44-full-ai-task-registry-production-coverage.md`.
 - latest security baseline commit: `58529e4`
 - latest Task 42 gate work on local `main`: Task 42
   Pilot E2E Acceptance Gate model/report now returns
@@ -40,12 +43,18 @@ This file contains mutable short-term engineering state. Update it after future 
   - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
+- current Task 44 branch baseline: 28/28 v2.1 production AI task definitions,
+  prompt/schema/eval artifact coverage, per-task review/write-back policy,
+  default governed model route inspection, and definition-first Admin
+  `/admin/ai-task-registry` cost/latency/replay visibility. This is not yet a
+  main merge line until the branch is merged.
 - latest documented validation snapshot for the local Task 42 main baseline: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
 - latest Task 43 validation snapshot: `rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts`, `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk git diff --check`, `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,GovernanceReadServicePostgresIntegrationTest#onlyRuntimeWiredAdminSectionsAreEditable test`, and `rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. Browser smoke on `http://127.0.0.1:5173` covered the strict Client/Candidate/Admin Task 43 deep links and rendered guarded sign-in/admin shell states without blank pages.
 - merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 16-Hardening.
-- next recommended task: after Task 43, continue Tasks 44-60 for broader
-  production operations, managed deployment, support workflows, security
-  hardening, and non-pilot product depth. Task 42 readiness is scoped to the
+- next recommended task: after Task 44 is merged, continue Tasks 45-60 for
+  workflow/SLA automation, data lifecycle, ontology, commercial workflows,
+  integrations, production operations, support workflows, managed deployment,
+  and final full-product acceptance. Task 42 readiness is scoped to the
   controlled-pilot Usable v1 gate, not public production certification.
 
 ## Completed Major Tasks

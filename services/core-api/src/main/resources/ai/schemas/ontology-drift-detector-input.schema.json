@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ontology Drift Detector Input",
+  "type": "object",
+  "required": [
+    "taskKey",
+    "inputContext"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "taskKey": {
+      "const": "ontology-drift-detector"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
+    "inputContext": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "governanceContext": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

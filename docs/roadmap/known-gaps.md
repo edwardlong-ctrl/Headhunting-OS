@@ -1,5 +1,22 @@
 # Known Gaps
 
+## Task 44 AI Task Registry Coverage Closed; Full AI Orchestration Still Deferred
+
+- Task 44 now gives all 28 v2.1 production AI task definitions a governed
+  registry entry with task id, version, prompt version, prompt/schema/eval
+  resources, human-review policy, write-back target policy, and model route
+  inspection.
+- Admin `/admin/ai-task-registry` now lists production definitions even before
+  any run history exists, and includes aggregate run cost, latency, failure,
+  eval result registration, and replay history counts when AITaskRun history is
+  present.
+- Remaining gaps:
+  - Registry-only tasks are still not broad executable business orchestrators.
+  - No worker queue, async scheduling, retry dashboard, or product-wide AI
+    operation console is added by Task 44.
+  - Broad governed write-back execution remains deferred to later workflow,
+    data-quality, and final acceptance tasks.
+
 ## Task 43 Portal Route Depth Closed; Production Readiness Still Deferred
 
 - Task 43 now has a frontend route contract for the v2.0/v2.1 named Owner,

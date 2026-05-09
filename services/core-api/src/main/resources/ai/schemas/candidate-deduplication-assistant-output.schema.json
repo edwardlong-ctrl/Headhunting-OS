@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate Deduplication Assistant Output",
+  "type": "object",
+  "required": [
+    "taskKey",
+    "summary",
+    "outputs",
+    "requiresHumanReview"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "taskKey": {
+      "const": "candidate-deduplication-assistant"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "riskSignals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
+    "requiresHumanReview": {
+      "type": "boolean"
+    }
+  }
+}

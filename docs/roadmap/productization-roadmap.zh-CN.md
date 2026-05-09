@@ -1030,6 +1030,15 @@ candidate opportunity/consent detail route 已按 spec 参数名对齐；
 
 - Admin 可查看每个 production AI task 的 version、schema、model route、eval result、cost/latency、replay history。
 
+收口状态：registry coverage 与 Admin inspection gate 已完成。v2.1 的 28 个
+production AI task definition 均已有 registry task id、version、prompt
+version、classpath prompt/schema/eval artifact、human-review policy、
+write-back target policy 与可检查的 governed model route。
+`/admin/ai-task-registry` 现在按 definition-first 展示每个 production task
+的 version、schema、model route、eval result registration、aggregate
+cost/latency、failure count 与 replay history count。此收口不新增 worker queue、广泛 write-back execution，
+也不宣称每个 registry-only task 都已经具备完整业务执行器。
+
 ## Task 45：Full Workflow Automation and SLA Engine
 
 目标：从合法状态机扩展到业务自动化。

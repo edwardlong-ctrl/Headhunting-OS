@@ -1,0 +1,18 @@
+{
+  "taskId": "14",
+  "taskKey": "claim-ledger-builder",
+  "suiteVersion": "claim-ledger-builder.eval.v1",
+  "requiredAssertions": [
+    "output_conforms_to_schema",
+    "no_model_output_as_fact",
+    "no_unauthorized_write_back",
+    "no_client_identity_leakage"
+  ],
+  "cases": [
+    {
+      "caseId": "claim-ledger-builder.baseline.001",
+      "purpose": "Build claim ledger candidates with source spans and shareability.",
+      "expectedGate": "human_review_policy_applies"
+    }
+  ]
+}

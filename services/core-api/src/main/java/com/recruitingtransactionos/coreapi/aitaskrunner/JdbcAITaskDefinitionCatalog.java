@@ -26,9 +26,10 @@ public final class JdbcAITaskDefinitionCatalog implements AITaskDefinitionCatalo
         description,
         model_routing_policy,
         write_back_target,
+        eval_suite_ref,
         metadata
       )
-      VALUES (?, ?, ?, ?, 'active', ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?::jsonb)
+      VALUES (?, ?, ?, ?, 'active', ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?::jsonb)
       ON CONFLICT (organization_id, task_key, task_version) DO UPDATE
       SET
         status = EXCLUDED.status,
@@ -38,6 +39,7 @@ public final class JdbcAITaskDefinitionCatalog implements AITaskDefinitionCatalo
         description = EXCLUDED.description,
         model_routing_policy = EXCLUDED.model_routing_policy,
         write_back_target = EXCLUDED.write_back_target,
+        eval_suite_ref = EXCLUDED.eval_suite_ref,
         metadata = EXCLUDED.metadata,
         updated_at = now(),
         version = governance.ai_task_definition.version + 1
@@ -74,7 +76,8 @@ public final class JdbcAITaskDefinitionCatalog implements AITaskDefinitionCatalo
       statement.setString(8, "Registry-backed AI task definition");
       statement.setString(9, modelRoutingPolicy(modelRoute));
       statement.setString(10, definition.writeBackTarget().wireValue());
-      statement.setString(11, metadata(definition));
+      statement.setString(11, definition.evalSuiteResourcePath());
+      statement.setString(12, metadata(definition));
       statement.executeUpdate();
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to register AI task definition", exception);
@@ -99,9 +102,13 @@ public final class JdbcAITaskDefinitionCatalog implements AITaskDefinitionCatalo
 
   private String metadata(AITaskDefinition definition) {
     ObjectNode metadata = objectMapper.createObjectNode();
+    metadata.put("registry_task_id", definition.registryTaskId());
+    metadata.put("display_name", definition.displayName());
+    metadata.put("registry_group", definition.registryGroup());
     metadata.put("prompt_resource_path", definition.promptResourcePath());
     metadata.put("input_schema_resource_path", definition.inputSchemaResourcePath());
     metadata.put("output_schema_resource_path", definition.outputSchemaResourcePath());
+    metadata.put("eval_suite_resource_path", definition.evalSuiteResourcePath());
     return metadata.toString();
   }
 

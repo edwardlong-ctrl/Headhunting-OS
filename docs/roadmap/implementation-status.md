@@ -2,6 +2,15 @@
 
 ## Current Git Main Milestones
 
+- Task 44: Full AI Task Registry Production Coverage is complete for the
+  current task-branch registry coverage gate. The patch registers all 28 v2.1
+  production AI task definitions, adds missing prompt/schema/eval artifacts,
+  records review/write-back policy per task, adds default governed model route
+  inspection, and changes Admin `/admin/ai-task-registry` to list definition
+  coverage plus aggregate cost/latency/failure/replay history. This is a
+  registry-governance and inspection baseline; it does not add worker queues,
+  broad write-back execution, or full business executors for every
+  registry-only task.
 - Task 43: Full Portal Depth and UX Completion is complete for the current
   mainline baseline. The patch adds a five-portal v2.0/v2.1 route contract test, fills the
   missing Client route set (`/client/dashboard`, `/client/profile`,

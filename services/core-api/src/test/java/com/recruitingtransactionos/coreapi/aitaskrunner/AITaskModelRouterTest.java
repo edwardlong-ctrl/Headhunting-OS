@@ -168,6 +168,20 @@ class AITaskModelRouterTest {
     assertThat(route.modelName()).isEqualTo("deepseek-v4-pro");
   }
 
+  @Test
+  void routeForUsesDefaultProductionRouteWhenTaskSpecificRouteIsAbsent() {
+    AITaskRunnerProperties properties = propertiesWithRoute(
+        "default",
+        "deepseek",
+        "deepseek-v4-pro");
+    AITaskModelRouter router = new AITaskModelRouter(properties);
+
+    AITaskModelRoute route = router.routeFor("source-classifier");
+
+    assertThat(route.providerKey()).isEqualTo("deepseek");
+    assertThat(route.modelName()).isEqualTo("deepseek-v4-pro");
+  }
+
   private static AITaskRunnerProperties propertiesWithRoute(String taskKey, String provider, String model) {
     AITaskRunnerProperties properties = new AITaskRunnerProperties();
     AITaskRunnerProperties.Route route = new AITaskRunnerProperties.Route();

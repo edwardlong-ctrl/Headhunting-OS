@@ -1097,6 +1097,17 @@ Acceptance:
 
 - Admin can inspect task version, schema, model route, eval result, cost/latency, and replay history for every production AI task.
 
+Closeout status: completed for the registry-coverage and Admin inspection gate.
+All 28 v2.1 production AI task definitions now have registry task ids,
+versions, prompt versions, classpath prompt/schema/eval artifacts,
+human-review policy, write-back target policy, and governed model route
+inspection. `/admin/ai-task-registry` now reads definition-first coverage and
+shows version, schema, model route, eval result registration, aggregate
+cost/latency, failure count, and replay history count for every production task.
+This does not add worker
+queues, broad write-back execution, or full business executors for every
+registry-only task.
+
 ## Task 45: Full Workflow Automation and SLA Engine
 
 Priority: P2 after pilot, required for 100%

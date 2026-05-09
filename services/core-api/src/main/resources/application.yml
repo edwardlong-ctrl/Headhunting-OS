@@ -22,6 +22,9 @@ rto:
       connect-timeout-seconds: ${RTO_AI_DEEPSEEK_CONNECT_TIMEOUT_SECONDS:10}
       read-timeout-seconds: ${RTO_AI_DEEPSEEK_READ_TIMEOUT_SECONDS:60}
     routes:
+      default:
+        provider: ${RTO_AI_ROUTE_DEFAULT_PROVIDER:deepseek}
+        model: ${RTO_AI_ROUTE_DEFAULT_MODEL:deepseek-v4-pro}
       candidate-profile-parser:
         provider: ${RTO_AI_ROUTE_CANDIDATE_PROFILE_PROVIDER:deepseek}
         model: ${RTO_AI_ROUTE_CANDIDATE_PROFILE_MODEL:deepseek-v4-pro}

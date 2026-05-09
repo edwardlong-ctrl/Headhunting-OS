@@ -2,12 +2,101 @@ package com.recruitingtransactionos.coreapi.aitaskrunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.InputStream;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AITaskRunnerConfigurationTest {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  @Test
+  void registryCoversEveryV21ProductionTaskWithGovernanceArtifacts() throws Exception {
+    AITaskRunnerConfiguration configuration = new AITaskRunnerConfiguration();
+    AITaskDefinitionRegistry registry = configuration.aiTaskDefinitionRegistry();
+    AITaskPromptRegistry promptRegistry = configuration.aiTaskPromptRegistry();
+
+    List<String> taskKeys = List.of(
+        "source-classifier",
+        "document-version-resolver",
+        "entity-resolver",
+        "conflict-detector",
+        "canonical-record-builder",
+        "job-intake",
+        "company-intake",
+        "candidate-profile-parser",
+        "evidence-extractor",
+        "trust-tagger",
+        "consultant-note-structurer",
+        "candidate-deduplication-assistant",
+        "match-report-generator",
+        "outreach-question-generator",
+        "shortlist-generator",
+        "interview-feedback-structurer",
+        "workflow-action-recommender",
+        "outcome-labeler",
+        "claim-ledger-builder",
+        "canonical-write-back-gate",
+        "review-quality-auditor",
+        "reidentification-risk-scorer",
+        "client-safe-summary-generator",
+        "ontology-drift-detector",
+        "industry-pack-calibrator",
+        "authenticity-risk-assessor",
+        "evidence-provenance-scorer",
+        "negative-case-generator");
+
+    for (String taskKey : taskKeys) {
+      AITaskDefinition definition = registry.findRequired(taskKey, taskKey + ".v1");
+
+      assertThat(definition.registryTaskId()).isNotBlank();
+      assertThat(definition.displayName()).isNotBlank();
+      assertThat(definition.promptVersion()).isEqualTo("prompt." + taskKey + ".v1");
+      assertThat(definition.inputSchemaResourcePath()).endsWith(taskKey + "-input.schema.json");
+      assertThat(definition.outputSchemaResourcePath()).endsWith(taskKey + "-output.schema.json");
+      assertThat(definition.evalSuiteResourcePath()).endsWith(taskKey + "-eval-cases.json");
+      assertThat(definition.humanReviewStatus()).isNotNull();
+      assertThat(definition.writeBackTarget()).isNotNull();
+      assertThat(promptRegistry.loadPrompt(definition)).contains(definition.displayName());
+      assertSchemaResource(definition.inputSchemaResourcePath(), taskKey);
+      assertSchemaResource(definition.outputSchemaResourcePath(), taskKey);
+      assertEvalSuiteResource(definition.evalSuiteResourcePath(), definition.registryTaskId(), taskKey);
+    }
+  }
+
+  private static void assertSchemaResource(String resourcePath, String taskKey) throws Exception {
+    try (InputStream inputStream = AITaskRunnerConfigurationTest.class.getResourceAsStream(resourcePath)) {
+      assertThat(inputStream)
+          .as("schema must be classpath-loadable for " + taskKey + " at " + resourcePath)
+          .isNotNull();
+      JsonNode schema = OBJECT_MAPPER.readTree(inputStream);
+      assertThat(schema.path("$schema").asText()).isNotBlank();
+      assertThat(schema.path("type").asText()).isEqualTo("object");
+      assertThat(schema.path("properties").isObject()).isTrue();
+    }
+  }
+
+  private static void assertEvalSuiteResource(
+      String resourcePath,
+      String registryTaskId,
+      String taskKey) throws Exception {
+    try (InputStream inputStream = AITaskRunnerConfigurationTest.class.getResourceAsStream(resourcePath)) {
+      assertThat(inputStream)
+          .as("eval suite must be classpath-loadable for " + taskKey + " at " + resourcePath)
+          .isNotNull();
+      JsonNode evalSuite = OBJECT_MAPPER.readTree(inputStream);
+      assertThat(evalSuite.path("taskId").asText()).isEqualTo(registryTaskId);
+      assertThat(evalSuite.path("taskKey").asText()).isEqualTo(taskKey);
+      assertThat(evalSuite.path("suiteVersion").asText()).isEqualTo(taskKey + ".eval.v1");
+      List<String> requiredAssertions = OBJECT_MAPPER.readerForListOf(String.class)
+          .readValue(evalSuite.path("requiredAssertions"));
+      assertThat(requiredAssertions)
+          .contains("no_model_output_as_fact", "no_unauthorized_write_back");
+      assertThat(evalSuite.path("cases")).isNotEmpty();
+    }
+  }
 
   @Test
   void registryIncludesCompanyAndJobIntakeDefinitionsWithLoadableResources() throws Exception {

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Outcome Labeler Input",
+  "type": "object",
+  "required": [
+    "taskKey",
+    "inputContext"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "taskKey": {
+      "const": "outcome-labeler"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
+    "inputContext": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "governanceContext": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

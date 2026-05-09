@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Collections;
 
 public final class AITaskDefinitionRegistry {
 
@@ -19,7 +20,7 @@ public final class AITaskDefinitionRegistry {
         throw new IllegalArgumentException("duplicate AI task definition: " + compositeKey);
       }
     }
-    this.definitions = Map.copyOf(byKey);
+    this.definitions = Collections.unmodifiableMap(byKey);
   }
 
   public AITaskDefinition findRequired(String taskKey, String taskVersion) {
@@ -28,6 +29,10 @@ public final class AITaskDefinitionRegistry {
       throw new IllegalArgumentException("unknown_ai_task_definition");
     }
     return definition;
+  }
+
+  public List<AITaskDefinition> definitions() {
+    return List.copyOf(definitions.values());
   }
 
   private static String compositeKey(String taskKey, String taskVersion) {

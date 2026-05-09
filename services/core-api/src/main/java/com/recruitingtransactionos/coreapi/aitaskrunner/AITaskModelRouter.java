@@ -59,6 +59,9 @@ public final class AITaskModelRouter {
     }
     AITaskRunnerProperties.Route route = routes.get(taskKey);
     if (route == null) {
+      route = routes.get("default");
+    }
+    if (route == null) {
       throw new IllegalArgumentException("unknown_ai_task_route");
     }
     return new AITaskModelRoute(route.getProvider(), route.getModel());

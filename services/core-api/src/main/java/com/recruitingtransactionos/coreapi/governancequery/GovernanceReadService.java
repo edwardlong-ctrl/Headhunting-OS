@@ -2,6 +2,10 @@ package com.recruitingtransactionos.coreapi.governancequery;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskDefinition;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskDefinitionRegistry;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskModelRoute;
+import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskModelRouter;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceItemResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceMetricResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
@@ -15,8 +19,10 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,16 +37,24 @@ public final class GovernanceReadService {
   private final DataSource dataSource;
   private final GovernanceConfigService governanceConfigService;
   private final ObjectMapper objectMapper;
+  private final AITaskDefinitionRegistry aiTaskDefinitionRegistry;
+  private final AITaskModelRouter aiTaskModelRouter;
 
   public GovernanceReadService(
       DataSource dataSource,
       GovernanceConfigService governanceConfigService,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper,
+      AITaskDefinitionRegistry aiTaskDefinitionRegistry,
+      AITaskModelRouter aiTaskModelRouter) {
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
     this.governanceConfigService = Objects.requireNonNull(
         governanceConfigService,
         "governanceConfigService must not be null");
     this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+    this.aiTaskDefinitionRegistry = Objects.requireNonNull(
+        aiTaskDefinitionRegistry,
+        "aiTaskDefinitionRegistry must not be null");
+    this.aiTaskModelRouter = Objects.requireNonNull(aiTaskModelRouter, "aiTaskModelRouter must not be null");
   }
 
   public GovernanceSectionResponse loadOwnerSection(UUID organizationId, String sectionKey) {
@@ -280,17 +294,18 @@ public final class GovernanceReadService {
   }
 
   private GovernanceSectionResponse aiTaskRegistry(UUID organizationId) {
+    int definitionCount = aiTaskDefinitionRegistry.definitions().size();
     return configBackedSection(
         organizationId,
         "ai-task-registry",
         "AI Task Registry",
-        "Registry, status, and recent task run health.",
+        "Production AI task definitions, schema/prompt/eval governance, and run history coverage.",
         List.of(
-            metric("taskDefinitions", "Definitions", count(organizationId, "SELECT COUNT(*) FROM governance.ai_task_definition WHERE organization_id = ?"), "info", "Persisted definitions"),
-            metric("activeDefinitions", "Active", count(organizationId, "SELECT COUNT(*) FROM governance.ai_task_definition WHERE organization_id = ? AND status = 'active'"), "success", "Active definitions"),
+            metric("taskDefinitions", "Definitions", String.valueOf(definitionCount), "info", "v2.1 production task definitions"),
+            metric("activeDefinitions", "Active", String.valueOf(definitionCount), "success", "Registry definitions available for governance"),
             metric("runVolume", "Run Volume", count(organizationId, "SELECT COUNT(*) FROM governance.ai_task_run WHERE organization_id = ?"), "info", "Recorded AI runs"),
             metric("errorVolume", "Failures", count(organizationId, "SELECT COUNT(*) FROM governance.ai_task_run WHERE organization_id = ? AND status = 'failed'"), "danger", "Failed AI runs")),
-        aiTaskItems(organizationId),
+        aiTaskDefinitionItems(organizationId),
         false);
   }
 
@@ -461,6 +476,73 @@ public final class GovernanceReadService {
             "admin/ai-task-registry"));
   }
 
+  private List<GovernanceItemResponse> aiTaskDefinitionItems(UUID organizationId) {
+    Map<String, AITaskRunStats> runStats = aiTaskRunStats(organizationId);
+    List<GovernanceItemResponse> items = new ArrayList<>();
+    for (AITaskDefinition definition : aiTaskDefinitionRegistry.definitions()) {
+      AITaskModelRoute route = aiTaskModelRouter.routeFor(organizationId, definition.taskKey());
+      AITaskRunStats stats = runStats.getOrDefault(definition.taskKey(), AITaskRunStats.empty());
+      items.add(item(
+          definition.displayName(),
+          "Task " + definition.registryTaskId()
+              + " | " + definition.taskVersion()
+              + " | " + route.providerKey() + "/" + route.modelName(),
+          "active",
+          "schema:" + definition.inputSchemaResourcePath()
+              + " -> " + definition.outputSchemaResourcePath()
+              + " | prompt:" + definition.promptVersion()
+              + " | review:" + definition.humanReviewStatus().wireValue()
+              + " | writeBack:" + definition.writeBackTarget().wireValue()
+              + " | eval:" + definition.evalSuiteResourcePath()
+              + " | evalResult:registered"
+              + " | runs:" + stats.runCount()
+              + " failures:" + stats.failureCount()
+              + " cost:" + stats.costUnits()
+              + " latencyMs:" + stats.latencyMs()
+              + " replayHistory:" + stats.replayCount(),
+          "admin/ai-task-registry"));
+    }
+    return List.copyOf(items);
+  }
+
+  private Map<String, AITaskRunStats> aiTaskRunStats(UUID organizationId) {
+    String sql = """
+        SELECT
+          definition.task_key,
+          COUNT(run.ai_task_run_id) AS run_count,
+          COUNT(run.ai_task_run_id) FILTER (WHERE run.status = 'failed') AS failure_count,
+          COALESCE(SUM(run.cost_units), 0) AS cost_units,
+          ROUND(AVG(EXTRACT(EPOCH FROM (run.completed_at - run.started_at)) * 1000))::bigint AS latency_ms,
+          COUNT(run.ai_task_run_id) FILTER (WHERE run.replayed_from_ai_task_run_id IS NOT NULL) AS replay_count
+        FROM governance.ai_task_definition definition
+        LEFT JOIN governance.ai_task_run run
+          ON run.organization_id = definition.organization_id
+          AND run.ai_task_definition_id = definition.ai_task_definition_id
+        WHERE definition.organization_id = ?
+        GROUP BY definition.task_key
+        """;
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setObject(1, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Map<String, AITaskRunStats> stats = new LinkedHashMap<>();
+        while (resultSet.next()) {
+          stats.put(resultSet.getString("task_key"), new AITaskRunStats(
+              resultSet.getLong("run_count"),
+              resultSet.getLong("failure_count"),
+              resultSet.getBigDecimal("cost_units") == null
+                  ? "0"
+                  : resultSet.getBigDecimal("cost_units").toPlainString(),
+              resultSet.getObject("latency_ms") == null ? "n/a" : String.valueOf(resultSet.getLong("latency_ms")),
+              resultSet.getLong("replay_count")));
+        }
+        return Map.copyOf(stats);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to load AI task run stats", exception);
+    }
+  }
+
   private List<GovernanceItemResponse> auditItems(UUID organizationId) {
     return limitedItems(
         organizationId,
@@ -602,5 +684,17 @@ public final class GovernanceReadService {
   @FunctionalInterface
   private interface ResultMapper<T> {
     T map(ResultSet resultSet) throws SQLException;
+  }
+
+  private record AITaskRunStats(
+      long runCount,
+      long failureCount,
+      String costUnits,
+      String latencyMs,
+      long replayCount) {
+
+    private static AITaskRunStats empty() {
+      return new AITaskRunStats(0, 0, "0", "n/a", 0);
+    }
   }
 }

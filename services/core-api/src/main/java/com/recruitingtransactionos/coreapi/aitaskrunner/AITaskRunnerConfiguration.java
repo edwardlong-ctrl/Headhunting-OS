@@ -26,53 +26,58 @@ import org.springframework.web.client.RestClient;
 public class AITaskRunnerConfiguration {
 
   @Bean
-  AITaskDefinitionRegistry aiTaskDefinitionRegistry() {
+  public AITaskDefinitionRegistry aiTaskDefinitionRegistry() {
     return new AITaskDefinitionRegistry(List.of(
-        new AITaskDefinition(
-            "candidate-profile-parser",
-            "candidate-profile-parser.v1",
-            "prompt.candidate-profile-parser.v1",
-            "/ai/prompts/candidate-profile-parser-v1.txt",
-            "/ai/schemas/candidate-profile-parser-input.schema.json",
-            "/ai/schemas/candidate-profile-parser-output.schema.json",
-            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
-            AITaskHumanReviewStatus.REQUIRED),
-        new AITaskDefinition(
-            "company-intake",
-            "company-intake.v1",
-            "prompt.company-intake.v1",
-            "/ai/prompts/company-intake-v1.txt",
-            "/ai/schemas/company-intake-input.schema.json",
-            "/ai/schemas/company-intake-output.schema.json",
-            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
-            AITaskHumanReviewStatus.REQUIRED),
-        new AITaskDefinition(
-            "job-intake",
-            "job-intake.v1",
-            "prompt.job-intake.v1",
-            "/ai/prompts/job-intake-v1.txt",
-            "/ai/schemas/job-intake-input.schema.json",
-            "/ai/schemas/job-intake-output.schema.json",
-            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
-            AITaskHumanReviewStatus.REQUIRED),
-        new AITaskDefinition(
-            "authenticity-risk-assessor",
-            "authenticity-risk-assessor.v1",
-            "prompt.authenticity-risk-assessor.v1",
-            "/ai/prompts/authenticity-risk-assessor-v1.txt",
-            "/ai/schemas/authenticity-risk-assessor-input.schema.json",
-            "/ai/schemas/authenticity-risk-assessor-output.schema.json",
-            AITaskWriteBackTarget.NO_WRITE_BACK,
-            AITaskHumanReviewStatus.NOT_REQUIRED),
-        new AITaskDefinition(
-            "interview-feedback-structurer",
-            "interview-feedback-structurer.v1",
-            "prompt.interview-feedback-structurer.v1",
-            "/ai/prompts/interview-feedback-structurer-v1.txt",
-            "/ai/schemas/interview-feedback-structurer-input.schema.json",
-            "/ai/schemas/interview-feedback-structurer-output.schema.json",
-            AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL,
-            AITaskHumanReviewStatus.REQUIRED)));
+        productionTask("0.1", "source-classifier", "Source Classifier", "base", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("0.2", "document-version-resolver", "Document Version Resolver", "base", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("0.3", "entity-resolver", "Entity Resolver", "base", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("0.4", "conflict-detector", "Conflict Detector", "base", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("0.5", "canonical-record-builder", "Canonical Record Builder", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("1", "job-intake", "Job Intake Parser", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("2", "company-intake", "Company Intelligence Structurer", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("3", "candidate-profile-parser", "Candidate Profile Parser", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("4", "evidence-extractor", "Evidence Extractor", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("5", "trust-tagger", "Trust Tagger", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("6", "consultant-note-structurer", "Consultant Note Structurer", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("7", "candidate-deduplication-assistant", "Candidate Deduplication Assistant", "base", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("8", "match-report-generator", "Match Report Generator", "base", AITaskWriteBackTarget.NO_WRITE_BACK, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("9", "outreach-question-generator", "Outreach Question Generator", "base", AITaskWriteBackTarget.NO_WRITE_BACK, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("10", "shortlist-generator", "Shortlist Generator", "base", AITaskWriteBackTarget.CLIENT_SAFE_PROJECTION, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("11", "interview-feedback-structurer", "Interview Feedback Structurer", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("12", "workflow-action-recommender", "Workflow Action Recommender", "base", AITaskWriteBackTarget.WORKFLOW_ACTION, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("13", "outcome-labeler", "Outcome Labeler", "base", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("14", "claim-ledger-builder", "Claim Ledger Builder", "governance", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("15", "canonical-write-back-gate", "Canonical Write-back Gate", "governance", AITaskWriteBackTarget.HUMAN_REVIEW_REQUIRED, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("16", "review-quality-auditor", "Review Quality Auditor", "governance", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("17", "reidentification-risk-scorer", "Re-identification Risk Scorer", "governance", AITaskWriteBackTarget.CLIENT_SAFE_PROJECTION, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("18", "client-safe-summary-generator", "Client-safe Summary Generator", "governance", AITaskWriteBackTarget.CLIENT_SAFE_PROJECTION, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("19", "ontology-drift-detector", "Ontology Drift Detector", "governance", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("20", "industry-pack-calibrator", "Industry Pack Calibrator", "governance", AITaskWriteBackTarget.REVIEW_QUEUE, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("21", "authenticity-risk-assessor", "Authenticity Risk Assessor", "governance", AITaskWriteBackTarget.NO_WRITE_BACK, AITaskHumanReviewStatus.NOT_REQUIRED),
+        productionTask("22", "evidence-provenance-scorer", "Evidence Provenance Scorer", "governance", AITaskWriteBackTarget.CLAIM_LEDGER_PROPOSAL, AITaskHumanReviewStatus.REQUIRED),
+        productionTask("23", "negative-case-generator", "Negative Case Generator", "governance", AITaskWriteBackTarget.NO_WRITE_BACK, AITaskHumanReviewStatus.NOT_REQUIRED)));
+  }
+
+  private static AITaskDefinition productionTask(
+      String registryTaskId,
+      String taskKey,
+      String displayName,
+      String registryGroup,
+      AITaskWriteBackTarget writeBackTarget,
+      AITaskHumanReviewStatus humanReviewStatus) {
+    return new AITaskDefinition(
+        registryTaskId,
+        taskKey,
+        displayName,
+        registryGroup,
+        taskKey + ".v1",
+        "prompt." + taskKey + ".v1",
+        "/ai/prompts/" + taskKey + "-v1.txt",
+        "/ai/schemas/" + taskKey + "-input.schema.json",
+        "/ai/schemas/" + taskKey + "-output.schema.json",
+        "/ai/evals/" + taskKey + "-eval-cases.json",
+        writeBackTarget,
+        humanReviewStatus);
   }
 
   @Bean
