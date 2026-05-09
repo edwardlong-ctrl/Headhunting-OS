@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.industrypack.persistence;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackCalibrationProfile;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryRoleFamilyTemplate;
@@ -58,6 +59,41 @@ public final class JdbcIndustryPackReadPort implements IndustryPackReadPort {
         required_skill_keys::text AS required_skill_keys
       FROM recruiting.industry_role_family_template
       WHERE industry_pack_id = ? AND ontology_version_id = ? AND role_family = ?
+      """;
+
+  private static final String FIND_CALIBRATION_PROFILES_SQL = """
+      SELECT
+        pack.industry_pack_id,
+        pack.pack_key,
+        pack.display_name,
+        pack.maturity,
+        pack.is_active,
+        pack.calibration_review_by,
+        pack.gold_cases::text AS gold_cases,
+        pack.negative_cases::text AS negative_cases,
+        pack.pack_anti_patterns::text AS pack_anti_patterns,
+        pack.score_caps::text AS score_caps,
+        pack.drift_signals::text AS drift_signals,
+        ontology.ontology_version_id,
+        ontology.version_key,
+        ontology.source,
+        ontology.owner,
+        ontology.effective_from,
+        ontology.review_by,
+        ontology.deprecated_at
+      FROM recruiting.industry_pack pack
+      JOIN LATERAL (
+        SELECT ontology_version_id, industry_pack_id, version_key, source, owner,
+          effective_from, review_by, deprecated_at
+        FROM recruiting.ontology_version
+        WHERE industry_pack_id = pack.industry_pack_id
+          AND effective_from <= ?
+          AND (deprecated_at IS NULL OR deprecated_at > ?)
+        ORDER BY effective_from DESC
+        LIMIT 1
+      ) ontology ON true
+      WHERE pack.is_active = true
+      ORDER BY pack.pack_key ASC
       """;
 
   private final DataSource dataSource;
@@ -120,6 +156,28 @@ public final class JdbcIndustryPackReadPort implements IndustryPackReadPort {
     }
   }
 
+  @Override
+  public List<IndustryPackCalibrationProfile> findCalibrationProfiles(Instant asOf) {
+    Instant instant = asOf == null ? Instant.now() : asOf;
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(FIND_CALIBRATION_PROFILES_SQL)) {
+      OffsetDateTime timestamp = OffsetDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+      statement.setObject(1, timestamp);
+      statement.setObject(2, timestamp);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<IndustryPackCalibrationProfile> profiles = new java.util.ArrayList<>();
+        while (resultSet.next()) {
+          profiles.add(mapCalibrationProfile(resultSet));
+        }
+        return List.copyOf(profiles);
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to find industry pack calibration profiles", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
   private Optional<IndustryPack> findPack(String sql, SqlBinder binder) {
     Connection connection = DataSourceUtils.getConnection(dataSource);
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -154,6 +212,32 @@ public final class JdbcIndustryPackReadPort implements IndustryPackReadPort {
         resultSet.getObject("effective_from", OffsetDateTime.class).toInstant(),
         resultSet.getObject("review_by", OffsetDateTime.class).toInstant(),
         deprecatedAt == null ? null : deprecatedAt.toInstant());
+  }
+
+  private static IndustryPackCalibrationProfile mapCalibrationProfile(ResultSet resultSet) throws SQLException {
+    try {
+      return new IndustryPackCalibrationProfile(
+          mapIndustryPack(resultSet),
+          new OntologyVersion(
+              resultSet.getObject("ontology_version_id", UUID.class),
+              new IndustryPackId(resultSet.getObject("industry_pack_id", UUID.class)),
+              resultSet.getString("version_key"),
+              resultSet.getString("source"),
+              resultSet.getString("owner"),
+              resultSet.getObject("effective_from", OffsetDateTime.class).toInstant(),
+              resultSet.getObject("review_by", OffsetDateTime.class).toInstant(),
+              resultSet.getObject("deprecated_at", OffsetDateTime.class) == null
+                  ? null
+                  : resultSet.getObject("deprecated_at", OffsetDateTime.class).toInstant()),
+          resultSet.getObject("calibration_review_by", OffsetDateTime.class).toInstant(),
+          OBJECT_MAPPER.readValue(resultSet.getString("gold_cases"), new TypeReference<List<String>>() {}),
+          OBJECT_MAPPER.readValue(resultSet.getString("negative_cases"), new TypeReference<List<String>>() {}),
+          OBJECT_MAPPER.readValue(resultSet.getString("pack_anti_patterns"), new TypeReference<List<String>>() {}),
+          OBJECT_MAPPER.readValue(resultSet.getString("score_caps"), new TypeReference<List<String>>() {}),
+          OBJECT_MAPPER.readValue(resultSet.getString("drift_signals"), new TypeReference<List<String>>() {}));
+    } catch (Exception exception) {
+      throw new IllegalStateException("Failed to map industry pack calibration profile", exception);
+    }
   }
 
   private static IndustryRoleFamilyTemplate mapRoleFamilyTemplate(ResultSet resultSet) throws SQLException {

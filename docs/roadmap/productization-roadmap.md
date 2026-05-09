@@ -1201,6 +1201,12 @@ Acceptance:
 
 - Every pack has maturity, ontology version, review_by, gold cases, negative cases, anti-patterns, and score caps.
 
+Task 47 closure note: `docs/roadmap/task-47-industry-pack-expansion-and-calibration.md`
+records the current backend-owned calibration baseline. V32 adds Task 47
+calibration metadata and seeds all 8 v2.1 packs; only `semiconductor` is marked
+`production`, while the other packs remain honest seeded packs surfaced in the
+Admin review queue.
+
 ## Task 48: Commercial and Finance Operations Hardening
 
 Priority: P2 after pilot, required for 100%

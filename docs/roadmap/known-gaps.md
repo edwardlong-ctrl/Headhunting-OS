@@ -256,7 +256,23 @@
   - real pack key/maturity/selection-reason metadata on stored match reports
   - deterministic semiconductor anti-pattern downgrade behavior for at least DV/Verification, Physical Design, and DFT confusion cases
   - post-review hardening preserves legacy job updates without pack erasure and keeps historical `match_report` pack metadata, `ontologyStale`, and legacy `PARTIAL` coverage semantics truthful instead of fabricating defaults
-- Broader gaps remain: no real learned AI matching, no admin industry-pack management UI, no multi-pack calibration, no client-facing match report delivery, and no Task 42 browser E2E proof for the full match-to-shortlist-to-disclosure release path. Task 33 adds the first identity-disclosed client read path after approved unlock, and Task 35 adds the first interaction-scoped interview feedback and outcome-loop baseline, but broader cross-job ontology learning, admin eval-feedback tooling, and multi-pack calibration remain future work. The current consultant matching API/controller/UI baseline remains internal evidence-aware review only, while Task 29 now covers the consultant-side shortlist builder/send slice and Task 32 covers the first client review surface.
+- Task 47 expands the industry-pack baseline from one real pack to all eight
+  v2.1 packs. `semiconductor` is now marked `production`; `general`,
+  `finance`, `healthcare`, `internet_ai`, `sales`, `executive_search`, and
+  `manufacturing` are seeded with gold cases, negative cases, anti-patterns,
+  score caps, drift signals, active ontology versions, role templates, and
+  Admin review-queue visibility.
+- Broader gaps remain: no real learned AI matching, no learned calibration
+  executor, no automatic ontology update from outcome labels, no admin
+  industry-pack editing UI, no client-facing match report delivery, and no
+  Task 42 browser E2E proof for the full match-to-shortlist-to-disclosure
+  release path. Task 33 adds the first identity-disclosed client read path
+  after approved unlock, and Task 35 adds the first interaction-scoped interview
+  feedback and outcome-loop baseline, but broader cross-job ontology learning
+  and admin eval-feedback tooling remain future work. The current consultant
+  matching API/controller/UI baseline remains internal evidence-aware review
+  only, while Task 29 now covers the consultant-side shortlist builder/send
+  slice and Task 32 covers the first client review surface.
 
 ## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
 

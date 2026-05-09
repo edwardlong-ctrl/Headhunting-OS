@@ -2,6 +2,17 @@
 
 ## Current Git Main Milestones
 
+- Task 47: Industry Pack Expansion and Calibration is complete for the current
+  backend-owned calibration baseline. The patch adds V32 calibration metadata
+  on `recruiting.industry_pack`, seeds all 8 v2.1 packs with active ontology
+  versions, role-family templates, skill concepts, gold cases, negative cases,
+  anti-patterns, score caps, drift signals, and review deadlines, promotes only
+  `semiconductor` to an honest `production` maturity state while preserving its
+  active DV/PD/DFT/analog/firmware role-family templates, and exposes
+  Task 47 pack/review-queue coverage through Admin industry-pack governance,
+  including deadline-expired production-pack reclassification.
+  This does not add learned calibration execution, automatic ontology updates,
+  admin pack editing, or production labels for non-semiconductor seeded packs.
 - Task 46: Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge is
   complete for the current backend-owned decision baseline. The patch adds
   `DataLifecycleService` and public `DataLifecycleModels` contracts for
@@ -208,6 +219,7 @@
 - Task 34 combined-slice verification passed `docker info`, `git diff --check`, frontend `npm run typecheck:web`, frontend `npm run build:web`, targeted backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml -Dtest=CandidatePortalQueryServiceTest,JobIntakeApplicationServiceTest,ClientApiQueryServiceTest,NotificationServicePostgresIntegrationTest test`, and full backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test`. Full Maven reached 896 tests, 0 failures/errors, 3 skips after the final reminder/workflow-audit, consultant handoff, and roadmap-drift fixes.
 - Task 35 verification passed targeted backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml -Dtest=ClientApiCommandServiceTest,ClientApiQueryServiceTest,InterviewFeedbackReviewServiceTest,ConsultantInterviewFeedbackReviewControllerTest test`, frontend `npm --workspace @rto/web run typecheck`, frontend `npm --workspace @rto/web run build`, and full backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` after the final workspace-binding, eligibility-gate, consultant single-review, and API error-contract fixes.
 - Task 36/37 latest known-good closure snapshot: frontend `npm --workspace @rto/web run build` passed, focused `OwnerPortal` frontend tests passed, and backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` passed after the placement/commission closure, governance V31 migration updates, bulk Flyway assertion refresh to version `31`, and API-boundary regression adjustments for the new owner/admin governance controllers. This line records the latest confirmed successful validation before the current doc-sync-only edits.
+- Task 47 verification passed targeted backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest test`, targeted Admin governance `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=GovernanceReadServicePostgresIntegrationTest#industryPackGovernanceShowsTask47CalibrationQueue test`, broader backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest,GovernanceReadServicePostgresIntegrationTest,GovernanceReadServiceTest,ConsultantMatchingSurfaceServiceTest,ScoreCapPolicyTest test`, `rtk git diff --check`, `rtk docker info`, and full backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test`. Full Maven reached 1062 tests, 0 failures, 0 errors, and 3 skipped after the V32 industry-pack calibration migration, Admin review queue read model, Flyway-version regression updates, semiconductor active-ontology role-family preservation fix, and deadline-expired production-pack review-queue fix.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:

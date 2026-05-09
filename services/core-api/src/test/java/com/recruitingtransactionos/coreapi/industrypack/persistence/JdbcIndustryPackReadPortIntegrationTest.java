@@ -2,12 +2,17 @@ package com.recruitingtransactionos.coreapi.industrypack.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackCalibrationProfile;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
+import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
+import java.util.List;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
@@ -41,19 +46,19 @@ class JdbcIndustryPackReadPortIntegrationTest {
 
   @Test
   void readsSeededSemiconductorPackOntologyAndRoleTemplate() {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(31);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(32);
     JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
 
     var semiconductor = port.findByKey(new IndustryPackKey("semiconductor"));
 
     assertThat(semiconductor).isPresent();
     assertThat(semiconductor.orElseThrow().displayName()).isEqualTo("Semiconductor");
-    assertThat(semiconductor.orElseThrow().maturity().wireValue()).isEqualTo("seeded");
+    assertThat(semiconductor.orElseThrow().maturity().wireValue()).isEqualTo("production");
 
     var ontology = port.findActiveOntologyVersion(semiconductor.orElseThrow().industryPackId(), Instant.parse("2026-05-03T00:00:00Z"));
 
     assertThat(ontology).isPresent();
-    assertThat(ontology.orElseThrow().versionKey()).isEqualTo("ontology-semiconductor-v1");
+    assertThat(ontology.orElseThrow().versionKey()).isEqualTo("ontology-semiconductor-v2");
 
     var template = port.findRoleFamilyTemplate(
         semiconductor.orElseThrow().industryPackId(),
@@ -71,9 +76,106 @@ class JdbcIndustryPackReadPortIntegrationTest {
     JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
     var general = port.findByKey(new IndustryPackKey("general"));
     assertThat(general).isPresent();
-    assertThat(general.orElseThrow().maturity().wireValue()).isEqualTo("cold");
+    assertThat(general.orElseThrow().maturity().wireValue()).isEqualTo("seeded");
     var ontology = port.findActiveOntologyVersion(new IndustryPackId(general.orElseThrow().industryPackId().value()), Instant.parse("2026-05-03T00:00:00Z"));
     assertThat(ontology).isPresent();
+  }
+
+  @Test
+  void task47SeedsAllV21PacksWithCalibrationMetadata() throws Exception {
+    JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
+    IndustryPackService service = new IndustryPackService(port);
+
+    var profiles = service.listCalibrationProfiles(Instant.parse("2026-05-09T00:00:00Z"));
+
+    assertThat(profiles)
+        .extracting(profile -> profile.industryPack().packKey().value())
+        .containsExactly(
+            "executive_search",
+            "finance",
+            "general",
+            "healthcare",
+            "internet_ai",
+            "manufacturing",
+            "sales",
+            "semiconductor");
+    assertThat(profiles).allSatisfy(profile -> {
+      assertThat(profile.ontologyVersion().reviewBy()).isAfter(Instant.parse("2026-05-09T00:00:00Z"));
+      assertThat(profile.goldCases()).isNotEmpty();
+      assertThat(profile.negativeCases()).isNotEmpty();
+      assertThat(profile.antiPatterns()).isNotEmpty();
+      assertThat(profile.scoreCaps()).isNotEmpty();
+    });
+    assertThat(profiles)
+        .filteredOn(profile -> profile.industryPack().packKey().value().equals("semiconductor"))
+        .singleElement()
+        .satisfies(profile -> {
+          assertThat(profile.industryPack().maturity().wireValue()).isEqualTo("production");
+          assertThat(profile.scoreCaps()).anyMatch(value -> value.contains("production"));
+        });
+    assertThat(profiles)
+        .filteredOn(profile -> !profile.industryPack().packKey().value().equals("semiconductor"))
+        .allSatisfy(profile -> {
+          assertThat(profile.industryPack().maturity().wireValue()).isIn("seeded", "cold");
+          assertThat(profile.scoreCaps()).anyMatch(value -> value.contains("5 requires"));
+        });
+  }
+
+  @Test
+  void task47SemiconductorV2PreservesExistingProductionRoleFamilies() {
+    JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
+    var semiconductor = port.findByKey(new IndustryPackKey("semiconductor")).orElseThrow();
+    var ontology = port.findActiveOntologyVersion(
+        semiconductor.industryPackId(),
+        Instant.parse("2026-05-09T00:00:00Z")).orElseThrow();
+
+    assertThat(ontology.versionKey()).isEqualTo("ontology-semiconductor-v2");
+    assertThat(List.of("dv_verification", "physical_design", "dft", "analog_mixed_signal", "firmware_embedded"))
+        .allSatisfy(roleFamily -> assertThat(port.findRoleFamilyTemplate(
+            semiconductor.industryPackId(),
+            ontology.ontologyVersionId(),
+            roleFamily))
+            .as(roleFamily)
+            .isPresent());
+  }
+
+  @Test
+  void calibrationReviewQueueDoesNotMarkSeededPacksAsProduction() {
+    JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
+    IndustryPackService service = new IndustryPackService(port);
+
+    var queue = service.buildCalibrationReviewQueue(Instant.parse("2026-05-09T00:00:00Z"));
+
+    assertThat(queue)
+        .extracting(item -> item.packKey().value())
+        .contains("finance", "healthcare", "internet_ai", "sales", "executive_search", "manufacturing");
+    assertThat(queue)
+        .noneSatisfy(item -> assertThat(item.packKey().value()).isEqualTo("semiconductor"));
+    assertThat(queue)
+        .allSatisfy(item -> assertThat(item.reason()).containsAnyOf("calibration", "drift"));
+  }
+
+  @Test
+  void task47AddsCalibrationColumnsWithoutRewritingPriorMigration() throws Exception {
+    try (Connection connection = dataSource.getConnection();
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery("""
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = 'recruiting'
+              AND table_name = 'industry_pack'
+              AND column_name IN (
+                'calibration_review_by',
+                'gold_cases',
+                'negative_cases',
+                'pack_anti_patterns',
+                'score_caps',
+                'drift_signals'
+              )
+            """)) {
+      assertThat(resultSet.next()).isTrue();
+      assertThat(resultSet.getInt(1)).isEqualTo(6);
+    }
   }
 
   private static DataSource postgresDataSource() {

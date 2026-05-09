@@ -1121,6 +1121,11 @@ field overwrite。
 
 - 每个 pack 有 maturity、ontology version、review_by、gold cases、negative cases、anti-patterns、score caps。
 
+Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibration.md`
+记录当前 backend-owned calibration baseline。V32 增加 Task 47 校准元数据并种入
+全部 8 个 v2.1 packs；只有 `semiconductor` 标记为 `production`，其他 pack
+保持诚实 seeded 状态，并在 Admin review queue 中暴露。
+
 ## Task 48：Commercial and Finance Operations Hardening
 
 目标：补齐 placement、fee protection、invoice、guarantee、commission。

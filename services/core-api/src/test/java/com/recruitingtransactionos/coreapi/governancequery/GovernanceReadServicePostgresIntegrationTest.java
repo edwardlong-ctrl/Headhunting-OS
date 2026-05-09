@@ -158,6 +158,63 @@ class GovernanceReadServicePostgresIntegrationTest {
   }
 
   @Test
+  void industryPackGovernanceShowsTask47CalibrationQueue() {
+    GovernanceSectionResponse section = readService.loadAdminSection(ORGANIZATION_ID, "industry-packs");
+
+    assertThat(metricValue(section, "packCount")).isEqualTo("8");
+    assertThat(metricValue(section, "productionPacks")).isEqualTo("1");
+    assertThat(metricValue(section, "reviewQueue")).isEqualTo("7");
+    assertThat(section.items())
+        .hasSize(8)
+        .anySatisfy(item -> {
+          assertThat(item.primaryText()).isEqualTo("Semiconductor");
+          assertThat(item.status()).isEqualTo("production");
+          assertThat(item.detail()).contains("goldCases:2", "negativeCases:2", "scoreCaps:2");
+        })
+        .anySatisfy(item -> {
+          assertThat(item.primaryText()).isEqualTo("Finance");
+          assertThat(item.status()).isEqualTo("review_queue");
+          assertThat(item.detail()).contains("driftSignals:1", "scoreCaps:2");
+        });
+  }
+
+  @Test
+  void industryPackGovernanceReviewQueueIncludesStaleProductionPack() throws SQLException {
+    try {
+      executeUpdate("""
+          UPDATE recruiting.industry_pack
+          SET calibration_review_by = TIMESTAMPTZ '2026-01-01T00:00:00Z'
+          WHERE pack_key = 'semiconductor'
+          """);
+      executeUpdate("""
+          UPDATE recruiting.ontology_version
+          SET review_by = TIMESTAMPTZ '2026-01-01T00:00:00Z'
+          WHERE version_key = 'ontology-semiconductor-v2'
+          """);
+
+      GovernanceSectionResponse section = readService.loadAdminSection(ORGANIZATION_ID, "industry-packs");
+
+      assertThat(metricValue(section, "reviewQueue")).isEqualTo("8");
+      assertThat(section.items())
+          .anySatisfy(item -> {
+            assertThat(item.primaryText()).isEqualTo("Semiconductor");
+            assertThat(item.status()).isEqualTo("review_queue");
+          });
+    } finally {
+      executeUpdate("""
+          UPDATE recruiting.industry_pack
+          SET calibration_review_by = TIMESTAMPTZ '2026-12-31T00:00:00Z'
+          WHERE pack_key = 'semiconductor'
+          """);
+      executeUpdate("""
+          UPDATE recruiting.ontology_version
+          SET review_by = TIMESTAMPTZ '2026-12-31T00:00:00Z'
+          WHERE version_key = 'ontology-semiconductor-v2'
+          """);
+    }
+  }
+
+  @Test
   void claimLedgerGovernanceSectionLoadsAgainstRealVerificationStatusEnum() {
     assertThatCode(() -> readService.loadAdminSection(ORGANIZATION_ID, "claim-ledger"))
         .doesNotThrowAnyException();
@@ -264,6 +321,13 @@ class GovernanceReadServicePostgresIntegrationTest {
         ResultSet resultSet = statement.executeQuery()) {
       resultSet.next();
       return resultSet.getInt(1);
+    }
+  }
+
+  private static void executeUpdate(String sql) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.executeUpdate();
     }
   }
 

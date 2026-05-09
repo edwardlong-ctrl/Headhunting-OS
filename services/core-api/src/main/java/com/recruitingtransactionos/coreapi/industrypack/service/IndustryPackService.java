@@ -2,12 +2,15 @@ package com.recruitingtransactionos.coreapi.industrypack.service;
 
 import com.recruitingtransactionos.coreapi.candidate.Candidate;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPack;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackCalibrationProfile;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackId;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryPackKey;
+import com.recruitingtransactionos.coreapi.industrypack.IndustryPackReviewQueueItem;
 import com.recruitingtransactionos.coreapi.industrypack.IndustryRoleFamilyTemplate;
 import com.recruitingtransactionos.coreapi.industrypack.OntologyVersion;
 import com.recruitingtransactionos.coreapi.industrypack.port.IndustryPackReadPort;
 import com.recruitingtransactionos.coreapi.job.Job;
+import com.recruitingtransactionos.coreapi.matching.IndustryPackMaturity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,6 +127,42 @@ public final class IndustryPackService {
       return null;
     }
     return resolvedIndustryPack.roleFamilyTemplate().scoringGuidance();
+  }
+
+  public List<IndustryPackCalibrationProfile> listCalibrationProfiles(Instant asOf) {
+    return readPort.findCalibrationProfiles(asOf == null ? Instant.now() : asOf);
+  }
+
+  public List<IndustryPackReviewQueueItem> buildCalibrationReviewQueue(Instant asOf) {
+    Instant instant = asOf == null ? Instant.now() : asOf;
+    List<IndustryPackReviewQueueItem> queue = new ArrayList<>();
+    for (IndustryPackCalibrationProfile profile : listCalibrationProfiles(instant)) {
+      List<String> reasons = new ArrayList<>();
+      boolean stale = profile.ontologyVersion().isStale(instant)
+          || !profile.calibrationReviewBy().isAfter(instant);
+      if (stale) {
+        reasons.add("drift review_by elapsed");
+      }
+      if (profile.industryPack().maturity() != IndustryPackMaturity.PRODUCTION) {
+        reasons.add("calibration required before production label");
+      }
+      if (!profile.driftSignals().isEmpty()) {
+        reasons.add("drift signals: " + String.join(", ", profile.driftSignals()));
+      }
+      if (!reasons.isEmpty()) {
+        queue.add(new IndustryPackReviewQueueItem(
+            profile.industryPack().packKey(),
+            profile.industryPack().maturity(),
+            stale ? "danger" : "warning",
+            String.join("; ", reasons),
+            min(profile.ontologyVersion().reviewBy(), profile.calibrationReviewBy())));
+      }
+    }
+    return List.copyOf(queue);
+  }
+
+  private static Instant min(Instant left, Instant right) {
+    return left.isBefore(right) ? left : right;
   }
 
   private static String join(List<String> evidenceTexts, List<String> skillTexts) {

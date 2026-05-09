@@ -96,10 +96,7 @@ public final class GovernanceReadService {
           "Ontology Governance",
           "Industry packs, ontology freshness, and admin annotations.",
           industryPackMetrics(organizationId),
-          groupedCountItems(
-              organizationId,
-              "SELECT pack_key AS key, COUNT(*) AS total FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL GROUP BY pack_key ORDER BY key ASC LIMIT 10",
-              "pack"),
+          industryPackItems(organizationId),
           false);
       case "privacy-redaction" -> privacyRedaction(organizationId);
       case "model-routing" -> modelRouting(organizationId);
@@ -124,12 +121,9 @@ public final class GovernanceReadService {
           organizationId,
           normalized,
           "Industry Packs",
-          "Pack inventory and governance metadata.",
+          "Task 47 pack inventory, calibration metadata, drift signals, and review queue.",
           industryPackMetrics(organizationId),
-          groupedCountItems(
-              organizationId,
-              "SELECT pack_key AS key, COUNT(*) AS total FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL GROUP BY pack_key ORDER BY key ASC LIMIT 10",
-              "pack"),
+          industryPackItems(organizationId),
           false);
       case "schema" -> schemaCatalog(organizationId);
       case "workflow-rules" -> workflowRules(organizationId);
@@ -461,7 +455,89 @@ public final class GovernanceReadService {
   }
 
   private List<GovernanceMetricResponse> industryPackMetrics(UUID organizationId) {
-    return List.of(metric("packCount", "Industry Packs", count(organizationId, "SELECT COUNT(*) FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL"), "info", "Stored pack rows"));
+    return List.of(
+        metric("packCount", "Industry Packs", count(organizationId, "SELECT COUNT(*) FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL"), "info", "Stored pack rows"),
+        metric("productionPacks", "Production Packs", count(organizationId, "SELECT COUNT(*) FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL AND maturity = 'production'"), "success", "Packs with honest production calibration"),
+        metric(
+            "reviewQueue",
+            "Review Queue",
+            count(
+                organizationId,
+                """
+                    SELECT COUNT(*)
+                    FROM recruiting.industry_pack pack
+                    JOIN LATERAL (
+                      SELECT review_by
+                      FROM recruiting.ontology_version
+                      WHERE industry_pack_id = pack.industry_pack_id
+                        AND deprecated_at IS NULL
+                      ORDER BY effective_from DESC
+                      LIMIT 1
+                    ) version ON true
+                    WHERE ?::uuid IS NOT NULL
+                      AND (
+                        pack.maturity <> 'production'
+                        OR jsonb_array_length(pack.drift_signals) > 0
+                        OR pack.calibration_review_by <= now()
+                        OR version.review_by <= now()
+                      )
+                    """),
+            "warning",
+            "Packs requiring calibration or drift review"));
+  }
+
+  private List<GovernanceItemResponse> industryPackItems(UUID organizationId) {
+    return limitedItems(
+        organizationId,
+        """
+            SELECT
+              pack.display_name,
+              pack.pack_key,
+              pack.maturity,
+              pack.calibration_review_by,
+              version.version_key,
+              version.review_by,
+              (pack.calibration_review_by <= now() OR version.review_by <= now()) AS review_stale,
+              jsonb_array_length(pack.gold_cases) AS gold_count,
+              jsonb_array_length(pack.negative_cases) AS negative_count,
+              jsonb_array_length(pack.pack_anti_patterns) AS anti_pattern_count,
+              jsonb_array_length(pack.score_caps) AS score_cap_count,
+              jsonb_array_length(pack.drift_signals) AS drift_signal_count
+            FROM recruiting.industry_pack pack
+            JOIN LATERAL (
+              SELECT version_key, review_by
+              FROM recruiting.ontology_version
+              WHERE industry_pack_id = pack.industry_pack_id
+                AND deprecated_at IS NULL
+              ORDER BY effective_from DESC
+              LIMIT 1
+            ) version ON true
+            WHERE ?::uuid IS NOT NULL
+            ORDER BY pack.pack_key ASC
+            LIMIT 20
+            """,
+        resultSet -> {
+          String maturity = resultSet.getString("maturity");
+          int driftSignals = resultSet.getInt("drift_signal_count");
+          boolean reviewStale = resultSet.getBoolean("review_stale");
+          String status = "production".equals(maturity) && driftSignals == 0 && !reviewStale
+              ? "production"
+              : "review_queue";
+          return item(
+              resultSet.getString("display_name"),
+              resultSet.getString("pack_key")
+                  + " | ontology:" + resultSet.getString("version_key")
+                  + " | ontologyReviewBy:" + TIMESTAMP_FORMATTER.format(resultSet.getObject("review_by", OffsetDateTime.class))
+                  + " | calibrationReviewBy:" + TIMESTAMP_FORMATTER.format(resultSet.getObject("calibration_review_by", OffsetDateTime.class)),
+              status,
+              "maturity:" + maturity
+                  + " | goldCases:" + resultSet.getInt("gold_count")
+                  + " | negativeCases:" + resultSet.getInt("negative_count")
+                  + " | antiPatterns:" + resultSet.getInt("anti_pattern_count")
+                  + " | scoreCaps:" + resultSet.getInt("score_cap_count")
+                  + " | driftSignals:" + driftSignals,
+              "admin/industry-packs");
+        });
   }
 
   private List<GovernanceMetricResponse> aiPolicyMetrics(UUID organizationId) {

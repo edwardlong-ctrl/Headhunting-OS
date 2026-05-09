@@ -5,11 +5,11 @@ This file contains mutable short-term engineering state. Update it after future 
 ## Current Main Baseline
 
 - latest local `main` baseline: Task 46 Full Data Lifecycle, Deduplication,
-  Conflict, Stale, and Merge after this closeout merge.
+  Conflict, Stale, and Merge decision/audit baseline at `a3749e3`.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
-- latest task closure: Task 46 Full Data Lifecycle, Deduplication,
-  Conflict, Stale, and Merge, documented in
-  `docs/roadmap/task-46-full-data-lifecycle-dedup-conflict-stale-merge.md`.
+- latest in-worktree task closure pending review/merge: Task 47 Industry Pack
+  Expansion and Calibration, documented in
+  `docs/roadmap/task-47-industry-pack-expansion-and-calibration.md`.
 - latest security baseline commit: `58529e4`
 - latest Task 42 gate work on local `main`: Task 42
   Pilot E2E Acceptance Gate model/report now returns
@@ -41,6 +41,10 @@ This file contains mutable short-term engineering state. Update it after future 
   - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
+- current Task 47 worktree patch awaiting review/merge: Industry Pack Expansion
+  and Calibration baseline, including all 8 v2.1 packs, Task 47 calibration
+  metadata, semiconductor production calibration, seeded non-semiconductor
+  packs, drift signals, and Admin industry-pack review queue visibility.
 - current Task 44 baseline: 28/28 v2.1 production AI task definitions,
   prompt/schema/eval artifact coverage, per-task review/write-back policy,
   default governed model route inspection, and definition-first Admin
@@ -62,12 +66,39 @@ This file contains mutable short-term engineering state. Update it after future 
   baseline, not a mutation executor: it does not add physical row deletion,
   direct merge mutation, fuzzy-search infrastructure, external queues, or
   canonical field overwrite.
+- current Task 47 baseline: all 8 v2.1 industry packs now exist with active
+  ontology versions, role-family templates, skill concepts, gold cases,
+  negative cases, anti-patterns, score caps, drift signals, and review
+  deadlines. `semiconductor` is the only pack marked `production`; all other
+  packs remain honest seeded packs and surface through Admin industry-pack
+  review queue metrics. The active semiconductor v2 ontology preserves the
+  existing DV/PD/DFT/analog/firmware role-family surface, and Admin review
+  queue logic also reclassifies production packs whose ontology or calibration
+  review deadline has expired. This is a backend-owned calibration metadata
+  baseline, not a learned calibration executor or admin editing UI.
 - latest documented validation snapshot for the local Task 42 main baseline: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
 - latest Task 43 validation snapshot: `rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts`, `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk git diff --check`, `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,GovernanceReadServicePostgresIntegrationTest#onlyRuntimeWiredAdminSectionsAreEditable test`, and `rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. Browser smoke on `http://127.0.0.1:5173` covered the strict Client/Candidate/Admin Task 43 deep links and rendered guarded sign-in/admin shell states without blank pages.
 - latest Task 46 validation snapshot: `rtk mvn -f services/core-api/pom.xml -Dtest=DataLifecycleServiceTest,WorkflowActionPolicyTest,GovernanceReadServiceTest test`, `rtk git diff --check`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1056 tests, 0 failures, 0 errors, and 3 skipped.
-- merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 46 data lifecycle decision/audit baseline + Task 16-Hardening.
-- next recommended task: continue with the remaining Tasks 47-60 for ontology,
-  commercial workflows,
+- latest Task 47 validation snapshot: `rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest test`, `rtk mvn -f services/core-api/pom.xml -Dtest=GovernanceReadServicePostgresIntegrationTest#industryPackGovernanceShowsTask47CalibrationQueue test`, `rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest,GovernanceReadServicePostgresIntegrationTest,GovernanceReadServiceTest,ConsultantMatchingSurfaceServiceTest,ScoreCapPolicyTest test`, `rtk git diff --check`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` passed after the review-fix loop. Full Maven reported 1062 tests, 0 failures, 0 errors, and 3 skipped.
+- merge status: current Task 47 worktree patch builds on the Task 46 baseline
+  and has not been merged to `main` in this worktree. After review and merge,
+  the engineering baseline will contain Task 18A + Task 18B + Task 18C +
+  Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 +
+  Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 +
+  Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27
+  Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with
+  compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30
+  Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 +
+  Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end +
+  Task 34 Notification and Follow-up System v1 plus candidate/client portal
+  session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36
+  Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38
+  Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment
+  baseline + Task 40 provider-neutral observability baseline + Task 41 Security
+  and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline +
+  Task 43 route-depth closure + Task 46 data lifecycle decision/audit baseline +
+  Task 47 industry-pack calibration baseline + Task 16-Hardening.
+- next recommended task: continue with the remaining Tasks 48-60 for commercial workflows,
   integrations, production operations, support workflows, managed deployment,
   and final full-product acceptance. Task 42 readiness is scoped to the
   controlled-pilot Usable v1 gate, not public production certification.
@@ -259,7 +290,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
 `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with Tasks
-47-60 for broader production operations, support workflows, security hardening,
+48-60 for broader production operations, support workflows, security hardening,
 managed deployment, and non-pilot product depth. Use:
 
 - `docs/roadmap/productization-roadmap.md`
