@@ -27,6 +27,7 @@ type SectionKey =
   | "workflow-rules"
   | "permissions"
   | "audit-log"
+  | "integrations"
   | "security";
 
 const ADMIN_SECTIONS: Array<{ key: SectionKey; label: string }> = [
@@ -43,6 +44,7 @@ const ADMIN_SECTIONS: Array<{ key: SectionKey; label: string }> = [
   { key: "workflow-rules", label: "Workflow Rules" },
   { key: "permissions", label: "Permissions" },
   { key: "audit-log", label: "Audit Log" },
+  { key: "integrations", label: "Integrations" },
   { key: "security", label: "Security" },
 ];
 

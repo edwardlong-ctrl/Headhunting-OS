@@ -4,13 +4,20 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` baseline commit: `1755de9` (`Complete Task 42 pilot E2E evidence gate`)
+- latest local `main` baseline: Task 43 Full Portal Depth and UX Completion
+  route-depth closure after this closeout merge.
+- latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
+- latest task closure: Task 43 Full Portal Depth and UX Completion
+  route-depth gate, documented in
+  `docs/roadmap/task-43-full-portal-depth-and-ux-completion.md`.
 - latest security baseline commit: `58529e4`
 - latest Task 42 gate work on local `main`: Task 42
   Pilot E2E Acceptance Gate model/report now returns
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
+  - Task 43 — Full Portal Depth and UX Completion route-depth closure, including five-portal route contract coverage, strict Client/Candidate spec route parameter alignment, Client/Candidate route-depth continuity, and Admin `/admin/integrations` governance read wiring.
+  - `ce0944e` — Task 42 local main docs drift cleanup after the pilot E2E acceptance gate merge.
   - `1755de9` — Task 42 Pilot E2E Acceptance Gate closure, including S01-S08 Playwright business-flow evidence, Task 38 pilot CLI evidence, Task 39 backup/restore evidence, and an updated `PilotAcceptanceGate` / `PilotAcceptanceReport` result of `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
   - `58529e4` / `b31e2e3` — Task 41: Security and Privacy Hardening v1, including login input policy, auth/document rate limiting, upload filename rejection, URL-path PII masking in request logs, explicit Admin disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused privacy/security regressions.
   - `68647b5` — Task 40: provider-neutral observability, audit search, disclosure audit export, AI task trace/replay visibility, and incident runbook baseline
@@ -34,8 +41,9 @@ This file contains mutable short-term engineering state. Update it after future 
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
 - latest documented validation snapshot for the local Task 42 main baseline: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
-- merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 16-Hardening.
-- next recommended task: after the Task 42 local main baseline, continue Tasks 43-60 for broader
+- latest Task 43 validation snapshot: `rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts`, `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk git diff --check`, `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,GovernanceReadServicePostgresIntegrationTest#onlyRuntimeWiredAdminSectionsAreEditable test`, and `rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. Browser smoke on `http://127.0.0.1:5173` covered the strict Client/Candidate/Admin Task 43 deep links and rendered guarded sign-in/admin shell states without blank pages.
+- merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 16-Hardening.
+- next recommended task: after Task 43, continue Tasks 44-60 for broader
   production operations, managed deployment, support workflows, security
   hardening, and non-pilot product depth. Task 42 readiness is scoped to the
   controlled-pilot Usable v1 gate, not public production certification.

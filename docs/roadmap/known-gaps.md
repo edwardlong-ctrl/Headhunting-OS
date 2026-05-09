@@ -1,5 +1,26 @@
 # Known Gaps
 
+## Task 43 Portal Route Depth Closed; Production Readiness Still Deferred
+
+- Task 43 now has a frontend route contract for the v2.0/v2.1 named Owner,
+  Consultant, Client, Candidate, and Admin route sets.
+- Client route gaps after Task 42 are closed with backend-connected pages or
+  aliases for dashboard, profile, AI-intake job submission, job-scoped
+  shortlist continuity, unlock request continuity, and follow-ups.
+- Candidate route gaps are closed with upload, AI review, and status aliases
+  mapped to the existing document/profile/timeline backend surfaces.
+- Strict route parameter names are now aligned with the spec for client
+  anonymous candidate review and candidate opportunity/consent detail routes;
+  existing compatibility aliases remain available where already present.
+- Admin `/admin/integrations` is now present in the portal and reads from the
+  Admin governance API boundary.
+- Remaining gaps:
+  - Task 43 is route-depth and workflow-continuity closure, not full production
+    integration implementation.
+  - Tasks 44-60 still need full AI registry production coverage, workflow/SLA
+    automation, production integrations, support workflows, managed deployment,
+    and final full-product acceptance.
+
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
 - Task 42 now has an explicit backend acceptance-gate model and report artifact
@@ -22,7 +43,7 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Tasks 43-60 still need to broaden operations, support workflows, production
+  - Tasks 44-60 still need to broaden operations, support workflows, production
     hardening, and non-pilot product depth.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred

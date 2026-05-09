@@ -2,14 +2,26 @@
 
 ## Current Git Main Milestones
 
-- Task 42: Pilot E2E Acceptance Gate is current on local `main` through
-  `1755de9` (`Complete Task 42 pilot E2E evidence gate`): `PilotAcceptanceGate` /
+- Task 43: Full Portal Depth and UX Completion is complete for the current
+  mainline baseline. The patch adds a five-portal v2.0/v2.1 route contract test, fills the
+  missing Client route set (`/client/dashboard`, `/client/profile`,
+  `/client/jobs/new/ai-intake`, `/client/jobs/:jobId/shortlist`,
+  `/client/unlock/:candidateId`, `/client/follow-ups`), adds Candidate
+  compatibility routes (`/candidate/upload`, `/candidate/profile/ai-review`,
+  `/candidate/status`), aligns strict spec parameter names for client anonymous
+  candidate review plus candidate opportunity/consent detail routes, and wires
+  `/admin/integrations` through the Admin governance API/read-service boundary.
+  Current focused evidence is recorded in
+  `docs/roadmap/task-43-full-portal-depth-and-ux-completion.md`.
+- Task 42: Pilot E2E Acceptance Gate remains the Usable v1 controlled-pilot
+  baseline through `1755de9` (`Complete Task 42 pilot E2E evidence gate`) plus
+  the later `ce0944e` local-main docs drift cleanup: `PilotAcceptanceGate` /
   `PilotAcceptanceReport` now encode the eight pilot flows, negative gates, and
   validation gates, and `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`
   records the honest result as `CONTROLLED_PILOT_READY` for the Task 42 Usable v1
-  gate. This does not certify public production readiness; Tasks 43-60 remain
+  gate. This does not certify public production readiness; Tasks 44-60 remain
   required for broader operations, security, support, managed deployment, and
-  product depth.
+  product depth after Task 43 route-depth closure.
 - Task 41: Security and Privacy Hardening v1 remains the latest security baseline on `main` through `58529e4`: controlled-pilot backend hardening for login email/password input policy, configurable in-memory throttling for auth login/refresh and consultant document endpoints, unsafe upload filename rejection before storage/source-item persistence, UUID/email path-segment masking in request logs, explicit Admin same-organization disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused security/privacy regressions. It is not production-security certification and does not add MFA, password reset, SSO/OIDC, distributed rate limiting, product-wide field-level access audit, product-wide PII log audit, destructive retention execution, or vulnerability remediation reporting.
 - Task 40: Observability, Audit, and Replay v1 remains on `main` through `68647b5` for the provider-neutral backend subset: `/api/**` request correlation, safe structured staging/production logs, admin-only observability read APIs for WorkflowEvents, ReviewEvents, AITaskRuns, disclosure audit export, safe API response DTOs, PostgreSQL-backed narrow readers, and `infra/observability/README.md` as the incident runbook. It adds no external observability vendor, no raw Candidate/Profile/source payload logging, no frontend dashboard, no error dashboard, no AI cost/latency dashboard UI, and no broad owner raw-audit export.
 - Task 39: Deployment v1 remains the latest deployment baseline on `main` through `984b329`: provider-neutral local-production compose/runbook baseline, staging/production environment validation, profile precedence hardening, PostgreSQL migration runbook, backup/restore/rollback/smoke-test runbooks, object-storage deployment wiring, staging MinIO endpoint handling, and local MinIO bucket initialization. It remains a deployment baseline, not production-ready.

@@ -67,10 +67,10 @@ class AdminGovernanceControllerMappingTest {
 
   @Test
   void adminGovernanceReadsUseCentralPermissionPolicy() {
-    when(governanceReadService.loadAdminSection(ORGANIZATION_ID, "model-routing"))
-        .thenReturn(section("model-routing"));
+    when(governanceReadService.loadAdminSection(ORGANIZATION_ID, "integrations"))
+        .thenReturn(section("integrations"));
 
-    controller.loadSection(principal(PortalRole.ADMIN), request("/api/admin/model-routing"));
+    controller.loadSection(principal(PortalRole.ADMIN), request("/api/admin/integrations"));
 
     AccessRequest accessRequest = capturedAccessRequest();
     assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);

@@ -229,7 +229,7 @@ function HomePage() {
           <div><dt>Unread notifications</dt><dd>{unreadCount}</dd></div>
         </dl>
         <div className="client-action-grid">
-          <NavLink className="secondary-link" to="/candidate/profile">
+          <NavLink className="secondary-link" to="/candidate/profile/ai-review">
             Review profile
           </NavLink>
           <NavLink className="secondary-link" to="/candidate/follow-up/current-profile">
@@ -744,7 +744,7 @@ function FollowUpPage({ session }: { session: CandidateSession }) {
           ))}
           <section className="portal-panel">
             <div className="client-action-grid">
-              <NavLink className="secondary-link" to="/candidate/profile">
+              <NavLink className="secondary-link" to="/candidate/profile/ai-review">
                 Back to profile review
               </NavLink>
             </div>
@@ -761,8 +761,8 @@ function FollowUpPage({ session }: { session: CandidateSession }) {
 }
 
 function OpportunityDetailPage({ session }: { session: CandidateSession }) {
-  const { interactionId } = useParams();
-  const requestedInteractionId = interactionId ?? "";
+  const { opportunityId, interactionId } = useParams();
+  const requestedInteractionId = opportunityId ?? interactionId ?? "";
   const { state, refresh } = useCandidateApi(
     () => fetchCandidateOpportunityDetail(session.userAccountId, requestedInteractionId),
     [session.userAccountId, requestedInteractionId],
@@ -978,20 +978,21 @@ function ConsentInboxPage() {
 }
 
 function ConsentRequestPage({ session }: { session: CandidateSession }) {
-  const { consentRecordRef } = useParams();
+  const { requestId, consentRecordRef } = useParams();
+  const resolvedRequestId = requestId ?? consentRecordRef;
   const [state, setState] = useState<ApiResult<CandidateConsentSummary> | { status: "loading" }>({ status: "loading" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!consentRecordRef) {
+    if (!resolvedRequestId) {
       return;
     }
-    const requestId = consentRecordRef;
+    const requestRef = resolvedRequestId;
     let cancelled = false;
     async function refresh() {
       setState({ status: "loading" });
-      const result = await fetchCandidateConsent(session.userAccountId, requestId);
+      const result = await fetchCandidateConsent(session.userAccountId, requestRef);
       if (!cancelled) {
         setState(result);
       }
@@ -1000,17 +1001,18 @@ function ConsentRequestPage({ session }: { session: CandidateSession }) {
     return () => {
       cancelled = true;
     };
-  }, [session.userAccountId, consentRecordRef]);
+  }, [session.userAccountId, resolvedRequestId]);
 
   async function handleDecision(approve: boolean) {
-    if (!consentRecordRef) return;
+    if (!resolvedRequestId) return;
+    const requestRef = resolvedRequestId;
     setIsSubmitting(true);
-    const result = await respondCandidateConsent(session.userAccountId, consentRecordRef, approve);
+    const result = await respondCandidateConsent(session.userAccountId, requestRef, approve);
     setIsSubmitting(false);
     setState(result);
   }
 
-  if (!consentRecordRef) {
+  if (!resolvedRequestId) {
     return <CandidateState title="Consent request unavailable" detail="A consent request reference is required." />;
   }
   if (state.status === "loading") {
@@ -1091,8 +1093,8 @@ function ConsentRequestPage({ session }: { session: CandidateSession }) {
 }
 
 function ConsentPage({ session }: { session: CandidateSession }) {
-  const { consentRecordRef } = useParams();
-  if (!consentRecordRef) {
+  const { requestId, consentRecordRef } = useParams();
+  if (!requestId && !consentRecordRef) {
     return <ConsentInboxPage />;
   }
   return <ConsentRequestPage session={session} />;
@@ -1132,13 +1134,14 @@ export function CandidatePortal() {
       </header>
       <nav className="portal-nav" aria-label="Candidate portal">
         <NavLink to="/candidate/home">Home</NavLink>
-        <NavLink to="/candidate/profile">Profile</NavLink>
+        <NavLink to="/candidate/profile/ai-review">Profile</NavLink>
+        <NavLink to="/candidate/upload">Upload</NavLink>
         <NavLink to="/candidate/follow-up/current-profile">Follow-up</NavLink>
         <NavLink to="/candidate/notifications">Notifications</NavLink>
         <NavLink to="/candidate/preferences">Preferences</NavLink>
         <NavLink to="/candidate/documents">Documents</NavLink>
         <NavLink to="/candidate/opportunities">Opportunities</NavLink>
-        <NavLink to="/candidate/timeline">Timeline</NavLink>
+        <NavLink to="/candidate/status">Status</NavLink>
         <NavLink to="/candidate/consent">Consent</NavLink>
         <button
           type="button"
@@ -1168,6 +1171,10 @@ export function CandidatePortal() {
           element={session ? <ProfilePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
+          path="profile/ai-review"
+          element={session ? <ProfilePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
           path="follow-up/:formId"
           element={session ? <FollowUpPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
@@ -1184,11 +1191,15 @@ export function CandidatePortal() {
           element={session ? <DocumentsPage /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
+          path="upload"
+          element={session ? <DocumentsPage /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
           path="opportunities"
           element={session ? <OpportunitiesPage /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
-          path="opportunities/:interactionId"
+          path="opportunities/:opportunityId"
           element={session ? <OpportunityDetailPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
@@ -1196,11 +1207,15 @@ export function CandidatePortal() {
           element={session ? <TimelinePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
+          path="status"
+          element={session ? <TimelinePage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
+        />
+        <Route
           path="consent"
           element={session ? <ConsentPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route
-          path="consent/:consentRecordRef"
+          path="consent/:requestId"
           element={session ? <ConsentPage session={session} /> : <Navigate to="/candidate/sign-in" replace />}
         />
         <Route path="*" element={<Navigate to="/candidate" replace />} />

@@ -82,6 +82,7 @@ public final class AdminGovernanceController {
       "/workflow-rules",
       "/permissions",
       "/audit-log",
+      "/integrations",
       "/security"
   })
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> loadSection(

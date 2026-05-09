@@ -214,7 +214,8 @@ class GovernanceReadServicePostgresIntegrationTest {
         "ai-policy",
         "industry-packs",
         "workflow-rules",
-        "permissions")) {
+        "permissions",
+        "integrations")) {
       assertThat(readService.loadAdminSection(ORGANIZATION_ID, sectionKey).editable())
           .as(sectionKey)
           .isFalse();

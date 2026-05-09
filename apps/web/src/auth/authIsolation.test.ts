@@ -97,6 +97,10 @@ describe("workflow portal helpers", () => {
       "CANDIDATE",
       "JOB",
       "SHORTLIST",
+      "CONSENT",
+      "DISCLOSURE",
+      "PLACEMENT",
+      "COMMISSION",
       "INFORMATION_PACKET",
       "SOURCE_ITEM",
     ]);

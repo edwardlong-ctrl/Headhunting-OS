@@ -1063,6 +1063,13 @@ Acceptance:
 
 - Every route named in v2.1/v2.0 has a real backend-connected page or an explicitly deferred non-100% exception. For 100%, no core v2.1 route remains a shell.
 
+Closeout status: completed for the route-depth gate. Owner, Consultant,
+Client, Candidate, and Admin v2.0/v2.1 route sets are covered by
+`portalRouteContract.test.ts`; strict spec parameter names are aligned for
+client anonymous candidate review and candidate opportunity/consent detail
+routes; `/admin/integrations` is connected to the Admin governance read
+boundary.
+
 ## Task 44: Full AI Task Registry Production Coverage
 
 Priority: P2 after pilot, required for 100%
