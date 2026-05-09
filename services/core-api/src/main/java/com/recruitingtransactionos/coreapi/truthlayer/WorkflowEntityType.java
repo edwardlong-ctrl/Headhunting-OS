@@ -5,6 +5,7 @@ import java.util.Locale;
 
 public enum WorkflowEntityType {
   JOB,
+  COMPANY,
   CANDIDATE,
   SHORTLIST,
   CONSENT,

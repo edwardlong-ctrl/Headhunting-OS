@@ -1161,6 +1161,18 @@ Acceptance:
 
 - Duplicate/merge/conflict/stale decisions are auditable and cannot silently overwrite confirmed facts.
 
+Closeout status: completed for the first backend-owned data lifecycle decision
+layer. `DataLifecycleService` and public `DataLifecycleModels` contracts now
+cover candidate/company/job duplicate detection, high-confidence duplicate
+blocks, low-confidence warnings with justification, merge proposals,
+confirmed-fact merge conflict blocks, conflict-resolution workflow recording,
+stale-field refresh requests, and retention/deletion policy decisions with
+confirmed-fact tombstone protection. Task 46 adds workflow action vocabulary for
+all lifecycle decisions and wires Owner `data-quality` metrics to the existing
+`workflow.workflow_event` read model. This does not add physical row deletion,
+direct merge mutation, a fuzzy search index, an external data-quality queue, or
+canonical field overwrites.
+
 ## Task 47: Industry Pack Expansion and Calibration
 
 Priority: P2 after semiconductor pilot, required for 100%

@@ -4,21 +4,19 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` baseline: Task 43 Full Portal Depth and UX Completion
-  route-depth closure after this closeout merge.
+- latest local `main` baseline: Task 46 Full Data Lifecycle, Deduplication,
+  Conflict, Stale, and Merge after this closeout merge.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
-- latest task closure: Task 43 Full Portal Depth and UX Completion
-  route-depth gate, documented in
-  `docs/roadmap/task-43-full-portal-depth-and-ux-completion.md`.
-- current task-branch closure: Task 44 Full AI Task Registry Production
-  Coverage, documented in
-  `docs/roadmap/task-44-full-ai-task-registry-production-coverage.md`.
+- latest task closure: Task 46 Full Data Lifecycle, Deduplication,
+  Conflict, Stale, and Merge, documented in
+  `docs/roadmap/task-46-full-data-lifecycle-dedup-conflict-stale-merge.md`.
 - latest security baseline commit: `58529e4`
 - latest Task 42 gate work on local `main`: Task 42
   Pilot E2E Acceptance Gate model/report now returns
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
+  - Task 46 — Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge decision/audit baseline, including candidate/company/job duplicate decisions, confirmed-fact merge conflict blocking, stale refresh requests, retention/deletion tombstone decisions, and Owner `data-quality` lifecycle metrics.
   - Task 43 — Full Portal Depth and UX Completion route-depth closure, including five-portal route contract coverage, strict Client/Candidate spec route parameter alignment, Client/Candidate route-depth continuity, and Admin `/admin/integrations` governance read wiring.
   - `ce0944e` — Task 42 local main docs drift cleanup after the pilot E2E acceptance gate merge.
   - `1755de9` — Task 42 Pilot E2E Acceptance Gate closure, including S01-S08 Playwright business-flow evidence, Task 38 pilot CLI evidence, Task 39 backup/restore evidence, and an updated `PilotAcceptanceGate` / `PilotAcceptanceReport` result of `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
@@ -43,23 +41,33 @@ This file contains mutable short-term engineering state. Update it after future 
   - `a52d435` — Task 25: Company and Job Intake v1
   - `3ea6473` — Task 20: Document Storage and SourceItem v1
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
-- current Task 44 branch baseline: 28/28 v2.1 production AI task definitions,
+- current Task 44 baseline: 28/28 v2.1 production AI task definitions,
   prompt/schema/eval artifact coverage, per-task review/write-back policy,
   default governed model route inspection, and definition-first Admin
-  `/admin/ai-task-registry` cost/latency/replay visibility. This is not yet a
-  main merge line until the branch is merged.
-- current Task 45 branch baseline: backend-owned workflow automation and SLA
+  `/admin/ai-task-registry` cost/latency/replay visibility.
+- current Task 45 baseline: backend-owned workflow automation and SLA
   coverage now exists for consent, clarification, feedback, interview, offer,
   invoice, and guarantee workflows. Consultant workflow exposes an automation
   queue and CSV timeline export from the existing `WorkflowEvent` read model;
   Admin `/admin/workflow-rules` shows SLA/reminder/escalation coverage; manual
-  override requests require a reason. This is still a task-branch baseline
-  until merged and does not add a full workflow/BPMN runtime.
+  override requests require a reason. This does not add a full workflow/BPMN
+  runtime.
+- current Task 46 baseline: backend-owned data lifecycle decisions now
+  exist for candidate/company/job duplicate detection, high-confidence duplicate
+  blocks, low-confidence warnings with justification, merge proposals,
+  confirmed-fact merge conflict blocks, conflict-resolution recording,
+  stale-field refresh requests, and retention/deletion policy decisions with
+  tombstone protection. Owner `data-quality` metrics now read lifecycle
+  decision counts from `workflow.workflow_event`. This is a decision/audit
+  baseline, not a mutation executor: it does not add physical row deletion,
+  direct merge mutation, fuzzy-search infrastructure, external queues, or
+  canonical field overwrite.
 - latest documented validation snapshot for the local Task 42 main baseline: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
 - latest Task 43 validation snapshot: `rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts`, `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk git diff --check`, `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,GovernanceReadServicePostgresIntegrationTest#onlyRuntimeWiredAdminSectionsAreEditable test`, and `rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1029 tests, 0 failures, 0 errors, and 3 skipped. Browser smoke on `http://127.0.0.1:5173` covered the strict Client/Candidate/Admin Task 43 deep links and rendered guarded sign-in/admin shell states without blank pages.
-- merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 16-Hardening.
-- next recommended task: after Tasks 44-45 are merged, continue Tasks 46-60 for
-  data lifecycle, ontology, commercial workflows,
+- latest Task 46 validation snapshot: `rtk mvn -f services/core-api/pom.xml -Dtest=DataLifecycleServiceTest,WorkflowActionPolicyTest,GovernanceReadServiceTest test`, `rtk git diff --check`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` passed. Full Maven reported 1056 tests, 0 failures, 0 errors, and 3 skipped.
+- merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 43 route-depth closure + Task 46 data lifecycle decision/audit baseline + Task 16-Hardening.
+- next recommended task: continue with the remaining Tasks 47-60 for ontology,
+  commercial workflows,
   integrations, production operations, support workflows, managed deployment,
   and final full-product acceptance. Task 42 readiness is scoped to the
   controlled-pilot Usable v1 gate, not public production certification.
@@ -127,6 +135,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 40: Observability, Audit, and Replay v1 ✅ `main` baseline commit `68647b5` implements the backend/API/runbook subset: request correlation middleware for `/api/**`, staging/production key-value structured log patterns, admin-only observability APIs for WorkflowEvents, ReviewEvents, AITaskRuns, and disclosure audit export, safe API response DTOs, PostgreSQL-backed read services, and the Task 40 incident runbook. Scope remains no external observability vendor, no frontend dashboard, no error dashboard UI, no AI cost/latency dashboard UI, and no product-wide PII log audit claim.
 - Task 41: Security and Privacy Hardening v1 is merged on `main` through `58529e4`, adding login input policy, configurable in-memory auth/document endpoint rate limiting, unsafe upload filename rejection before storage/persistence, UUID/email URL-path masking in request logs, explicit Admin same-organization disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, a data-retention/vulnerability-scan baseline doc, pinned Maven dependency-check configuration, and focused privacy/security regressions. Scope remains no MFA/lockout persistence/password reset/SSO, no distributed rate limiter, no product-wide field-level access audit, no full product-wide PII log audit, no destructive retention executor, and no production vulnerability remediation report.
 - Task 42: Pilot E2E Acceptance Gate closure is now present in the local `main` baseline. It updates the deterministic pilot acceptance gate/report model from the earlier `NOT_READY` baseline to `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. It adds Playwright coverage for five portal seed logins and S01-S08 business flows, current Task 38 pilot CLI evidence, and Task 39 backup/restore evidence including restored API/document checks plus clean-seed restore validation. Scope remains not public production-ready: managed cloud, HTTPS/domain, production incident process, MFA/SSO, support ops, and broader Tasks 43-60 depth remain future work.
+- Task 43: Full Portal Depth and UX Completion ✅ route-depth closure for five-portal v2.0/v2.1 route contracts, strict Client/Candidate spec route parameter alignment, Client/Candidate route continuity, and Admin `/admin/integrations` governance read wiring.
+- Task 44: Full AI Task Registry Production Coverage ✅ registry baseline for all 28 v2.1 production AI task definitions, prompt/schema/eval artifacts, per-task review/write-back policy, default governed model route inspection, and definition-first Admin AI task registry visibility.
+- Task 45: Full Workflow Automation and SLA Engine ✅ automation baseline for deterministic SLA/reminder/escalation/owner/blocker/next-best-action rules, consultant automation queue, CSV timeline export, Admin workflow rule visibility, and manual override reason enforcement.
+- Task 46: Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge ✅ decision/audit baseline for candidate/company/job duplicate detection, merge proposals, confirmed-fact conflict blocking, conflict-resolution recording, stale refresh requests, and retention/deletion decisions with tombstone protection. Scope remains no physical row deletion, direct merge mutation, fuzzy-search infrastructure, external data-quality queue, or canonical fact overwrite.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -232,8 +244,9 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 22 closes the first document intelligence slice for consultant-facing evidence retrieval: TXT/PDF/DOCX parsing, parsed-document/chunk/span persistence, consultant parse/summary/evidence APIs, and OCR/STT fail-closed boundary status now exist. Real OCR/STT execution, async worker orchestration, client-safe evidence exposure, and AI claim generation remain future work.
 - No AI task queue/worker, retry scheduler, multi-provider productization, automatic human review workflow, ClaimLedger/review queue write-back from AI outputs, or canonical write execution from AI governance exists yet. Task 37 adds the first owner/admin governance API/UI and admin-side AI governance workbench surface, but not full AI runtime control-plane productization.
 - Workflow legality validation and audited transition preview now exist through Task 26, and Task 45 now adds deterministic SLA/reminder/escalation rules plus consultant automation queue and timeline export. Broader cross-portal workflow execution, external dispatch, persisted task queues, and full BPMN automation remain future work.
-- No stale detection engine.
-- No conflict resolution workflow.
+- Task 46 adds the first backend-owned stale detection and conflict-resolution
+  decision workflow. It records auditable refresh/conflict decisions through
+  `WorkflowEvent`; it does not directly mutate canonical fields.
 - No full CandidateProfile engine.
 - Task 16-Hardening V12 resolves the previously known V10 org-scope FK gap: 7 parent UNIQUE constraints, 19 composite FKs, 8 cross-org negative tests. Nullable FK columns (interaction.job_id, document.source_item_id) and cross-cutting user FK (commission.consultant_id) intentionally excluded as documented design decisions.
 - Task 17 `persistAttempt()` idempotency returns existing attempt on key match without verifying payload equivalence. Future hardening should add an idempotency equivalence hash or command fingerprint.
@@ -246,7 +259,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
 `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with Tasks
-43-60 for broader production operations, support workflows, security hardening,
+47-60 for broader production operations, support workflows, security hardening,
 managed deployment, and non-pilot product depth. Use:
 
 - `docs/roadmap/productization-roadmap.md`

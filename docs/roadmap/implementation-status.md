@@ -2,26 +2,36 @@
 
 ## Current Git Main Milestones
 
+- Task 46: Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge is
+  complete for the current backend-owned decision baseline. The patch adds
+  `DataLifecycleService` and public `DataLifecycleModels` contracts for
+  candidate/company/job duplicate detection, high-confidence duplicate blocks,
+  low-confidence warnings with justification, merge proposals, confirmed-fact
+  merge conflict blocks, conflict-resolution workflow recording, stale-field
+  refresh requests, and retention/deletion policy decisions with confirmed-fact
+  tombstone protection. It adds data lifecycle workflow action vocabulary and
+  exposes lifecycle decision counts in Owner `data-quality` governance metrics.
+  This does not add physical row deletion, direct merge mutation, fuzzy-search
+  infrastructure, an external worker queue, or canonical fact overwrites.
 - Task 45: Full Workflow Automation and SLA Engine is complete for the current
-  task-branch backend-owned automation baseline. The patch adds
-  `WorkflowAutomationPolicy` with SLA, reminder, escalation, owner, blocker,
-  and next-best-action rules for consent, clarification, feedback, interview,
-  offer, invoice, and guarantee workflows; exposes a consultant workflow
-  automation queue and CSV timeline export over the existing `WorkflowEvent`
-  read model; requires a non-blank reason for manual override requests; and
-  changes Admin `/admin/workflow-rules` from a deferred placeholder to visible
-  Task 45 rule coverage. This does not add external notification dispatch
-  beyond the existing Task 34 baseline, persisted AIActionRecommendation
-  history, or a full workflow/BPMN runtime.
+  backend-owned automation baseline. The patch adds `WorkflowAutomationPolicy`
+  with SLA, reminder, escalation, owner, blocker, and next-best-action rules for
+  consent, clarification, feedback, interview, offer, invoice, and guarantee
+  workflows; exposes a consultant workflow automation queue and CSV timeline
+  export over the existing `WorkflowEvent` read model; requires a non-blank
+  reason for manual override requests; and changes Admin `/admin/workflow-rules`
+  from a deferred placeholder to visible Task 45 rule coverage. This does not
+  add external notification dispatch beyond the existing Task 34 baseline,
+  persisted AIActionRecommendation history, or a full workflow/BPMN runtime.
 - Task 44: Full AI Task Registry Production Coverage is complete for the
-  current task-branch registry coverage gate. The patch registers all 28 v2.1
-  production AI task definitions, adds missing prompt/schema/eval artifacts,
-  records review/write-back policy per task, adds default governed model route
+  current registry coverage gate. The patch registers all 28 v2.1 production AI
+  task definitions, adds missing prompt/schema/eval artifacts, records
+  review/write-back policy per task, adds default governed model route
   inspection, and changes Admin `/admin/ai-task-registry` to list definition
   coverage plus aggregate cost/latency/failure/replay history. This is a
   registry-governance and inspection baseline; it does not add worker queues,
-  broad write-back execution, or full business executors for every
-  registry-only task.
+  broad write-back execution, or full business executors for every registry-only
+  task.
 - Task 43: Full Portal Depth and UX Completion is complete for the current
   mainline baseline. The patch adds a five-portal v2.0/v2.1 route contract test, fills the
   missing Client route set (`/client/dashboard`, `/client/profile`,

@@ -203,8 +203,12 @@ public final class GovernanceReadService {
     return new GovernanceSectionResponse(
         "data-quality",
         "Data Quality",
-        "Canonical write quality, stale facts, and missing financial metadata.",
+        "Canonical write quality, duplicate blocks, stale refreshes, and retention decisions.",
         List.of(
+            metric("duplicateBlocks", "Duplicate Blocks", dataLifecycleActionCount(organizationId, "DATA_DUPLICATE_BLOCKED"), "warning", "High-confidence duplicate blocks"),
+            metric("mergeConflictBlocks", "Merge Conflict Blocks", dataLifecycleActionCount(organizationId, "DATA_MERGE_BLOCKED_CONFIRMED_FACT_CONFLICT"), "danger", "Merge attempts blocked before overwriting confirmed facts"),
+            metric("refreshRequests", "Refresh Requests", dataLifecycleActionCount(organizationId, "DATA_REFRESH_REQUESTED"), "warning", "Stale data refresh workflows requested"),
+            metric("retentionDeletionDecisions", "Retention Decisions", dataLifecycleActionCount(organizationId, "DATA_RETENTION_DELETION_BLOCKED", "DATA_RETENTION_DELETION_EXECUTED"), "info", "Retention/deletion policy decisions"),
             metric("unknownExpectedFee", "Unknown Expected Fee", count(organizationId, "SELECT COUNT(*) FROM recruiting.placement WHERE organization_id = ? AND (offer_details ->> 'expectedFeeAmount') IS NULL"), "warning", "Placements missing expected fee"),
             metric("failedAudit", "Failed Audit", count(organizationId, "SELECT COUNT(*) FROM governance.review_event WHERE organization_id = ? AND status = 'failed_audit'"), "danger", "Failed review samples"),
             metric("staleIndustryPacks", "Industry Pack Rows", count(organizationId, "SELECT COUNT(*) FROM recruiting.industry_pack WHERE ?::uuid IS NOT NULL"), "info", "Pack inventory for ontology drift review"),
@@ -214,6 +218,24 @@ public final class GovernanceReadService {
         false,
         "{}",
         "");
+  }
+
+  private String dataLifecycleActionCount(UUID organizationId, String... actions) {
+    String placeholders = String.join(",", java.util.Collections.nCopies(actions.length, "?"));
+    String sql = "SELECT COUNT(*) FROM workflow.workflow_event WHERE organization_id = ? "
+        + "AND action IN (" + placeholders + ")";
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setObject(1, organizationId);
+      for (int index = 0; index < actions.length; index++) {
+        statement.setString(index + 2, actions[index]);
+      }
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next() ? String.valueOf(resultSet.getLong(1)) : "0";
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("failed_to_count_data_lifecycle_actions", exception);
+    }
   }
 
   private GovernanceSectionResponse ownerAiQuality(UUID organizationId) {

@@ -1088,6 +1088,18 @@ workflow/BPMN runtime。
 
 - duplicate/merge/conflict/stale 决策可审计，不能静默覆盖 confirmed facts。
 
+收口状态：第一版 backend-owned data lifecycle decision layer 已完成。
+`DataLifecycleService` 和公开的 `DataLifecycleModels` contract 现在覆盖
+candidate/company/job duplicate detection、high-confidence duplicate block、
+带 justification 的 low-confidence warning、merge proposal、confirmed-fact
+merge conflict block、conflict-resolution workflow recording、stale-field
+refresh request，以及带 confirmed-fact tombstone protection 的
+retention/deletion policy decision。Task 46 新增了完整 data lifecycle
+workflow action vocabulary，并把 Owner `data-quality` 指标接入现有
+`workflow.workflow_event` read model。此收口不新增物理行删除、直接 merge
+mutation、fuzzy search index、外部 data-quality queue，也不执行 canonical
+field overwrite。
+
 ## Task 47：Industry Pack Expansion and Calibration
 
 目标：把所有 v2.1 industry packs 放到诚实 maturity 状态。

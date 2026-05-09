@@ -23,6 +23,7 @@ class WorkflowActionPolicyTest {
       WorkflowEntityType.DISCLOSURE,
       WorkflowEntityType.PLACEMENT,
       WorkflowEntityType.COMMISSION,
+      WorkflowEntityType.COMPANY,
       WorkflowEntityType.CLAIM_LEDGER_ITEM,
       WorkflowEntityType.REVIEW_EVENT,
       WorkflowEntityType.AI_TASK_RUN,
@@ -108,7 +109,15 @@ class WorkflowActionPolicyTest {
       WorkflowActionCode.AI_TASK_RUN_RECORDED,
       WorkflowActionCode.AI_RECOMMENDATION_RECORDED,
       WorkflowActionCode.REIDENTIFICATION_RISK_ASSESSED,
-      WorkflowActionCode.CLIENT_SAFE_REDACTION_BLOCKED);
+      WorkflowActionCode.CLIENT_SAFE_REDACTION_BLOCKED,
+      WorkflowActionCode.DATA_DUPLICATE_BLOCKED,
+      WorkflowActionCode.DATA_DUPLICATE_WARNING_RECORDED,
+      WorkflowActionCode.DATA_MERGE_PROPOSED,
+      WorkflowActionCode.DATA_MERGE_BLOCKED_CONFIRMED_FACT_CONFLICT,
+      WorkflowActionCode.DATA_CONFLICT_RESOLUTION_RECORDED,
+      WorkflowActionCode.DATA_REFRESH_REQUESTED,
+      WorkflowActionCode.DATA_RETENTION_DELETION_BLOCKED,
+      WorkflowActionCode.DATA_RETENTION_DELETION_EXECUTED);
 
   @Test
   void requiredEntityTypeVocabularyExistsAndIsStableForAuditStorage() {
@@ -193,6 +202,31 @@ class WorkflowActionPolicyTest {
         .policyFor(WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED)
         .allowedEntityTypes())
         .containsExactly(WorkflowEntityType.UNLOCK_REQUEST);
+  }
+
+  @Test
+  void dataLifecycleActionsAreAuditableForCandidateCompanyAndJob() {
+    Set<WorkflowEntityType> expectedEntities = Set.of(
+        WorkflowEntityType.CANDIDATE,
+        WorkflowEntityType.COMPANY,
+        WorkflowEntityType.JOB);
+
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DATA_DUPLICATE_BLOCKED)
+        .allowedEntityTypes())
+        .containsExactlyInAnyOrderElementsOf(expectedEntities);
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DATA_DUPLICATE_WARNING_RECORDED)
+        .allowedEntityTypes())
+        .containsExactlyInAnyOrderElementsOf(expectedEntities);
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DATA_MERGE_BLOCKED_CONFIRMED_FACT_CONFLICT)
+        .riskTier())
+        .isEqualTo(RiskTier.T3_HIGH_RISK);
+    assertThat(WorkflowActionRegistry.standard()
+        .policyFor(WorkflowActionCode.DATA_RETENTION_DELETION_EXECUTED)
+        .humanFinalActorRequired())
+        .isTrue();
   }
 
   @Test

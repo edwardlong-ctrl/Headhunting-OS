@@ -294,8 +294,71 @@ public final class WorkflowActionRegistry {
         false,
         "Notification reminder execution was recorded.",
         WorkflowEntityType.NOTIFICATION));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_DUPLICATE_BLOCKED,
+        RiskTier.T3_HIGH_RISK,
+        true,
+        true,
+        "High-confidence duplicate detection blocked silent duplicate creation.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_DUPLICATE_WARNING_RECORDED,
+        RiskTier.T2_MEDIUM_RISK,
+        true,
+        false,
+        "Low-confidence duplicate warning was recorded with justification.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_MERGE_PROPOSED,
+        RiskTier.T2_MEDIUM_RISK,
+        true,
+        false,
+        "Merge proposal was recorded for review before canonical mutation.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_MERGE_BLOCKED_CONFIRMED_FACT_CONFLICT,
+        RiskTier.T3_HIGH_RISK,
+        true,
+        true,
+        "Merge proposal was blocked because it would overwrite a confirmed fact.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_CONFLICT_RESOLUTION_RECORDED,
+        RiskTier.T3_HIGH_RISK,
+        true,
+        true,
+        "Conflict resolution decision was recorded before any canonical mutation.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_REFRESH_REQUESTED,
+        RiskTier.T2_MEDIUM_RISK,
+        true,
+        false,
+        "Stale data refresh workflow was requested.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_RETENTION_DELETION_BLOCKED,
+        RiskTier.T3_HIGH_RISK,
+        true,
+        true,
+        "Retention deletion was blocked because confirmed facts require audit tombstone preservation.",
+        dataLifecycleEntities()));
+    policies.add(auditOnly(
+        WorkflowActionCode.DATA_RETENTION_DELETION_EXECUTED,
+        RiskTier.T3_HIGH_RISK,
+        true,
+        true,
+        "Retention deletion policy executed with audit tombstone preservation.",
+        dataLifecycleEntities()));
 
     return new WorkflowActionRegistry(policies.values());
+  }
+
+  private static Set<WorkflowEntityType> dataLifecycleEntities() {
+    return Set.of(
+        WorkflowEntityType.CANDIDATE,
+        WorkflowEntityType.COMPANY,
+        WorkflowEntityType.JOB);
   }
 
   private static Set<WorkflowEntityType> canonicalWriteEntities() {
