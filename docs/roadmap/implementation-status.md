@@ -2,8 +2,8 @@
 
 ## Current Git Main Milestones
 
-- Task 42: Pilot E2E Acceptance Gate is current on branch
-  `codex/task-42-pilot-e2e-evidence`: `PilotAcceptanceGate` /
+- Task 42: Pilot E2E Acceptance Gate is current on local `main` through
+  `1755de9` (`Complete Task 42 pilot E2E evidence gate`): `PilotAcceptanceGate` /
   `PilotAcceptanceReport` now encode the eight pilot flows, negative gates, and
   validation gates, and `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`
   records the honest result as `CONTROLLED_PILOT_READY` for the Task 42 Usable v1
