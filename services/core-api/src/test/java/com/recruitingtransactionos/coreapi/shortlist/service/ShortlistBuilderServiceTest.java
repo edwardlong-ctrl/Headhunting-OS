@@ -17,10 +17,6 @@ import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.company.CompanyId;
-import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWorkflowEntityIds;
-import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
-import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentStatus;
-import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consultantmatching.StoredMatchReport;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
@@ -162,8 +158,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(profile));
     when(matchReportPersistencePort.findLatestByCandidateIdAndJobId(ORG_ID, shortlist.jobId(), candidateId.value()))
         .thenReturn(Optional.empty());
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(any(), any(), any(), any()))
-        .thenReturn(Optional.empty());
     when(shortlistService.addCandidateCard(any())).thenAnswer(invocation -> {
       persistedCard[0] = invocation.getArgument(0);
       return persistedCard[0];
@@ -188,6 +182,8 @@ class ShortlistBuilderServiceTest {
     ShortlistCandidateCard card = state.cards().get(0);
     assertThat(card.status().wireValue()).isEqualTo("included");
     assertThat(card.clientNotes()).isEqualTo("Client-safe note");
+    assertThat(card.metadata()).doesNotContain("candidate profile");
+    assertThat(state.deliveryPreview().clientSafeSummary()).doesNotContain("candidate profile");
     assertThat(state.preSendChecks())
         .anyMatch(check -> check.code().equals("has_included_cards") && check.passed());
     assertThat(state.preSendChecks())
@@ -215,12 +211,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(shortlist));
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORG_ID, shortlist.shortlistId()))
         .thenReturn(List.of(card));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        card.candidateId().value().toString(),
-        card.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-        .thenReturn(Optional.of(confirmedConsent(shortlist, card)));
 
     ShortlistBuilderService service = new ShortlistBuilderService(
         shortlistService,
@@ -241,7 +231,7 @@ class ShortlistBuilderServiceTest {
   }
 
   @Test
-  void sendToClientFailsWhenClientSafeConsentIsMissing() {
+  void sendToClientAllowsAnonymousClientSafeShortlistBeforeUnlockConsent() {
     Shortlist shortlist = shortlist(ShortlistStatus.READY_FOR_REVIEW, 2);
     ShortlistCandidateCard card = shortlistCard(
         shortlist,
@@ -252,12 +242,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(shortlist));
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORG_ID, shortlist.shortlistId()))
         .thenReturn(List.of(card));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        card.candidateId().value().toString(),
-        card.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-        .thenReturn(Optional.empty());
 
     ShortlistBuilderService service = new ShortlistBuilderService(
         shortlistService,
@@ -268,13 +252,15 @@ class ShortlistBuilderServiceTest {
         jobService,
         workflowTransitionAuditService);
 
-    assertThatThrownBy(() -> service.sendToClient(ORG_ID, ACTOR_ID, shortlist.shortlistId()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("shortlist_send_blocked");
+    when(shortlistService.updateShortlist(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(jobService.findJobByIdAndOrganizationId(ORG_ID, shortlist.jobId()))
+        .thenReturn(Optional.of(job(JobStatus.SHORTLIST_IN_PROGRESS)));
+    when(jobService.updateJob(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    ShortlistBuilderState state = service.getBuilderState(ORG_ID, shortlist.shortlistId());
+    ShortlistBuilderState state = service.sendToClient(ORG_ID, ACTOR_ID, shortlist.shortlistId());
+    assertThat(state.shortlist().status()).isEqualTo(ShortlistStatus.SENT_TO_CLIENT);
     assertThat(state.preSendChecks())
-        .anyMatch(check -> check.code().equals("client_safe_consent_confirmed") && !check.passed());
+        .noneMatch(check -> check.code().equals("client_safe_consent_confirmed"));
   }
 
   @Test
@@ -301,7 +287,7 @@ class ShortlistBuilderServiceTest {
         .anyMatch(check -> check.code().equals("anonymous_cards_generated") && !check.passed())
         .anyMatch(check -> check.code().equals("delivery_preview_ready") && !check.passed())
         .anyMatch(check -> check.code().equals("reidentification_risk_within_gate") && !check.passed())
-        .anyMatch(check -> check.code().equals("client_safe_consent_confirmed") && !check.passed());
+        .noneMatch(check -> check.code().equals("client_safe_consent_confirmed"));
     assertThat(state.deliveryPreview().clientSafeSummary())
         .contains("No client-safe shortlist summary is available");
   }
@@ -335,12 +321,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(shortlist));
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORG_ID, shortlist.shortlistId()))
         .thenReturn(List.of(validCard, invalidMetadataCard));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        validCard.candidateId().value().toString(),
-        validCard.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-        .thenReturn(Optional.of(confirmedConsent(shortlist, validCard)));
 
     ShortlistBuilderService service = new ShortlistBuilderService(
         shortlistService,
@@ -372,12 +352,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(shortlist));
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORG_ID, shortlist.shortlistId()))
         .thenReturn(List.of(card));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        card.candidateId().value().toString(),
-        card.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-        .thenReturn(Optional.of(confirmedConsent(shortlist, card)));
 
     ShortlistBuilderService service = new ShortlistBuilderService(
         shortlistService,
@@ -499,12 +473,6 @@ class ShortlistBuilderServiceTest {
     when(shortlistService.updateCandidateCard(any())).thenReturn(restored);
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORG_ID, shortlist.shortlistId()))
         .thenReturn(List.of(restored));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        restored.candidateId().value().toString(),
-        restored.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-        .thenReturn(Optional.of(confirmedConsent(shortlist, restored)));
 
     ShortlistBuilderService service = new ShortlistBuilderService(
         shortlistService,
@@ -637,8 +605,6 @@ class ShortlistBuilderServiceTest {
         .thenReturn(Optional.of(profile));
     when(matchReportPersistencePort.findLatestByCandidateIdAndJobId(ORG_ID, shortlist.jobId(), candidateId.value()))
         .thenReturn(Optional.of(storedMatchReport));
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(any(), any(), any(), any()))
-        .thenReturn(Optional.empty());
     when(shortlistService.addCandidateCard(any())).thenAnswer(invocation -> {
       persistedCard[0] = invocation.getArgument(0);
       return persistedCard[0];
@@ -722,24 +688,6 @@ class ShortlistBuilderServiceTest {
         shortlist.jobId(),
         card.candidateId().value()))
             .thenReturn(Optional.empty());
-    when(consentRecordPort.findLatestByCandidateProfileAndJob(
-        ORG_ID,
-        card.candidateId().value().toString(),
-        card.candidateProfileId().toString(),
-        shortlist.jobId().value().toString()))
-            .thenReturn(Optional.of(new ConsentRecord(
-                "consent-live",
-                ORG_ID,
-                card.candidateId().value().toString(),
-                card.candidateProfileId().toString(),
-                shortlist.jobId().value().toString(),
-                "1",
-                "consent-v1",
-                ConsentStatus.CONFIRMED,
-                java.util.Set.of(DisclosureLevel.L2_CLIENT_SAFE),
-                Instant.now(),
-                Instant.now().plusSeconds(3600),
-                false)));
     when(jobService.findJobByIdAndOrganizationId(ORG_ID, shortlist.jobId()))
         .thenReturn(Optional.of(job));
     when(jobService.updateJob(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -840,20 +788,18 @@ class ShortlistBuilderServiceTest {
         .build();
   }
 
-  private static ConsentRecord confirmedConsent(Shortlist shortlist, ShortlistCandidateCard card) {
-    return new ConsentRecord(
-        "consent-1",
-        ORG_ID,
-        card.candidateId().value().toString(),
-        card.candidateProfileId().toString(),
-        shortlist.jobId().value().toString(),
-        "1",
-        "consent-v1",
-        ConsentStatus.CONFIRMED,
-        java.util.Set.of(DisclosureLevel.L2_CLIENT_SAFE),
-        NOW,
-        NOW.plusSeconds(3600),
-        false);
+  private static Job job(JobStatus status) {
+    return Job.builder()
+        .jobId(new JobId(UUID.fromString("00000000-0000-0000-0000-000000000102")))
+        .organizationId(ORG_ID)
+        .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-000000000555")))
+        .title("Platform engineer")
+        .status(status)
+        .metadata("{}")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(1)
+        .build();
   }
 
   private static StoredMatchReport storedMatchReport(UUID jobId) {

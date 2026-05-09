@@ -87,6 +87,14 @@ class PilotDataPostgresIntegrationTest {
         UUID.fromString(dataset.candidates().getFirst().candidateId())))
         .isEqualTo(UUID.fromString(dataset.candidates().getFirst().profileId()));
     assertThat(countRows("recruiting.company", dataset.organization().organizationId())).isEqualTo(4);
+    assertThat(countRowsWhere(
+        "recruiting.company",
+        dataset.organization().organizationId(),
+        "metadata->>'clientActorId' IS NOT NULL")).isEqualTo(4);
+    assertThat(countRowsWhere(
+        "recruiting.job",
+        dataset.organization().organizationId(),
+        "metadata->>'clientActorId' IS NOT NULL")).isEqualTo(8);
     assertThat(countRows("intake.source_item", dataset.organization().organizationId()))
         .isGreaterThanOrEqualTo(83);
 

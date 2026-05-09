@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 public final class InterviewFeedbackOutcomeLoopService {
 
@@ -159,7 +160,7 @@ public final class InterviewFeedbackOutcomeLoopService {
         feedback.concerns(),
         feedback.notes(),
         scorecardJson,
-        List.of(nonBlank(feedback.strengths()), nonBlank(feedback.concerns()), nonBlank(feedback.notes())).stream()
+        Stream.of(nonBlank(feedback.strengths()), nonBlank(feedback.concerns()), nonBlank(feedback.notes()))
             .filter(s -> s != null && !s.isBlank())
             .toList());
   }
@@ -210,10 +211,7 @@ public final class InterviewFeedbackOutcomeLoopService {
           result.output().rejectReasonTaxonomy() != null ? RejectReasonTaxonomy.fromWireValue(result.output().rejectReasonTaxonomy()) : null,
           "Interview outcome recommendation",
           result.output().structuredSummary(),
-          writeJson(Map.of(
-              "outcomeLabel", result.output().outcomeLabel(),
-              "rejectReasonTaxonomy", result.output().rejectReasonTaxonomy(),
-              "confidence", result.output().confidence())),
+          writeJson(fallbackSuggestionPayload(result.output())),
           null,
           null,
           Instant.now(),
@@ -252,13 +250,22 @@ public final class InterviewFeedbackOutcomeLoopService {
 
   private static String mergeFeedbackMetadata(String current, InterviewFeedbackStructurerOutput output) {
     Map<String, Object> metadata = readJsonMap(current);
-    metadata.put("interviewFeedbackStructurer", Map.of(
-        "structuredSummary", output.structuredSummary(),
-        "outcomeLabel", output.outcomeLabel(),
-        "rejectReasonTaxonomy", output.rejectReasonTaxonomy(),
-        "confidence", output.confidence(),
-        "evidence", output.evidence()));
+    Map<String, Object> structurer = new LinkedHashMap<>();
+    structurer.put("structuredSummary", output.structuredSummary());
+    structurer.put("outcomeLabel", output.outcomeLabel());
+    structurer.put("rejectReasonTaxonomy", output.rejectReasonTaxonomy());
+    structurer.put("confidence", output.confidence());
+    structurer.put("evidence", output.evidence());
+    metadata.put("interviewFeedbackStructurer", structurer);
     return writeJson(metadata);
+  }
+
+  private static Map<String, Object> fallbackSuggestionPayload(InterviewFeedbackStructurerOutput output) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("outcomeLabel", output.outcomeLabel());
+    payload.put("rejectReasonTaxonomy", output.rejectReasonTaxonomy());
+    payload.put("confidence", output.confidence());
+    return payload;
   }
 
   private static String mergeFailureMetadata(String current, String errorMessage) {

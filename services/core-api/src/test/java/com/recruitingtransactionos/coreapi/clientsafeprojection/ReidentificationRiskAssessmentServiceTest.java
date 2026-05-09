@@ -117,6 +117,31 @@ class ReidentificationRiskAssessmentServiceTest {
   }
 
   @Test
+  void pipelineAssessmentDoesNotBlockInternalContactWhenProjectedPayloadIsContactFree() {
+    ReidentificationRiskAssessmentService.PipelineResult result =
+        service.assessWithPipeline(contactOnlySnapshotWithCardId("card_task42_contact_free_0001"));
+
+    assertThat(result.assessment().decision()).isEqualTo(ReidentificationRiskDecision.ALLOW);
+    assertThat(result.assessment().unsafeFeatures()).isEmpty();
+    assertThat(result.assessment().isSafeAnonymousClientOutput()).isTrue();
+    ClientSafeCandidateCard card = new ClientSafeCandidateProjectionService().project(
+        clientSafeReadRequest(),
+        result.pipeline().redactedSnapshot(),
+        result.assessment());
+    assertThat(card.safeSummary()).doesNotContain("jane.alpha@example.test");
+  }
+
+  @Test
+  void pipelineAssessmentDoesNotTreatOpaqueAnonymousRefsAsDirectContact() {
+    ReidentificationRiskAssessmentService.PipelineResult result =
+        service.assessWithPipeline(opaqueRefSnapshotWithCardId("card_a5da63be96304908a5739bb380d72f46"));
+
+    assertThat(result.assessment().unsafeFeatures())
+        .doesNotContain(ReidentificationRiskFeature.DIRECT_CONTACT_OR_PROFILE_URL);
+    assertThat(result.assessment().decision()).isEqualTo(ReidentificationRiskDecision.ALLOW);
+  }
+
+  @Test
   void lowRiskAssessmentCanAccompanyClientSafeProjectionWithoutExposingRawInput() {
     ClientSafeCandidateProjectionService projectionService =
         new ClientSafeCandidateProjectionService();
@@ -188,6 +213,63 @@ class ReidentificationRiskAssessmentServiceTest {
         "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
         List.of("Contact: jane.alpha@example.com"),
         List.of("Strong fit based on Orion-X7 NPU program ownership."),
+        ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
+  }
+
+  private static InternalCandidateProjectionSnapshot contactOnlySnapshotWithCardId(String cardId) {
+    return new InternalCandidateProjectionSnapshot(
+        "00000000-0000-0000-0000-0000007c2001",
+        "00000000-0000-0000-0000-0000007c2002",
+        "Jane Alpha Candidate",
+        "jane.alpha@example.test",
+        "+86 138 0000 7C7C",
+        null,
+        null,
+        List.of(),
+        "Internal profile contains direct contact fields that must not reach the client.",
+        "Do not share negotiation notes with client.",
+        AnonymousCandidateCardId.of(cardId),
+        AnonymousCandidateRef.of("anon_candidate_" + cardId),
+        "projection-v1",
+        RedactionLevel.L2_CLIENT_SAFE,
+        "Consultant-reviewed candidate for a confidential verification role",
+        "semiconductor_verification",
+        "senior_ic",
+        "greater_china",
+        "Evidence-backed candidate profile reviewed by a consultant for this role.",
+        "SystemVerilog, UVM, coverage closure, and cross-team debug leadership.",
+        List.of("Evidence generalized from approved profile signals."),
+        List.of("Strong fit based on generalized capability evidence."),
+        ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
+  }
+
+  private static InternalCandidateProjectionSnapshot opaqueRefSnapshotWithCardId(String cardId) {
+    return new InternalCandidateProjectionSnapshot(
+        "1c72996e-8668-3492-98a8-4b276002bf57",
+        "4cf313e0-c149-3ca3-81ba-49a56f518efb",
+        "Pilot Talent 01",
+        "talent01@candidate.example.test",
+        null,
+        null,
+        null,
+        List.of(),
+        "Internal profile contains contact fields that must remain internal.",
+        "Do not share negotiation notes with client.",
+        AnonymousCandidateCardId.of(cardId),
+        AnonymousCandidateRef.of("anon_candidate_1c72996e8668349298a84b276002bf57"),
+        "task29-shortlist-v1",
+        RedactionLevel.L2_CLIENT_SAFE,
+        "Consultant-reviewed candidate for Pilot controlled shortlist",
+        "Pilot controlled shortlist",
+        "Consultant-reviewed shortlist level",
+        "Location shared after identity unlock",
+        "Evidence-backed talent overview reviewed by a consultant for this role. Identity remains protected until unlock.",
+        "Skill and evidence coverage reviewed with medium coverage confidence.",
+        List.of(
+            "Overall match score: 3/5.",
+            "Evidence coverage: medium.",
+            "Independent evidence items: 14."),
+        List.of("technical_fit: 3/5", "industry_fit: 3/5"),
         ClientVisibleCandidateFieldPolicy.safeAllowlistedFieldPaths());
   }
 

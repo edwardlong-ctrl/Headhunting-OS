@@ -1010,11 +1010,13 @@ Priority: P0
 
 Goal: Decide whether the product is honestly Usable v1 / Controlled Pilot Ready.
 
-Current gate status: `NOT_READY`. The Task 42 acceptance-gate model and report
-now exist, but the product is not yet controlled-pilot-ready because the eight
-pilot flows do not have single-path browser E2E evidence, Task 38 pilot CLI
-commands have not been rerun for the gate, and backup/restore validation is not
-currently evidenced. See `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`.
+Current gate status: `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
+The Task 42 acceptance-gate model and report now have current evidence for the
+Task 38 pilot CLI chain, five-portal Playwright login coverage, S01-S08
+business-flow Playwright coverage, and Task 39 backup/restore validation. See
+`docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`. This does not certify
+public production readiness; Tasks 43-60 remain required for broader
+operations, security, support, managed deployment, and product depth.
 
 Must pass:
 

@@ -23,7 +23,7 @@ public record ConsultantShortlistDetailResponse(
       throw new IllegalArgumentException("version must be >= 0");
     }
     jobId = ApiBoundaryContractRules.requireNonBlank(jobId, "jobId");
-    title = ApiBoundaryContractRules.requireApiSafeExternalText(title, "title");
+    title = ApiBoundaryContractRules.requireBusinessVisibleText(title, "title");
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
     updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");

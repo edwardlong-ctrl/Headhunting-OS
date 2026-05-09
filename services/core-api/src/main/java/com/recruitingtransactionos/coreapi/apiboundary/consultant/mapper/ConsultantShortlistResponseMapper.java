@@ -163,7 +163,7 @@ public final class ConsultantShortlistResponseMapper {
     String firstHeadline = metadata.get(0).generalizedHeadline();
     return new ShortlistDeliveryPreview(
         "Consultant-reviewed shortlist for " + role + " with " + candidateCount
-            + " anonymous candidate profiles. Identity remains protected until unlock.",
+            + " anonymous talent summaries. Identity remains protected until unlock.",
         "PDF placeholder: deliver " + candidateCount + " anonymous candidate cards for "
             + role + ", led by " + firstHeadline + ".",
         "Email placeholder: " + candidateCount

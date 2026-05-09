@@ -1,23 +1,29 @@
 # Known Gaps
 
-## Task 42 Pilot E2E Acceptance Gate Exists; Controlled Pilot Readiness Not Yet Passed
+## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
 - Task 42 now has an explicit backend acceptance-gate model and report artifact
   that tracks 8 pilot flows, 10 negative gates, and 8 validation/operations
   gates.
-- Current result is `NOT_READY`; partial unit, controller, and integration
-  coverage is no longer treated as pilot readiness.
+- Current result is `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate;
+  partial unit, controller, and integration coverage is no longer treated as
+  pilot readiness.
+- A Playwright harness now proves five Task 38 seed accounts can sign in through
+  the real Consultant, Client, Candidate, Owner, and Admin portal UIs against a
+  live API/web stack.
+- The same harness now proves S01-S08 business flows through normal product UI
+  and API paths.
+- Task 38 pilot data rebuild, validate, export, and guarded reset commands have
+  current Task 42 execution evidence.
+- Task 39 backup / restore has current Task 42 evidence, including a post-E2E
+  business-state restore with API health/document availability and a clean-seed
+  restore whose `pilot:data:validate` check passed.
 - Remaining gaps:
-  - No browser E2E harness currently proves the eight pilot flows through normal
-    product workflows.
-  - The consultant CV-to-canonical and client/JD-to-job-activation paths still
-    need single-path pilot evidence instead of distributed seam evidence.
-  - High re-identification risk blocking on actual shortlist send needs E2E
-    proof.
-  - Task 38 pilot data rebuild / validate / export / guarded reset commands
-    need current Task 42 execution evidence.
-  - Task 39 backup / restore validation needs current Task 42 execution
-    evidence.
+  - Task 42 does not certify public production operation, managed cloud
+    deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
+    product-wide security certification.
+  - Tasks 43-60 still need to broaden operations, support workflows, production
+    hardening, and non-pilot product depth.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 

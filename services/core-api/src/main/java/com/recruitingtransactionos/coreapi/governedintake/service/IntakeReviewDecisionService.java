@@ -1,5 +1,8 @@
 package com.recruitingtransactionos.coreapi.governedintake.service;
 
+import com.recruitingtransactionos.coreapi.candidate.Candidate;
+import com.recruitingtransactionos.coreapi.candidate.CandidateStatus;
+import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileVersion;
@@ -34,6 +37,7 @@ public final class IntakeReviewDecisionService {
   private final IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService;
   private final IntakeReviewQueryService intakeReviewQueryService;
   private final CandidateProfileService candidateProfileService;
+  private final CandidateService candidateService;
   private final CompanyIntakeApplicationService companyIntakeApplicationService;
   private final JobIntakeApplicationService jobIntakeApplicationService;
 
@@ -48,6 +52,7 @@ public final class IntakeReviewDecisionService {
         intakeReviewQueryService,
         candidateProfileService,
         null,
+        null,
         null);
   }
 
@@ -58,6 +63,24 @@ public final class IntakeReviewDecisionService {
       CandidateProfileService candidateProfileService,
       CompanyIntakeApplicationService companyIntakeApplicationService,
       JobIntakeApplicationService jobIntakeApplicationService) {
+    this(
+        intakeReviewBridgeService,
+        intakeCanonicalWriteBridgeService,
+        intakeReviewQueryService,
+        candidateProfileService,
+        null,
+        companyIntakeApplicationService,
+        jobIntakeApplicationService);
+  }
+
+  public IntakeReviewDecisionService(
+      IntakeReviewBridgeService intakeReviewBridgeService,
+      IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
+      IntakeReviewQueryService intakeReviewQueryService,
+      CandidateProfileService candidateProfileService,
+      CandidateService candidateService,
+      CompanyIntakeApplicationService companyIntakeApplicationService,
+      JobIntakeApplicationService jobIntakeApplicationService) {
     this.intakeReviewBridgeService = Objects.requireNonNull(
         intakeReviewBridgeService, "intakeReviewBridgeService must not be null");
     this.intakeCanonicalWriteBridgeService = Objects.requireNonNull(
@@ -66,6 +89,7 @@ public final class IntakeReviewDecisionService {
         intakeReviewQueryService, "intakeReviewQueryService must not be null");
     this.candidateProfileService = Objects.requireNonNull(
         candidateProfileService, "candidateProfileService must not be null");
+    this.candidateService = candidateService;
     this.companyIntakeApplicationService = companyIntakeApplicationService;
     this.jobIntakeApplicationService = jobIntakeApplicationService;
   }
@@ -212,11 +236,29 @@ public final class IntakeReviewDecisionService {
           .orElseThrow(() -> new IllegalArgumentException("candidate_publish_requires_existing_profile"));
     }
     CandidateId newCandidateId = new CandidateId(UUID.randomUUID());
-    return candidateProfileService.createCandidateProfile(new CreateCandidateProfileRequest(
+    if (candidateService == null) {
+      throw new IllegalArgumentException("candidate_publish_requires_candidate_service");
+    }
+    Instant now = Instant.now();
+    candidateService.createCandidate(Candidate.builder()
+        .candidateId(newCandidateId)
+        .organizationId(organizationId)
+        .status(CandidateStatus.PROFILE_PARSED)
+        .privacyStatus("internal_only")
+        .ownerConsultantId(null)
+        .lastActivityAt(now)
+        .metadata("{\"source\":\"governed_intake_publish\"}")
+        .createdAt(now)
+        .updatedAt(now)
+        .version(1)
+        .build());
+    CandidateProfileId candidateProfileId = candidateProfileService.createCandidateProfile(new CreateCandidateProfileRequest(
         organizationId,
         newCandidateId,
         new CandidateProfileVersion(1),
         List.of())).candidateProfileId();
+    candidateService.linkCurrentProfile(organizationId, newCandidateId, candidateProfileId);
+    return candidateProfileId;
   }
 
   private static UUID resolveCandidateIdFromFacts(

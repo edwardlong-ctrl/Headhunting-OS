@@ -173,6 +173,8 @@ class ClientApiCommandServiceTest {
 
     when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob));
     when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(Optional.of(sent));
+    when(shortlistService.findShortlistByIdAndOrganizationIdForUpdate(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(sent));
     when(shortlistService.updateShortlist(any())).thenReturn(viewed);
     when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(List.of(card));
     when(clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID, CARD_ID))
@@ -185,6 +187,76 @@ class ClientApiCommandServiceTest {
     assertThat(response.cards().get(0).safeSummary()).contains("without revealing identity");
     assertThat(response.cards().get(0).reidentificationRiskSignal()).isEqualTo("low");
     assertThat(response.cards().get(0).clientNotes()).isNull();
+  }
+
+  @Test
+  void viewShortlistLocksCurrentShortlistRowBeforeStateTransition() {
+    Job visibleJob = visibleJob();
+    Shortlist sent = shortlist(ShortlistStatus.SENT_TO_CLIENT, CREATED_AT.plusSeconds(60), null, 1);
+    Shortlist viewed = shortlist(ShortlistStatus.CLIENT_VIEWED, CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120), 2);
+    ShortlistCandidateCard card = shortlistCard(ShortlistCandidateCardStatus.INCLUDED, CLIENT_METADATA);
+
+    when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob));
+    when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(Optional.of(sent));
+    when(shortlistService.findShortlistByIdAndOrganizationIdForUpdate(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(sent));
+    when(shortlistService.updateShortlist(any())).thenReturn(viewed);
+    when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(List.of(card));
+    when(clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID, CARD_ID))
+        .thenReturn(Optional.empty());
+
+    service.viewShortlist(shortlistUpdateAccessRequest, ORGANIZATION_ID, ACTOR_ID, SHORTLIST_ID);
+
+    Mockito.verify(shortlistService).findShortlistByIdAndOrganizationIdForUpdate(ORGANIZATION_ID, SHORTLIST_ID);
+  }
+
+  @Test
+  void viewShortlistIsIdempotentWhenConcurrentPageLoadAlreadyMarkedViewed() {
+    Job visibleJob = visibleJob();
+    Shortlist sent = shortlist(ShortlistStatus.SENT_TO_CLIENT, CREATED_AT.plusSeconds(60), null, 1);
+    Shortlist viewed = shortlist(ShortlistStatus.CLIENT_VIEWED, CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120), 2);
+    ShortlistCandidateCard card = shortlistCard(ShortlistCandidateCardStatus.INCLUDED, CLIENT_METADATA);
+
+    when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob));
+    when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(sent));
+    when(shortlistService.findShortlistByIdAndOrganizationIdForUpdate(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(viewed));
+    when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(List.of(card));
+    when(clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID, CARD_ID))
+        .thenReturn(Optional.empty());
+
+    var response = service.viewShortlist(shortlistUpdateAccessRequest, ORGANIZATION_ID, ACTOR_ID, SHORTLIST_ID);
+
+    assertThat(response.status()).isEqualTo("client_viewed");
+    Mockito.verify(shortlistService, Mockito.never()).updateShortlist(any());
+    Mockito.verify(workflowTransitionAuditService, Mockito.never()).record(any());
+  }
+
+  @Test
+  void viewShortlistIsIdempotentWhenConcurrentPageLoadWinsDuringAudit() {
+    Job visibleJob = visibleJob();
+    Shortlist sent = shortlist(ShortlistStatus.SENT_TO_CLIENT, CREATED_AT.plusSeconds(60), null, 1);
+    Shortlist viewed = shortlist(ShortlistStatus.CLIENT_VIEWED, CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120), 2);
+    ShortlistCandidateCard card = shortlistCard(ShortlistCandidateCardStatus.INCLUDED, CLIENT_METADATA);
+
+    when(jobService.findAllJobsByOrganizationId(ORGANIZATION_ID)).thenReturn(List.of(visibleJob));
+    when(shortlistService.findShortlistByIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(sent), Optional.of(viewed));
+    when(shortlistService.findShortlistByIdAndOrganizationIdForUpdate(ORGANIZATION_ID, SHORTLIST_ID))
+        .thenReturn(Optional.of(sent));
+    Mockito.doThrow(new IllegalArgumentException(
+            "workflow transition beforeState does not match actual entity state: client_viewed vs sent_to_client"))
+        .when(workflowTransitionAuditService)
+        .record(any());
+    when(shortlistService.findCardsByShortlistIdAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID)).thenReturn(List.of(card));
+    when(clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(ORGANIZATION_ID, SHORTLIST_ID, CARD_ID))
+        .thenReturn(Optional.empty());
+
+    var response = service.viewShortlist(shortlistUpdateAccessRequest, ORGANIZATION_ID, ACTOR_ID, SHORTLIST_ID);
+
+    assertThat(response.status()).isEqualTo("client_viewed");
+    Mockito.verify(shortlistService, Mockito.never()).updateShortlist(any());
   }
 
   @Test

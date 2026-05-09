@@ -20,8 +20,6 @@ import com.recruitingtransactionos.coreapi.clientsafeprojection.RedactionLevel;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessment;
 import com.recruitingtransactionos.coreapi.clientsafeprojection.ReidentificationRiskAssessmentService;
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWorkflowEntityIds;
-import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
-import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureLevel;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consultantmatching.StoredMatchReport;
 import com.recruitingtransactionos.coreapi.consultantmatching.port.MatchReportPersistencePort;
@@ -265,7 +263,7 @@ public final class ShortlistBuilderService {
       throw new IllegalArgumentException("shortlist_send_blocked");
     }
     Instant now = Instant.now();
-    Shortlist sent = shortlistService.updateShortlist(Shortlist.builder()
+    Shortlist sent = Shortlist.builder()
         .shortlistId(existing.shortlistId())
         .organizationId(existing.organizationId())
         .jobId(existing.jobId())
@@ -278,12 +276,13 @@ public final class ShortlistBuilderService {
         .createdAt(existing.createdAt())
         .updatedAt(now)
         .version(existing.version())
-        .build());
+        .build();
 
     auditShortlistTransition(
         sent, existing.status().wireValue(), ShortlistStatus.SENT_TO_CLIENT.wireValue(),
         WorkflowActionCode.SHORTLIST_SENT_TO_CLIENT, actorId,
         "consultant approved shortlist send after pre-send checks");
+    sent = shortlistService.updateShortlist(sent);
     transitionJobToShortlistSent(organizationId, actorId, sent.jobId().value());
     return stateFor(sent, cards);
   }
@@ -322,11 +321,8 @@ public final class ShortlistBuilderService {
     boolean deliveryPreviewReady = hasIncludedCards
         && includedMetadata.size() == includedCards.size()
         && includedMetadata.stream().allMatch(metadata -> !metadata.safeSummary().isBlank());
-    Instant evaluatedAt = Instant.now();
     boolean everyIncludedCardPassesRiskGate = hasIncludedCards && includedCards.stream()
         .allMatch(this::passesReidentificationRiskGate);
-    boolean everyIncludedCardHasConfirmedConsent = hasIncludedCards && includedCards.stream()
-        .allMatch(card -> hasConfirmedClientSafeConsent(shortlist, card, evaluatedAt));
     return List.of(
         new ShortlistPreSendCheck("status_ready_for_review", "Shortlist status is ready for review",
             readyForReview),
@@ -341,11 +337,7 @@ public final class ShortlistBuilderService {
         new ShortlistPreSendCheck(
             "reidentification_risk_within_gate",
             "All included cards remain below the client-send re-identification risk threshold",
-            everyIncludedCardPassesRiskGate),
-        new ShortlistPreSendCheck(
-            "client_safe_consent_confirmed",
-            "All included candidates have confirmed client-safe consent for this job and profile",
-            everyIncludedCardHasConfirmedConsent));
+            everyIncludedCardPassesRiskGate));
   }
 
   private ShortlistDeliveryPreview buildDeliveryPreview(
@@ -365,11 +357,11 @@ public final class ShortlistBuilderService {
     }
     String firstHeadline = metadata.get(0).generalizedHeadline();
     String clientSafeSummary = "Consultant-reviewed shortlist for " + role + " with "
-        + candidateCount + " anonymous candidate profiles. Identity remains protected until unlock.";
+        + candidateCount + " anonymous talent summaries. Identity remains protected until unlock.";
     String pdfSummary = "PDF placeholder: deliver " + candidateCount
-        + " anonymous candidate cards for " + role + ", led by " + firstHeadline + ".";
+        + " anonymous talent cards for " + role + ", led by " + firstHeadline + ".";
     String emailSummary = "Email placeholder: " + candidateCount
-        + " consultant-reviewed anonymous profiles are ready for client review for " + role + ".";
+        + " consultant-reviewed anonymous talent summaries are ready for client review for " + role + ".";
     String wechatSummary = "WeChat placeholder: shortlist ready with " + candidateCount
         + " anonymous candidates for " + role + ".";
     return new ShortlistDeliveryPreview(clientSafeSummary, pdfSummary, emailSummary, wechatSummary);
@@ -391,7 +383,7 @@ public final class ShortlistBuilderService {
         generalizedRoleFamily(shortlist),
         generalizedSeniorityBand(shortlist),
         "Location shared after identity unlock",
-        "Evidence-backed candidate profile reviewed by a consultant for this role. Identity remains protected until unlock.",
+        "Evidence-backed talent overview reviewed by a consultant for this role. Identity remains protected until unlock.",
         safeSkillSummary(matchReport.orElse(null)),
         safeEvidenceSummaries(matchReport.orElse(null)),
         safeMatchNarratives(matchReport.orElse(null)));
@@ -557,7 +549,7 @@ public final class ShortlistBuilderService {
   private List<String> safeEvidenceSummaries(StoredMatchReport matchReport) {
     if (matchReport == null) {
       return List.of(
-          "Consultant-reviewed evidence available for this candidate profile.",
+          "Consultant-reviewed evidence available for this talent summary.",
           "Identity remains protected until unlock is approved.");
     }
     return List.of(
@@ -607,7 +599,7 @@ public final class ShortlistBuilderService {
           generalizedRoleFamily(shortlist),
           generalizedSeniorityBand(shortlist),
           "Location shared after identity unlock",
-          "Evidence-backed candidate profile reviewed by a consultant for this role. Identity remains protected until unlock.",
+          "Evidence-backed talent overview reviewed by a consultant for this role. Identity remains protected until unlock.",
           safeSkillSummary(matchReport.orElse(null)),
           safeEvidenceSummaries(matchReport.orElse(null)),
           safeMatchNarratives(matchReport.orElse(null)));
@@ -670,29 +662,6 @@ public final class ShortlistBuilderService {
         .isPresent();
   }
 
-  private boolean hasConfirmedClientSafeConsent(
-      Shortlist shortlist,
-      ShortlistCandidateCard card,
-      Instant evaluatedAt) {
-    return consentRecordPort.findLatestByCandidateProfileAndJob(
-            shortlist.organizationId(),
-            card.candidateId().value().toString(),
-            card.candidateProfileId().toString(),
-            shortlist.jobId().value().toString())
-        .filter(consent -> consentMatchesShortlist(shortlist, card, consent))
-        .map(consent -> consent.isConfirmedFor(DisclosureLevel.L2_CLIENT_SAFE, evaluatedAt))
-        .orElse(false);
-  }
-
-  private boolean consentMatchesShortlist(
-      Shortlist shortlist,
-      ShortlistCandidateCard card,
-      ConsentRecord consent) {
-    return consent.candidateRef().equals(card.candidateId().value().toString())
-        && consent.candidateProfileRef().equals(card.candidateProfileId().toString())
-        && consent.jobRef().equals(shortlist.jobId().value().toString());
-  }
-
   private void transitionJobToShortlistInProgressIfNeeded(
       UUID organizationId, UUID actorId, UUID jobIdValue) {
     Job job = jobService.findJobByIdAndOrganizationId(
@@ -702,11 +671,12 @@ public final class ShortlistBuilderService {
       return;
     }
     Instant now = Instant.now();
-    Job updated = jobService.updateJob(copyJobWithStatus(job, JobStatus.SHORTLIST_IN_PROGRESS, now));
+    Job updated = copyJobWithStatus(job, JobStatus.SHORTLIST_IN_PROGRESS, now);
     auditJobTransition(
         updated, JobStatus.ACTIVATED.wireValue(), JobStatus.SHORTLIST_IN_PROGRESS.wireValue(),
         WorkflowActionCode.JOB_SHORTLIST_IN_PROGRESS, actorId,
         "first shortlist candidate card added");
+    jobService.updateJob(updated);
   }
 
   private void transitionJobToShortlistSent(UUID organizationId, UUID actorId, UUID jobIdValue) {
@@ -718,11 +688,12 @@ public final class ShortlistBuilderService {
     }
     Instant now = Instant.now();
     String beforeStatus = job.status().wireValue();
-    Job updated = jobService.updateJob(copyJobWithStatus(job, JobStatus.SHORTLIST_SENT, now));
+    Job updated = copyJobWithStatus(job, JobStatus.SHORTLIST_SENT, now);
     auditJobTransition(
         updated, beforeStatus, JobStatus.SHORTLIST_SENT.wireValue(),
         WorkflowActionCode.JOB_SHORTLIST_SENT, actorId,
         "shortlist moved to sent_to_client");
+    jobService.updateJob(updated);
   }
 
   private Job copyJobWithStatus(Job existing, JobStatus status, Instant now) {

@@ -505,29 +505,49 @@ public class ClientApiCommandService {
       ShortlistStatus targetStatus,
       UUID actorId,
       WorkflowActionCode actionCode) {
-    if (shortlist.status() == targetStatus) {
-      return shortlist;
+    Shortlist current = shortlistService.findShortlistByIdAndOrganizationIdForUpdate(
+            shortlist.organizationId(), shortlist.shortlistId())
+        .orElse(shortlist);
+    if (current.status() == targetStatus) {
+      return current;
     }
     Instant now = Instant.now();
-    Shortlist updated = shortlistService.updateShortlist(copyShortlistWithStatus(shortlist, targetStatus, now));
-    workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
-        .organizationId(updated.organizationId())
-        .entityNamespace("recruiting")
-        .entityType(WorkflowEntityType.SHORTLIST.wireValue())
-        .entityId(updated.shortlistId().value())
-        .entityVersion(updated.version())
-        .actionCode(actionCode.wireValue())
-        .actorType(ActorRole.CLIENT)
-        .actorId(actorId)
-        .aiInvolvement(WorkflowAiInvolvement.NONE)
-        .beforeState(snapshot(shortlist.status().wireValue()))
-        .afterState(snapshot(targetStatus.wireValue()))
-        .reason("client transitioned shortlist to " + targetStatus.wireValue())
-        .sourceType("client_api")
-        .sourceRefId(updated.shortlistId().value())
-        .occurredAt(now)
-        .build());
+    try {
+      workflowTransitionAuditService.record(WorkflowTransitionAuditRequest.builder()
+          .organizationId(current.organizationId())
+          .entityNamespace("recruiting")
+          .entityType(WorkflowEntityType.SHORTLIST.wireValue())
+          .entityId(current.shortlistId().value())
+          .entityVersion(current.version())
+          .actionCode(actionCode.wireValue())
+          .actorType(ActorRole.CLIENT)
+          .actorId(actorId)
+          .aiInvolvement(WorkflowAiInvolvement.NONE)
+          .beforeState(snapshot(current.status().wireValue()))
+          .afterState(snapshot(targetStatus.wireValue()))
+          .reason("client transitioned shortlist to " + targetStatus.wireValue())
+          .sourceType("client_api")
+          .sourceRefId(current.shortlistId().value())
+          .occurredAt(now)
+          .build());
+    } catch (IllegalArgumentException exception) {
+      if (isBeforeStateMismatch(exception)) {
+        Optional<Shortlist> latest = shortlistService.findShortlistByIdAndOrganizationId(
+            current.organizationId(), current.shortlistId());
+        if (latest.isPresent() && latest.get().status() == targetStatus) {
+          return latest.get();
+        }
+      }
+      throw exception;
+    }
+    Shortlist updated = shortlistService.updateShortlist(copyShortlistWithStatus(current, targetStatus, now));
     return updated;
+  }
+
+  private static boolean isBeforeStateMismatch(IllegalArgumentException exception) {
+    String message = exception.getMessage();
+    return message != null
+        && message.startsWith("workflow transition beforeState does not match actual entity state:");
   }
 
   private Shortlist copyShortlistWithStatus(Shortlist shortlist, ShortlistStatus status, Instant now) {

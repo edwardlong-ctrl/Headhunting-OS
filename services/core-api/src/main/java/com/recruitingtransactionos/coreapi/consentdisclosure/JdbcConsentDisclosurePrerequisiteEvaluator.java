@@ -8,8 +8,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -54,6 +56,12 @@ public final class JdbcConsentDisclosurePrerequisiteEvaluator
       """;
 
   private final DataSource dataSource;
+  private static final Set<JobStatus> DISCLOSURE_ACTIVE_JOB_STATUSES = EnumSet.of(
+      JobStatus.ACTIVATED,
+      JobStatus.SHORTLIST_IN_PROGRESS,
+      JobStatus.SHORTLIST_SENT,
+      JobStatus.INTERVIEWING,
+      JobStatus.OFFER_PENDING);
 
   public JdbcConsentDisclosurePrerequisiteEvaluator(DataSource dataSource) {
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
@@ -109,7 +117,7 @@ public final class JdbcConsentDisclosurePrerequisiteEvaluator
         JobStatus status = JobStatus.fromWireValue(resultSet.getString("status"));
         String commercialTerms = resultSet.getString("commercial_terms");
         return Optional.of(new JobGateState(
-            status == JobStatus.ACTIVATED,
+            isJobActivatedForDisclosure(status),
             isCommercialTermsActive(commercialTerms)));
       }
     } catch (SQLException exception) {
@@ -159,11 +167,17 @@ public final class JdbcConsentDisclosurePrerequisiteEvaluator
     if (normalized.isEmpty() || "{}".equals(normalized) || "null".equalsIgnoreCase(normalized)) {
       return false;
     }
-    String lower = normalized.toLowerCase();
-    return lower.contains("\"active\":true")
-        || lower.contains("\"status\":\"active\"")
-        || lower.contains("\"feeagreementactive\":true")
-        || lower.contains("\"fee_agreement_active\":true");
+    String compact = normalized.toLowerCase().replaceAll("\\s+", "");
+    return compact.contains("\"active\":true")
+        || compact.contains("\"status\":\"active\"")
+        || compact.contains("\"feeagreementactive\":true")
+        || compact.contains("\"fee_agreement_active\":true")
+        || compact.contains("\"contractstatus\":\"consultant_confirmed\"")
+        || compact.contains("\"approval\":\"consultant_confirmed\"");
+  }
+
+  static boolean isJobActivatedForDisclosure(JobStatus status) {
+    return DISCLOSURE_ACTIVE_JOB_STATUSES.contains(status);
   }
 
   private static boolean isPrivacyRiskCleared(

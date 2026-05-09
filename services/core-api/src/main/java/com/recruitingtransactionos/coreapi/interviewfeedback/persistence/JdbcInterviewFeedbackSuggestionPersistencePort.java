@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcInterviewFeedbackSuggestionPersistencePort
     implements InterviewFeedbackSuggestionPersistencePort {
@@ -61,20 +62,22 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
 
   @Override
   public InterviewFeedbackSuggestion create(InterviewFeedbackSuggestion suggestion) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       bind(statement, suggestion, false);
       statement.executeUpdate();
       return suggestion;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create interview feedback suggestion", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
   @Override
   public InterviewFeedbackSuggestion update(InterviewFeedbackSuggestion suggestion) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(UPDATE_SQL)) {
       statement.setString(1, suggestion.status().wireValue());
       statement.setString(2, suggestion.outcomeLabel() != null ? suggestion.outcomeLabel().wireValue() : null);
       statement.setString(3, suggestion.rejectReasonTaxonomy() != null ? suggestion.rejectReasonTaxonomy().wireValue() : null);
@@ -91,6 +94,8 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
       return suggestion;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to update interview feedback suggestion", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -98,9 +103,9 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
   public Optional<InterviewFeedbackSuggestion> findByIdAndOrganizationId(
       UUID organizationId,
       InterviewFeedbackSuggestionId suggestionId) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(
-             BASE_SELECT + " WHERE organization_id = ? AND interview_feedback_suggestion_id = ?")) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(
+        BASE_SELECT + " WHERE organization_id = ? AND interview_feedback_suggestion_id = ?")) {
       statement.setObject(1, organizationId);
       statement.setObject(2, suggestionId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -111,6 +116,8 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to load interview feedback suggestion", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -118,9 +125,9 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
   public List<InterviewFeedbackSuggestion> findByInteractionIdAndOrganizationId(
       UUID organizationId,
       CandidateCompanyInteractionId interactionId) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(
-             BASE_SELECT + " WHERE organization_id = ? AND candidate_company_interaction_id = ? ORDER BY created_at DESC")) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(
+        BASE_SELECT + " WHERE organization_id = ? AND candidate_company_interaction_id = ? ORDER BY created_at DESC")) {
       statement.setObject(1, organizationId);
       statement.setObject(2, interactionId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -128,14 +135,16 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to list interview feedback suggestions", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
   @Override
   public List<InterviewFeedbackSuggestion> listPendingByOrganization(UUID organizationId, int limit) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(
-             BASE_SELECT + " WHERE organization_id = ? AND status = 'pending_review' ORDER BY created_at DESC LIMIT ?")) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(
+        BASE_SELECT + " WHERE organization_id = ? AND status = 'pending_review' ORDER BY created_at DESC LIMIT ?")) {
       statement.setObject(1, organizationId);
       statement.setInt(2, limit);
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -143,6 +152,8 @@ public final class JdbcInterviewFeedbackSuggestionPersistencePort
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to list pending interview feedback suggestions", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 

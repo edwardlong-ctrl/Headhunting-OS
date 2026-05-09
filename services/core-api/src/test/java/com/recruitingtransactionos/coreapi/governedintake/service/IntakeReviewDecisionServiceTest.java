@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.recruitingtransactionos.coreapi.candidate.Candidate;
+import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfile;
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateProfileId;
@@ -39,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class IntakeReviewDecisionServiceTest {
 
@@ -127,25 +131,103 @@ class IntakeReviewDecisionServiceTest {
     assertThat(result.directWrites()).isEmpty();
   }
 
+  @Test
+  void publishCreatesCandidateBeforeProfileWhenCandidatePacketHasNoResolvedTarget() {
+    CandidateProfileService candidateProfileService = mock(CandidateProfileService.class);
+    when(candidateProfileService.createCandidateProfile(any())).thenReturn(CandidateProfile.builder()
+        .candidateProfileId(CANDIDATE_PROFILE_ID)
+        .organizationId(ORG_ID)
+        .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-000000230214")))
+        .profileVersion(new CandidateProfileVersion(1))
+        .fields(List.of())
+        .createdAt(Instant.parse("2026-05-02T03:00:00Z"))
+        .updatedAt(Instant.parse("2026-05-02T03:00:00Z"))
+        .build());
+    CandidateService candidateService = mock(CandidateService.class);
+    when(candidateService.createCandidate(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(candidateService.linkCurrentProfile(any(), any(), any())).thenAnswer(invocation -> Candidate.builder()
+        .candidateId(invocation.getArgument(1))
+        .organizationId(invocation.getArgument(0))
+        .currentProfileId(invocation.getArgument(2))
+        .status(com.recruitingtransactionos.coreapi.candidate.CandidateStatus.PROFILE_PARSED)
+        .privacyStatus("internal_only")
+        .createdAt(Instant.parse("2026-05-02T03:00:00Z"))
+        .updatedAt(Instant.parse("2026-05-02T03:00:00Z"))
+        .version(1)
+        .build());
+    IntakeCanonicalWriteBridgeService canonicalWriteBridgeService =
+        mock(IntakeCanonicalWriteBridgeService.class);
+    when(canonicalWriteBridgeService.bridge(any())).thenReturn(new IntakeCanonicalWriteBridgeResult(
+        ORG_ID,
+        CLAIM_ID,
+        new ReviewEventId(UUID.fromString("00000000-0000-0000-0000-000000230209")),
+        new WorkflowEventId(UUID.fromString("00000000-0000-0000-0000-000000230210")),
+        CanonicalWriteDecisionType.ALLOW,
+        true,
+        "persisted",
+        IntakeCanonicalWriteBridgeStatus.GATE_ALLOWED_AUDITED,
+        null,
+        "candidate profile field updated"));
+    IntakeReviewDecisionService service = serviceFor(
+        candidateView("NEW_ENTITY_REVIEW_REQUIRED", null),
+        canonicalWriteBridgeService,
+        candidateProfileService,
+        candidateService);
+
+    IntakeReviewDecisionService.PublishResult result = service.publish(
+        ORG_ID,
+        PACKET_ID,
+        ACTOR_ID,
+        new IntakeReviewDecisionService.PublishRequest(null, null, null, null, "publish"));
+
+    ArgumentCaptor<Candidate> candidateCaptor = ArgumentCaptor.forClass(Candidate.class);
+    verify(candidateService).createCandidate(candidateCaptor.capture());
+    Candidate createdCandidate = candidateCaptor.getValue();
+    assertThat(createdCandidate.organizationId()).isEqualTo(ORG_ID);
+    assertThat(createdCandidate.privacyStatus()).isEqualTo("internal_only");
+    verify(candidateProfileService).createCandidateProfile(any());
+    verify(candidateService).linkCurrentProfile(
+        ORG_ID,
+        createdCandidate.candidateId(),
+        CANDIDATE_PROFILE_ID);
+    assertThat(result.canonicalWrites()).hasSize(1);
+  }
+
   private static IntakeReviewDecisionService serviceFor(
       IntakeReviewQueryService.IntakeReviewView view) {
     return serviceFor(
         view,
         mock(IntakeCanonicalWriteBridgeService.class),
-        mock(CandidateProfileService.class));
+        mock(CandidateProfileService.class),
+        mock(CandidateService.class));
   }
 
   private static IntakeReviewDecisionService serviceFor(
       IntakeReviewQueryService.IntakeReviewView view,
       IntakeCanonicalWriteBridgeService canonicalWriteBridgeService,
       CandidateProfileService candidateProfileService) {
+    return serviceFor(
+        view,
+        canonicalWriteBridgeService,
+        candidateProfileService,
+        mock(CandidateService.class));
+  }
+
+  private static IntakeReviewDecisionService serviceFor(
+      IntakeReviewQueryService.IntakeReviewView view,
+      IntakeCanonicalWriteBridgeService canonicalWriteBridgeService,
+      CandidateProfileService candidateProfileService,
+      CandidateService candidateService) {
     IntakeReviewQueryService reviewQueryService = mock(IntakeReviewQueryService.class);
     when(reviewQueryService.reviewView(ORG_ID, PACKET_ID)).thenReturn(view);
     return new IntakeReviewDecisionService(
         mock(IntakeReviewBridgeService.class),
         canonicalWriteBridgeService,
         reviewQueryService,
-        candidateProfileService);
+        candidateProfileService,
+        candidateService,
+        null,
+        null);
   }
 
   private static IntakeReviewQueryService.IntakeReviewView intendedEntityView(

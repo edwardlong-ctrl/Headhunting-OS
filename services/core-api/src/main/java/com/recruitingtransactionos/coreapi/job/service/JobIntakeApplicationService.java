@@ -90,10 +90,10 @@ public final class JobIntakeApplicationService {
         .companyId(companyId)
         .title(title)
         .description(description)
-        .location(location)
-        .compensation(compensation)
+        .location(jsonTextOrStructuredValue(location))
+        .compensation(jsonTextOrStructuredValue(compensation))
         .status(JobStatus.SUBMITTED)
-        .commercialTerms(commercialTerms)
+        .commercialTerms(jsonTextOrStructuredValue(commercialTerms))
         .metadata(mergeMetadata(null, Map.of(
             "submissionSource", "client_portal",
             "clientActorId", actorId.toString(),
@@ -177,13 +177,13 @@ public final class JobIntakeApplicationService {
         .companyId(existing.companyId())
         .title(existing.title())
         .description(nonBlankOrFallback(description, existing.description()))
-        .location(nonBlankOrFallback(location, existing.location()))
+        .location(jsonTextOrStructuredValue(nonBlankOrFallback(location, existing.location())))
         .seniorityBand(existing.seniorityBand())
         .roleFamily(existing.roleFamily())
         .employmentType(existing.employmentType())
-        .compensation(nonBlankOrFallback(compensation, existing.compensation()))
+        .compensation(jsonTextOrStructuredValue(nonBlankOrFallback(compensation, existing.compensation())))
         .status(JobStatus.INTAKE_REVIEW)
-        .commercialTerms(nonBlankOrFallback(commercialTerms, existing.commercialTerms()))
+        .commercialTerms(jsonTextOrStructuredValue(nonBlankOrFallback(commercialTerms, existing.commercialTerms())))
         .ownerConsultantId(existing.ownerConsultantId())
         .activatedAt(existing.activatedAt())
         .closedAt(existing.closedAt())
@@ -324,17 +324,32 @@ public final class JobIntakeApplicationService {
     }
     Instant now = Instant.now();
     Job statusBase = existing;
-    if (existing.status() != JobStatus.CONTRACT_PENDING) {
-      Job contractPending = withStatus(existing, JobStatus.CONTRACT_PENDING, now, existing.activatedAt());
-      statusBase = jobService.updateJob(contractPending);
+    if (statusBase.status() != JobStatus.COMMERCIAL_PENDING
+        && statusBase.status() != JobStatus.CONTRACT_PENDING) {
+      Job commercialPending = withStatus(
+          statusBase, JobStatus.COMMERCIAL_PENDING, now, statusBase.activatedAt());
       auditStatusTransition(
-          statusBase,
-          existing.status().wireValue(),
+          commercialPending,
+          statusBase.status().wireValue(),
+          JobStatus.COMMERCIAL_PENDING,
+          WorkflowActionCode.JOB_COMMERCIAL_PENDING,
+          ActorRole.CONSULTANT,
+          actorId,
+          "job activation gate satisfied; commercial placeholder recorded");
+      statusBase = jobService.updateJob(commercialPending);
+    }
+    if (statusBase.status() != JobStatus.CONTRACT_PENDING) {
+      Job contractPending = withStatus(
+          statusBase, JobStatus.CONTRACT_PENDING, now, statusBase.activatedAt());
+      auditStatusTransition(
+          contractPending,
+          statusBase.status().wireValue(),
           JobStatus.CONTRACT_PENDING,
           WorkflowActionCode.JOB_CONTRACT_PENDING,
           ActorRole.CONSULTANT,
           actorId,
           "job activation gate satisfied; commercial and contract placeholder recorded");
+      statusBase = jobService.updateJob(contractPending);
     }
 
     Job activated = Job.builder()
@@ -362,15 +377,15 @@ public final class JobIntakeApplicationService {
         .updatedAt(now)
         .version(statusBase.version())
         .build();
-    Job persisted = jobService.updateJob(activated);
     auditStatusTransition(
-        persisted,
+        activated,
         statusBase.status().wireValue(),
         JobStatus.ACTIVATED,
         WorkflowActionCode.JOB_ACTIVATED,
         ActorRole.CONSULTANT,
         actorId,
         safeReason(reason));
+    Job persisted = jobService.updateJob(activated);
     return persisted;
   }
 
@@ -523,6 +538,23 @@ public final class JobIntakeApplicationService {
       return OBJECT_MAPPER.writeValueAsString(merged);
     } catch (Exception exception) {
       throw new IllegalArgumentException("invalid_job_metadata_json", exception);
+    }
+  }
+
+  private static String jsonTextOrStructuredValue(String value) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    String trimmed = value.strip();
+    try {
+      OBJECT_MAPPER.readTree(trimmed);
+      return trimmed;
+    } catch (Exception ignored) {
+      try {
+        return OBJECT_MAPPER.writeValueAsString(trimmed);
+      } catch (Exception exception) {
+        throw new IllegalArgumentException("invalid_job_json_value", exception);
+      }
     }
   }
 

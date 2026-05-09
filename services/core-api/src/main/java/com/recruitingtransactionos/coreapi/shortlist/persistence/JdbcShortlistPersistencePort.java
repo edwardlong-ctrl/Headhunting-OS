@@ -36,6 +36,8 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
       WHERE organization_id = ? AND shortlist_id = ?
       """;
 
+  private static final String FIND_BY_ID_FOR_UPDATE_SQL = FIND_BY_ID_SQL + " FOR UPDATE";
+
   private static final String FIND_BY_JOB_SQL = """
       SELECT shortlist_id, organization_id, job_id, title, status,
         sent_at, client_viewed_at, owner_consultant_id,
@@ -98,10 +100,22 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
   @Override
   public Optional<Shortlist> findByIdAndOrganizationId(
       UUID organizationId, ShortlistId shortlistId) {
+    return findByIdAndOrganizationId(organizationId, shortlistId, false);
+  }
+
+  @Override
+  public Optional<Shortlist> findByIdAndOrganizationIdForUpdate(
+      UUID organizationId, ShortlistId shortlistId) {
+    return findByIdAndOrganizationId(organizationId, shortlistId, true);
+  }
+
+  private Optional<Shortlist> findByIdAndOrganizationId(
+      UUID organizationId, ShortlistId shortlistId, boolean forUpdate) {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
     Objects.requireNonNull(shortlistId, "shortlistId must not be null");
     Connection connection = DataSourceUtils.getConnection(dataSource);
-    try (PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_SQL)) {
+    try (PreparedStatement statement = connection.prepareStatement(
+        forUpdate ? FIND_BY_ID_FOR_UPDATE_SQL : FIND_BY_ID_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, shortlistId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -111,7 +125,9 @@ public final class JdbcShortlistPersistencePort implements ShortlistPersistenceP
         return Optional.of(toShortlist(resultSet));
       }
     } catch (SQLException exception) {
-      throw new IllegalStateException("Failed to find shortlist by id", exception);
+      throw new IllegalStateException(
+          forUpdate ? "Failed to find shortlist by id for update" : "Failed to find shortlist by id",
+          exception);
     } finally {
       DataSourceUtils.releaseConnection(connection, dataSource);
     }

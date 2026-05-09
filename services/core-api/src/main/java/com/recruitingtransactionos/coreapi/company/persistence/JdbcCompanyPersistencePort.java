@@ -198,18 +198,22 @@ public final class JdbcCompanyPersistencePort implements CompanyPersistencePort 
         .companyId(new CompanyId(rs.getObject("company_id", UUID.class)))
         .organizationId(rs.getObject("organization_id", UUID.class))
         .name(rs.getString("name"))
-        .displayName(rs.getString("display_name"))
-        .industry(rs.getString("industry"))
-        .website(rs.getString("website"))
-        .headquartersLocation(rs.getString("headquarters_location"))
-        .sizeBand(rs.getString("size_band"))
+        .displayName(blankToNull(rs.getString("display_name")))
+        .industry(blankToNull(rs.getString("industry")))
+        .website(blankToNull(rs.getString("website")))
+        .headquartersLocation(blankToNull(rs.getString("headquarters_location")))
+        .sizeBand(blankToNull(rs.getString("size_band")))
         .status(CompanyStatus.fromWireValue(rs.getString("status")))
-        .paymentReliability(rs.getString("payment_reliability"))
+        .paymentReliability(blankToNull(rs.getString("payment_reliability")))
         .ownerConsultantId(rs.getObject("owner_consultant_id", UUID.class))
         .metadata(rs.getString("metadata"))
         .createdAt(rs.getObject("created_at", OffsetDateTime.class).toInstant())
         .updatedAt(rs.getObject("updated_at", OffsetDateTime.class).toInstant())
         .version(rs.getInt("version"))
         .build();
+  }
+
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
   }
 }

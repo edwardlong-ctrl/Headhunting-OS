@@ -24,16 +24,16 @@ public record ConsultantCompanyDetailResponse(
     if (version < 0) {
       throw new IllegalArgumentException("version must be >= 0");
     }
-    name = ApiBoundaryContractRules.requireApiSafeExternalText(name, "name");
-    displayName = ApiBoundaryContractRules.sanitizeExternalText(displayName, null);
-    industry = ApiBoundaryContractRules.sanitizeExternalText(industry, null);
-    website = ApiBoundaryContractRules.sanitizeExternalText(website, null);
+    name = ApiBoundaryContractRules.requireBusinessVisibleText(name, "name");
+    displayName = ApiBoundaryContractRules.sanitizeBusinessVisibleText(displayName, null);
+    industry = ApiBoundaryContractRules.sanitizeBusinessVisibleText(industry, null);
+    website = ApiBoundaryContractRules.sanitizeBusinessVisibleText(website, null);
     headquartersLocation =
-        ApiBoundaryContractRules.sanitizeExternalText(headquartersLocation, null);
-    sizeBand = ApiBoundaryContractRules.sanitizeExternalText(sizeBand, null);
+        ApiBoundaryContractRules.sanitizeBusinessVisibleText(headquartersLocation, null);
+    sizeBand = ApiBoundaryContractRules.sanitizeBusinessVisibleText(sizeBand, null);
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     paymentReliability =
-        ApiBoundaryContractRules.sanitizeExternalText(paymentReliability, null);
+        ApiBoundaryContractRules.sanitizeBusinessVisibleText(paymentReliability, null);
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
     updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");
     contacts = ApiBoundaryContractRules.requireNonNullList(contacts, "contacts");

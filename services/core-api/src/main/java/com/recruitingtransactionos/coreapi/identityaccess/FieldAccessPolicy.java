@@ -98,6 +98,20 @@ public final class FieldAccessPolicy {
           "client_safe_candidate_card_read_allowed",
           "Client role may read anonymous client-safe candidate cards at safe field levels.");
     }
+    if (request.resourceType() == ResourceType.SHORTLIST
+        && CLIENT_SAFE_FIELD_LEVELS.contains(request.fieldClassification())
+        && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+      if (request.action() == AccessAction.READ) {
+        return AccessDecision.allow(
+            "client_safe_shortlist_read_allowed",
+            "Client role may read same-organization client-safe shortlist review surfaces.");
+      }
+      if (request.action() == AccessAction.UPDATE) {
+        return AccessDecision.allow(
+            "client_safe_shortlist_update_allowed",
+            "Client role may update client-safe shortlist review, unlock request, and feedback surfaces.");
+      }
+    }
     if ((request.resourceType() == ResourceType.COMPANY || request.resourceType() == ResourceType.JOB)
         && CLIENT_SAFE_FIELD_LEVELS.contains(request.fieldClassification())
         && request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {

@@ -952,10 +952,13 @@ UI、外部 observability vendor、product-wide PII log audit 仍然后续延期
 
 目标：判断系统是否真的进入 Usable v1 / Controlled Commercial Pilot Ready。
 
-当前 gate 状态：`NOT_READY`。Task 42 acceptance-gate model 和报告已经存在，
-但系统还不能称为 controlled-pilot-ready，因为 8 条 pilot flow 尚无单路径
-browser E2E 证据，Task 38 pilot CLI 命令未在当前 gate 下重跑，backup/restore
-也没有当前执行证据。详见 `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`。
+当前 gate 状态：Task 42 Usable v1 gate 已达到 `CONTROLLED_PILOT_READY`。
+Task 42 acceptance-gate model 和报告已有当前执行证据：Task 38 pilot CLI
+链路、5 个 seed portal account 的 Playwright 登录覆盖、S01-S08 business-flow
+Playwright 覆盖，以及 Task 39 backup/restore validation。详见
+`docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`。这不等于 public
+production-ready；Tasks 43-60 仍需继续补齐更完整的运营、安全、支持、托管部署
+和产品深度。
 
 必须跑通 8 条流程：
 

@@ -13,10 +13,14 @@ import com.recruitingtransactionos.coreapi.documentintelligence.service.Document
 import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentIntelligenceExtractionService;
 import com.recruitingtransactionos.coreapi.documentintelligence.service.DocumentParsingService;
 import com.recruitingtransactionos.coreapi.documentintelligence.service.NoOpDocumentConversionWorkerPort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerItemReviewLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcClaimLedgerSourceReferenceLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcLatestReviewEventLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcInformationPacketPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcIntakeExtractionRunPort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcReviewEventCanonicalWriteLookupPort;
+import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcReviewEventSourceReferenceLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.persistence.JdbcSourceItemPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.port.InformationPacketPersistencePort;
 import com.recruitingtransactionos.coreapi.governedintake.port.IntakeExtractionRunPort;
@@ -33,6 +37,7 @@ import com.recruitingtransactionos.coreapi.governedintake.service.IntakeReviewBr
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.candidateprofile.CandidateProfileParserTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.companyintake.CompanyIntakeTaskService;
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.jobintake.JobIntakeTaskService;
+import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
 import com.recruitingtransactionos.coreapi.candidateprofile.service.CandidateProfileService;
 import com.recruitingtransactionos.coreapi.company.service.CompanyIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerSourceReferenceLookupPort;
@@ -40,6 +45,9 @@ import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemCa
 import com.recruitingtransactionos.coreapi.governedintake.port.ClaimLedgerItemReviewLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventCanonicalWriteLookupPort;
 import com.recruitingtransactionos.coreapi.governedintake.port.ReviewEventSourceReferenceLookupPort;
+import com.recruitingtransactionos.coreapi.truthlayer.CanonicalWriteGate;
+import com.recruitingtransactionos.coreapi.truthlayer.port.CanonicalWriteAttemptPort;
+import com.recruitingtransactionos.coreapi.truthlayer.port.ReviewEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort;
 import com.recruitingtransactionos.coreapi.job.service.JobIntakeApplicationService;
 import com.recruitingtransactionos.coreapi.workflowaudit.persistence.JdbcWorkflowEntityStatePort;
@@ -47,6 +55,8 @@ import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteServ
 import com.recruitingtransactionos.coreapi.truthlayer.service.ClaimLedgerService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.ReviewEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEventPort;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcCanonicalWriteAttemptPort;
+import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcReviewEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.persistence.JdbcWorkflowEventPort;
 import com.recruitingtransactionos.coreapi.truthlayer.service.CanonicalWriteTransactionBoundary;
 import com.recruitingtransactionos.coreapi.truthlayer.service.SpringCanonicalWriteTransactionBoundary;
@@ -57,6 +67,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -91,26 +102,62 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
+  ClaimLedgerSourceReferenceLookupPort claimLedgerSourceReferenceLookupPort(DataSource dataSource) {
+    return new JdbcClaimLedgerSourceReferenceLookupPort(dataSource);
+  }
+
+  @Bean
+  ClaimLedgerItemCanonicalWriteLookupPort claimLedgerItemCanonicalWriteLookupPort(DataSource dataSource) {
+    return new JdbcClaimLedgerItemCanonicalWriteLookupPort(dataSource);
+  }
+
+  @Bean
+  ReviewEventSourceReferenceLookupPort reviewEventSourceReferenceLookupPort(DataSource dataSource) {
+    return new JdbcReviewEventSourceReferenceLookupPort(dataSource);
+  }
+
+  @Bean
+  ReviewEventCanonicalWriteLookupPort reviewEventCanonicalWriteLookupPort(DataSource dataSource) {
+    return new JdbcReviewEventCanonicalWriteLookupPort(dataSource);
+  }
+
+  @Bean
   DocumentIntelligencePersistencePort documentIntelligencePersistencePort(DataSource dataSource) {
     return new JdbcDocumentIntelligencePersistencePort(dataSource);
   }
 
   @Bean
+  @ConditionalOnMissingBean(ReviewEventPort.class)
+  ReviewEventPort reviewEventPort(DataSource dataSource) {
+    return new JdbcReviewEventPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(ReviewEventService.class)
+  ReviewEventService reviewEventService(ReviewEventPort reviewEventPort) {
+    return new ReviewEventService(reviewEventPort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(WorkflowEventPort.class)
   WorkflowEventPort workflowEventPort(DataSource dataSource) {
     return new JdbcWorkflowEventPort(dataSource);
   }
 
   @Bean
+  @ConditionalOnMissingBean(WorkflowEventService.class)
   WorkflowEventService workflowEventService(WorkflowEventPort workflowEventPort) {
     return new WorkflowEventService(workflowEventPort);
   }
 
   @Bean
+  @ConditionalOnMissingBean(WorkflowEntityStatePort.class)
   WorkflowEntityStatePort workflowEntityStatePort(DataSource dataSource) {
     return new JdbcWorkflowEntityStatePort(dataSource);
   }
 
   @Bean
+  @ConditionalOnMissingBean(WorkflowTransitionAuditService.class)
   WorkflowTransitionAuditService workflowTransitionAuditService(
       WorkflowEventService workflowEventService,
       WorkflowEntityStatePort workflowEntityStatePort) {
@@ -118,9 +165,38 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
+  @ConditionalOnMissingBean(CanonicalWriteTransactionBoundary.class)
   CanonicalWriteTransactionBoundary canonicalWriteTransactionBoundary(
       PlatformTransactionManager transactionManager) {
     return new SpringCanonicalWriteTransactionBoundary(transactionManager);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CanonicalWriteAttemptPort.class)
+  CanonicalWriteAttemptPort canonicalWriteAttemptPort(DataSource dataSource) {
+    return new JdbcCanonicalWriteAttemptPort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CanonicalWriteGate.class)
+  CanonicalWriteGate canonicalWriteGate() {
+    return new CanonicalWriteGate();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CanonicalWriteService.class)
+  CanonicalWriteService canonicalWriteService(
+      CanonicalWriteGate canonicalWriteGate,
+      WorkflowEventService workflowEventService,
+      CanonicalWriteTransactionBoundary transactionBoundary,
+      CandidateProfileService candidateProfileService,
+      CanonicalWriteAttemptPort canonicalWriteAttemptPort) {
+    return new CanonicalWriteService(
+        canonicalWriteGate,
+        workflowEventService,
+        transactionBoundary,
+        candidateProfileService,
+        canonicalWriteAttemptPort);
   }
 
   @Bean
@@ -211,13 +287,6 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean({
-    CandidateProfileParserTaskService.class,
-    CompanyIntakeTaskService.class,
-    JobIntakeTaskService.class,
-    ClaimLedgerService.class,
-    ClaimLedgerSourceReferenceLookupPort.class
-  })
   IntakeClaimLedgerBridgeService intakeClaimLedgerBridgeService(
       IntakeExtractionRunPort intakeExtractionRunPort,
       InformationPacketPersistencePort informationPacketPersistencePort,
@@ -231,11 +300,7 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean({
-    ClaimLedgerItemReviewLookupPort.class,
-    ReviewEventService.class,
-    ReviewEventSourceReferenceLookupPort.class
-  })
+  @ConditionalOnMissingBean(IntakeReviewBridgeService.class)
   IntakeReviewBridgeService intakeReviewBridgeService(
       ClaimLedgerItemReviewLookupPort claimLedgerItemReviewLookupPort,
       ReviewEventService reviewEventService,
@@ -247,11 +312,7 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean({
-    ClaimLedgerItemCanonicalWriteLookupPort.class,
-    ReviewEventCanonicalWriteLookupPort.class,
-    CanonicalWriteService.class
-  })
+  @ConditionalOnMissingBean(IntakeCanonicalWriteBridgeService.class)
   IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService(
       ClaimLedgerItemCanonicalWriteLookupPort claimLedgerItemLookupPort,
       ReviewEventCanonicalWriteLookupPort reviewEventLookupPort,
@@ -263,12 +324,6 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean({
-    CandidateProfileParserTaskService.class,
-    CompanyIntakeTaskService.class,
-    JobIntakeTaskService.class,
-    IntakeClaimLedgerBridgeService.class
-  })
   GovernedAiIntakeOrchestrator governedAiIntakeOrchestrator(
       InformationPacketPersistencePort informationPacketPersistencePort,
       IntakeExtractionRunPort intakeExtractionRunPort,
@@ -302,28 +357,22 @@ public class GovernedIntakeConfiguration {
   }
 
   @Bean
-  @ConditionalOnBean({
-    CandidateProfileService.class,
-    IntakeReviewBridgeService.class,
-    IntakeCanonicalWriteBridgeService.class,
-    IntakeReviewQueryService.class,
-    CompanyIntakeApplicationService.class,
-    JobIntakeApplicationService.class
-  })
   IntakeReviewDecisionService intakeReviewDecisionService(
       IntakeReviewBridgeService intakeReviewBridgeService,
       IntakeCanonicalWriteBridgeService intakeCanonicalWriteBridgeService,
       IntakeReviewQueryService intakeReviewQueryService,
       CandidateProfileService candidateProfileService,
-      CompanyIntakeApplicationService companyIntakeApplicationService,
-      JobIntakeApplicationService jobIntakeApplicationService) {
+      org.springframework.beans.factory.ObjectProvider<CandidateService> candidateService,
+      org.springframework.beans.factory.ObjectProvider<CompanyIntakeApplicationService> companyIntakeApplicationService,
+      org.springframework.beans.factory.ObjectProvider<JobIntakeApplicationService> jobIntakeApplicationService) {
     return new IntakeReviewDecisionService(
         intakeReviewBridgeService,
         intakeCanonicalWriteBridgeService,
         intakeReviewQueryService,
         candidateProfileService,
-        companyIntakeApplicationService,
-        jobIntakeApplicationService);
+        candidateService.getIfAvailable(),
+        companyIntakeApplicationService.getIfAvailable(),
+        jobIntakeApplicationService.getIfAvailable());
   }
 
   private static String requireConfiguredStorageRoot(String objectStorageRoot, String documentStorageRoot) {

@@ -6,6 +6,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiValidationErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ClientShortlistSummaryResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.PagedQuery;
 import com.recruitingtransactionos.coreapi.apiboundary.PagedResult;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
@@ -57,7 +58,7 @@ public final class ClientShortlistController {
             principal.organizationId(),
             principal.userAccountId());
     return ResponseEntity.ok(ApiResponseEnvelope.success(
-        PagedResult.of(items, items.size(), items.size(), 0)));
+        PagedResult.of(items, items.size(), Math.max(PagedQuery.DEFAULT_LIMIT, items.size()), 0)));
   }
 
   @GetMapping("/{shortlistId}")

@@ -120,6 +120,12 @@ public final class WorkflowTransitionAuditService {
         && !request.beforeState().json().isBlank()) {
       String currentStatus = extractStatus(currentStateOpt.get());
       String beforeStatus = extractStatus(request.beforeState().json());
+      String afterStatus = extractStatus(request.afterState().json());
+      if ("absent".equals(beforeStatus)
+          && currentStatus != null
+          && currentStatus.equals(afterStatus)) {
+        return Optional.empty();
+      }
       if (currentStatus != null && beforeStatus != null && !currentStatus.equals(beforeStatus)) {
         return Optional.of(new WorkflowTransitionBlocker(
             "before_state_mismatch",

@@ -12,10 +12,10 @@ privacy, audit, or workflow gates.
 
 ## Pilot Readiness Summary
 
-Task 42 gate result: **NOT READY**. The gate now explicitly tracks the eight
-pilot flows, negative gates, and required validation evidence in
-`docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`; partial seam coverage is
-not treated as controlled-pilot readiness.
+Task 42 gate result: **CONTROLLED PILOT READY for the Task 42 Usable v1 gate**.
+The gate explicitly tracks the eight pilot flows, negative gates, and required
+validation evidence in `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`;
+partial seam coverage is not treated as controlled-pilot readiness.
 
 | Gate | Required for pilot | Current status after Task 42 baseline |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ not treated as controlled-pilot readiness.
 | Client portal | Job creation, clarification, shortlist review, unlock, feedback | Unified client workspace now exists; identity-disclosed read exists after approved unlock; JD upload and external delivery remain missing |
 | Candidate portal | Upload, profile review, follow-up, opportunity, consent | Candidate portal v1 exists for follow-up, opportunity, and consent confirmation; broader upload/profile review remains partial |
 | Workflow engine | Legal transitions, blockers, timeline, SLA placeholders | Legal transitions/timeline exist; SLA automation still missing |
-| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction plus consent/unlock/disclosure workflow baseline exists; prior-contact/fee-protection depth and Task 42 E2E evidence remain partial |
+| Privacy and disclosure | Redaction, re-identification scoring, consent/disclosure unlock workflow | Redaction plus consent/unlock/disclosure workflow baseline exists; Task 42 E2E evidence covers the pilot path; prior-contact/fee-protection depth remains future hardening |
 | Deployment and operations | Staging, production-like env, backup/restore, observability, incident runbook | Partial: Task 39 local-production deployment baseline plus Task 40 provider-neutral observability/API/runbook baseline exist; not production-ready |
 | Security | Auth hardening, file security, PII logs, export controls, access audit | Partial: Task 41 backend baseline covers login input policy, rate limiting, unsafe filename rejection, URL-path masking, explicit disclosure-audit export permission, and persistent access audit for Task 41 sensitive document/export surfaces; production security still deferred |
 
@@ -152,7 +152,7 @@ not treated as controlled-pilot readiness.
 - [x] Production-like deployment baseline exists (Task 39 provider-neutral local-production compose, image build path, and runbooks; not production-ready).
 - [x] Environment variable validation fails fast for staging / production profiles.
 - [x] PostgreSQL migration runbook exists for empty-database Flyway startup plus Task 38 pilot import.
-- [ ] Backup/restore test passes.
+- [x] Backup/restore test passes for Task 42 local controlled-pilot evidence.
 - [ ] Object storage is configured and tested.
 - [ ] HTTPS/domain is configured.
 - [x] Structured logs and correlation IDs exist for `/api/**` request boundaries and staging/production log patterns.
@@ -168,27 +168,27 @@ not treated as controlled-pilot readiness.
 
 All eight flows must pass without direct database mutation, seed shortcuts, or hidden manual fixes.
 
-1. [ ] Consultant uploads candidate CV + notes -> AI claims -> review -> canonical profile.
-2. [ ] Client or consultant uploads JD -> AI job draft -> clarification -> consultant activation.
-3. [ ] System generates MatchReport -> evidence-backed explanation -> score cap applies.
-4. [ ] Consultant selects candidates -> anonymous shortlist -> client-safe preview.
-5. [ ] Candidate receives opportunity/consent -> confirms authorization.
-6. [ ] Client reviews shortlist -> requests unlock.
-7. [ ] Consultant approves unlock -> DisclosureRecord -> identity disclosed through allowed path only.
-8. [ ] Client submits interview feedback -> outcome label -> profile/job/company suggested update enters human review.
+1. [x] Consultant uploads candidate CV + notes -> AI claims -> review -> canonical profile.
+2. [x] Client or consultant uploads JD -> AI job draft -> clarification -> consultant activation.
+3. [x] System generates MatchReport -> evidence-backed explanation -> score cap applies.
+4. [x] Consultant selects candidates -> anonymous shortlist -> client-safe preview.
+5. [x] Candidate receives opportunity/consent -> confirms authorization.
+6. [x] Client reviews shortlist -> requests unlock.
+7. [x] Consultant approves unlock -> DisclosureRecord -> identity disclosed through allowed path only.
+8. [x] Client submits interview feedback -> outcome label -> profile/job/company suggested update enters human review.
 
 ## Negative Acceptance Flows
 
-- [ ] Client cannot fetch raw candidate by candidate id.
-- [ ] Client cannot infer raw candidate id from anonymous card response.
-- [ ] Client cannot request L4 identity disclosure without consent and consultant approval.
-- [ ] AI cannot write canonical facts directly.
-- [ ] AI cannot approve its own write-back.
-- [ ] Bulk approve cannot produce candidate_confirmed or external_verified.
-- [ ] Shortlist cannot be sent when re-identification risk is high and unresolved.
-- [ ] Disclosure cannot bypass prior-contact/prior-application review when claims exist.
-- [ ] Candidate cannot see other candidates, client-internal notes, or commercial terms.
-- [ ] Admin cannot mutate facts outside domain services.
+- [x] Client cannot fetch raw candidate by candidate id.
+- [x] Client cannot infer raw candidate id from anonymous card response.
+- [x] Client cannot request L4 identity disclosure without consent and consultant approval.
+- [x] AI cannot write canonical facts directly.
+- [x] AI cannot approve its own write-back.
+- [x] Bulk approve cannot produce candidate_confirmed or external_verified.
+- [x] Shortlist cannot be sent when re-identification risk is high and unresolved.
+- [x] Disclosure cannot bypass prior-contact/prior-application review when claims exist.
+- [x] Candidate cannot see other candidates, client-internal notes, or commercial terms.
+- [x] Admin cannot mutate facts outside domain services.
 
 ## Required Validation Commands
 
@@ -200,6 +200,11 @@ npm run typecheck:web
 npm run build:web
 docker info
 PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test
+npm run pilot:data:rebuild
+npm run pilot:data:validate
+npm run pilot:data:export
+RTO_PILOT_DATA_ALLOW_RESET=true npm run pilot:data:reset
+RTO_E2E_API_PORT=<api-port> RTO_E2E_WEB_PORT=<web-port> npm run test:e2e:pilot
 ```
 
 Additional pilot-gate validation must include:

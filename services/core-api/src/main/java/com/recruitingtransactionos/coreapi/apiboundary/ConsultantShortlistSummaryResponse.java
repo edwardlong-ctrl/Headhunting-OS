@@ -10,7 +10,7 @@ public record ConsultantShortlistSummaryResponse(
 
   public ConsultantShortlistSummaryResponse {
     shortlistId = ApiBoundaryContractRules.requireNonBlank(shortlistId, "shortlistId");
-    title = ApiBoundaryContractRules.requireApiSafeExternalText(title, "title");
+    title = ApiBoundaryContractRules.requireBusinessVisibleText(title, "title");
     jobId = ApiBoundaryContractRules.requireNonBlank(jobId, "jobId");
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     if (candidateCount < 0) {

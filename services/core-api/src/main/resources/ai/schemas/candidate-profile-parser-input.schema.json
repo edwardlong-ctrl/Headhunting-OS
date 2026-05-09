@@ -3,11 +3,11 @@
   "$id": "https://schemas.recruitingtransactionos.dev/ai/candidate-profile-parser-input.schema.json",
   "type": "object",
   "properties": {
-    "sourceSummary": {"type": "string"},
-    "resumeText": {"type": "string"},
-    "linkedInText": {"type": "string"},
-    "portfolioText": {"type": "string"},
-    "consultantNotes": {"type": "string"}
+    "sourceSummary": {"type": ["string", "null"]},
+    "resumeText": {"type": ["string", "null"]},
+    "linkedInText": {"type": ["string", "null"]},
+    "portfolioText": {"type": ["string", "null"]},
+    "consultantNotes": {"type": ["string", "null"]}
   },
   "additionalProperties": false,
   "anyOf": [

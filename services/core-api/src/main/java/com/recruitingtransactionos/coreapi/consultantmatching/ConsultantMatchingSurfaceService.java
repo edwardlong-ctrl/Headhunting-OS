@@ -89,6 +89,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -111,6 +112,7 @@ public final class ConsultantMatchingSurfaceService {
   private final IndustryPackService industryPackService;
   private final PermissionEnforcer permissionEnforcer;
 
+  @Autowired
   public ConsultantMatchingSurfaceService(
       JobService jobService,
       CandidateService candidateService,

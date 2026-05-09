@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class PilotDatasetLoader {
@@ -37,6 +38,7 @@ public final class PilotDatasetLoader {
 
   private static PilotDataset toDataset(PilotDatasetSpec spec) {
     UUID organizationId = UUID.fromString(spec.organization().organizationId());
+    String clientActorId = accountIdByRole(spec, "client");
     List<PilotDataset.AccountSeed> accounts = spec.accounts().stream()
         .map(account -> new PilotDataset.AccountSeed(
             UUID.fromString(account.userAccountId()),
@@ -53,9 +55,9 @@ public final class PilotDatasetLoader {
             company.headquartersLocation(),
             company.sizeBand(),
             spec.consultantUserAccountId(),
-            metadata(spec.version(), company.name())))
+            metadata(spec.version(), company.name(), clientActorId)))
         .toList();
-    List<PilotDataset.JobSeed> jobs = buildJobs(spec);
+    List<PilotDataset.JobSeed> jobs = buildJobs(spec, clientActorId);
     List<PilotDataset.CandidateSeed> candidates = buildCandidates(spec);
     List<PilotDataset.SourceDocumentSeed> sourceDocuments = buildSourceDocuments(spec, jobs, candidates);
     return new PilotDataset(
@@ -72,7 +74,7 @@ public final class PilotDatasetLoader {
         sourceDocuments);
   }
 
-  private static List<PilotDataset.JobSeed> buildJobs(PilotDatasetSpec spec) {
+  private static List<PilotDataset.JobSeed> buildJobs(PilotDatasetSpec spec, String clientActorId) {
     List<PilotDataset.JobSeed> jobs = new ArrayList<>();
     for (int index = 1; index <= spec.activeJobCount() + spec.underReviewJobCount(); index++) {
       RoleFamilySeed family = spec.roleFamilies().get((index - 1) % spec.roleFamilies().size());
@@ -90,7 +92,7 @@ public final class PilotDatasetLoader {
           "{\"range\":\"" + (active ? "USD 210k-280k" : "USD 190k-250k") + "\"}",
           spec.consultantUserAccountId(),
           "job-intake-" + two(index),
-          metadata(spec.version(), "job-" + two(index))));
+          metadata(spec.version(), "job-" + two(index), clientActorId)));
     }
     return List.copyOf(jobs);
   }
@@ -163,7 +165,34 @@ public final class PilotDatasetLoader {
   }
 
   private static String metadata(String version, String ref) {
-    return "{\"synthetic\":true,\"pilotDataset\":\"" + version + "\",\"ref\":\"" + ref + "\"}";
+    try {
+      return OBJECT_MAPPER.writeValueAsString(Map.of(
+          "synthetic", true,
+          "pilotDataset", version,
+          "ref", ref));
+    } catch (IOException exception) {
+      throw new IllegalStateException("Failed to serialize pilot metadata", exception);
+    }
+  }
+
+  private static String metadata(String version, String ref, String clientActorId) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(Map.of(
+          "synthetic", true,
+          "pilotDataset", version,
+          "ref", ref,
+          "clientActorId", clientActorId));
+    } catch (IOException exception) {
+      throw new IllegalStateException("Failed to serialize pilot metadata", exception);
+    }
+  }
+
+  private static String accountIdByRole(PilotDatasetSpec spec, String role) {
+    return spec.accounts().stream()
+        .filter(account -> role.equals(account.role()))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("pilot account missing for role: " + role))
+        .userAccountId();
   }
 
   private record PilotDatasetSpec(

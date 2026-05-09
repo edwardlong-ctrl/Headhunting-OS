@@ -155,6 +155,39 @@ class UnlockWorkflowServiceTest {
   }
 
   @Test
+  void createClientRequestPersistsRequestedQueueItemEvenWhenConsentIsMissing() {
+    when(clientUnlockRequestPort.findLatestByShortlistCardAndOrganizationId(
+        eq(ORGANIZATION_ID),
+        eq(SHORTLIST_ID),
+        eq(CARD_ID)))
+        .thenReturn(Optional.empty());
+    when(consentRecordPort.findLatestByCandidateProfileAndJob(
+        eq(ORGANIZATION_ID),
+        eq(CANDIDATE_ID.value().toString()),
+        eq(PROFILE_UUID.toString()),
+        eq(JOB_UUID.toString())))
+        .thenReturn(Optional.empty());
+    when(clientUnlockRequestPort.create(any()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    UnlockWorkflowService.UnlockWorkflowResult result = service.createClientRequest(
+        ORGANIZATION_ID,
+        CLIENT_ACTOR_ID,
+        shortlist(),
+        card(),
+        "card_anon_3311",
+        "Need identity for panel scheduling.");
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.unlockRequest()).isNotNull();
+    assertThat(result.unlockRequest().status()).isEqualTo(ClientUnlockRequestStatus.REQUESTED);
+    assertThat(result.blockers()).extracting(UnlockWorkflowService.UnlockBlocker::code)
+        .containsExactly("CONSENT_MISSING");
+    verify(clientUnlockRequestPort).create(any());
+    verify(workflowTransitionAuditService).record(any());
+  }
+
+  @Test
   void approveRequestFailsClosedBeforePersistenceWhenReleasePreflightIsBlocked() {
     ClientUnlockRequest latestRequest = ClientUnlockRequest.builder()
         .clientUnlockRequestId(new ClientUnlockRequestId(UUID.fromString("00000000-0000-0000-0000-000000331109")))

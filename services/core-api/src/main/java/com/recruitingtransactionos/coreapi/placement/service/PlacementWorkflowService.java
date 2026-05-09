@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
-public final class PlacementWorkflowService {
+public class PlacementWorkflowService {
 
   private final PlacementService placementService;
   private final JobService jobService;

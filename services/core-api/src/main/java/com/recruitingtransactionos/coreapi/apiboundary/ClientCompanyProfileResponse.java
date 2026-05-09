@@ -15,13 +15,13 @@ public record ClientCompanyProfileResponse(
 
   public ClientCompanyProfileResponse {
     companyId = ApiBoundaryContractRules.requireNonBlank(companyId, "companyId");
-    name = ApiBoundaryContractRules.requireApiSafeExternalText(name, "name");
-    displayName = ApiBoundaryContractRules.sanitizeExternalText(displayName, null);
-    industry = ApiBoundaryContractRules.sanitizeExternalText(industry, null);
-    website = ApiBoundaryContractRules.sanitizeExternalText(website, null);
-    headquartersLocation = ApiBoundaryContractRules.sanitizeExternalText(headquartersLocation, null);
-    sizeBand = ApiBoundaryContractRules.sanitizeExternalText(sizeBand, null);
-    paymentReliability = ApiBoundaryContractRules.sanitizeExternalText(paymentReliability, null);
+    name = ApiBoundaryContractRules.requireBusinessVisibleText(name, "name");
+    displayName = ApiBoundaryContractRules.sanitizeBusinessVisibleText(displayName, null);
+    industry = ApiBoundaryContractRules.sanitizeBusinessVisibleText(industry, null);
+    website = ApiBoundaryContractRules.sanitizeBusinessVisibleText(website, null);
+    headquartersLocation = ApiBoundaryContractRules.sanitizeBusinessVisibleText(headquartersLocation, null);
+    sizeBand = ApiBoundaryContractRules.sanitizeBusinessVisibleText(sizeBand, null);
+    paymentReliability = ApiBoundaryContractRules.sanitizeBusinessVisibleText(paymentReliability, null);
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     updatedAt = ApiBoundaryContractRules.requireNonBlank(updatedAt, "updatedAt");
   }

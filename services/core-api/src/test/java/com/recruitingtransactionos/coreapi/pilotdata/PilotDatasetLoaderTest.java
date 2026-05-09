@@ -21,6 +21,16 @@ class PilotDatasetLoaderTest {
     assertThat(dataset.sourceDocuments()).hasSizeGreaterThanOrEqualTo(83);
     assertThat(dataset.accounts()).extracting(PilotDataset.AccountSeed::role)
         .contains("owner", "consultant", "client", "candidate", "admin");
+    String clientActorId = dataset.accounts().stream()
+        .filter(account -> "client".equals(account.role()))
+        .findFirst()
+        .orElseThrow()
+        .userAccountId()
+        .toString();
+    assertThat(dataset.companies()).allSatisfy(company ->
+        assertThat(company.metadata()).contains("\"clientActorId\":\"" + clientActorId + "\""));
+    assertThat(dataset.jobs()).allSatisfy(job ->
+        assertThat(job.metadata()).contains("\"clientActorId\":\"" + clientActorId + "\""));
 
     Set<String> candidateIds = dataset.candidates().stream()
         .map(PilotDataset.CandidateSeed::candidateId)
@@ -32,6 +42,16 @@ class PilotDatasetLoaderTest {
       assertThat(candidate.metadata()).contains("\"synthetic\":true");
       assertThat(candidate.sourceDocumentRef()).startsWith("candidate-resume-");
     });
+
+    String candidatePortalAccountId = dataset.accounts().stream()
+        .filter(account -> "candidate".equals(account.role()))
+        .findFirst()
+        .orElseThrow()
+        .userAccountId()
+        .toString();
+    assertThat(candidateIds)
+        .as("candidate portal self-scope must resolve to a seeded candidate")
+        .contains(candidatePortalAccountId);
   }
 
   @Test

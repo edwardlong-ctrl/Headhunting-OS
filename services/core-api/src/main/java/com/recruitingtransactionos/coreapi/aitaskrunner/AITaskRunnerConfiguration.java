@@ -123,6 +123,11 @@ public class AITaskRunnerConfiguration {
   }
 
   @Bean
+  DeterministicPilotAITaskProvider deterministicPilotAITaskProvider(ObjectMapper objectMapper) {
+    return new DeterministicPilotAITaskProvider(objectMapper);
+  }
+
+  @Bean
   AITaskRunnerService aiTaskRunnerService(
       AITaskRunService aiTaskRunService,
       AITaskDefinitionCatalog definitionCatalog,

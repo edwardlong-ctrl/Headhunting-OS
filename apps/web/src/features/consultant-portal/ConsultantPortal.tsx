@@ -184,15 +184,15 @@ const intakeLaneConfig: Record<
     route: "/consultant/intake/upload/candidate",
     title: "Upload candidate material",
     description: "CVs, notes, LinkedIn exports, and legacy evidence all enter the governed candidate path here.",
-    sourceType: "candidate_resume",
-    packetType: "candidate",
+    sourceType: "CV",
+    packetType: "CANDIDATE",
     intendedEntityType: "CANDIDATE",
     titlePlaceholder: "Candidate CV / notes",
     allowedSourceTypes: [
-      { value: "candidate_resume", label: "Candidate resume" },
-      { value: "linkedin_text", label: "LinkedIn text" },
-      { value: "wechat_note", label: "Chat or note" },
-      { value: "old_system_export", label: "Legacy export" },
+      { value: "CV", label: "Candidate resume" },
+      { value: "LINKEDIN_TEXT", label: "LinkedIn text" },
+      { value: "WECHAT_NOTE", label: "Chat or note" },
+      { value: "OLD_SYSTEM_EXPORT", label: "Legacy export" },
     ],
   },
   company: {
@@ -200,12 +200,12 @@ const intakeLaneConfig: Record<
     route: "/consultant/intake/upload/company",
     title: "Upload company material",
     description: "Account research, company briefs, and target account evidence stay inside the same governed queue.",
-    sourceType: "company_material",
-    packetType: "company",
+    sourceType: "COMPANY_MATERIAL",
+    packetType: "COMPANY",
     intendedEntityType: "COMPANY",
     titlePlaceholder: "Company research / brief",
     allowedSourceTypes: [
-      { value: "company_material", label: "Company material" },
+      { value: "COMPANY_MATERIAL", label: "Company material" },
     ],
   },
   job: {
@@ -213,12 +213,12 @@ const intakeLaneConfig: Record<
     route: "/consultant/intake/upload/job",
     title: "Upload job material",
     description: "Job descriptions, intake scorecards, and search brief evidence feed the governed job path.",
-    sourceType: "jd",
-    packetType: "job",
+    sourceType: "JD",
+    packetType: "JOB",
     intendedEntityType: "JOB",
     titlePlaceholder: "Job description / intake brief",
     allowedSourceTypes: [
-      { value: "jd", label: "Job description" },
+      { value: "JD", label: "Job description" },
     ],
   },
   "call-note": {
@@ -226,12 +226,12 @@ const intakeLaneConfig: Record<
     route: "/consultant/intake/upload/call-note",
     title: "Upload consultant call notes",
     description: "Call summaries remain packetized and can be targeted to candidate, company, or job review contexts.",
-    sourceType: "call_note",
-    packetType: "call_note",
+    sourceType: "CALL_NOTE",
+    packetType: "CALL_NOTE",
     intendedEntityType: "CANDIDATE",
     titlePlaceholder: "Call note / conversation summary",
     allowedSourceTypes: [
-      { value: "call_note", label: "Call note" },
+      { value: "CALL_NOTE", label: "Call note" },
     ],
   },
   feedback: {
@@ -239,12 +239,12 @@ const intakeLaneConfig: Record<
     route: "/consultant/intake/upload/feedback",
     title: "Upload interview feedback",
     description: "Interview feedback remains governed evidence and can route into candidate, company, or job review lanes.",
-    sourceType: "interview_feedback",
-    packetType: "feedback",
+    sourceType: "INTERVIEW_FEEDBACK",
+    packetType: "FEEDBACK",
     intendedEntityType: "CANDIDATE",
     titlePlaceholder: "Interview feedback / evaluation",
     allowedSourceTypes: [
-      { value: "interview_feedback", label: "Interview feedback" },
+      { value: "INTERVIEW_FEEDBACK", label: "Interview feedback" },
     ],
   },
 };
@@ -1038,7 +1038,7 @@ function IntakeUploadPage() {
   const navigate = useNavigate();
   const preset = intakeLaneConfig[(lane in intakeLaneConfig ? lane : "candidate") as IntakeLane];
   const [sourceType, setSourceType] = useState(preset.sourceType);
-  const [origin, setOrigin] = useState("consultant_upload");
+  const [origin, setOrigin] = useState("CONSULTANT_UPLOAD");
   const [packetType, setPacketType] = useState(preset.packetType);
   const [intendedEntityType, setIntendedEntityType] = useState(preset.intendedEntityType);
   const [title, setTitle] = useState("");
@@ -1118,7 +1118,7 @@ function IntakeUploadPage() {
             Origin
             <input value={origin} onChange={(event) => setOrigin(event.target.value)} />
           </label>
-          {(packetType === "call_note" || packetType === "feedback") ? (
+          {(packetType === "CALL_NOTE" || packetType === "FEEDBACK") ? (
             <label>
               Target entity lane
               <select value={intendedEntityType} onChange={(event) => setIntendedEntityType(event.target.value as "CANDIDATE" | "COMPANY" | "JOB")}>

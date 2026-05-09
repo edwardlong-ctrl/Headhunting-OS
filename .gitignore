@@ -8,8 +8,13 @@ node_modules/
 # Frontend build output
 dist/
 coverage/
+test-results/
 .vite/
 .eslintcache
+
+# Local evidence payloads can contain database dumps and document archives.
+artifacts/**/*.dump
+artifacts/**/*.tar.gz
 
 # Java build output
 target/

@@ -33,6 +33,36 @@ class PermissionEnforcerTest {
   }
 
   @Test
+  void requireAllowedReturnsExplicitAllowDecisionForClientSafeShortlistRead() {
+    AccessDecision decision = enforcer.requireAllowed(new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.SHORTLIST,
+        AccessAction.READ,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(RelationshipScope.SAME_ORGANIZATION, RelationshipScope.SELF),
+        false));
+
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("client_safe_shortlist_read_allowed");
+    assertThat(decision.safeExplanation()).isNotBlank();
+  }
+
+  @Test
+  void requireAllowedReturnsExplicitAllowDecisionForClientSafeShortlistUpdate() {
+    AccessDecision decision = enforcer.requireAllowed(new AccessRequest(
+        PortalRole.CLIENT,
+        ResourceType.SHORTLIST,
+        AccessAction.UPDATE,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(RelationshipScope.SAME_ORGANIZATION, RelationshipScope.SELF),
+        false));
+
+    assertThat(decision.allowed()).isTrue();
+    assertThat(decision.reasonCode()).isEqualTo("client_safe_shortlist_update_allowed");
+    assertThat(decision.safeExplanation()).isNotBlank();
+  }
+
+  @Test
   void deniedAccessThrowsAndPreservesEvaluatorDecisionReasonCodeAndExplanation() {
     AccessRequest deniedRequest = new AccessRequest(
         PortalRole.CLIENT,

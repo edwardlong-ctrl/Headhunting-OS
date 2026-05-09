@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
@@ -54,6 +56,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/consultant/intake")
 public final class ConsultantIntakeController {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConsultantIntakeController.class);
 
   private final ObjectProvider<GovernedAiIntakeOrchestrator> governedAiIntakeOrchestrator;
   private final ObjectProvider<IntakeReviewQueryService> intakeReviewQueryService;
@@ -226,6 +230,7 @@ public final class ConsultantIntakeController {
   @ExceptionHandler(RuntimeException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> requestFailed(
       RuntimeException exception) {
+    LOGGER.warn("Consultant intake request failed", exception);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponseEnvelope.failure(new ApiErrorResponse(
             "internal_error",

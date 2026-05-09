@@ -17,6 +17,8 @@ import com.recruitingtransactionos.coreapi.job.JobId;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.notification.NotificationService;
+import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
+import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditRequest;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowEventService;
 import com.recruitingtransactionos.coreapi.truthlayer.service.WorkflowTransitionAuditService;
 import java.util.UUID;
@@ -133,6 +135,9 @@ class JobIntakeApplicationServiceTest {
         List.of("Confirm compensation band"));
 
     assertThat(created.status()).isEqualTo(JobStatus.SUBMITTED);
+    assertThat(created.location()).isEqualTo("\"Shanghai\"");
+    assertThat(created.compensation()).isEqualTo("\"Open\"");
+    assertThat(created.commercialTerms()).isEqualTo("{}");
     verify(workflowEventService, times(1)).append(any());
   }
 
@@ -195,5 +200,61 @@ class JobIntakeApplicationServiceTest {
       assertThat(command.recipientPortalRole()).isEqualTo(PortalRole.CONSULTANT);
       assertThat(command.notificationType()).isEqualTo("client_clarification_answered");
     });
+  }
+
+  @Test
+  void activateJobAuditsCommercialPendingBeforeContractPendingAndActivated() {
+    UUID organizationId = UUID.randomUUID();
+    UUID actorId = UUID.randomUUID();
+    JobId jobId = new JobId(UUID.randomUUID());
+    Job existing = Job.builder()
+        .jobId(jobId)
+        .organizationId(organizationId)
+        .companyId(new CompanyId(UUID.randomUUID()))
+        .title("Staff Engineer")
+        .description("Own verification planning")
+        .location("Shanghai")
+        .status(JobStatus.INTAKE_REVIEW)
+        .commercialTerms("""
+            {"feeModel":"success_fee","feeRangeOrRate":"25%","paymentTerms":"replacement_days:90","contractStatus":"consultant_confirmed"}
+            """)
+        .metadata("{}")
+        .createdAt(Instant.parse("2026-05-01T00:00:00Z"))
+        .updatedAt(Instant.parse("2026-05-01T00:00:00Z"))
+        .version(1)
+        .build();
+    when(jobService.findJobByIdAndOrganizationId(organizationId, jobId))
+        .thenReturn(Optional.of(existing));
+    when(jobService.findRequirementsByJobIdAndOrganizationId(organizationId, jobId))
+        .thenReturn(List.of());
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(organizationId, jobId))
+        .thenReturn(Optional.empty());
+    when(activationGateService.evaluate(any(), any(), any()))
+        .thenReturn(new JobActivationGateResult(true, List.of(), List.of(), true, true, true));
+    when(jobService.updateJob(any())).thenAnswer(invocation -> invocation.getArgument(0, Job.class));
+
+    Job activated = service.activateJob(
+        organizationId,
+        actorId,
+        jobId,
+        "activation evidence");
+
+    assertThat(activated.status()).isEqualTo(JobStatus.ACTIVATED);
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(jobService, times(3)).updateJob(jobCaptor.capture());
+    assertThat(jobCaptor.getAllValues().stream().map(Job::status).toList())
+        .containsExactly(
+            JobStatus.COMMERCIAL_PENDING,
+            JobStatus.CONTRACT_PENDING,
+            JobStatus.ACTIVATED);
+
+    ArgumentCaptor<WorkflowTransitionAuditRequest> auditCaptor =
+        ArgumentCaptor.forClass(WorkflowTransitionAuditRequest.class);
+    verify(workflowTransitionAuditService, times(3)).record(auditCaptor.capture());
+    assertThat(auditCaptor.getAllValues().stream().map(WorkflowTransitionAuditRequest::actionCode).toList())
+        .containsExactly(
+            WorkflowActionCode.JOB_COMMERCIAL_PENDING.wireValue(),
+            WorkflowActionCode.JOB_CONTRACT_PENDING.wireValue(),
+            WorkflowActionCode.JOB_ACTIVATED.wireValue());
   }
 }

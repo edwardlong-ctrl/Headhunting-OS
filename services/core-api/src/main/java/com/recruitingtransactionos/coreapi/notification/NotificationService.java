@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
 
@@ -204,6 +205,7 @@ public final class NotificationService {
   private final EmailNotificationProvider emailProvider;
   private final SmsNotificationProvider smsProvider;
 
+  @Autowired
   public NotificationService(DataSource dataSource, WorkflowEventService workflowEventService) {
     this(
         dataSource,

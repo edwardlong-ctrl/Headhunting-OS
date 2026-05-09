@@ -758,6 +758,14 @@ public final class ApiBoundaryContractRules {
     return stripped;
   }
 
+  static String requireBusinessVisibleText(String value, String fieldName) {
+    String stripped = requireNonBlank(value, fieldName);
+    if (containsConsultantInternalLeakage(stripped)) {
+      throw new IllegalArgumentException(fieldName + " must not contain unsafe business-visible text");
+    }
+    return stripped;
+  }
+
   static List<String> copyApiSafeExternalTextList(List<String> values, String fieldName) {
     Objects.requireNonNull(values, fieldName + " must not be null");
     return values.stream()
@@ -799,6 +807,17 @@ public final class ApiBoundaryContractRules {
   }
 
   static String sanitizeConsultantVisibleText(String value, String fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
+    }
+    String stripped = value.strip();
+    if (containsConsultantInternalLeakage(stripped)) {
+      return fallback;
+    }
+    return stripped;
+  }
+
+  static String sanitizeBusinessVisibleText(String value, String fallback) {
     if (value == null || value.isBlank()) {
       return fallback;
     }

@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
-public final class CommissionWorkflowService {
+public class CommissionWorkflowService {
 
   private final CommissionService commissionService;
   private final PlacementService placementService;

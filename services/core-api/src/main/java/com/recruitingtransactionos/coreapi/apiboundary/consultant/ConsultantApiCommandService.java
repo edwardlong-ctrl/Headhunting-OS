@@ -1,5 +1,8 @@
 package com.recruitingtransactionos.coreapi.apiboundary.consultant;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantCompanyDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantJobDetailResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ConsultantShortlistDetailResponse;
@@ -62,6 +65,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public final class ConsultantApiCommandService {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final CompanyService companyService;
   private final JobService jobService;
@@ -237,7 +242,7 @@ public final class ConsultantApiCommandService {
         .employmentType(request.employmentType())
         .compensation(request.compensation())
         .status(JobStatus.fromWireValue(request.status()))
-        .commercialTerms(request.commercialTerms())
+        .commercialTerms(canonicalCommercialTerms(request.commercialTerms()))
         .ownerConsultantId(request.ownerConsultantId() != null
             ? UUID.fromString(request.ownerConsultantId()) : null)
         .industryPackId(industryPackId)
@@ -286,11 +291,11 @@ public final class ConsultantApiCommandService {
         .employmentType(request.employmentType())
         .compensation(request.compensation())
         .status(JobStatus.fromWireValue(request.status()))
-        .commercialTerms(request.commercialTerms())
+        .commercialTerms(canonicalCommercialTerms(request.commercialTerms()))
         .ownerConsultantId(request.ownerConsultantId() != null
             ? UUID.fromString(request.ownerConsultantId()) : null)
         .industryPackId(industryPackId)
-        .metadata(request.metadata() != null ? request.metadata() : "{}")
+        .metadata(mergeMetadata(existing.metadata(), request.metadata()))
         .createdAt(existing.createdAt())
         .updatedAt(existing.updatedAt())
         .version(request.version())
@@ -415,27 +420,27 @@ public final class ConsultantApiCommandService {
         .version(request.version())
         .build();
 
-    Shortlist updated = shortlistService.updateShortlist(shortlist);
-    if (existing.status() != updated.status()) {
-      if (updated.status() == ShortlistStatus.READY_FOR_REVIEW) {
+    if (existing.status() != shortlist.status()) {
+      if (shortlist.status() == ShortlistStatus.READY_FOR_REVIEW) {
         recordShortlistTransition(
-            updated,
+            shortlist,
             existing.status().wireValue(),
-            updated.status().wireValue(),
+            shortlist.status().wireValue(),
             WorkflowActionCode.SHORTLIST_READY_FOR_REVIEW,
             actorId,
             "shortlist promoted to ready_for_review");
-      } else if (updated.status() == ShortlistStatus.DRAFT
+      } else if (shortlist.status() == ShortlistStatus.DRAFT
           && existing.status() == ShortlistStatus.READY_FOR_REVIEW) {
         recordShortlistTransition(
-            updated,
+            shortlist,
             existing.status().wireValue(),
-            updated.status().wireValue(),
+            shortlist.status().wireValue(),
             WorkflowActionCode.SHORTLIST_RETURNED_TO_DRAFT,
             actorId,
             "shortlist returned to draft for additional consultant edits");
       }
     }
+    Shortlist updated = shortlistService.updateShortlist(shortlist);
     if (shortlistBuilderService != null) {
       return ConsultantShortlistResponseMapper.toDetail(
           shortlistBuilderService.getBuilderState(organizationId, shortlistId));
@@ -570,10 +575,8 @@ public final class ConsultantApiCommandService {
         .jobId(jobId)
         .requirementType(request.requirementType())
         .label(request.label())
-        .importance(request.importance() != null
-            ? JobRequirementImportance.fromWireValue(request.importance())
-            : JobRequirementImportance.NICE_TO_HAVE)
-        .detail(request.detail())
+        .importance(requirementImportance(request.importance()))
+        .detail(jsonTextOrStructuredValue(request.detail()))
         .sortOrder(request.sortOrder())
         .createdAt(now)
         .updatedAt(now)
@@ -590,6 +593,114 @@ public final class ConsultantApiCommandService {
         requirements != null ? requirements : Collections.emptyList(),
         scorecard,
         industryPackService.findIndustryPackById(job.industryPackId()));
+  }
+
+  private static JobRequirementImportance requirementImportance(String rawImportance) {
+    if (rawImportance == null || rawImportance.isBlank()) {
+      return JobRequirementImportance.NICE_TO_HAVE;
+    }
+    return switch (rawImportance.strip().toLowerCase(java.util.Locale.ROOT)) {
+      case "high" -> JobRequirementImportance.MUST_HAVE;
+      case "medium" -> JobRequirementImportance.PREFERRED;
+      case "low" -> JobRequirementImportance.NICE_TO_HAVE;
+      default -> JobRequirementImportance.fromWireValue(rawImportance);
+    };
+  }
+
+  private static String jsonTextOrStructuredValue(String value) {
+    return jsonTextOrStructuredValue(value, "invalid_job_requirement_detail_json");
+  }
+
+  private static String jsonTextOrStructuredValue(String value, String errorCode) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    String trimmed = value.strip();
+    try {
+      OBJECT_MAPPER.readTree(trimmed);
+      return trimmed;
+    } catch (Exception ignored) {
+      try {
+        return OBJECT_MAPPER.writeValueAsString(trimmed);
+      } catch (Exception exception) {
+        throw new IllegalArgumentException(errorCode, exception);
+      }
+    }
+  }
+
+  private static String scorecardStatus(String rawStatus) {
+    if (rawStatus == null || rawStatus.isBlank()) {
+      return "draft";
+    }
+    return switch (rawStatus.strip().toLowerCase(java.util.Locale.ROOT)) {
+      case "confirmed" -> "active";
+      case "draft", "active", "archived" -> rawStatus.strip().toLowerCase(java.util.Locale.ROOT);
+      default -> rawStatus;
+    };
+  }
+
+  private static String canonicalCommercialTerms(String value) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    String trimmed = value.strip();
+    try {
+      JsonNode node = OBJECT_MAPPER.readTree(trimmed);
+      if (!node.isObject()) {
+        return trimmed;
+      }
+      ObjectNode object = (ObjectNode) node.deepCopy();
+      if (missingText(object, "feeModel") && hasText(object, "feeRate")) {
+        object.put("feeModel", "success_fee");
+      }
+      if (missingText(object, "feeRangeOrRate") && hasText(object, "feeRate")) {
+        object.put("feeRangeOrRate", object.get("feeRate").asText());
+      }
+      if (missingText(object, "paymentTerms") && object.hasNonNull("replacementDays")) {
+        object.put("paymentTerms", "replacement_days:" + object.get("replacementDays").asText());
+      }
+      if (missingText(object, "contractStatus")) {
+        if (hasText(object, "approval")) {
+          object.put("contractStatus", object.get("approval").asText());
+        } else {
+          object.put("contractStatus", "placeholder");
+        }
+      }
+      return OBJECT_MAPPER.writeValueAsString(object);
+    } catch (Exception ignored) {
+      return value;
+    }
+  }
+
+  private static String mergeMetadata(String existingJson, String patchJson) {
+    try {
+      ObjectNode merged = OBJECT_MAPPER.createObjectNode();
+      copyObjectFields(existingJson, merged);
+      copyObjectFields(patchJson, merged);
+      return OBJECT_MAPPER.writeValueAsString(merged);
+    } catch (Exception exception) {
+      throw new IllegalArgumentException("invalid_job_metadata_json", exception);
+    }
+  }
+
+  private static void copyObjectFields(String json, ObjectNode target) throws java.io.IOException {
+    if (json == null || json.isBlank()) {
+      return;
+    }
+    JsonNode node = OBJECT_MAPPER.readTree(json);
+    if (!node.isObject()) {
+      throw new IllegalArgumentException("job_metadata_must_be_json_object");
+    }
+    node.fields().forEachRemaining(entry -> target.set(entry.getKey(), entry.getValue()));
+  }
+
+  private static boolean missingText(ObjectNode object, String fieldName) {
+    return !hasText(object, fieldName);
+  }
+
+  private static boolean hasText(ObjectNode object, String fieldName) {
+    JsonNode value = object.get(fieldName);
+    return value != null && value.isTextual() && !value.asText().isBlank();
   }
 
   public ConsultantJobDetailResponse activateJob(
@@ -634,10 +745,12 @@ public final class ConsultantApiCommandService {
         .jobScorecardId(scorecardId)
         .organizationId(organizationId)
         .jobId(jobId)
-        .dimensions(request.dimensions())
+        .dimensions(jsonTextOrStructuredValue(request.dimensions(), "invalid_job_scorecard_dimensions_json"))
         .scoringGuidance(request.scoringGuidance())
-        .status(request.status() != null ? request.status() : "draft")
-        .metadata(request.metadata() != null ? request.metadata() : "{}")
+        .status(scorecardStatus(request.status()))
+        .metadata(jsonTextOrStructuredValue(
+            request.metadata() != null ? request.metadata() : "{}",
+            "invalid_job_scorecard_metadata_json"))
         .createdAt(now)
         .updatedAt(now)
         .version(1)

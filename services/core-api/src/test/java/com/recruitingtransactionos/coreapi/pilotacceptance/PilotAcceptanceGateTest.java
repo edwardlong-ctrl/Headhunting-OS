@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Test;
 class PilotAcceptanceGateTest {
 
   @Test
-  void task42GateTracksAllPilotFlowsNegativeGatesAndValidationCommandsWithoutReadinessShortcut() {
+  void task42GateTracksAllPilotFlowsNegativeGatesAndValidationCommandsWithCurrentEvidence() {
     PilotAcceptanceReport report = PilotAcceptanceGate.task42Baseline();
 
-    assertThat(report.overallStatus()).isEqualTo(PilotAcceptanceOverallStatus.NOT_READY);
-    assertThat(report.readyForControlledPilot()).isFalse();
+    assertThat(report.overallStatus()).isEqualTo(PilotAcceptanceOverallStatus.CONTROLLED_PILOT_READY);
+    assertThat(report.readyForControlledPilot()).isTrue();
     assertThat(report.requirements()).hasSize(26);
 
     assertThat(report.requirements())
@@ -58,13 +58,9 @@ class PilotAcceptanceGateTest {
             "validation-pilot-data-cli",
             "validation-backup-restore");
 
-    assertThat(report.blockingRequirements())
-        .extracting(PilotAcceptanceRequirement::id)
-        .contains(
-            "flow-1-consultant-cv-ai-review-canonical",
-            "flow-2-client-jd-ai-clarification-activation",
-            "validation-browser-e2e",
-            "validation-backup-restore");
+    assertThat(report.blockingRequirements()).isEmpty();
+    assertThat(report.requirements())
+        .allSatisfy(requirement -> assertThat(requirement.passedWithEvidence()).isTrue());
   }
 
   @Test

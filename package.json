@@ -20,11 +20,15 @@
     "pilot:data:reset": "bash scripts/pilot-data.sh reset",
     "pilot:data:validate": "bash scripts/pilot-data.sh validate",
     "security:core-api:dependency-check": "bash scripts/security/dependency-check-core-api.sh",
+    "test:e2e:pilot": "playwright test -c tests/e2e/playwright.config.ts",
     "test:core-api": "mvn -f services/core-api/pom.xml test",
     "typecheck:web": "npm --workspace @rto/web run typecheck"
   },
   "engines": {
     "node": ">=20.19.0",
     "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

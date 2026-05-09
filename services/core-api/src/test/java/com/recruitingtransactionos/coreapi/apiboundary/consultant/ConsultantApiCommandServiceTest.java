@@ -23,6 +23,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.Job;
 import com.recruitingtransactionos.coreapi.job.JobId;
+import com.recruitingtransactionos.coreapi.job.JobScorecard;
 import com.recruitingtransactionos.coreapi.job.JobStatus;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
@@ -450,6 +451,129 @@ class ConsultantApiCommandServiceTest {
     assertThat(response.shortlistId()).isEqualTo(SHORTLIST_ID.toString());
   }
 
+  @Test
+  void updateJobNormalizesPilotCommercialTermsForActivationGate() {
+    CompanyId companyId = new CompanyId(UUID.fromString("00000000-0000-0000-0000-000000000115"));
+    Job existing = Job.builder()
+        .jobId(new JobId(JOB_ID))
+        .organizationId(ORG_ID)
+        .companyId(companyId)
+        .title("Platform engineer")
+        .status(JobStatus.INTAKE_REVIEW)
+        .metadata("{\"clientActorId\":\"00000000-0000-0000-0000-000000380103\"}")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(1)
+        .build();
+    when(companyService.findCompanyByIdAndOrganizationId(ORG_ID, companyId))
+        .thenReturn(Optional.of(com.recruitingtransactionos.coreapi.company.Company.builder()
+            .companyId(companyId)
+            .organizationId(ORG_ID)
+            .name("Pilot Client")
+            .status(com.recruitingtransactionos.coreapi.company.CompanyStatus.ACTIVE)
+            .metadata("{}")
+            .createdAt(NOW)
+            .updatedAt(NOW)
+            .version(1)
+            .build()));
+    when(jobService.findJobByIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(Optional.of(existing));
+    when(jobService.updateJob(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(jobService.findRequirementsByJobIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(List.of());
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(Optional.empty());
+    when(industryPackService.findIndustryPackById(null)).thenReturn(Optional.empty());
+
+    ConsultantApiCommandService service = new ConsultantApiCommandService(
+        companyService,
+        jobService,
+        null,
+        shortlistService,
+        shortlistBuilderService,
+        industryPackService,
+        workflowTransitionAuditService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+
+    service.updateJob(
+        jobUpdateAccessRequest(),
+        ORG_ID,
+        new JobId(JOB_ID),
+        new JobUpdateRequest(
+            companyId.value().toString(),
+            "Platform engineer",
+            "Lead verification planning.",
+            "Shanghai",
+            "staff",
+            "ASIC verification",
+            "full_time",
+            "700k-950k RMB",
+            JobStatus.INTAKE_REVIEW.wireValue(),
+            "{\"feeRate\":\"25%\",\"replacementDays\":90,\"approval\":\"consultant_confirmed\"}",
+            null,
+            "{}",
+            1));
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(jobService).updateJob(jobCaptor.capture());
+    assertThat(jobCaptor.getValue().commercialTerms())
+        .contains("\"feeModel\":\"success_fee\"")
+        .contains("\"feeRangeOrRate\":\"25%\"")
+        .contains("\"paymentTerms\":\"replacement_days:90\"")
+        .contains("\"contractStatus\":\"consultant_confirmed\"");
+    assertThat(jobCaptor.getValue().metadata())
+        .contains("\"clientActorId\":\"00000000-0000-0000-0000-000000380103\"");
+  }
+
+  @Test
+  void createJobScorecardNormalizesPilotConfirmedStatusAndJsonbPayloads() {
+    Job job = Job.builder()
+        .jobId(new JobId(JOB_ID))
+        .organizationId(ORG_ID)
+        .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-000000000115")))
+        .title("Platform engineer")
+        .status(JobStatus.DRAFT)
+        .metadata("{}")
+        .createdAt(NOW)
+        .updatedAt(NOW)
+        .version(1)
+        .build();
+    when(jobService.findJobByIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(Optional.of(job));
+    when(jobService.findRequirementsByJobIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(List.of());
+    when(jobService.findActiveScorecardByJobIdAndOrganizationId(ORG_ID, new JobId(JOB_ID)))
+        .thenReturn(Optional.empty());
+    when(industryPackService.findIndustryPackById(null)).thenReturn(Optional.empty());
+
+    ConsultantApiCommandService service = new ConsultantApiCommandService(
+        companyService,
+        jobService,
+        null,
+        shortlistService,
+        shortlistBuilderService,
+        industryPackService,
+        workflowTransitionAuditService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+
+    service.createJobScorecard(
+        jobCreateAccessRequest(),
+        ORG_ID,
+        new JobId(JOB_ID),
+        new JobScorecardCreateRequest(
+            "[{\"label\":\"Technical fit\"}]",
+            "Prioritize evidence-backed semiconductor verification experience.",
+            "confirmed",
+            null));
+
+    ArgumentCaptor<JobScorecard> scorecardCaptor = ArgumentCaptor.forClass(JobScorecard.class);
+    verify(jobService).createScorecard(scorecardCaptor.capture());
+    JobScorecard scorecard = scorecardCaptor.getValue();
+    assertThat(scorecard.status()).isEqualTo("active");
+    assertThat(scorecard.dimensions()).isEqualTo("[{\"label\":\"Technical fit\"}]");
+    assertThat(scorecard.metadata()).isEqualTo("{}");
+  }
+
   private static AccessRequest shortlistUpdateAccessRequest() {
     return new AccessRequest(
         PortalRole.CONSULTANT,
@@ -464,6 +588,26 @@ class ConsultantApiCommandServiceTest {
     return new AccessRequest(
         PortalRole.CONSULTANT,
         ResourceType.SHORTLIST,
+        AccessAction.CREATE,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(),
+        false);
+  }
+
+  private static AccessRequest jobUpdateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT,
+        ResourceType.JOB,
+        AccessAction.UPDATE,
+        FieldClassification.CLIENT_SAFE,
+        Set.of(),
+        false);
+  }
+
+  private static AccessRequest jobCreateAccessRequest() {
+    return new AccessRequest(
+        PortalRole.CONSULTANT,
+        ResourceType.JOB,
         AccessAction.CREATE,
         FieldClassification.CLIENT_SAFE,
         Set.of(),

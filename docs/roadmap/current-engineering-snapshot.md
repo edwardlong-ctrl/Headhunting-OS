@@ -6,11 +6,12 @@ This file contains mutable short-term engineering state. Update it after future 
 
 - latest local `main` baseline commit: `b88b659` (`Add Task 42 pilot acceptance gate`)
 - latest security baseline commit: `58529e4`
-- latest Task 42 gate baseline on `main`: Task 42 Pilot E2E Acceptance Gate
-  model/report exists and currently returns `NOT_READY`.
+- latest Task 42 gate work on branch `codex/task-42-pilot-e2e-evidence`: Task 42
+  Pilot E2E Acceptance Gate model/report now returns
+  `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
-  - `b88b659` — Task 42 Pilot E2E Acceptance Gate baseline, including the deterministic `PilotAcceptanceGate` / `PilotAcceptanceReport` model, invariant tests for requirement/report integrity, and `NOT_READY` roadmap/status closure for the missing browser E2E, pilot CLI, and backup/restore evidence gates.
+  - `codex/task-42-pilot-e2e-evidence` — Task 42 Pilot E2E Acceptance Gate closure, including S01-S08 Playwright business-flow evidence, Task 38 pilot CLI evidence, Task 39 backup/restore evidence, and an updated `PilotAcceptanceGate` / `PilotAcceptanceReport` result of `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
   - `58529e4` / `b31e2e3` — Task 41: Security and Privacy Hardening v1, including login input policy, auth/document rate limiting, upload filename rejection, URL-path PII masking in request logs, explicit Admin disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused privacy/security regressions.
   - `68647b5` — Task 40: provider-neutral observability, audit search, disclosure audit export, AI task trace/replay visibility, and incident runbook baseline
   - `984b329` — Task 39: provider-neutral deployment baseline follow-up for local MinIO bucket initialization
@@ -34,10 +35,10 @@ This file contains mutable short-term engineering state. Update it after future 
   - `dee64c9` — Task 19A/19B/19C auth baseline, JWT controller migration, and session hardening
 - latest documented validation snapshot after the Task 42 merge: `rtk git diff --check HEAD~1..HEAD`, `rtk npm run typecheck:web`, `rtk npm run build:web`, `rtk docker info`, and `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test` all passed on `main`. Maven reported 1005 tests, 0 failures, 0 errors, and 3 skipped. The older Task 41 dependency-check evidence remains the latest vulnerability-scan snapshot and is not reclassified as Task 42 pilot evidence.
 - merge status: current engineering baseline on `main` contains Task 18A + Task 18B + Task 18C + Task 19-preflight + Task 19A + Task 19B + Task 19C + Task 20 + Task 21 + Task 22 + Task 23 backend/API scope + Task 24 Consultant Portal v1 + Task 25 Company and Job Intake v1 + Task 26 Workflow Engine v1 + Task 27 Matching and Evidence v1 + Task 28 Semiconductor Industry Pack v1 with compatibility/history hardening + Task 29 Shortlist Builder v1 + Task 30 Privacy Redaction and Re-identification v1 + Task 31 Candidate Portal v1 + Task 32 Client Portal v1 + Task 33 Consent/Disclosure/Unlock end-to-end + Task 34 Notification and Follow-up System v1 plus candidate/client portal session closure + Task 35 Interview Feedback and Outcome Loop v1 + Task 36 Placement and Commission v1 + Task 37 Owner/Admin Governance v1 + Task 38 Pilot Seed Data and Import Tools + Task 39 provider-neutral deployment baseline + Task 40 provider-neutral observability baseline + Task 41 Security and Privacy Hardening v1 + Task 42 Pilot E2E Acceptance Gate baseline + Task 16-Hardening.
-- next recommended task: continue Task 42 by adding browser E2E evidence for the
-  eight pilot flows, rerunning Task 38 pilot data CLI commands, and executing
-  backup/restore validation. Do not call the system Controlled Pilot Ready until
-  the Task 42 gate returns ready with explicit evidence.
+- next recommended task: after merging Task 42, continue Tasks 43-60 for broader
+  production operations, managed deployment, support workflows, security
+  hardening, and non-pilot product depth. Task 42 readiness is scoped to the
+  controlled-pilot Usable v1 gate, not public production certification.
 
 ## Completed Major Tasks
 
@@ -101,7 +102,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 39: Deployment v1 ✅ deployment baseline commit `984b329` adds a provider-neutral local-production deployment baseline, deployment/runbook docs, staging/production environment validation, PostgreSQL migration runbook, backup/restore/rollback/smoke-test runbooks, object-storage deployment wiring, and local MinIO bucket initialization. Scope remains not production-ready: no managed cloud, HTTPS/domain, tested restore, or production incident process.
 - Task 40: Observability, Audit, and Replay v1 ✅ `main` baseline commit `68647b5` implements the backend/API/runbook subset: request correlation middleware for `/api/**`, staging/production key-value structured log patterns, admin-only observability APIs for WorkflowEvents, ReviewEvents, AITaskRuns, and disclosure audit export, safe API response DTOs, PostgreSQL-backed read services, and the Task 40 incident runbook. Scope remains no external observability vendor, no frontend dashboard, no error dashboard UI, no AI cost/latency dashboard UI, and no product-wide PII log audit claim.
 - Task 41: Security and Privacy Hardening v1 is merged on `main` through `58529e4`, adding login input policy, configurable in-memory auth/document endpoint rate limiting, unsafe upload filename rejection before storage/persistence, UUID/email URL-path masking in request logs, explicit Admin same-organization disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, a data-retention/vulnerability-scan baseline doc, pinned Maven dependency-check configuration, and focused privacy/security regressions. Scope remains no MFA/lockout persistence/password reset/SSO, no distributed rate limiter, no product-wide field-level access audit, no full product-wide PII log audit, no destructive retention executor, and no production vulnerability remediation report.
-- Task 42: Pilot E2E Acceptance Gate baseline is merged on `main` through `b88b659`, adding the deterministic pilot acceptance gate/report model, gate integrity tests, and explicit `NOT_READY` docs for remaining browser E2E, Task 38 pilot CLI, and backup/restore evidence gaps. Scope remains no Playwright/Cypress/browser E2E harness, no current Task 42 pilot CLI execution, and no current backup/restore drill.
+- Task 42: Pilot E2E Acceptance Gate closure on branch `codex/task-42-pilot-e2e-evidence` updates the deterministic pilot acceptance gate/report model from the earlier `NOT_READY` baseline to `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. It adds Playwright coverage for five portal seed logins and S01-S08 business flows, current Task 38 pilot CLI evidence, and Task 39 backup/restore evidence including restored API/document checks plus clean-seed restore validation. Scope remains not public production-ready: managed cloud, HTTPS/domain, production incident process, MFA/SSO, support ops, and broader Tasks 43-60 depth remain future work.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -219,10 +220,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Next Recommended Task
 
-Task 42 Pilot E2E Acceptance Gate baseline now exists and currently returns
-`NOT_READY`. Continue Task 42 by adding browser E2E evidence for the eight pilot
-flows, rerunning Task 38 pilot data CLI commands, and executing backup/restore
-validation. Use:
+Task 42 Pilot E2E Acceptance Gate closure now returns
+`CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with Tasks
+43-60 for broader production operations, support workflows, security hardening,
+managed deployment, and non-pilot product depth. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`

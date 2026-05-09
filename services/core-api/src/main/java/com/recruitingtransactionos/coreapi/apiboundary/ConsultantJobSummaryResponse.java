@@ -11,11 +11,11 @@ public record ConsultantJobSummaryResponse(
 
   public ConsultantJobSummaryResponse {
     jobId = ApiBoundaryContractRules.requireNonBlank(jobId, "jobId");
-    title = ApiBoundaryContractRules.requireApiSafeExternalText(title, "title");
+    title = ApiBoundaryContractRules.requireBusinessVisibleText(title, "title");
     companyId = ApiBoundaryContractRules.requireNonBlank(companyId, "companyId");
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
-    industryPackKey = ApiBoundaryContractRules.sanitizeExternalText(industryPackKey, null);
-    industryPackLabel = ApiBoundaryContractRules.sanitizeExternalText(industryPackLabel, null);
+    industryPackKey = ApiBoundaryContractRules.sanitizeBusinessVisibleText(industryPackKey, null);
+    industryPackLabel = ApiBoundaryContractRules.sanitizeBusinessVisibleText(industryPackLabel, null);
     createdAt = ApiBoundaryContractRules.requireNonBlank(createdAt, "createdAt");
   }
 }

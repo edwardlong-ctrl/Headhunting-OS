@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcMatchCalibrationSignalPort implements MatchCalibrationSignalPort {
 
@@ -48,8 +49,8 @@ public final class JdbcMatchCalibrationSignalPort implements MatchCalibrationSig
 
   @Override
   public MatchCalibrationSignal create(MatchCalibrationSignal signal) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       statement.setObject(1, signal.matchCalibrationSignalId().value());
       statement.setObject(2, signal.organizationId());
       statement.setObject(3, signal.interviewFeedbackId().value());
@@ -68,6 +69,8 @@ public final class JdbcMatchCalibrationSignalPort implements MatchCalibrationSig
       return signal;
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to create match calibration signal", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 
@@ -75,8 +78,8 @@ public final class JdbcMatchCalibrationSignalPort implements MatchCalibrationSig
   public List<MatchCalibrationSignal> findByInterviewFeedbackIdAndOrganizationId(
       UUID organizationId,
       InterviewFeedbackId interviewFeedbackId) {
-    try (Connection connection = dataSource.getConnection();
-         PreparedStatement statement = connection.prepareStatement(SELECT_BY_FEEDBACK_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(SELECT_BY_FEEDBACK_SQL)) {
       statement.setObject(1, organizationId);
       statement.setObject(2, interviewFeedbackId.value());
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -110,6 +113,8 @@ public final class JdbcMatchCalibrationSignalPort implements MatchCalibrationSig
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to load match calibration signals", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 }

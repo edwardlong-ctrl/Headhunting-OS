@@ -1,6 +1,9 @@
 package com.recruitingtransactionos.coreapi.recruiting;
 
 import com.recruitingtransactionos.coreapi.aitaskrunner.tasks.authenticity.AuthenticityAwareMatchRequestFactory;
+import com.recruitingtransactionos.coreapi.candidatedocument.persistence.JdbcCandidateDocumentPersistencePort;
+import com.recruitingtransactionos.coreapi.candidatedocument.port.CandidateDocumentPersistencePort;
+import com.recruitingtransactionos.coreapi.candidatedocument.service.CandidateDocumentService;
 import com.recruitingtransactionos.coreapi.candidate.persistence.JdbcCandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.port.CandidatePersistencePort;
 import com.recruitingtransactionos.coreapi.candidate.service.CandidateService;
@@ -311,6 +314,19 @@ public class RecruitingDomainConfiguration {
   CandidateProfileService candidateProfileService(
       CandidateProfilePersistencePort candidateProfilePersistencePort) {
     return new CandidateProfileService(candidateProfilePersistencePort);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateDocumentPersistencePort.class)
+  CandidateDocumentPersistencePort candidateDocumentPersistencePort(DataSource dataSource) {
+    return new JdbcCandidateDocumentPersistencePort(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CandidateDocumentService.class)
+  CandidateDocumentService candidateDocumentService(
+      CandidateDocumentPersistencePort candidateDocumentPersistencePort) {
+    return new CandidateDocumentService(candidateDocumentPersistencePort);
   }
 
   @Bean

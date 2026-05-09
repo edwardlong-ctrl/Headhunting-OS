@@ -282,6 +282,33 @@ class WorkflowTransitionAuditServiceTest {
   }
 
   @Test
+  void initialCreationTransitionCanBeRecordedAfterEntityInsertWhenCurrentStateAlreadyMatchesAfterState() {
+    RecordingWorkflowEventPort port = new RecordingWorkflowEventPort();
+    WorkflowTransitionAuditService service = new WorkflowTransitionAuditService(
+        new WorkflowEventService(port),
+        new com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowEntityStatePort() {
+          @Override
+          public Optional<String> getCurrentStateJson(UUID orgId, String ns, String type, UUID id) {
+            return Optional.of("{\"status\":\"draft\"}");
+          }
+        });
+
+    WorkflowEventAppendResult result = service.record(requestBuilder()
+        .entityType("shortlist")
+        .entityId(UUID.fromString("00000000-0000-0000-0000-0000000d0203"))
+        .actionCode("SHORTLIST_DRAFT_CREATED")
+        .aiInvolvement(WorkflowAiInvolvement.NONE)
+        .beforeState("{\"status\":\"absent\"}")
+        .afterState("{\"status\":\"draft\"}")
+        .reason("shortlist draft created from consultant portal")
+        .build());
+
+    assertThat(result).isEqualTo(port.result);
+    assertThat(port.commands).hasSize(1);
+    assertThat(port.commands.getFirst().action()).isEqualTo("SHORTLIST_DRAFT_CREATED");
+  }
+
+  @Test
   void serviceDoesNotExposeTargetEntityStateMutationOrLookupDependencies() {
     assertThat(publicDeclaredMethodNames(WorkflowTransitionAuditService.class))
         .containsExactly("preview", "record");

@@ -10,7 +10,7 @@ public record ConsultantCompanySummaryResponse(
 
   public ConsultantCompanySummaryResponse {
     companyId = ApiBoundaryContractRules.requireNonBlank(companyId, "companyId");
-    name = ApiBoundaryContractRules.requireApiSafeExternalText(name, "name");
+    name = ApiBoundaryContractRules.requireBusinessVisibleText(name, "name");
     status = ApiBoundaryContractRules.requireNonBlank(status, "status");
     if (contactCount < 0) {
       throw new IllegalArgumentException("contactCount must be >= 0");

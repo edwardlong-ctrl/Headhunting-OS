@@ -174,9 +174,6 @@ public final class UnlockWorkflowService {
         || existing.orElseThrow().status() == ClientUnlockRequestStatus.APPROVED)) {
       return UnlockWorkflowResult.from(existing.orElseThrow(), blockers);
     }
-    if (!blockers.isEmpty()) {
-      return UnlockWorkflowResult.blocked(blockers);
-    }
 
     UUID unlockWorkflowEntityId = UUID.randomUUID();
     ClientUnlockRequest created = ClientUnlockRequest.builder()

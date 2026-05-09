@@ -13,78 +13,86 @@ public final class PilotAcceptanceGate {
         "task-42-pilot-e2e-acceptance-gate",
         "Task 42 Pilot E2E Acceptance Gate",
         List.of(
-            PilotAcceptanceRequirement.partial(
+            PilotAcceptanceRequirement.passed(
                 "flow-1-consultant-cv-ai-review-canonical",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Consultant uploads CV and note -> AI claims -> review -> canonical profile",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S01",
+                    "rtk npm run test:e2e:pilot",
                     "DocumentUploadService",
                     "DocumentIntelligenceExtractionService",
                     "CandidateProfileParserTaskServiceTest",
-                    "IntakeCanonicalWriteBridgePostgresIntegrationTest"),
-                Set.of("No single browser/API E2E proves the full consultant CV-to-canonical flow on pilot seed data.")),
-            PilotAcceptanceRequirement.partial(
+                    "IntakeCanonicalWriteBridgePostgresIntegrationTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-2-client-jd-ai-clarification-activation",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Client/company uploads JD -> AI job draft -> clarification -> consultant activation",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S02",
+                    "rtk npm run test:e2e:pilot",
                     "ClientApiCommandServiceTest",
                     "JobIntakeApplicationServiceTest",
-                    "ClientApiQueryServiceTest"),
-                Set.of("JD file upload and AI job-draft extraction are not covered by a single pilot E2E.")),
-            PilotAcceptanceRequirement.partial(
+                    "ClientApiQueryServiceTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-3-match-report-evidence-score-cap",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "MatchReport -> evidence-backed explanation -> score cap",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S03",
+                    "rtk npm run test:e2e:pilot",
                     "MatchReportGenerationServiceTest",
                     "ConsultantMatchingControllerTest",
-                    "JdbcMatchReportPersistencePortIntegrationTest"),
-                Set.of("No browser E2E proves the match report surface against the pilot walkthrough.")),
-            PilotAcceptanceRequirement.partial(
+                    "JdbcMatchReportPersistencePortIntegrationTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-4-anonymous-shortlist-client-safe-preview",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Consultant creates anonymous shortlist -> client-safe preview",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S04",
+                    "rtk npm run test:e2e:pilot",
                     "ShortlistBuilderServiceTest",
                     "ClientApiCommandServiceTest",
-                    "ClientSafeCandidateCardPostgresQueryPortTest"),
-                Set.of("No browser E2E proves consultant send plus client preview as one pilot flow.")),
-            PilotAcceptanceRequirement.partial(
+                    "ClientSafeCandidateCardPostgresQueryPortTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-5-candidate-opportunity-consent",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Candidate receives opportunity/consent -> confirms authorization",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S05-S06",
+                    "rtk npm run test:e2e:pilot",
                     "CandidatePortalQueryServiceTest",
                     "CandidateConsentControllerTest",
-                    "CandidateConsentWorkflowServiceTest"),
-                Set.of("No pilot E2E proves candidate opportunity plus consent confirmation from a seeded account.")),
-            PilotAcceptanceRequirement.partial(
+                    "CandidateConsentWorkflowServiceTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-6-client-shortlist-unlock-request",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Client reviews shortlist -> requests unlock",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S05",
+                    "rtk npm run test:e2e:pilot",
                     "ClientApiCommandServiceTest",
-                    "UnlockWorkflowServiceTest"),
-                Set.of("No browser E2E proves client review, selection, and unlock request together.")),
-            PilotAcceptanceRequirement.partial(
+                    "UnlockWorkflowServiceTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-7-consultant-unlock-disclosure-identity",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Consultant approves unlock -> DisclosureRecord -> identity disclosed",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S06-S07",
+                    "rtk npm run test:e2e:pilot",
                     "ConsultantUnlockControllerTest",
                     "UnlockWorkflowServiceTest",
-                    "ClientDisclosedCandidateControllerTest"),
-                Set.of("No pilot E2E proves consultant approval and client identity read together.")),
-            PilotAcceptanceRequirement.partial(
+                    "ClientDisclosedCandidateControllerTest")),
+            PilotAcceptanceRequirement.passed(
                 "flow-8-client-feedback-outcome-review",
                 PilotAcceptanceCategory.PILOT_FLOW,
                 "Client submits interview feedback -> outcome label -> suggested updates enter review",
                 Set.of(
+                    "tests/e2e/pilot-business-flows.spec.ts S08",
+                    "rtk npm run test:e2e:pilot",
                     "ClientApiCommandServiceTest",
                     "ConsultantInterviewFeedbackReviewControllerTest",
-                    "InterviewFeedbackReviewServiceTest"),
-                Set.of("No E2E proves feedback, outcome loop, and consultant review queue on one pilot path.")),
+                    "InterviewFeedbackReviewServiceTest")),
             PilotAcceptanceRequirement.passed(
                 "negative-client-raw-candidate-denied",
                 PilotAcceptanceCategory.NEGATIVE_GATE,
@@ -115,12 +123,14 @@ public final class PilotAcceptanceGate {
                 PilotAcceptanceCategory.NEGATIVE_GATE,
                 "Bulk approve cannot produce candidate_confirmed or external_verified",
                 Set.of("CandidateProfileContractTest", "TruthLayerCanonicalWriteGateTest")),
-            PilotAcceptanceRequirement.partial(
+            PilotAcceptanceRequirement.passed(
                 "negative-high-reidentification-blocks-send",
                 PilotAcceptanceCategory.NEGATIVE_GATE,
                 "Shortlist cannot be sent when re-identification risk is high and unresolved",
-                Set.of("RedactionAuditPostgresIntegrationTest", "ShortlistBuilderServiceTest"),
-                Set.of("Coverage exists at redaction/shortlist seams; no pilot E2E proves unresolved high risk blocks send.")),
+                Set.of(
+                    "ReidentificationRiskAssessmentServiceTest",
+                    "ShortlistBuilderServiceTest#sendToClientFailsWhenIncludedCardHasHighReidentificationRisk",
+                    "RedactionAuditPostgresIntegrationTest")),
             PilotAcceptanceRequirement.passed(
                 "negative-disclosure-prerequisites-not-bypassed",
                 PilotAcceptanceCategory.NEGATIVE_GATE,
@@ -161,20 +171,24 @@ public final class PilotAcceptanceGate {
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
                 "PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test",
                 Set.of("Passed for the Task 42 gate patch on 2026-05-08 with the full core-api suite.")),
-            PilotAcceptanceRequirement.blocked(
+            PilotAcceptanceRequirement.passed(
                 "validation-browser-e2e",
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
                 "Browser E2E tests for the eight pilot flows",
-                Set.of("No Playwright/Cypress/browser E2E harness exists in root or web package scripts.")),
-            PilotAcceptanceRequirement.blocked(
+                Set.of("rtk npm run test:e2e:pilot")),
+            PilotAcceptanceRequirement.passed(
                 "validation-pilot-data-cli",
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
                 "Task 38 pilot data rebuild/validate/export/reset gate",
-                Set.of("Pilot data focused tests exist, but the current Task 42 gate has not rerun the CLI commands.")),
-            PilotAcceptanceRequirement.blocked(
+                Set.of(
+                    "rtk npm run pilot:data:rebuild",
+                    "rtk npm run pilot:data:validate",
+                    "rtk npm run pilot:data:export",
+                    "RTO_PILOT_DATA_ALLOW_RESET=true rtk npm run pilot:data:reset")),
+            PilotAcceptanceRequirement.passed(
                 "validation-backup-restore",
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
                 "Backup/restore validation",
-                Set.of("Task 39 runbooks exist, but no current Task 42 backup/restore execution evidence is recorded."))));
+                Set.of("artifacts/task42-backup-restore-20260509/evidence.md"))));
   }
 }

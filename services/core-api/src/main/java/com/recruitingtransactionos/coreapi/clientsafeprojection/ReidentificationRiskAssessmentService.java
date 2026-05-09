@@ -45,7 +45,7 @@ public final class ReidentificationRiskAssessmentService {
   private static final Pattern ADDRESS_PATTERN =
       Pattern.compile("\\b\\d{1,5}\\s+[a-z]+(?:\\s+[a-z]+){0,3}\\s+(street|st|road|rd|avenue|ave|lane|ln|building|tower)\\b");
   private static final Pattern DIRECT_CONTACT_PATTERN =
-      Pattern.compile("@|https?://|www\\.|\\+?\\d[\\d\\s()\\-]{7,}");
+      Pattern.compile("@|https?://|www\\.|(?<![a-z0-9_])\\+?\\d[\\d\\s()\\-]{7,}(?![a-z0-9_])");
   private static final Pattern PRECISE_NUMBER_PATTERN =
       Pattern.compile("\\b\\d{2,}(?:\\.\\d+)?(?:%|x|nm|mm|mhz|ghz|tb|gb|million|billion)?\\b");
 
@@ -133,7 +133,7 @@ public final class ReidentificationRiskAssessmentService {
     Objects.requireNonNull(snapshot, "snapshot must not be null");
     ClientSafeSummaryPipeline.Result pipeline = ClientSafeSummaryPipeline.redact(snapshot);
     Set<ReidentificationRiskFeature> detectedAfterRedaction =
-        detectUnsafeFeatures(pipeline.redactedSnapshot());
+        detectUnsafeFeatures(pipeline.redactedSnapshot(), false);
     EnumSet<ReidentificationRiskFeature> aggregate =
         EnumSet.noneOf(ReidentificationRiskFeature.class);
     aggregate.addAll(pipeline.unsafeFeaturesObserved());
@@ -166,18 +166,24 @@ public final class ReidentificationRiskAssessmentService {
 
   private static Set<ReidentificationRiskFeature> detectUnsafeFeatures(
       InternalCandidateProjectionSnapshot snapshot) {
+    return detectUnsafeFeatures(snapshot, true);
+  }
+
+  private static Set<ReidentificationRiskFeature> detectUnsafeFeatures(
+      InternalCandidateProjectionSnapshot snapshot,
+      boolean includeRawSourcePresence) {
     EnumSet<ReidentificationRiskFeature> unsafeFeatures =
         EnumSet.noneOf(ReidentificationRiskFeature.class);
     List<String> projectedTexts = snapshot.projectedTextValues();
-    if (!normalize(snapshot.exactCurrentEmployer()).isBlank()) {
+    if (includeRawSourcePresence && !normalize(snapshot.exactCurrentEmployer()).isBlank()) {
       unsafeFeatures.add(ReidentificationRiskFeature.EXACT_CURRENT_EMPLOYER);
     }
-    if (!snapshot.exactProjectProductOrChipNames().isEmpty()) {
+    if (includeRawSourcePresence && !snapshot.exactProjectProductOrChipNames().isEmpty()) {
       unsafeFeatures.add(ReidentificationRiskFeature.EXACT_PROJECT_PRODUCT_CHIP_CODE_NAME);
     }
-    if (!normalize(snapshot.email()).isBlank()
+    if (includeRawSourcePresence && (!normalize(snapshot.email()).isBlank()
         || !normalize(snapshot.phone()).isBlank()
-        || !normalize(snapshot.linkedInUrl()).isBlank()) {
+        || !normalize(snapshot.linkedInUrl()).isBlank())) {
       unsafeFeatures.add(ReidentificationRiskFeature.DIRECT_CONTACT_OR_PROFILE_URL);
     }
 

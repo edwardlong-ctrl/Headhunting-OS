@@ -151,6 +151,168 @@ class ApiBoundaryContractTest {
         List.of("Unsafe narrative")))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("redactionLevel must be an anonymous client-safe API level");
+
+    assertThatThrownBy(() -> new ClientSafeCandidateCardResponse(
+        "card_api_20260428_0003",
+        "alias-bb",
+        "projection-v1",
+        "l2_client_safe",
+        "Jane Candidate",
+        "semiconductor_verification",
+        "senior_ic",
+        "greater_china",
+        "Unsafe summary",
+        "Unsafe skills",
+        List.of("Unsafe evidence"),
+        List.of("Unsafe narrative")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("generalizedHeadline must not contain unsafe API-visible text");
+  }
+
+  @Test
+  void businessPortalDtosAllowCapitalizedBusinessNamesWithoutRelaxingInternalLeakageGuards() {
+    String id = "00000000-0000-0000-0000-000000000001";
+    String createdAt = "2026-05-08T00:00:00Z";
+
+    assertThat(new ConsultantCompanySummaryResponse(
+        id,
+        "Pilot Aurora Micro Systems",
+        "active",
+        0,
+        0,
+        createdAt).name())
+        .isEqualTo("Pilot Aurora Micro Systems");
+    assertThat(new ConsultantCompanyDetailResponse(
+        id,
+        1,
+        "Pilot Aurora Micro Systems",
+        "Pilot Aurora Micro Systems",
+        "semiconductor",
+        null,
+        "Shanghai",
+        "500-1000",
+        "active",
+        null,
+        null,
+        createdAt,
+        createdAt,
+        List.of(),
+        0).name())
+        .isEqualTo("Pilot Aurora Micro Systems");
+    assertThat(new ConsultantJobSummaryResponse(
+        id,
+        "Senior Analog Layout Engineer",
+        id,
+        "activated",
+        "semiconductor",
+        "Semiconductor",
+        createdAt).title())
+        .isEqualTo("Senior Analog Layout Engineer");
+    assertThat(new ConsultantJobDetailResponse(
+        id,
+        1,
+        id,
+        "Senior Analog Layout Engineer",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "activated",
+        "semiconductor",
+        "Semiconductor",
+        "seeded",
+        null,
+        null,
+        null,
+        null,
+        createdAt,
+        createdAt,
+        List.of(),
+        null).title())
+        .isEqualTo("Senior Analog Layout Engineer");
+    assertThat(new ConsultantShortlistSummaryResponse(
+        id,
+        "Senior Analog Layout Shortlist",
+        id,
+        "ready_for_review",
+        0,
+        createdAt).title())
+        .isEqualTo("Senior Analog Layout Shortlist");
+    assertThat(new ClientCompanyProfileResponse(
+        id,
+        1,
+        "Pilot Aurora Micro Systems",
+        "Pilot Aurora Micro Systems",
+        "semiconductor",
+        null,
+        "Shanghai",
+        "500-1000",
+        null,
+        "active",
+        createdAt).name())
+        .isEqualTo("Pilot Aurora Micro Systems");
+    assertThat(new ClientJobSubmissionStatusResponse(
+        id,
+        id,
+        "Senior Analog Layout Engineer",
+        "activated",
+        createdAt,
+        createdAt,
+        List.of(),
+        List.of(),
+        List.of(),
+        true).title())
+        .isEqualTo("Senior Analog Layout Engineer");
+
+    assertThatThrownBy(() -> new ConsultantJobSummaryResponse(
+        id,
+        "com.recruitingtransactionos.StackTrace",
+        id,
+        "activated",
+        null,
+        null,
+        createdAt))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("title must not contain unsafe business-visible text");
+  }
+
+  @Test
+  void consultantShortlistBuilderResponseAllowsOperationalLabelsAndPreviewCopy() {
+    String id = "00000000-0000-0000-0000-000000000001";
+    String createdAt = "2026-05-08T00:00:00Z";
+
+    ConsultantShortlistDetailResponse response = new ConsultantShortlistDetailResponse(
+        id,
+        1,
+        id,
+        "shortlist alpha",
+        "draft",
+        null,
+        null,
+        null,
+        createdAt,
+        createdAt,
+        List.of(
+            new ConsultantShortlistDetailResponse.PreSendCheck(
+                "status_ready_for_review",
+                "Shortlist status is ready for review",
+                false),
+            new ConsultantShortlistDetailResponse.PreSendCheck(
+                "delivery_preview_ready",
+                "Client-safe delivery preview can be generated",
+                false)),
+        new ConsultantShortlistDetailResponse.DeliveryPreview(
+            "No client-safe shortlist summary is available until at least one candidate card is included.",
+            "No client-safe shortlist summary is available until at least one candidate card is included.",
+            "No client-safe shortlist summary is available until at least one candidate card is included.",
+            "No client-safe shortlist summary is available until at least one candidate card is included."),
+        List.of());
+
+    assertThat(response.preSendChecks()).hasSize(2);
+    assertThat(response.deliveryPreview().clientSafeSummary()).contains("client-safe shortlist summary");
   }
 
   @Test
