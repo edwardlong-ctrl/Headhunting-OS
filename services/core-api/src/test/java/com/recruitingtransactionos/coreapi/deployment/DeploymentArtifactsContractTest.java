@@ -134,7 +134,18 @@ class DeploymentArtifactsContractTest {
         .contains("rto-postgres.dump")
         .contains("artifacts/task53-dr-bcp-20260510")
         .contains("rto-documents.tar.gz")
-        .contains("artifacts/task42-backup-restore-20260509/evidence.md");
+        .contains("artifacts/task42-backup-restore-20260509/evidence.md")
+        .contains("Local rerun assumption")
+        .contains("rtk mkdir -p artifacts/task53-dr-bcp-20260510")
+        .contains(
+            "rtk docker cp artifacts/task53-dr-bcp-20260510/rto-postgres.dump rto-postgres:/tmp/task53-rto-postgres-20260510.dump")
+        .contains(
+            "rtk proxy sh -c 'rm -rf /tmp/rto-task53-docstore-restore-20260510 && mkdir -p /tmp/rto-task53-docstore-restore-20260510'")
+        .contains("Manual/not executed rollback portion")
+        .contains("rtk docker exec rto-postgres dropdb -U recruiting_os --if-exists recruiting_os_task53_pre_migration_restore_20260510")
+        .contains("rtk mkdir -p artifacts/task53-dr-bcp-20260510/minio-recovered")
+        .contains("No managed cloud database backup policy has been executed")
+        .contains("No production AI multi-provider failover has been executed");
   }
 
   private static Path findRepoRoot() {

@@ -55,6 +55,11 @@ Source environment:
 - Restored document root: `/tmp/rto-task53-docstore-restore-20260510`.
 - Local evidence artifacts: `artifacts/task53-dr-bcp-20260510/`.
 
+Local rerun assumption: these commands are intentionally scoped to Task 53
+database names, `/tmp/rto-task53-*` document roots, and the ignored
+`artifacts/task53-dr-bcp-20260510/` evidence path. They must not be pointed at a
+shared staging or production database.
+
 Commands executed:
 
 ```sh
@@ -65,6 +70,7 @@ rtk env SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/recruiting_os_tas
 rtk docker exec rto-postgres psql -U recruiting_os -d recruiting_os_task53_source_20260510 -tAc "SELECT storage_ref FROM intake.source_item WHERE storage_ref IS NOT NULL ORDER BY storage_ref LIMIT 1"
 rtk mkdir -p /tmp/rto-task53-docstore-source-20260510/pilotdata
 rtk proxy sh -c 'printf "%s\n" "Task 53 DR restore document - created 2026-05-10 for isolated local drill." > /tmp/rto-task53-docstore-source-20260510/pilotdata/candidate-resume-01.txt'
+rtk mkdir -p artifacts/task53-dr-bcp-20260510
 rtk docker exec rto-postgres pg_dump postgresql://recruiting_os:recruiting_os_local_password@127.0.0.1:5432/recruiting_os_task53_source_20260510 --format=custom --file=/tmp/task53-rto-postgres-20260510.dump
 rtk tar -C /tmp/rto-task53-docstore-source-20260510 -czf artifacts/task53-dr-bcp-20260510/rto-documents.tar.gz .
 rtk docker cp rto-postgres:/tmp/task53-rto-postgres-20260510.dump artifacts/task53-dr-bcp-20260510/rto-postgres.dump
@@ -136,6 +142,26 @@ Result:
   WorkflowEvent, ClaimLedger, AITaskRun, DisclosureRecord, ConsentRecord, or
   ReviewEvent rows were deleted.
 
+Manual/not executed rollback portion:
+
+- A reverse migration against an already-applied Flyway migration was not run.
+  That action is intentionally blocked because applied migrations are immutable
+  and reversing them in place would risk audit and backend-truth corruption.
+- The exact safe local rollback rehearsal is the restore path below: copy the
+  pre-migration dump back into the database container, restore it into a fresh
+  database, restore the matching document archive, then boot the previous app
+  image or local app configuration against that fresh database.
+
+```sh
+rtk docker exec rto-postgres dropdb -U recruiting_os --if-exists recruiting_os_task53_pre_migration_restore_20260510
+rtk docker exec rto-postgres createdb -U recruiting_os recruiting_os_task53_pre_migration_restore_20260510
+rtk docker cp artifacts/task53-dr-bcp-20260510/rto-postgres.dump rto-postgres:/tmp/task53-rto-postgres-20260510.dump
+rtk docker exec rto-postgres pg_restore --dbname postgresql://recruiting_os:recruiting_os_local_password@127.0.0.1:5432/recruiting_os_task53_pre_migration_restore_20260510 --clean --if-exists /tmp/task53-rto-postgres-20260510.dump
+rtk proxy sh -c 'rm -rf /tmp/rto-task53-docstore-pre-migration-restore-20260510 && mkdir -p /tmp/rto-task53-docstore-pre-migration-restore-20260510'
+rtk tar -C /tmp/rto-task53-docstore-pre-migration-restore-20260510 -xzf artifacts/task53-dr-bcp-20260510/rto-documents.tar.gz
+rtk env SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/recruiting_os_task53_pre_migration_restore_20260510 SPRING_DATASOURCE_USERNAME=recruiting_os SPRING_DATASOURCE_PASSWORD=recruiting_os_local_password npm run pilot:data:validate
+```
+
 Operational migration rollback path:
 
 1. Open Sev2 or Sev1 incident depending on user impact.
@@ -180,6 +206,7 @@ rtk docker exec rto-minio mc mb --ignore-existing local/rto-task53-dr-bcp
 rtk docker exec rto-minio mc cp /tmp/task53-candidate-resume-01.txt local/rto-task53-dr-bcp/pilotdata/candidate-resume-01.txt
 rtk docker exec rto-minio mc stat local/rto-task53-dr-bcp/pilotdata/candidate-resume-01.txt
 rtk docker exec rto-minio mc cp local/rto-task53-dr-bcp/pilotdata/candidate-resume-01.txt /tmp/task53-candidate-resume-01-recovered.txt
+rtk mkdir -p artifacts/task53-dr-bcp-20260510/minio-recovered
 rtk docker cp rto-minio:/tmp/task53-candidate-resume-01-recovered.txt artifacts/task53-dr-bcp-20260510/minio-recovered/candidate-resume-01.txt
 rtk wc -c artifacts/task53-dr-bcp-20260510/minio-recovered/candidate-resume-01.txt
 ```
@@ -279,7 +306,9 @@ Restore rerun:
 ```sh
 rtk docker exec rto-postgres dropdb -U recruiting_os --if-exists recruiting_os_task53_restore_20260510
 rtk docker exec rto-postgres createdb -U recruiting_os recruiting_os_task53_restore_20260510
+rtk docker cp artifacts/task53-dr-bcp-20260510/rto-postgres.dump rto-postgres:/tmp/task53-rto-postgres-20260510.dump
 rtk docker exec rto-postgres pg_restore --dbname postgresql://recruiting_os:recruiting_os_local_password@127.0.0.1:5432/recruiting_os_task53_restore_20260510 --clean --if-exists /tmp/task53-rto-postgres-20260510.dump
+rtk proxy sh -c 'rm -rf /tmp/rto-task53-docstore-restore-20260510 && mkdir -p /tmp/rto-task53-docstore-restore-20260510'
 rtk tar -C /tmp/rto-task53-docstore-restore-20260510 -xzf artifacts/task53-dr-bcp-20260510/rto-documents.tar.gz
 rtk env SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/recruiting_os_task53_restore_20260510 SPRING_DATASOURCE_USERNAME=recruiting_os SPRING_DATASOURCE_PASSWORD=recruiting_os_local_password npm run pilot:data:validate
 ```
@@ -293,4 +322,3 @@ rtk env SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/recruiting_os_tas
 - No production AI multi-provider failover has been executed.
 - No public production incident communications process has been tested.
 - Local drill uses synthetic pilot data and local credentials only.
-
