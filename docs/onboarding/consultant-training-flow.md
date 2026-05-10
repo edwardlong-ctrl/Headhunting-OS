@@ -56,7 +56,8 @@ Passing criteria:
 2. Select an active or under-review job.
 3. Confirm company, role family, scorecard, must-have requirements, and
    commercial prerequisites.
-4. Run or review matching where available.
+4. Open `/consultant/jobs/:jobId/matching` and run or review matching for the
+   selected job.
 5. Read evidence coverage, score confidence, score cap reason, industry-pack
    metadata, and risk indicators.
 6. Use missing-evidence questions to plan candidate or client follow-up.
@@ -132,4 +133,3 @@ The consultant is ready for pilot work when all are true:
 - Demonstrated no direct import or database workaround.
 - Knows escalation owners for integrations, support, data correction, security,
   and import approval.
-

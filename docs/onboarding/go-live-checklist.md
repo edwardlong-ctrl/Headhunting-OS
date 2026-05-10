@@ -47,7 +47,7 @@ customer onboarding. This checklist does not certify public production launch.
 | Consultant can see assigned jobs, candidates, and workflow queue. | Consultant lead | Not started / In progress / Complete |
 | Client can submit or review a pilot job. | Client lead | Not started / In progress / Complete |
 | Candidate can open opportunity/consent or follow-up surface where used. | Consultant lead | Not started / In progress / Complete |
-| Admin can review AI task registry, workflow rules, integrations status, and audit/governance surfaces where available. | Admin | Not started / In progress / Complete |
+| Admin can review `/admin/ai-task-registry`, `/admin/workflow-rules`, `/admin/integrations`, `/admin/audit-log`, `/admin/security`, and dependency notes for any governance console behavior not present in the current branch. | Admin | Not started / In progress / Complete |
 | Launch owner confirms open dependencies are not launch blockers. | Launch owner | Not started / In progress / Complete |
 
 ## First Transaction Checks
@@ -112,4 +112,3 @@ At the end of week one, record:
 - Product gaps that map to Tasks 48-58.
 - Decision: continue pilot, restrict scope, pause, or escalate before broader
   rollout.
-

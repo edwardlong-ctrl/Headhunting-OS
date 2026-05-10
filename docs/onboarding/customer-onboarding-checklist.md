@@ -44,7 +44,7 @@ approved governed data import.
 
 | Check | Owner | Evidence |
 | --- | --- | --- |
-| Select AI task routing and model configuration through Admin governance where available. | Admin | Model routing review |
+| Select AI task routing and model configuration through `/admin/model-routing` and Admin governance surfaces; record any missing provider setup as Task 49 or operations dependency. | Admin | Model routing review |
 | Confirm prompt/schema/task registry status for pilot tasks. | Admin | AI task registry review |
 | Select workflow rules and SLA visibility that will be used in pilot. | Admin | Workflow rules review |
 | Configure available integration status. | Admin | Admin `/admin/integrations` review |
@@ -76,7 +76,8 @@ RTO_PILOT_DATA_ALLOW_RESET=true rtk npm run pilot:data:reset
 Dry-run flow:
 
 1. Consultant logs in and reviews the candidate and job lists.
-2. Consultant runs intake/review for a safe source packet where available.
+2. Consultant creates or selects a safe source packet through `/consultant/intake`
+   and reviews it through `/consultant/intake/review/:packetId`.
 3. Consultant generates or reviews matching for an active job.
 4. Consultant builds an anonymous shortlist and checks redaction/risk status.
 5. Candidate reviews opportunity/consent and confirms or declines.
@@ -107,4 +108,3 @@ Dry-run flow:
   ready.
 - The customer expects production security, DR, support, performance, reporting,
   or release guarantees that are not evidenced in the current branch.
-

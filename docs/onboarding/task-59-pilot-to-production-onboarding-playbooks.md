@@ -50,8 +50,8 @@ That does not equal public production readiness.
 | Five portals | Route-depth and controlled-pilot surfaces are available in the current baseline; preserve Owner, Consultant, Client, Candidate, and Admin as the five portal taxonomy. |
 | Consultant workflow | Use the unified Consultant portal for intake, jobs, matching, shortlist, workflow, follow-ups, placements, and commission surfaces that exist in the current product slice. |
 | Client workflow | Use the Client portal for company profile/preferences, job submission, clarification, shortlist review, unlock request, and feedback surfaces that exist in the current product slice. |
-| Candidate workflow | Use Candidate portal surfaces for opportunity, consent, follow-up, profile review/upload aliases, and status where available in the current product slice. |
-| Admin governance | Use Admin governance sections for AI task registry, workflow rules, integrations status, audit, security, model routing, and industry-pack visibility where available. |
+| Candidate workflow | Use Candidate portal surfaces for `/candidate/opportunities/:opportunityId`, `/candidate/consent/:requestId`, `/candidate/follow-up/:formId`, `/candidate/upload`, `/candidate/profile/ai-review`, and `/candidate/status`; do not describe broader candidate self-registration or external notification delivery as complete. |
+| Admin governance | Use Admin governance sections for `/admin/ai-task-registry`, `/admin/workflow-rules`, `/admin/integrations`, `/admin/security`, `/admin/audit-log`, `/admin/model-routing`, and `/admin/industry-packs`; if a setup decision needs deeper governance console behavior, record the dependency instead of involving engineering ad hoc. |
 | Security | Task 41 is a controlled-pilot security baseline only. Task 52 remains required before production security claims. |
 | Data import | Task 38 deterministic pilot data exists. Real customer import and migration depend on Task 55 tooling and approval. |
 | Integrations | Real email, SMS, calendar, OCR/STT, ATS/HRIS, webhook, and safe outbound integration depth depends on Task 49. |
@@ -91,4 +91,3 @@ That does not equal public production readiness.
 - No launch may claim production security, DR, performance, integrations,
   import, support, reporting, or release readiness unless the corresponding
   task evidence exists in the current branch.
-

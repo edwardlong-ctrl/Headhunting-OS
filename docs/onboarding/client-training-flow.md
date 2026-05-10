@@ -5,7 +5,9 @@
 Train client users to collaborate in the Recruiting Transaction OS without
 receiving raw candidate data before consent and disclosure gates. Client users
 should be able to submit jobs, answer clarification, review anonymous
-shortlists, request unlock, and provide feedback without engineering help.
+shortlists, request unlock, and provide feedback without engineering help after
+organization setup, approved integrations, and approved import decisions are in
+place.
 
 ## Prerequisites
 
@@ -13,7 +15,8 @@ shortlists, request unlock, and provide feedback without engineering help.
 - The client knows which jobs are in pilot scope.
 - The consultant has explained the anonymous shortlist and unlock model.
 - Any outbound email/calendar/SMS workflow that the client expects is either
-  configured through integration work or replaced by an agreed manual channel.
+  configured through Task 49-approved integration work or replaced by an agreed
+  manual channel recorded in the onboarding risk review.
 
 ## Training Agenda
 
@@ -23,7 +26,7 @@ shortlists, request unlock, and provide feedback without engineering help.
 | Client workspace tour | 15 min | `/client/dashboard`, `/client/profile`, `/client/preferences` | Client can find company profile, preferences, and work queue |
 | Job submission and clarification | 25 min | `/client/jobs/new`, `/client/jobs/:jobId`, `/client/follow-ups` | Client can submit a job and answer clarifying questions |
 | Shortlist review | 30 min | `/client/shortlists`, `/client/shortlists/:shortlistId`, candidate card surfaces | Client can read match rationale without raw identity clues |
-| Unlock request | 20 min | `/client/unlock/:candidateId` route alias and shortlist card unlock action where available | Client knows unlock is a request, not automatic identity access |
+| Unlock request | 20 min | `/client/unlock/:candidateId` route alias and shortlist card unlock request action | Client knows unlock is a request, not automatic identity access |
 | Feedback loop | 20 min | Client feedback surface | Client can provide interview and shortlist feedback |
 | Escalation | 10 min | Support and consultant contact path | Client knows how to report access, data, or workflow issues |
 
@@ -100,4 +103,3 @@ Client users are ready for pilot work when they can:
 - Request unlock through the correct workflow.
 - Provide feedback that is useful for the transaction and future matching.
 - Escalate support questions through the agreed channel.
-

@@ -45,7 +45,7 @@ Create only approved pilot accounts.
 | Owner / Partner | Can review business pipeline, risk, revenue, team quality, and audit summaries according to policy |
 | Consultant | Main transaction operator; can work candidate, company, job, matching, shortlist, workflow, follow-up, placement, and commission surfaces in one unified portal |
 | Client | Scoped to its company/job/shortlist context; cannot access raw Candidate objects before disclosure |
-| Candidate | Self-scoped to own profile, opportunities, consent, follow-up, upload/profile review/status surfaces where available |
+| Candidate | Self-scoped to own profile, opportunities, consent, follow-up, upload/profile review, and status surfaces |
 | Admin / System | Configures governance surfaces; cannot bypass canonical-write, disclosure, consent, or domain-service gates by role alone |
 
 Access review:
@@ -61,23 +61,27 @@ Access review:
 Verify the five portal taxonomy remains intact:
 
 - Owner: `/owner/dashboard`, `/owner/pipeline`, `/owner/risk`,
-  `/owner/data-quality`, `/owner/ai-quality`, `/owner/audit`, revenue and
-  placement views where available.
+  `/owner/data-quality`, `/owner/ai-quality`, `/owner/audit`, `/owner/revenue`,
+  `/owner/placements`, and `/owner/commission`.
 - Consultant: `/consultant/dashboard`, `/consultant/intake`,
   `/consultant/talent`, `/consultant/companies`, `/consultant/jobs`,
   `/consultant/matching`, `/consultant/shortlists`, `/consultant/follow-ups`,
   `/consultant/workflow`, `/consultant/placements`, `/consultant/commission`.
-- Client: `/client/dashboard`, `/client/profile`, `/client/jobs/new`,
-  `/client/jobs/:jobId`, `/client/shortlists`, shortlist card review,
-  unlock request, feedback, and follow-up surfaces where available.
+- Client: `/client/dashboard`, `/client/profile`, `/client/preferences`,
+  `/client/jobs/new`, `/client/jobs/:jobId`, `/client/jobs/:jobId/clarification`,
+  `/client/jobs/:jobId/shortlist`, `/client/shortlists`,
+  `/client/shortlists/:shortlistId`, `/client/unlock/:candidateId`,
+  `/client/feedback/:interviewId`, `/client/follow-ups`, and disclosed-candidate
+  read surfaces after approved unlock.
 - Candidate: `/candidate/home`, `/candidate/upload`,
   `/candidate/profile/ai-review`, `/candidate/opportunities/:opportunityId`,
-  `/candidate/consent/:requestId`, `/candidate/status`, follow-up surfaces
-  where available.
+  `/candidate/consent/:requestId`, `/candidate/status`, and
+  `/candidate/follow-up/:formId`.
 - Admin: `/admin/ai-task-registry`, `/admin/workflow-rules`,
-  `/admin/integrations`, `/admin/security`, `/admin/audit`,
-  `/admin/industry-packs`, model routing, privacy, and governance sections
-  where available.
+  `/admin/integrations`, `/admin/security`, `/admin/audit-log`,
+  `/admin/industry-packs`, `/admin/model-routing`, `/admin/privacy-redaction`,
+  and related governance sections. Deeper production console behavior remains
+  Task 50 scope when not present in the current branch.
 
 Do not create a sixth portal for onboarding or governance. v2.1 governance
 belongs inside the existing five-portal model.
@@ -90,8 +94,9 @@ belongs inside the existing five-portal model.
 3. Confirm no AI task route is configured to write confirmed facts directly.
 4. Confirm AI task outputs are reviewed as claims, suggestions, or audited task
    outputs before write-back.
-5. Confirm prompt/schema/task versions are visible for pilot tasks where the
-   current baseline supports it.
+5. Confirm prompt/schema/task versions are visible for pilot tasks in
+   `/admin/ai-task-registry`; if a task lacks the needed governance evidence,
+   record it as a Task 50 or Task 58 dependency before launch signoff.
 6. Record any model/provider dependency that requires Task 49 or operations
    setup.
 
@@ -117,7 +122,7 @@ Record each integration as one of:
 Integration classes:
 
 - Email provider.
-- SMS provider or production-approved substitute.
+- SMS provider or a Task 49-approved manual/deferred communication path.
 - Calendar integration.
 - OCR/STT service.
 - ATS/HRIS import/export.
@@ -164,4 +169,3 @@ Setup is ready for training only when:
   status have written setup notes.
 - Import decision is approved, deferred, or out of scope.
 - Risk review has no launch-blocking setup issue.
-

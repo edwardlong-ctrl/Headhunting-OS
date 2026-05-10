@@ -56,7 +56,8 @@ confirmation instead of reusing old consent without review.
 You can decline a request. Revocation handling depends on the current product
 workflow and customer policy, but a revoked or expired consent must not be used
 as if it were active consent for future disclosure. Ask the consultant to
-confirm how the pilot handles already-completed disclosures and future sharing.
+confirm the pilot revocation owner, support path, already completed disclosure
+handling, and future-sharing stop rule before confirming.
 
 ## Can I see what will be shared?
 
@@ -99,4 +100,3 @@ The consultant should route the correction through the review workflow.
 Do not confirm the request. Contact the named consultant or customer support
 path from the pilot onboarding material. Unexpected consent, unlock, payment,
 or account requests should be treated as security-sensitive.
-
