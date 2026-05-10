@@ -240,7 +240,7 @@ test.describe.serial("Task 42 pilot business browser E2E flows S01-S08", () => {
     await expect(page.getByText("Job is activated.")).toBeVisible();
     await page.goto(`/consultant/jobs/${flow.jobId}`);
     await expect(page.getByText(/Structured placeholder captured/i)).toBeVisible();
-    await expect(page.getByText("Semiconductor (seeded)")).toBeVisible();
+    await expect(page.getByText("Semiconductor (production)")).toBeVisible();
   });
 
   test("S03 consultant generates an evidence-backed MatchReport with score-cap metadata", async ({ page }) => {

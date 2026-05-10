@@ -2,6 +2,14 @@
 
 ## Current Git Main Milestones
 
+- Task 58: Release Management and Regression Suite is complete for the current
+  release-safety baseline. The patch adds `.github/workflows/release-regression.yml`,
+  an ordered local `release:gate`, migration validation, backend/frontend
+  regression chain, deterministic pilot browser E2E wrapper with isolated
+  PostgreSQL/API/web ports and cleanup, privacy/security negative regression
+  suite, AI eval artifact/schema regression suite, and strict release
+  checklist/gate docs. It does not implement Task 60 final acceptance or claim
+  public launch readiness.
 - Task 50: Governance, Eval, and Ontology Production Console is complete for
   the current Admin/Owner governance console baseline. The patch adds a
   focused governance console read service, Admin API sections for eval
@@ -143,8 +151,9 @@
   `PilotAcceptanceReport` now encode the eight pilot flows, negative gates, and
   validation gates, and `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`
   records the honest result as `CONTROLLED_PILOT_READY` for the Task 42 Usable v1
-  gate. This does not certify public production readiness; remaining Tasks 58
-  and 60 still cover release management and final full product acceptance.
+  gate. This does not certify public production readiness; Task 58 now covers
+  release management, and remaining Task 60 still covers final full product
+  acceptance.
 - Task 41: Security and Privacy Hardening v1 remains the controlled-pilot hardening baseline on `main` through `58529e4`: controlled-pilot backend hardening for login email/password input policy, configurable in-memory throttling for auth login/refresh and consultant document endpoints, unsafe upload filename rejection before storage/source-item persistence, UUID/email path-segment masking in request logs, explicit Admin same-organization disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused security/privacy regressions. Task 52 now adds the newer production security compliance baseline, but neither task is a production-security certification or full completion of MFA, password reset, SSO/OIDC, distributed rate limiting, product-wide field-level access audit, product-wide PII log audit, destructive retention execution, or vulnerability remediation reporting.
 - Task 40: Observability, Audit, and Replay v1 remains on `main` through `68647b5` for the provider-neutral backend subset: `/api/**` request correlation, safe structured staging/production logs, admin-only observability read APIs for WorkflowEvents, ReviewEvents, AITaskRuns, disclosure audit export, safe API response DTOs, PostgreSQL-backed narrow readers, and `infra/observability/README.md` as the incident runbook. It adds no external observability vendor, no raw Candidate/Profile/source payload logging, no frontend dashboard, no error dashboard, no AI cost/latency dashboard UI, and no broad owner raw-audit export.
 - Task 39: Deployment v1 remains the latest deployment baseline on `main` through `984b329`: provider-neutral local-production compose/runbook baseline, staging/production environment validation, profile precedence hardening, PostgreSQL migration runbook, backup/restore/rollback/smoke-test runbooks, object-storage deployment wiring, staging MinIO endpoint handling, and local MinIO bucket initialization. It remains a deployment baseline, not production-ready.

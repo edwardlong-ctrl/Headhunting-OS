@@ -1387,6 +1387,12 @@ raw data export。
 
 ## Task 58：Release Management and Regression Suite
 
+状态：**已完成**，当前 release-safety baseline 已加入 CI、local release
+gates、migration validation、backend/frontend regression chain、deterministic
+pilot browser E2E wrapper、privacy/security negative regressions、AI eval
+artifact/schema regressions，以及 release checklist/gate docs。这不是 Task 60
+final acceptance。
+
 目标：让发布变得可重复、可验证。
 
 必须交付：

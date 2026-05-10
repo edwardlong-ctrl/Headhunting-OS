@@ -1,6 +1,18 @@
 # Known Gaps
 
-## Task 50 Governance Console Closed; Live Provider Governance and Release Gates Still Deferred
+## Task 58 Release Management Closed; Final Product Acceptance Still Deferred
+
+- Task 58 now packages release safety into CI and local commands:
+  `release:gate`, `release:migrations`, `release:e2e:pilot`,
+  `release:privacy-security`, and `release:ai-eval`.
+- The release system requires backend, frontend, migration, browser E2E,
+  privacy/security, and AI eval evidence before a release can be called ready.
+- Remaining gaps:
+  - Task 60 final full-product acceptance remains separate.
+  - Public launch operation signoff, managed infrastructure signoff, formal
+    certification, and live customer go-live approval remain outside Task 58.
+
+## Task 50 Governance Console Closed; Live Provider Governance Still Deferred
 
 - Task 50 now exposes first-class Admin governance console sections for eval
   failures, deterministic negative cases, review quality, model routing
@@ -16,8 +28,7 @@
   - No ML resume-fraud detector is claimed; authenticity risk is surfaced from
     existing deterministic/eval/review signals.
   - No ontology editing UI or automatic ontology mutation exists.
-  - Task 58 release management and Task 60 final acceptance remain separate
-    production-readiness gates.
+  - Task 60 final acceptance remains a separate production-readiness gate.
 
 ## Task 57 Reporting/Exports Closed; External BI and Legal Systems Still Deferred
 
@@ -84,8 +95,8 @@
   - Public SaaS onboarding still depends on remaining production tasks and
     release acceptance.
   - Real provider activation, customer-specific migration execution, external
-    support systems, external BI/legal systems, and release gates remain beyond
-    the current baselines.
+    support systems, external BI/legal systems, and final acceptance remain
+    beyond the current baselines.
 
 ## Task 54 Performance/Load/Cost Targets Closed; Live Performance Evidence Still Deferred
 

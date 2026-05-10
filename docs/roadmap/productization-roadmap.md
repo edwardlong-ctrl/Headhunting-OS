@@ -1515,6 +1515,12 @@ system, accounting integration, or unrestricted raw data export.
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** for the current release-safety baseline. The Task 58
+package adds CI, local release gates, migration validation, backend/frontend
+regression chaining, deterministic pilot browser E2E wrapping, privacy/security
+negative regressions, AI eval artifact/schema regressions, and release
+checklist/gate docs. This is not Task 60 final acceptance.
+
 Goal: Make releases repeatable and safe.
 
 Must deliver:

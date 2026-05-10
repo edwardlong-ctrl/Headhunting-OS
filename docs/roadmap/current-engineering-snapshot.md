@@ -4,9 +4,10 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` feature baseline after the Task 50 governance console
-  implementation: Task 50 Governance, Eval, and Ontology Production Console,
-  on top of the Task 49/55/56/57 integration batch and Task 51/54 boundaries.
+- latest local `main` feature baseline after the Task 58 release-management
+  package: Task 58 Release Management and Regression Suite, on top of the Task
+  50 governance console, Task 49/55/56/57 integration batch, and Task 51/54
+  boundaries.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
 - latest production security compliance baseline: Task 52 at `afc6942`.
 - latest Task 42 gate work on local `main`: Task 42
@@ -15,6 +16,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
   - Task 50 - Governance, Eval, and Ontology Production Console, including Admin governance surfaces for eval failures, deterministic negative cases, review quality, model routing inspection with the existing governed config overlay, cost/latency, ontology drift, redaction incidents, and AI resume authenticity risk, plus an Owner `ai-quality` summary. This reuses existing Task 44/47/49/51/54/56/57 boundaries and does not add live provider activation/switching, ontology mutation, external BI/legal/accounting integrations, Task 58 release management, or Task 60 final acceptance.
+  - Task 58 - Release Management and Regression Suite, including a CI release-regression workflow, local ordered `release:gate`, Flyway/Testcontainers migration validation, full backend and frontend release chain, deterministic pilot browser E2E wrapper with owned PostgreSQL/API cleanup, privacy/security negative regression suite, AI eval artifact/schema regression suite, and strict release checklist/gate docs. This creates the release safety system only and does not add Task 60 final acceptance or public launch signoff.
   - Task 57 at `cd81acc` - Reporting, Exports, and Legal Audit Packages, including backend-owned reporting export adapters for owner reports, consultant activity, client shortlist feedback, candidate personal data, disclosure audit, placement/commission, and retention evidence with role/scope/visibility policy.
   - Task 56 at `68cef32` - Support and Operations Tooling, including audited support lookup/action contracts, safe failed-notification retry, AI task replay adapter boundary, support transaction boundary, support user lookup, and support action audit persistence.
   - Task 55 at `02fbda9` - Data Import and Migration from Existing Systems, including governed import batch planning, validation/reporting, legacy ATS/CRM mapping contracts, duplicate/import safeguards, rollback/reset planning, and governed-intake import gateway boundaries.
@@ -195,8 +197,8 @@ This file contains mutable short-term engineering state. Update it after future 
 - merge status: Task 49, Task 55, Task 56, and Task 57 were rebased onto
   current local `main`, validated in their worktrees, fast-forward merged in
   order, and smoke-validated on `main` after each merge. No push was performed.
-- next recommended task: continue with remaining Tasks 58 and 60 for release
-  management and final full-product acceptance. Task 42
+- next recommended task: continue with remaining Task 60 for final full-product
+  acceptance. Task 42
   readiness remains scoped to the controlled-pilot Usable v1 gate, not public
   production certification.
 
@@ -398,7 +400,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
 `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with remaining
-Tasks 58 and 60 for release management and final full product acceptance. Use:
+Task 60 for final full product acceptance. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`
@@ -409,7 +411,7 @@ Tasks 58 and 60 for release management and final full product acceptance. Use:
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Task 34 closes the combined notification/reminder system plus candidate/client portal session and follow-up participation hardening stream.
 Task 35 closes the first interview-feedback and interaction-scoped outcome-loop stream.
-Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 49 integration boundaries, Task 51 multi-organization boundary hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, Task 55 import/migration, Task 56 support operations, Task 57 reporting/export/legal audit packages, and Task 59 onboarding playbooks are now complete on `main` for their documented scopes. Remaining production-depth work stays tracked in `known-gaps.md` and `productization-roadmap.md`.
+Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 49 integration boundaries, Task 51 multi-organization boundary hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, Task 55 import/migration, Task 56 support operations, Task 57 reporting/export/legal audit packages, Task 58 release management/regression suite, and Task 59 onboarding playbooks are now complete on `main` for their documented scopes. Remaining production-depth work stays tracked in `known-gaps.md` and `productization-roadmap.md`.
 
 ## Future Prompt Strategy
 
