@@ -57,8 +57,9 @@ public final class ApiBoundaryContractRules {
       Set.of(
           "placementId", "version", "jobId", "candidateId", "companyId", "status",
           "salaryAmount", "salaryCurrency", "feeRatePercentage", "expectedFeeAmount",
-          "startDate", "guaranteeDays", "guaranteeExpiresAt", "offerAcceptedAt",
-          "onboardedAt", "createdAt", "updatedAt", "notes");
+          "feeAgreementActive", "feeAgreementReference", "paymentTerms", "invoiceReadiness",
+          "startDate", "guaranteeDays", "guaranteeExpiresAt", "offerAcceptedAt", "onboardedAt",
+          "createdAt", "updatedAt", "notes");
 
   private static final Set<String> CONSULTANT_COMMISSION_SUMMARY_RESPONSE_FIELDS =
       Set.of(
@@ -70,19 +71,23 @@ public final class ApiBoundaryContractRules {
       Set.of(
           "placementId", "jobId", "candidateId", "companyId", "status", "salaryAmount",
           "salaryCurrency", "feeRatePercentage", "expectedFeeAmount", "commissionStatuses",
-          "startDate", "guaranteeDays", "guaranteeExpiresAt", "createdAt", "updatedAt");
+          "feeAgreementActive", "feeAgreementReference", "paymentTerms", "invoiceReadiness",
+          "accountingExportStatus", "startDate", "guaranteeDays", "guaranteeExpiresAt",
+          "createdAt", "updatedAt");
 
   private static final Set<String> OWNER_COMMISSION_SUMMARY_RESPONSE_FIELDS =
       Set.of(
           "commissionId", "placementId", "consultantId", "status", "commissionType",
           "amount", "currency", "splitPercentage", "salaryAmount", "feeRatePercentage",
+          "expectedFeeAmount", "feeAgreementReference", "paymentTerms", "calculationSource",
           "paidAt", "withheldReason", "createdAt", "updatedAt");
 
   private static final Set<String> OWNER_REVENUE_SUMMARY_RESPONSE_FIELDS =
       Set.of(
           "totalExpectedFee", "totalPaidFee", "placementCount", "unknownExpectedFeePlacementCount", "pendingCommissionCount",
           "paidCommissionCount", "paidCommissionMissingAmountCount", "activeGuaranteeCount", "replacementRequiredCount",
-          "invoiceInFlightCount");
+          "invoiceInFlightCount", "invoiceReadyCount", "invoiceSentCount", "paidPlacementCount",
+          "guaranteeCompletedCount");
 
   private static final Set<String> CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS =
       Set.of("shortlistId", "title", "jobId", "status", "candidateCount", "createdAt");

@@ -83,7 +83,10 @@ public class PlacementWorkflowService {
                 command.salaryAmount(),
                 command.salaryCurrency(),
                 command.feeRatePercentage(),
-                command.notes()).toJson())
+                command.notes(),
+                Boolean.TRUE.equals(command.feeAgreementActive()),
+                blankToNull(command.feeAgreementReference()),
+                blankToNull(command.paymentTerms())).toJson())
             .startDate(command.startDate())
             .guaranteeDays(command.guaranteeDays())
             .guaranteeExpiresAt(guaranteeExpiry(command.startDate(), command.guaranteeDays()))
@@ -173,6 +176,10 @@ public class PlacementWorkflowService {
     requireVersion(existing.version(), expectedVersion);
     if (existing.status() == PlacementStatus.INVOICE_READY) {
       return existing;
+    }
+    PlacementOfferDetails offerDetails = PlacementOfferDetails.fromJson(existing.offerDetails());
+    if (!offerDetails.hasActiveFeeAgreement()) {
+      throw new IllegalArgumentException("fee_agreement_required_for_invoice_ready");
     }
     Instant now = Instant.now();
     Placement updated = placementService.updatePlacement(copyPlacement(
@@ -392,6 +399,13 @@ public class PlacementWorkflowService {
       return null;
     }
     return startDate.plusDays(guaranteeDays.longValue());
+  }
+
+  private static String blankToNull(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return value.strip();
   }
 
   private static void requireVersion(int actualVersion, int expectedVersion) {

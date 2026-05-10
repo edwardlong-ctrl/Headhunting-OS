@@ -235,6 +235,64 @@ class OwnerRevenueQueryServiceTest {
     assertThat(response.paidCommissionMissingAmountCount()).isEqualTo(1);
   }
 
+  @Test
+  void loadSeparatesInvoicePaidAndGuaranteeLifecycleCountsForOwnerReporting() {
+    PlacementWorkflowService placementWorkflowService = mock(PlacementWorkflowService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    OwnerRevenueQueryService service = new OwnerRevenueQueryService(
+        placementWorkflowService,
+        commissionWorkflowService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+
+    when(placementWorkflowService.listPlacements(ORG_ID))
+        .thenReturn(List.of(
+            placement("00000000-0000-0000-0000-00000000d125", "100000.00", "20.0", PlacementStatus.INVOICE_READY),
+            placement("00000000-0000-0000-0000-00000000d126", "100000.00", "20.0", PlacementStatus.INVOICE_SENT),
+            placement("00000000-0000-0000-0000-00000000d127", "100000.00", "20.0", PlacementStatus.PAID),
+            placement("00000000-0000-0000-0000-00000000d128", "100000.00", "20.0", PlacementStatus.GUARANTEE_COMPLETED)));
+    when(commissionWorkflowService.listCommissions(ORG_ID)).thenReturn(List.of());
+
+    var response = service.load(ownerRevenueReadRequest(), ORG_ID);
+
+    assertThat(response.invoiceReadyCount()).isEqualTo(1);
+    assertThat(response.invoiceSentCount()).isEqualTo(1);
+    assertThat(response.paidPlacementCount()).isEqualTo(1);
+    assertThat(response.guaranteeCompletedCount()).isEqualTo(1);
+    assertThat(response.invoiceInFlightCount()).isEqualTo(2);
+  }
+
+  @Test
+  void exportAccountingHandoffIsReadOnlyAndCarriesNonReplacementDisclaimer() {
+    PlacementWorkflowService placementWorkflowService = mock(PlacementWorkflowService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    OwnerRevenueQueryService service = new OwnerRevenueQueryService(
+        placementWorkflowService,
+        commissionWorkflowService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+    Placement placement = placement(
+        "00000000-0000-0000-0000-00000000d129",
+        "100000.00",
+        "20.0",
+        PlacementStatus.INVOICE_SENT);
+    Commission commission = commission(
+        "00000000-0000-0000-0000-00000000d130",
+        placement.placementId(),
+        "20000.00",
+        CommissionStatus.PENDING);
+    when(placementWorkflowService.listPlacements(ORG_ID)).thenReturn(List.of(placement));
+    when(commissionWorkflowService.listCommissions(ORG_ID)).thenReturn(List.of(commission));
+
+    var export = service.exportAccountingHandoff(ownerRevenueReadRequest(), ORG_ID);
+
+    assertThat(export.format()).isEqualTo("csv");
+    assertThat(export.process()).isEqualTo("read_only_accounting_handoff");
+    assertThat(export.disclaimer()).contains("does not replace the official accounting system");
+    assertThat(export.content()).contains("placement_id,status,invoice_readiness,fee_agreement_active");
+    assertThat(export.content()).contains(placement.placementId().value().toString());
+    assertThat(export.content()).contains("invoice_sent");
+    assertThat(export.content()).contains("20000.00");
+  }
+
   private static AccessRequest ownerRevenueReadRequest() {
     return new AccessRequest(
         PortalRole.OWNER,
@@ -261,7 +319,10 @@ class OwnerRevenueQueryServiceTest {
             new BigDecimal(salaryAmount),
             "USD",
             new BigDecimal(feeRatePercentage),
-            "offer").toJson())
+            "offer",
+            true,
+            "MSA-2026-05",
+            "net_30").toJson())
         .startDate(LocalDate.parse("2026-05-01"))
         .guaranteeDays(90)
         .guaranteeExpiresAt(LocalDate.parse("2026-07-30"))

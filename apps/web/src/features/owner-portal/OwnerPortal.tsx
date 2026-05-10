@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { login, type AuthSession } from "../../api/auth";
 import { fetchOwnerGovernanceSection, type GovernanceSection } from "../../api/governance";
-import { fetchOwnerRevenueSummary, type OwnerRevenueSummary } from "../../api/ownerRevenue";
+import { fetchOwnerAccountingExport, fetchOwnerRevenueSummary, type OwnerAccountingExport, type OwnerRevenueSummary } from "../../api/ownerRevenue";
 import { listOwnerCommission, listOwnerPlacements, type OwnerCommission, type OwnerPlacement } from "../../api/ownerPlacements";
 import { type ApiResult, type PagedResult } from "../../api/http";
 import { saveAccessToken } from "../../auth/accessTokenStorage";
@@ -259,7 +259,7 @@ function OwnerPlacementsPage() {
         </div>
       </div>
       <DataTable
-        headers={["Placement", "Status", "Expected fee", "Start", "Guarantee", "Commission"]}
+        headers={["Placement", "Status", "Expected fee", "Fee agreement", "Guarantee", "Accounting", "Commission"]}
         rows={result.items.map((placement) => [
           <div>
             <strong>{placement.placementId.slice(0, 8)}</strong>
@@ -267,10 +267,17 @@ function OwnerPlacementsPage() {
           </div>,
           <StatusBadge value={placement.status} />,
           formatMoney(placement.expectedFeeAmount, placement.salaryCurrency),
-          placement.startDate ? formatDate(placement.startDate) : "TBD",
+          <div>
+            <StatusBadge value={placement.feeAgreementActive ? "active" : "missing"} />
+            <div className="helper-copy">{placement.feeAgreementReference ?? placement.paymentTerms ?? "no confirmed fee agreement"}</div>
+          </div>,
           <div>
             <div>{placement.guaranteeDays ? `${placement.guaranteeDays} days` : "None"}</div>
             <div className="helper-copy">{placement.guaranteeExpiresAt ? formatDate(placement.guaranteeExpiresAt) : "not active"}</div>
+          </div>,
+          <div>
+            <StatusBadge value={placement.accountingExportStatus} />
+            <div className="helper-copy">{placement.invoiceReadiness}</div>
           </div>,
           placement.commissionStatuses.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
@@ -307,7 +314,7 @@ function OwnerCommissionPage() {
         </div>
       </div>
       <DataTable
-        headers={["Commission", "Status", "Amount", "Fee basis", "Paid at", "Withheld"]}
+        headers={["Commission", "Status", "Amount", "Fee basis", "Agreement", "Paid at", "Withheld"]}
         rows={result.items.map((commission) => [
           <div>
             <strong>{commission.commissionId.slice(0, 8)}</strong>
@@ -317,7 +324,11 @@ function OwnerCommissionPage() {
           renderCommissionAmount(commission.amount, commission.currency, commission.status),
           <div>
             <div>{formatMoney(commission.salaryAmount, commission.currency, "n/a")}</div>
-            <div className="helper-copy">fee {commission.feeRatePercentage ?? "n/a"}%</div>
+            <div className="helper-copy">fee {commission.feeRatePercentage ?? "n/a"}% · expected {formatMoney(commission.expectedFeeAmount, commission.currency, "n/a")}</div>
+          </div>,
+          <div>
+            <div>{commission.feeAgreementReference ?? "n/a"}</div>
+            <div className="helper-copy">{commission.paymentTerms ?? commission.calculationSource ?? "no source"}</div>
           </div>,
           formatDate(commission.paidAt),
           commission.withheldReason ?? "-",
@@ -336,51 +347,72 @@ function OwnerCommissionPage() {
 
 function OwnerRevenuePage() {
   const state = useLoadable(fetchOwnerRevenueSummary, []);
+  const exportState = useLoadable(fetchOwnerAccountingExport, []);
 
   return renderLoadable(state, (summary: OwnerRevenueSummary) => (
-    <section className="portal-panel">
-      <div className="section-header">
-        <div>
-          <span className="portal-eyebrow">Revenue summary</span>
-          <h2>Expected fee, paid fee, invoice and guarantee counts</h2>
+    <>
+      <section className="portal-panel">
+        <div className="section-header">
+          <div>
+            <span className="portal-eyebrow">Revenue summary</span>
+            <h2>Expected fee, paid fee, invoice and guarantee counts</h2>
+          </div>
         </div>
-      </div>
-      {summary.unknownExpectedFeePlacementCount > 0 ? (
-        <p className="helper-copy">
-          {summary.unknownExpectedFeePlacementCount} placement(s) still have pending expected fee data and are excluded from the known expected fee subtotal.
-        </p>
-      ) : null}
-      {summary.paidCommissionMissingAmountCount > 0 ? (
-        <p className="helper-copy">
-          {summary.paidCommissionMissingAmountCount} paid commission(s) are missing amount data and are excluded from the known paid fee subtotal.
-        </p>
-      ) : null}
-      <div className="portal-grid" aria-label="Owner revenue metrics">
-        {[
-          [
-            summary.unknownExpectedFeePlacementCount > 0 ? "Expected fee (known)" : "Expected fee",
-            summary.totalExpectedFee.toLocaleString(),
-          ],
-          [
-            summary.paidCommissionMissingAmountCount > 0 ? "Paid fee (known)" : "Paid fee",
-            summary.totalPaidFee.toLocaleString(),
-          ],
-          ["Placements", String(summary.placementCount)],
-          ["Expected fee pending", String(summary.unknownExpectedFeePlacementCount)],
-          ["Pending commission", String(summary.pendingCommissionCount)],
-          ["Paid commission", String(summary.paidCommissionCount)],
-          ["Paid amount missing", String(summary.paidCommissionMissingAmountCount)],
-          ["Active guarantee", String(summary.activeGuaranteeCount)],
-          ["Replacement required", String(summary.replacementRequiredCount)],
-          ["Invoice in flight", String(summary.invoiceInFlightCount)],
-        ].map(([label, value]) => (
-          <section key={label} className="portal-panel">
-            <span className="portal-eyebrow">{label}</span>
-            <h3>{value}</h3>
-          </section>
-        ))}
-      </div>
-    </section>
+        {summary.unknownExpectedFeePlacementCount > 0 ? (
+          <p className="helper-copy">
+            {summary.unknownExpectedFeePlacementCount} placement(s) still have pending expected fee data and are excluded from the known expected fee subtotal.
+          </p>
+        ) : null}
+        {summary.paidCommissionMissingAmountCount > 0 ? (
+          <p className="helper-copy">
+            {summary.paidCommissionMissingAmountCount} paid commission(s) are missing amount data and are excluded from the known paid fee subtotal.
+          </p>
+        ) : null}
+        <div className="portal-grid" aria-label="Owner revenue metrics">
+          {[
+            [
+              summary.unknownExpectedFeePlacementCount > 0 ? "Expected fee (known)" : "Expected fee",
+              summary.totalExpectedFee.toLocaleString(),
+            ],
+            [
+              summary.paidCommissionMissingAmountCount > 0 ? "Paid fee (known)" : "Paid fee",
+              summary.totalPaidFee.toLocaleString(),
+            ],
+            ["Placements", String(summary.placementCount)],
+            ["Expected fee pending", String(summary.unknownExpectedFeePlacementCount)],
+            ["Pending commission", String(summary.pendingCommissionCount)],
+            ["Paid commission", String(summary.paidCommissionCount)],
+            ["Paid amount missing", String(summary.paidCommissionMissingAmountCount)],
+            ["Invoice ready", String(summary.invoiceReadyCount)],
+            ["Invoice sent", String(summary.invoiceSentCount)],
+            ["Paid placements", String(summary.paidPlacementCount)],
+            ["Active guarantee", String(summary.activeGuaranteeCount)],
+            ["Guarantee completed", String(summary.guaranteeCompletedCount)],
+            ["Replacement required", String(summary.replacementRequiredCount)],
+            ["Invoice in flight", String(summary.invoiceInFlightCount)],
+          ].map(([label, value]) => (
+            <section key={label} className="portal-panel">
+              <span className="portal-eyebrow">{label}</span>
+              <h3>{value}</h3>
+            </section>
+          ))}
+        </div>
+      </section>
+      {renderLoadable(exportState, (accountingExport: OwnerAccountingExport) => (
+        <section className="portal-panel">
+          <div className="section-header">
+            <div>
+              <span className="portal-eyebrow">Accounting handoff</span>
+              <h2>{accountingExport.process}</h2>
+              <p className="helper-copy">{accountingExport.disclaimer}</p>
+            </div>
+            <StatusBadge value={accountingExport.format} />
+          </div>
+          <p className="helper-copy">Generated {formatDate(accountingExport.generatedAt)}</p>
+          <pre className="code-block">{accountingExport.content.split("\n").slice(0, 4).join("\n")}</pre>
+        </section>
+      ))}
+    </>
   ));
 }
 

@@ -7,9 +7,19 @@ import java.math.BigDecimal;
 public record CommissionCalculationDetails(
     BigDecimal salaryAmount,
     BigDecimal feeRatePercentage,
-    BigDecimal expectedFeeAmount) {
+    BigDecimal expectedFeeAmount,
+    String feeAgreementReference,
+    String paymentTerms,
+    String calculationSource) {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  public CommissionCalculationDetails(
+      BigDecimal salaryAmount,
+      BigDecimal feeRatePercentage,
+      BigDecimal expectedFeeAmount) {
+    this(salaryAmount, feeRatePercentage, expectedFeeAmount, null, null, null);
+  }
 
   public String toJson() {
     try {
@@ -21,7 +31,7 @@ public record CommissionCalculationDetails(
 
   public static CommissionCalculationDetails fromJson(String json) {
     if (json == null || json.isBlank()) {
-      return new CommissionCalculationDetails(null, null, null);
+      return new CommissionCalculationDetails(null, null, null, null, null, null);
     }
     try {
       return OBJECT_MAPPER.readValue(json, CommissionCalculationDetails.class);

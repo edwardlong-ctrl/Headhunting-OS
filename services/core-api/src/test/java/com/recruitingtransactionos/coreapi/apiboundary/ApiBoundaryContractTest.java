@@ -391,6 +391,10 @@ class ApiBoundaryContractTest {
             "salaryCurrency",
             "feeRatePercentage",
             "expectedFeeAmount",
+            "feeAgreementActive",
+            "feeAgreementReference",
+            "paymentTerms",
+            "invoiceReadiness",
             "startDate",
             "guaranteeDays",
             "guaranteeExpiresAt",
@@ -439,6 +443,11 @@ class ApiBoundaryContractTest {
             "salaryCurrency",
             "feeRatePercentage",
             "expectedFeeAmount",
+            "feeAgreementActive",
+            "feeAgreementReference",
+            "paymentTerms",
+            "invoiceReadiness",
+            "accountingExportStatus",
             "commissionStatuses",
             "startDate",
             "guaranteeDays",
@@ -465,7 +474,11 @@ class ApiBoundaryContractTest {
             "paidCommissionMissingAmountCount",
             "activeGuaranteeCount",
             "replacementRequiredCount",
-            "invoiceInFlightCount");
+            "invoiceInFlightCount",
+            "invoiceReadyCount",
+            "invoiceSentCount",
+            "paidPlacementCount",
+            "guaranteeCompletedCount");
     for (RecordComponent component : OwnerRevenueSummaryResponse.class.getRecordComponents()) {
       assertThat(ApiBoundaryContractRules.isAllowedOwnerRevenueSummaryResponseField(
           component.getName())).as(component.getName()).isTrue();

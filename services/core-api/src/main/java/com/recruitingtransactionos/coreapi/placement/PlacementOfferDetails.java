@@ -9,9 +9,20 @@ public record PlacementOfferDetails(
     BigDecimal salaryAmount,
     String salaryCurrency,
     BigDecimal feeRatePercentage,
-    String notes) {
+    String notes,
+    Boolean feeAgreementActive,
+    String feeAgreementReference,
+    String paymentTerms) {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  public PlacementOfferDetails(
+      BigDecimal salaryAmount,
+      String salaryCurrency,
+      BigDecimal feeRatePercentage,
+      String notes) {
+    this(salaryAmount, salaryCurrency, feeRatePercentage, notes, false, null, null);
+  }
 
   public String toJson() {
     try {
@@ -39,5 +50,9 @@ public record PlacementOfferDetails(
     return salaryAmount
         .multiply(feeRatePercentage)
         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+  }
+
+  public boolean hasActiveFeeAgreement() {
+    return Boolean.TRUE.equals(feeAgreementActive);
   }
 }

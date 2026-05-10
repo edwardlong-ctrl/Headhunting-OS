@@ -1,8 +1,12 @@
 package com.recruitingtransactionos.coreapi.placement.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.recruitingtransactionos.coreapi.candidateprofile.CandidateId;
@@ -64,5 +68,86 @@ class PlacementWorkflowServiceTest {
 
     assertThat(updated.status()).isEqualTo(PlacementStatus.GUARANTEE_ACTIVE);
     assertThat(updated.guaranteeExpiresAt()).isEqualTo(GUARANTEE_EXPIRES_AT);
+  }
+
+  @Test
+  void markInvoiceReadyRequiresConfirmedFeeAgreementBeforeCreatingCommission() {
+    PlacementService placementService = mock(PlacementService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    WorkflowTransitionAuditService workflowTransitionAuditService = mock(WorkflowTransitionAuditService.class);
+    Placement existing = onboardedPlacement("""
+        {"salaryAmount":120000.00,"salaryCurrency":"USD","feeRatePercentage":25.0,"notes":"offer"}
+        """);
+    when(placementService.findPlacementByIdAndOrganizationId(ORG_ID, PLACEMENT_ID))
+        .thenReturn(Optional.of(existing));
+
+    PlacementWorkflowService service = new PlacementWorkflowService(
+        placementService,
+        mock(JobService.class),
+        mock(CandidateService.class),
+        mock(CompanyService.class),
+        commissionWorkflowService,
+        workflowTransitionAuditService);
+
+    assertThatThrownBy(() -> service.markInvoiceReady(ORG_ID, PLACEMENT_ID, ACTOR_ID, 3))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("fee_agreement_required_for_invoice_ready");
+
+    verify(placementService, never()).updatePlacement(any());
+    verifyNoInteractions(commissionWorkflowService, workflowTransitionAuditService);
+  }
+
+  @Test
+  void markInvoiceReadyAcceptsConfirmedFeeAgreementSnapshotAndCreatesPendingCommission() {
+    PlacementService placementService = mock(PlacementService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    WorkflowTransitionAuditService workflowTransitionAuditService = mock(WorkflowTransitionAuditService.class);
+    Placement existing = onboardedPlacement("""
+        {
+          "salaryAmount":120000.00,
+          "salaryCurrency":"USD",
+          "feeRatePercentage":25.0,
+          "notes":"offer",
+          "feeAgreementActive":true,
+          "feeAgreementReference":"MSA-2026-05",
+          "paymentTerms":"net_30"
+        }
+        """);
+    when(placementService.findPlacementByIdAndOrganizationId(ORG_ID, PLACEMENT_ID))
+        .thenReturn(Optional.of(existing));
+    when(placementService.updatePlacement(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    PlacementWorkflowService service = new PlacementWorkflowService(
+        placementService,
+        mock(JobService.class),
+        mock(CandidateService.class),
+        mock(CompanyService.class),
+        commissionWorkflowService,
+        workflowTransitionAuditService);
+
+    Placement updated = service.markInvoiceReady(ORG_ID, PLACEMENT_ID, ACTOR_ID, 3);
+
+    assertThat(updated.status()).isEqualTo(PlacementStatus.INVOICE_READY);
+    verify(commissionWorkflowService).ensurePendingCommissionForPlacement(updated, ACTOR_ID);
+  }
+
+  private static Placement onboardedPlacement(String offerDetails) {
+    return Placement.builder()
+        .placementId(PLACEMENT_ID)
+        .organizationId(ORG_ID)
+        .jobId(new JobId(UUID.fromString("00000000-0000-0000-0000-00000000a104")))
+        .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-00000000a105")))
+        .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-00000000a106")))
+        .status(PlacementStatus.ONBOARDED)
+        .offerDetails(offerDetails)
+        .offerAcceptedAt(Instant.parse("2026-05-01T00:00:00Z"))
+        .startDate(START_DATE)
+        .onboardedAt(Instant.parse("2026-05-02T00:00:00Z"))
+        .guaranteeDays(90)
+        .guaranteeExpiresAt(GUARANTEE_EXPIRES_AT)
+        .createdAt(Instant.parse("2026-05-01T00:00:00Z"))
+        .updatedAt(Instant.parse("2026-05-10T00:00:00Z"))
+        .version(3)
+        .build();
   }
 }

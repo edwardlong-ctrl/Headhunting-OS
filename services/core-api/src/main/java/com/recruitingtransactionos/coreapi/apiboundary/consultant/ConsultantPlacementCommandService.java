@@ -65,7 +65,10 @@ public final class ConsultantPlacementCommandService {
         request.feeRatePercentage(),
         request.startDate(),
         request.guaranteeDays(),
-        request.notes()));
+        request.notes(),
+        request.feeAgreementActive(),
+        request.feeAgreementReference(),
+        request.paymentTerms()));
     return mapPlacement(placement);
   }
 

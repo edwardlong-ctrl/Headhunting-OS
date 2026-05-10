@@ -9,6 +9,7 @@ const {
   listOwnerPlacementsMock,
   listOwnerCommissionMock,
   fetchOwnerRevenueSummaryMock,
+  fetchOwnerAccountingExportMock,
   loadOwnerSessionMock,
   signOutOwnerSessionMock,
   loginMock,
@@ -18,6 +19,7 @@ const {
   listOwnerPlacementsMock: vi.fn(),
   listOwnerCommissionMock: vi.fn(),
   fetchOwnerRevenueSummaryMock: vi.fn(),
+  fetchOwnerAccountingExportMock: vi.fn(),
   loadOwnerSessionMock: vi.fn(),
   signOutOwnerSessionMock: vi.fn(),
   loginMock: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock("../../api/ownerPlacements", () => ({
 
 vi.mock("../../api/ownerRevenue", () => ({
   fetchOwnerRevenueSummary: fetchOwnerRevenueSummaryMock,
+  fetchOwnerAccountingExport: fetchOwnerAccountingExportMock,
 }));
 
 vi.mock("../../api/auth", () => ({
@@ -83,6 +86,20 @@ describe("OwnerPortal placements page", () => {
         activeGuaranteeCount: 0,
         replacementRequiredCount: 0,
         invoiceInFlightCount: 0,
+        invoiceReadyCount: 0,
+        invoiceSentCount: 0,
+        paidPlacementCount: 0,
+        guaranteeCompletedCount: 0,
+      },
+    });
+    fetchOwnerAccountingExportMock.mockResolvedValue({
+      status: "ready",
+      data: {
+        format: "csv",
+        process: "read_only_accounting_handoff",
+        disclaimer: "This export does not replace the official accounting system.",
+        generatedAt: "2026-05-10T00:00:00Z",
+        content: "placement_id,status\n",
       },
     });
     signOutOwnerSessionMock.mockResolvedValue({
@@ -133,6 +150,11 @@ describe("OwnerPortal placements page", () => {
             salaryCurrency: "USD",
             feeRatePercentage: 0,
             expectedFeeAmount: 0,
+            feeAgreementActive: true,
+            feeAgreementReference: "MSA-2026-05",
+            paymentTerms: "net_30",
+            invoiceReadiness: "invoice_sent",
+            accountingExportStatus: "ready_for_accounting_export",
             commissionStatuses: [],
             startDate: "2026-05-01",
             guaranteeDays: 90,
@@ -168,6 +190,11 @@ describe("OwnerPortal placements page", () => {
             salaryCurrency: "USD",
             feeRatePercentage: 25,
             expectedFeeAmount: 25000,
+            feeAgreementActive: true,
+            feeAgreementReference: "MSA-2026-05",
+            paymentTerms: "net_30",
+            invoiceReadiness: "invoice_sent",
+            accountingExportStatus: "ready_for_accounting_export",
             commissionStatuses: ["pending", "paid"],
             startDate: "2026-05-01",
             guaranteeDays: 90,
@@ -185,6 +212,11 @@ describe("OwnerPortal placements page", () => {
             salaryCurrency: "USD",
             feeRatePercentage: 20,
             expectedFeeAmount: null,
+            feeAgreementActive: false,
+            feeAgreementReference: null,
+            paymentTerms: null,
+            invoiceReadiness: "not_ready",
+            accountingExportStatus: "blocked_fee_agreement_required",
             commissionStatuses: [],
             startDate: null,
             guaranteeDays: null,
@@ -229,6 +261,10 @@ describe("OwnerPortal placements page", () => {
             splitPercentage: null,
             salaryAmount: 120000,
             feeRatePercentage: 20,
+            expectedFeeAmount: 24000,
+            feeAgreementReference: "MSA-2026-05",
+            paymentTerms: "net_30",
+            calculationSource: "placement_fee_agreement_snapshot",
             paidAt: "2026-05-02T00:00:00Z",
             withheldReason: null,
             createdAt: "2026-05-01T00:00:00Z",
@@ -267,6 +303,10 @@ describe("OwnerPortal placements page", () => {
         activeGuaranteeCount: 0,
         replacementRequiredCount: 0,
         invoiceInFlightCount: 1,
+        invoiceReadyCount: 1,
+        invoiceSentCount: 0,
+        paidPlacementCount: 0,
+        guaranteeCompletedCount: 0,
       },
     });
 
@@ -296,6 +336,10 @@ describe("OwnerPortal placements page", () => {
         activeGuaranteeCount: 0,
         replacementRequiredCount: 0,
         invoiceInFlightCount: 1,
+        invoiceReadyCount: 0,
+        invoiceSentCount: 1,
+        paidPlacementCount: 0,
+        guaranteeCompletedCount: 0,
       },
     });
 
@@ -304,5 +348,47 @@ describe("OwnerPortal placements page", () => {
     expect(container.textContent).toContain("Paid fee (known)");
     expect(container.textContent).toContain("Paid amount missing");
     expect(container.textContent).toContain("excluded from the known paid fee subtotal");
+  });
+
+  it("renders the accounting export as a read-only handoff", async () => {
+    listOwnerPlacementsMock.mockResolvedValue({
+      status: "ready",
+      data: { items: [], totalCount: 0, limit: 10, offset: 0, hasMore: false },
+    });
+    fetchOwnerRevenueSummaryMock.mockResolvedValue({
+      status: "ready",
+      data: {
+        totalExpectedFee: 30000,
+        totalPaidFee: 0,
+        placementCount: 1,
+        unknownExpectedFeePlacementCount: 0,
+        pendingCommissionCount: 1,
+        paidCommissionCount: 0,
+        paidCommissionMissingAmountCount: 0,
+        activeGuaranteeCount: 0,
+        replacementRequiredCount: 0,
+        invoiceInFlightCount: 1,
+        invoiceReadyCount: 0,
+        invoiceSentCount: 1,
+        paidPlacementCount: 0,
+        guaranteeCompletedCount: 0,
+      },
+    });
+    fetchOwnerAccountingExportMock.mockResolvedValue({
+      status: "ready",
+      data: {
+        format: "csv",
+        process: "read_only_accounting_handoff",
+        disclaimer: "This export does not replace the official accounting system.",
+        generatedAt: "2026-05-10T00:00:00Z",
+        content: "placement_id,status,invoice_readiness\nplacement-1,invoice_sent,invoice_sent\n",
+      },
+    });
+
+    await renderOwnerRoute("/owner/revenue");
+
+    expect(container.textContent).toContain("read_only_accounting_handoff");
+    expect(container.textContent).toContain("does not replace the official accounting system");
+    expect(container.textContent).toContain("placement_id,status,invoice_readiness");
   });
 });

@@ -19,7 +19,10 @@ public record PlacementCreateCommand(
     BigDecimal feeRatePercentage,
     LocalDate startDate,
     Integer guaranteeDays,
-    String notes) {
+    String notes,
+    Boolean feeAgreementActive,
+    String feeAgreementReference,
+    String paymentTerms) {
 
   public PlacementCreateCommand {
     Objects.requireNonNull(organizationId, "organizationId must not be null");

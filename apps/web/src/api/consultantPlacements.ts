@@ -11,6 +11,10 @@ export type ConsultantPlacement = {
   salaryCurrency: string | null;
   feeRatePercentage: number | null;
   expectedFeeAmount: number | null;
+  feeAgreementActive: boolean;
+  feeAgreementReference: string | null;
+  paymentTerms: string | null;
+  invoiceReadiness: string;
   startDate: string | null;
   guaranteeDays: number | null;
   guaranteeExpiresAt: string | null;
@@ -31,6 +35,9 @@ export type ConsultantPlacementCreatePayload = {
   startDate?: string | null;
   guaranteeDays?: number | null;
   notes?: string | null;
+  feeAgreementActive?: boolean | null;
+  feeAgreementReference?: string | null;
+  paymentTerms?: string | null;
 };
 
 export type ConsultantVersionedCommandPayload = {

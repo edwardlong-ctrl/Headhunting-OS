@@ -3071,6 +3071,9 @@ function PlacementsPage() {
   const [feeRatePercentage, setFeeRatePercentage] = useState("");
   const [startDate, setStartDate] = useState("");
   const [guaranteeDays, setGuaranteeDays] = useState("");
+  const [feeAgreementActive, setFeeAgreementActive] = useState(false);
+  const [feeAgreementReference, setFeeAgreementReference] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -3093,6 +3096,9 @@ function PlacementsPage() {
       feeRatePercentage: feeRatePercentage.trim() ? Number(feeRatePercentage) : null,
       startDate: emptyToNull(startDate),
       guaranteeDays: guaranteeDays.trim() ? Number(guaranteeDays) : null,
+      feeAgreementActive,
+      feeAgreementReference: emptyToNull(feeAgreementReference),
+      paymentTerms: emptyToNull(paymentTerms),
       notes: emptyToNull(notes),
     });
     setSubmitting(false);
@@ -3108,6 +3114,9 @@ function PlacementsPage() {
     setFeeRatePercentage("");
     setStartDate("");
     setGuaranteeDays("");
+    setFeeAgreementActive(false);
+    setFeeAgreementReference("");
+    setPaymentTerms("");
     setNotes("");
     setFeedback("Placement recorded.");
     setRefreshKey((value) => value + 1);
@@ -3234,7 +3243,19 @@ function PlacementsPage() {
               <span>Guarantee days</span>
               <input value={guaranteeDays} onChange={(event) => setGuaranteeDays(event.target.value)} placeholder="90" />
             </label>
+            <label>
+              <span>Fee agreement ref</span>
+              <input value={feeAgreementReference} onChange={(event) => setFeeAgreementReference(event.target.value)} placeholder="MSA-2026-05" />
+            </label>
+            <label>
+              <span>Payment terms</span>
+              <input value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} placeholder="net_30" />
+            </label>
           </div>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={feeAgreementActive} onChange={(event) => setFeeAgreementActive(event.target.checked)} />
+            <span>Confirmed fee agreement active</span>
+          </label>
           <label>
             <span>Notes</span>
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Offer notes or commission basis" rows={3} />
@@ -3253,7 +3274,7 @@ function PlacementsPage() {
             <PaginationSummary totalCount={result.totalCount} limit={result.limit} offset={result.offset} />
           </ListToolbar>
           <DataTable
-            headers={["Placement", "Status", "Offer", "Start", "Guarantee", "Expected fee", "Action"]}
+            headers={["Placement", "Status", "Offer", "Fee agreement", "Guarantee", "Expected fee", "Action"]}
             rows={result.items.map((placement) => [
               <div>
                 <strong>{placement.placementId.slice(0, 8)}</strong>
@@ -3264,10 +3285,13 @@ function PlacementsPage() {
                 <div>{formatOptionalMoney(placement.salaryAmount, placement.salaryCurrency, "Not set")}</div>
                 <div className="helper-copy">fee {placement.feeRatePercentage ?? "n/a"}%</div>
               </div>,
-              placement.startDate ? formatDate(placement.startDate) : "TBD",
+              <div>
+                <StatusBadge value={placement.feeAgreementActive ? "active" : "missing"} />
+                <div className="helper-copy">{placement.feeAgreementReference ?? placement.paymentTerms ?? placement.invoiceReadiness}</div>
+              </div>,
               <div>
                 <div>{placement.guaranteeDays ? `${placement.guaranteeDays} days` : "None"}</div>
-                <div className="helper-copy">{placement.guaranteeExpiresAt ? `expires ${formatDate(placement.guaranteeExpiresAt)}` : "not started"}</div>
+                <div className="helper-copy">{placement.guaranteeExpiresAt ? `expires ${formatDate(placement.guaranteeExpiresAt)}` : placement.startDate ? `starts ${formatDate(placement.startDate)}` : "not started"}</div>
               </div>,
               formatOptionalMoney(placement.expectedFeeAmount, placement.salaryCurrency),
               placementActions(placement),

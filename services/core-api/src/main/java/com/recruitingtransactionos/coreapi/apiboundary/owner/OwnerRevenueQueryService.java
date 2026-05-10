@@ -1,9 +1,11 @@
 package com.recruitingtransactionos.coreapi.apiboundary.owner;
 
+import com.recruitingtransactionos.coreapi.apiboundary.OwnerAccountingExportResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.OwnerRevenueSummaryResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.placementsupport.PlacementApiViewMapper;
 import com.recruitingtransactionos.coreapi.commission.Commission;
 import com.recruitingtransactionos.coreapi.commission.CommissionStatus;
+import com.recruitingtransactionos.coreapi.placement.PlacementOfferDetails;
 import com.recruitingtransactionos.coreapi.commission.service.CommissionWorkflowService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDeniedException;
@@ -72,7 +74,11 @@ public final class OwnerRevenueQueryService {
         .filter(commission -> commission.amount() == null)
         .count();
     int activeGuaranteeCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.GUARANTEE_ACTIVE).count();
+    int guaranteeCompletedCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.GUARANTEE_COMPLETED).count();
     int replacementRequiredCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.REPLACEMENT_REQUIRED).count();
+    int invoiceReadyCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.INVOICE_READY).count();
+    int invoiceSentCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.INVOICE_SENT).count();
+    int paidPlacementCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.PAID).count();
     int invoiceInFlightCount = (int) placements.stream().filter(placement -> placement.status() == PlacementStatus.INVOICE_READY || placement.status() == PlacementStatus.INVOICE_SENT).count();
     int paidCommissionCount = paidCommissions.size();
     int pendingCommissionCount = (int) commissions.stream().filter(commission -> commission.status() == CommissionStatus.PENDING || commission.status() == CommissionStatus.CALCULATED).count();
@@ -86,7 +92,50 @@ public final class OwnerRevenueQueryService {
         paidCommissionMissingAmountCount,
         activeGuaranteeCount,
         replacementRequiredCount,
-        invoiceInFlightCount);
+        invoiceInFlightCount,
+        invoiceReadyCount,
+        invoiceSentCount,
+        paidPlacementCount,
+        guaranteeCompletedCount);
+  }
+
+  public OwnerAccountingExportResponse exportAccountingHandoff(
+      AccessRequest accessRequest,
+      java.util.UUID organizationId) {
+    requireRevenueRead(accessRequest);
+    List<Placement> placements = placementWorkflowService.listPlacements(organizationId);
+    List<Commission> commissions = commissionWorkflowService.listCommissions(organizationId);
+    Map<PlacementId, List<Commission>> commissionsByPlacement = commissions.stream()
+        .collect(Collectors.groupingBy(Commission::placementId));
+    StringBuilder csv = new StringBuilder();
+    csv.append("placement_id,status,invoice_readiness,fee_agreement_active,fee_agreement_reference,")
+        .append("payment_terms,expected_fee_amount,currency,commission_statuses,known_commission_amount,")
+        .append("guarantee_expires_at,accounting_export_status\n");
+    placements.stream()
+        .filter(OwnerRevenueQueryService::isAccountingExportCandidate)
+        .forEach(placement -> {
+          PlacementOfferDetails offerDetails = PlacementOfferDetails.fromJson(placement.offerDetails());
+          List<Commission> relatedCommissions = commissionsByPlacement.getOrDefault(placement.placementId(), List.of());
+          csv.append(csv(placement.placementId().value().toString())).append(',')
+              .append(csv(placement.status().wireValue())).append(',')
+              .append(csv(PlacementApiViewMapper.invoiceReadiness(placement))).append(',')
+              .append(csv(String.valueOf(offerDetails.hasActiveFeeAgreement()))).append(',')
+              .append(csv(offerDetails.feeAgreementReference())).append(',')
+              .append(csv(offerDetails.paymentTerms())).append(',')
+              .append(csv(stringValue(expectedFeeAmount(placement, commissionsByPlacement)))).append(',')
+              .append(csv(offerDetails.salaryCurrency())).append(',')
+              .append(csv(String.join("|", PlacementApiViewMapper.commissionStatuses(relatedCommissions)))).append(',')
+              .append(csv(stringValue(knownCommissionAmount(relatedCommissions)))).append(',')
+              .append(csv(placement.guaranteeExpiresAt() == null ? null : placement.guaranteeExpiresAt().toString())).append(',')
+              .append(csv(PlacementApiViewMapper.accountingExportStatus(placement, offerDetails)))
+              .append('\n');
+        });
+    return new OwnerAccountingExportResponse(
+        "csv",
+        "read_only_accounting_handoff",
+        "This export is an auditable operating handoff and does not replace the official accounting system.",
+        java.time.Instant.now().toString(),
+        csv.toString());
   }
 
   private static BigDecimal expectedFeeAmount(
@@ -95,6 +144,32 @@ public final class OwnerRevenueQueryService {
     return PlacementApiViewMapper.expectedFeeAmount(
         placement,
         commissionsByPlacement.getOrDefault(placement.placementId(), List.of()));
+  }
+
+  private static boolean isAccountingExportCandidate(Placement placement) {
+    return switch (placement.status()) {
+      case INVOICE_READY, INVOICE_SENT, PAID, GUARANTEE_ACTIVE, GUARANTEE_COMPLETED,
+          REPLACEMENT_REQUIRED -> true;
+      default -> false;
+    };
+  }
+
+  private static BigDecimal knownCommissionAmount(List<Commission> commissions) {
+    return commissions.stream()
+        .map(Commission::amount)
+        .filter(Objects::nonNull)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private static String stringValue(BigDecimal value) {
+    return value == null ? "" : value.toPlainString();
+  }
+
+  private static String csv(String value) {
+    if (value == null) {
+      return "";
+    }
+    return "\"" + value.replace("\"", "\"\"") + "\"";
   }
 
   private void requireRevenueRead(AccessRequest accessRequest) {

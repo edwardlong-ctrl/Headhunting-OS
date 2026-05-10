@@ -70,7 +70,10 @@ public class CommissionWorkflowService {
             .calculationDetails(new CommissionCalculationDetails(
                 command.salaryAmount(),
                 command.feeRatePercentage(),
-                command.amount()).toJson())
+                command.amount(),
+                command.feeAgreementReference(),
+                command.paymentTerms(),
+                command.calculationSource() == null ? "manual_commission_command" : command.calculationSource()).toJson())
             .metadata("{}")
             .createdAt(now)
             .updatedAt(now)
@@ -108,7 +111,10 @@ public class CommissionWorkflowService {
         offerDetails.salaryCurrency(),
         null,
         offerDetails.salaryAmount(),
-        offerDetails.feeRatePercentage()));
+        offerDetails.feeRatePercentage(),
+        offerDetails.feeAgreementReference(),
+        offerDetails.paymentTerms(),
+        "placement_fee_agreement_snapshot"));
   }
 
   @Transactional

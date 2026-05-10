@@ -10,6 +10,11 @@ export type OwnerPlacement = {
   salaryCurrency: string | null;
   feeRatePercentage: number | null;
   expectedFeeAmount: number | null;
+  feeAgreementActive: boolean;
+  feeAgreementReference: string | null;
+  paymentTerms: string | null;
+  invoiceReadiness: string;
+  accountingExportStatus: string;
   commissionStatuses: string[];
   startDate: string | null;
   guaranteeDays: number | null;
@@ -29,6 +34,10 @@ export type OwnerCommission = {
   splitPercentage: number | null;
   salaryAmount: number | null;
   feeRatePercentage: number | null;
+  expectedFeeAmount: number | null;
+  feeAgreementReference: string | null;
+  paymentTerms: string | null;
+  calculationSource: string | null;
   paidAt: string | null;
   withheldReason: string | null;
   createdAt: string;

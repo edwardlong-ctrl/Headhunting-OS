@@ -40,6 +40,13 @@ public final class OwnerRevenueController {
     return ResponseEntity.ok(ApiResponseEnvelope.success(queryService.load(revenueReadAccessRequest(), principal.organizationId())));
   }
 
+  @GetMapping("/accounting-export")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> exportAccountingHandoff(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal) {
+    requireOwnerRole(principal.portalRole());
+    return ResponseEntity.ok(ApiResponseEnvelope.success(queryService.exportAccountingHandoff(revenueReadAccessRequest(), principal.organizationId())));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessDenied(AccessDeniedException exception) {
     return ResponseEntity.status(HttpStatus.FORBIDDEN)

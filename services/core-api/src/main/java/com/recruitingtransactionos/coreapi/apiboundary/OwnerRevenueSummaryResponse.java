@@ -12,4 +12,8 @@ public record OwnerRevenueSummaryResponse(
     int paidCommissionMissingAmountCount,
     int activeGuaranteeCount,
     int replacementRequiredCount,
-    int invoiceInFlightCount) implements ApiSafeResponseBody {}
+    int invoiceInFlightCount,
+    int invoiceReadyCount,
+    int invoiceSentCount,
+    int paidPlacementCount,
+    int guaranteeCompletedCount) implements ApiSafeResponseBody {}

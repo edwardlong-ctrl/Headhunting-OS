@@ -12,4 +12,7 @@ public record ConsultantPlacementCreateRequest(
     BigDecimal feeRatePercentage,
     LocalDate startDate,
     Integer guaranteeDays,
-    String notes) {}
+    String notes,
+    Boolean feeAgreementActive,
+    String feeAgreementReference,
+    String paymentTerms) {}

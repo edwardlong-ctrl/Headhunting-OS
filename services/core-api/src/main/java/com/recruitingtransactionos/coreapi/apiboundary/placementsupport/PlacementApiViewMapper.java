@@ -30,6 +30,10 @@ public final class PlacementApiViewMapper {
         offerDetails.salaryCurrency(),
         offerDetails.feeRatePercentage(),
         expectedFeeAmount(placement, commissions),
+        offerDetails.hasActiveFeeAgreement(),
+        offerDetails.feeAgreementReference(),
+        offerDetails.paymentTerms(),
+        invoiceReadiness(placement),
         placement.startDate(),
         placement.guaranteeDays(),
         placement.guaranteeExpiresAt(),
@@ -54,6 +58,11 @@ public final class PlacementApiViewMapper {
         offerDetails.salaryCurrency(),
         offerDetails.feeRatePercentage(),
         expectedFeeAmount(placement, commissions),
+        offerDetails.hasActiveFeeAgreement(),
+        offerDetails.feeAgreementReference(),
+        offerDetails.paymentTerms(),
+        invoiceReadiness(placement),
+        accountingExportStatus(placement, offerDetails),
         commissionStatuses(commissions),
         placement.startDate(),
         placement.guaranteeDays(),
@@ -93,5 +102,27 @@ public final class PlacementApiViewMapper {
         .filter(status -> relatedCommissions.stream().anyMatch(commission -> commission.status() == status))
         .map(CommissionStatus::wireValue)
         .toList();
+  }
+
+  public static String invoiceReadiness(Placement placement) {
+    return switch (placement.status()) {
+      case INVOICE_READY -> "invoice_ready";
+      case INVOICE_SENT -> "invoice_sent";
+      case PAID, GUARANTEE_ACTIVE, GUARANTEE_COMPLETED, REPLACEMENT_REQUIRED -> "invoice_paid";
+      default -> "not_ready";
+    };
+  }
+
+  public static String accountingExportStatus(
+      Placement placement,
+      PlacementOfferDetails offerDetails) {
+    if (!offerDetails.hasActiveFeeAgreement()) {
+      return "blocked_fee_agreement_required";
+    }
+    return switch (placement.status()) {
+      case INVOICE_READY, INVOICE_SENT, PAID, GUARANTEE_ACTIVE, GUARANTEE_COMPLETED,
+          REPLACEMENT_REQUIRED -> "ready_for_accounting_export";
+      default -> "not_ready_for_accounting_export";
+    };
   }
 }

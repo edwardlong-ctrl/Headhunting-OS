@@ -76,6 +76,11 @@ class OwnerPlacementQueryServiceTest {
 
     assertThat(response.items()).hasSize(1);
     assertThat(response.items().getFirst().expectedFeeAmount()).isEqualByComparingTo("24000.00");
+    assertThat(response.items().getFirst().feeAgreementActive()).isTrue();
+    assertThat(response.items().getFirst().feeAgreementReference()).isEqualTo("MSA-2026-05");
+    assertThat(response.items().getFirst().paymentTerms()).isEqualTo("net_30");
+    assertThat(response.items().getFirst().invoiceReadiness()).isEqualTo("invoice_sent");
+    assertThat(response.items().getFirst().accountingExportStatus()).isEqualTo("ready_for_accounting_export");
     assertThat(response.items().getFirst().commissionStatuses())
         .containsExactly("pending", "calculated", "paid");
   }
@@ -204,7 +209,10 @@ class OwnerPlacementQueryServiceTest {
             new BigDecimal(salaryAmount),
             "USD",
             new BigDecimal(feeRatePercentage),
-            "offer").toJson())
+            "offer",
+            true,
+            "MSA-2026-05",
+            "net_30").toJson())
         .startDate(LocalDate.parse("2026-05-01"))
         .guaranteeDays(90)
         .guaranteeExpiresAt(LocalDate.parse("2026-07-30"))

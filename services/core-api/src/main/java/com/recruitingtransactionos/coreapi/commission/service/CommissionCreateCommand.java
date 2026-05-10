@@ -16,7 +16,37 @@ public record CommissionCreateCommand(
     String currency,
     BigDecimal splitPercentage,
     BigDecimal salaryAmount,
-    BigDecimal feeRatePercentage) {
+    BigDecimal feeRatePercentage,
+    String feeAgreementReference,
+    String paymentTerms,
+    String calculationSource) {
+
+  public CommissionCreateCommand(
+      UUID organizationId,
+      PlacementId placementId,
+      UUID consultantId,
+      UUID actorId,
+      CommissionType commissionType,
+      BigDecimal amount,
+      String currency,
+      BigDecimal splitPercentage,
+      BigDecimal salaryAmount,
+      BigDecimal feeRatePercentage) {
+    this(
+        organizationId,
+        placementId,
+        consultantId,
+        actorId,
+        commissionType,
+        amount,
+        currency,
+        splitPercentage,
+        salaryAmount,
+        feeRatePercentage,
+        null,
+        null,
+        null);
+  }
 
   public CommissionCreateCommand {
     Objects.requireNonNull(organizationId, "organizationId must not be null");
