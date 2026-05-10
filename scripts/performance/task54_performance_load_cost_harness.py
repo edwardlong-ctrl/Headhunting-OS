@@ -124,7 +124,8 @@ AI_BUDGETS = [
 
 def main() -> int:
     print("Task 54 deterministic performance/load/cost harness")
-    print("Mode: local deterministic model; no production performance claim")
+    print("Evidence source: deterministic capacity model; no live API/browser/provider calls")
+    print("Mode: bounded local harness; no production performance claim")
     print("")
     failures = 0
     for envelope in LATENCY_ENVELOPES:

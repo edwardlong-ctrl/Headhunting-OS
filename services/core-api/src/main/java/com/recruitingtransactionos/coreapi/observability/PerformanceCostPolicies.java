@@ -1,9 +1,12 @@
 package com.recruitingtransactionos.coreapi.observability;
 
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunRecord;
+import com.recruitingtransactionos.coreapi.truthlayer.port.AITaskRunStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -172,6 +175,7 @@ record AITaskCostBudget(
 
 record AITaskCostObservation(
     String taskKey,
+    long sampleSize,
     Duration p95Latency,
     BigDecimal averageCostUnitsPerRun,
     long projectedMonthlyRuns) {
@@ -180,14 +184,63 @@ record AITaskCostObservation(
     if (taskKey == null || taskKey.isBlank()) {
       throw new IllegalArgumentException("taskKey must not be blank");
     }
-    Objects.requireNonNull(p95Latency, "p95Latency must not be null");
-    if (p95Latency.isNegative()) {
+    if (sampleSize < 0) {
+      throw new IllegalArgumentException("sampleSize must not be negative");
+    }
+    if (p95Latency != null && p95Latency.isNegative()) {
       throw new IllegalArgumentException("p95Latency must not be negative");
     }
-    averageCostUnitsPerRun = BudgetNumbers.normalizeNonNegative(averageCostUnitsPerRun, "averageCostUnitsPerRun");
+    averageCostUnitsPerRun = averageCostUnitsPerRun == null
+        ? null
+        : BudgetNumbers.normalizeNonNegative(averageCostUnitsPerRun, "averageCostUnitsPerRun");
     if (projectedMonthlyRuns < 0) {
       throw new IllegalArgumentException("projectedMonthlyRuns must not be negative");
     }
+  }
+
+  static AITaskCostObservation fromCompletedRuns(
+      String taskKey,
+      long projectedMonthlyRuns,
+      List<AITaskRunRecord> records) {
+    if (taskKey == null || taskKey.isBlank()) {
+      throw new IllegalArgumentException("taskKey must not be blank");
+    }
+    Objects.requireNonNull(records, "records must not be null");
+    if (projectedMonthlyRuns < 0) {
+      throw new IllegalArgumentException("projectedMonthlyRuns must not be negative");
+    }
+    List<AITaskRunRecord> completedRuns = records.stream()
+        .filter(record -> taskKey.equals(record.taskName()))
+        .filter(record -> record.status() == AITaskRunStatus.SUCCEEDED)
+        .filter(record -> record.completedAt() != null)
+        .filter(record -> record.costUnits() != null)
+        .toList();
+    if (completedRuns.isEmpty()) {
+      return new AITaskCostObservation(taskKey, 0, null, null, projectedMonthlyRuns);
+    }
+
+    List<Duration> latencies = completedRuns.stream()
+        .map(record -> Duration.between(record.startedAt(), record.completedAt()))
+        .sorted(Comparator.naturalOrder())
+        .toList();
+    Duration p95Latency = latencies.get(nearestRankIndex(latencies.size(), 0.95d));
+    BigDecimal totalCost = completedRuns.stream()
+        .map(AITaskRunRecord::costUnits)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal averageCost = totalCost.divide(
+        BigDecimal.valueOf(completedRuns.size()),
+        6,
+        RoundingMode.HALF_UP);
+    return new AITaskCostObservation(
+        taskKey,
+        completedRuns.size(),
+        p95Latency,
+        averageCost,
+        projectedMonthlyRuns);
+  }
+
+  private static int nearestRankIndex(int sampleSize, double percentile) {
+    return Math.max(0, (int) Math.ceil(sampleSize * percentile) - 1);
   }
 }
 
@@ -195,7 +248,8 @@ enum CostAlertSeverity {
   OK,
   WATCH,
   WARNING,
-  CRITICAL
+  CRITICAL,
+  EVIDENCE_MISSING
 }
 
 record AITaskCostAlertDecision(
@@ -227,6 +281,16 @@ final class AITaskCostAlertPolicy {
           List.of("ai_task_budget_target_mismatch"),
           BigDecimal.ZERO.setScale(6, RoundingMode.HALF_UP),
           "Check cost alert wiring because the observed task does not match the configured budget.");
+    }
+    if (observation.sampleSize() <= 0
+        || observation.p95Latency() == null
+        || observation.averageCostUnitsPerRun() == null) {
+      return new AITaskCostAlertDecision(
+          CostAlertSeverity.EVIDENCE_MISSING,
+          List.of("ai_task_cost_evidence_missing"),
+          BigDecimal.ZERO.setScale(6, RoundingMode.HALF_UP),
+          "Run completed AI task run evidence for " + budget.taskKey()
+              + " before claiming its latency/cost budget is within target.");
     }
 
     BigDecimal projectedMonthlyCost = observation.averageCostUnitsPerRun()
@@ -273,6 +337,8 @@ final class AITaskCostAlertPolicy {
       case WARNING -> "Review " + taskKey + " prompt/model route and rerun the Task 54 cost harness.";
       case CRITICAL -> "For " + taskKey
           + ", pause replay/batch expansion, review provider pricing/model route, and rerun the Task 54 cost harness.";
+      case EVIDENCE_MISSING -> "Run completed AI task run evidence for " + taskKey
+          + " before claiming its latency/cost budget is within target.";
     };
   }
 }

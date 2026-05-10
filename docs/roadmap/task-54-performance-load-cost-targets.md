@@ -49,7 +49,9 @@ not dollars.
 ## Alert Rules
 
 The backend policy in `PerformanceCostPolicies` classifies deterministic budget
-evidence without adding wall-clock tests:
+evidence without adding wall-clock tests. AI cost observations can be built from
+completed `AITaskRunRecord` rows, so missing or incomplete task-run evidence does
+not silently pass:
 
 - `OK`: measured/model evidence is within target.
 - `WATCH`: projected monthly AI task cost reaches at least 80 percent of the
@@ -58,7 +60,8 @@ evidence without adding wall-clock tests:
   maximum.
 - `CRITICAL`: latency exceeds maximum, cost per run exceeds maximum, projected
   monthly cost exceeds budget, or the observation is wired to the wrong task.
-- `EVIDENCE_MISSING`: production-sized evidence cannot pass by assumption.
+- `EVIDENCE_MISSING`: production-sized or completed AI-task-run evidence cannot
+  pass by assumption.
 
 Critical cost alerts are actionable: pause replay or batch expansion, review
 provider pricing and model routing, then rerun the Task 54 harness.
@@ -68,26 +71,29 @@ provider pricing and model routing, then rerun the Task 54 harness.
 Script:
 
 ```bash
-rtk scripts/performance/task54_performance_load_cost_harness.py
+rtk python3 scripts/performance/task54_performance_load_cost_harness.py
 ```
 
 The harness is deterministic and bounded. It models the documented workloads
 and exits non-zero if any target requires action, except `WATCH`, which remains
 successful but must be reviewed before batch expansion.
 
-## Measured Local Evidence
+## Local Harness Evidence
 
 Command:
 
 ```bash
-rtk scripts/performance/task54_performance_load_cost_harness.py
+rtk python3 scripts/performance/task54_performance_load_cost_harness.py
 ```
 
-Output recorded on 2026-05-10:
+Output recorded on 2026-05-10. This is deterministic capacity-model evidence,
+not a live API/browser/provider timing run and not a production performance
+claim:
 
 ```text
 Task 54 deterministic performance/load/cost harness
-Mode: local deterministic model; no production performance claim
+Evidence source: deterministic capacity model; no live API/browser/provider calls
+Mode: bounded local harness; no production performance claim
 
 PASS latency consultant-api-read tier=pilot samples=500 p95_ms=269/300 p99_ms=281/750 throughput_per_min=900/600 reasons=-
 PASS latency consultant-api-read tier=expected_production samples=20000 p95_ms=442/500 p99_ms=458/1200 throughput_per_min=6200/5000 reasons=-
