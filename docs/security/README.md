@@ -12,4 +12,10 @@ Controlled-pilot security hardening baselines:
 docs/security/task-41-security-privacy-hardening-v1.md
 ```
 
-This directory is reserved for future threat models, access-control reviews, privacy reviews, and data-retention policies.
+Production compliance baselines:
+
+```text
+docs/security/task-52-production-security-compliance-baseline.md
+```
+
+This directory is reserved for threat models, access-control reviews, privacy reviews, data-retention policies, key/secret rotation runbooks, vulnerability remediation evidence, and pen-test issue tracking.
