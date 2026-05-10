@@ -21,6 +21,7 @@ class DeploymentArtifactsContractTest {
     assertThat(REPO_ROOT.resolve("infra/deployment/migration-runbook.md")).exists();
     assertThat(REPO_ROOT.resolve("infra/deployment/rollback-runbook.md")).exists();
     assertThat(REPO_ROOT.resolve("infra/deployment/backup-restore-runbook.md")).exists();
+    assertThat(REPO_ROOT.resolve("infra/deployment/task-53-disaster-recovery-business-continuity.md")).exists();
     assertThat(REPO_ROOT.resolve("infra/deployment/staging-smoke-test.md")).exists();
   }
 
@@ -107,6 +108,33 @@ class DeploymentArtifactsContractTest {
         .contains("intake")
         .contains("deployment baseline exists")
         .contains("not a production-ready claim");
+  }
+
+  @Test
+  void task53DisasterRecoveryBusinessContinuityArtifactCoversRequiredDrills() throws Exception {
+    String task53 = Files.readString(
+        REPO_ROOT.resolve("infra/deployment/task-53-disaster-recovery-business-continuity.md"));
+
+    assertThat(task53)
+        .contains("# Task 53 Disaster Recovery and Business Continuity")
+        .contains("Backup schedule")
+        .contains("Restore drill")
+        .contains("Migration rollback drill")
+        .contains("Object storage recovery")
+        .contains("AI provider outage playbook")
+        .contains("Notification provider outage playbook")
+        .contains("Incident severity levels")
+        .contains("Do not fake restore success")
+        .contains("Restored database")
+        .contains("Restored document")
+        .contains("WorkflowEvent")
+        .contains("ClaimLedger")
+        .contains("AITaskRun")
+        .contains("DisclosureRecord")
+        .contains("rto-postgres.dump")
+        .contains("artifacts/task53-dr-bcp-20260510")
+        .contains("rto-documents.tar.gz")
+        .contains("artifacts/task42-backup-restore-20260509/evidence.md");
   }
 
   private static Path findRepoRoot() {
