@@ -82,6 +82,34 @@ public final class NotificationService {
       LIMIT ? OFFSET ?
       """;
 
+  private static final String FIND_NOTIFICATION_BY_ID_SQL = """
+      SELECT notification_id, notification_type, status, title, body_summary, deep_link,
+             entity_type, entity_id, source_ref, read_at, dismissed_at, created_at, updated_at, version,
+             recipient_user_account_id, recipient_portal_role, metadata::text AS metadata
+      FROM operations.notification
+      WHERE organization_id = ?
+        AND notification_id = ?
+      """;
+
+  private static final String FIND_NOTIFICATION_BY_SOURCE_REF_SQL = """
+      SELECT notification_id, notification_type, status, title, body_summary, deep_link,
+             entity_type, entity_id, source_ref, read_at, dismissed_at, created_at, updated_at, version
+      FROM operations.notification
+      WHERE organization_id = ?
+        AND source_ref = ?
+      ORDER BY created_at ASC
+      LIMIT 1
+      """;
+
+  private static final String HAS_FAILED_DELIVERY_ATTEMPT_SQL = """
+      SELECT 1
+      FROM operations.notification_delivery_attempt
+      WHERE organization_id = ?
+        AND notification_id = ?
+        AND status = 'failed'
+      LIMIT 1
+      """;
+
   private static final String COUNT_NOTIFICATIONS_SQL = """
       SELECT count(*)
       FROM operations.notification
@@ -426,6 +454,65 @@ public final class NotificationService {
     }
   }
 
+  public RetryFailedNotificationResult retryFailedNotification(RetryFailedNotificationCommand command) {
+    Objects.requireNonNull(command, "command must not be null");
+    Instant now = command.createdAt() != null ? command.createdAt() : Instant.now();
+    String retrySourceRef = "support_retry:" + command.notificationId() + ":" + command.ticketRef();
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try {
+      NotificationRetrySource source;
+      try (PreparedStatement statement = connection.prepareStatement(FIND_NOTIFICATION_BY_ID_SQL)) {
+        statement.setObject(1, command.organizationId());
+        statement.setObject(2, command.notificationId());
+        try (ResultSet resultSet = statement.executeQuery()) {
+          if (!resultSet.next()) {
+            return new RetryFailedNotificationResult(false, command.notificationId(), "notification_retry_not_found");
+          }
+          source = toNotificationRetrySource(resultSet);
+        }
+      }
+      try (PreparedStatement statement = connection.prepareStatement(FIND_NOTIFICATION_BY_SOURCE_REF_SQL)) {
+        statement.setObject(1, command.organizationId());
+        statement.setString(2, retrySourceRef);
+        try (ResultSet resultSet = statement.executeQuery()) {
+          if (resultSet.next()) {
+            return new RetryFailedNotificationResult(
+                false,
+                resultSet.getObject("notification_id", UUID.class),
+                "notification_retry_duplicate_skipped");
+          }
+        }
+      }
+      try (PreparedStatement statement = connection.prepareStatement(HAS_FAILED_DELIVERY_ATTEMPT_SQL)) {
+        statement.setObject(1, command.organizationId());
+        statement.setObject(2, command.notificationId());
+        try (ResultSet resultSet = statement.executeQuery()) {
+          if (!resultSet.next()) {
+            return new RetryFailedNotificationResult(false, command.notificationId(), "notification_retry_not_failed");
+          }
+        }
+      }
+      NotificationRecord retry = createNotification(new CreateNotificationCommand(
+          command.organizationId(),
+          source.recipientUserAccountId(),
+          source.recipientPortalRole(),
+          source.record().notificationType(),
+          source.record().title(),
+          source.record().bodySummary(),
+          source.record().deepLink(),
+          source.record().entityType(),
+          source.record().entityId(),
+          retrySourceRef,
+          retryMetadata(source.metadataJson(), command),
+          now));
+      return new RetryFailedNotificationResult(true, retry.notificationId(), "notification_retry_created");
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to retry failed notification", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
+    }
+  }
+
   public NotificationScheduleRecord scheduleNotification(ScheduleNotificationCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     Instant now = Instant.now();
@@ -628,6 +715,33 @@ public final class NotificationService {
         resultSet.getInt("version"));
   }
 
+  private static NotificationRetrySource toNotificationRetrySource(ResultSet resultSet) throws SQLException {
+    return new NotificationRetrySource(
+        toNotificationRecord(resultSet),
+        resultSet.getObject("recipient_user_account_id", UUID.class),
+        PortalRole.fromWireValue(resultSet.getString("recipient_portal_role")),
+        resultSet.getString("metadata"));
+  }
+
+  private static String retryMetadata(
+      String originalMetadataJson,
+      RetryFailedNotificationCommand command) {
+    try {
+      return OBJECT_MAPPER.createObjectNode()
+          .put("retryOfNotificationId", command.notificationId().toString())
+          .put("supportTicketRef", command.ticketRef())
+          .put("supportActorId", command.supportActorId().toString())
+          .put("supportReason", command.reason())
+          .set("originalMetadata", OBJECT_MAPPER.readTree(safeJson(originalMetadataJson)))
+          .toString();
+    } catch (Exception exception) {
+      return OBJECT_MAPPER.createObjectNode()
+          .put("retryOfNotificationId", command.notificationId().toString())
+          .put("supportTicketRef", command.ticketRef())
+          .toString();
+    }
+  }
+
   private static NotificationPreferenceRecord toPreferenceRecord(
       UUID organizationId,
       UUID userAccountId,
@@ -818,6 +932,40 @@ public final class NotificationService {
       Instant dueAt,
       String payloadJson) {}
 
+  private record NotificationRetrySource(
+      NotificationRecord record,
+      UUID recipientUserAccountId,
+      PortalRole recipientPortalRole,
+      String metadataJson) {}
+
+  public record RetryFailedNotificationCommand(
+      UUID organizationId,
+      UUID notificationId,
+      UUID supportActorId,
+      String ticketRef,
+      String reason,
+      Instant createdAt) {
+
+    public RetryFailedNotificationCommand {
+      Objects.requireNonNull(organizationId, "organizationId must not be null");
+      Objects.requireNonNull(notificationId, "notificationId must not be null");
+      Objects.requireNonNull(supportActorId, "supportActorId must not be null");
+      ticketRef = requireNonBlank(ticketRef, "ticketRef");
+      reason = requireNonBlank(reason, "reason");
+    }
+  }
+
+  public record RetryFailedNotificationResult(
+      boolean retryCreated,
+      UUID notificationId,
+      String resultCode) {
+
+    public RetryFailedNotificationResult {
+      Objects.requireNonNull(notificationId, "notificationId must not be null");
+      resultCode = requireNonBlank(resultCode, "resultCode");
+    }
+  }
+
   public interface EmailNotificationProvider {
     DeliveryOutcome send(CreateNotificationCommand command);
   }
@@ -827,6 +975,14 @@ public final class NotificationService {
   }
 
   public record DeliveryOutcome(String providerKey, String status, String safeErrorCode) {}
+
+  private static String requireNonBlank(String value, String name) {
+    Objects.requireNonNull(value, name + " must not be null");
+    if (value.isBlank()) {
+      throw new IllegalArgumentException(name + " must not be blank");
+    }
+    return value.strip();
+  }
 
   private static final class NoOpEmailNotificationProvider implements EmailNotificationProvider {
     @Override
