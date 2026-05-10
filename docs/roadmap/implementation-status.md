@@ -2,6 +2,30 @@
 
 ## Current Git Main Milestones
 
+- Task 57: Reporting, Exports, and Legal Audit Packages is complete for the
+  current backend-owned export package baseline. The patch adds role/scope-safe
+  export payload contracts and adapters for Owner reports, Consultant activity,
+  Client shortlist feedback, Candidate personal-data export, disclosure audit,
+  placement/commission export, and retention evidence. It does not add a BI
+  warehouse, external accounting/legal system integration, or unrestricted raw
+  data export.
+- Task 56: Support and Operations Tooling is complete for the current backend
+  support-operations baseline. The patch adds audited support lookup/actions,
+  safe failed-notification retry, AI task replay adapter boundaries, support
+  transaction boundaries, support user lookup, and support action audit
+  persistence. It does not add a complete support UI or bypass domain services.
+- Task 55: Data Import and Migration from Existing Systems is complete for the
+  current governed import/migration baseline. The patch adds import planning,
+  validation/reporting, legacy ATS/CRM mapping contracts, duplicate/import
+  safeguards, rollback/reset planning, and governed-intake import gateway
+  boundaries. It does not execute a customer-specific migration or permit direct
+  ungated writes around governed paths.
+- Task 49: Integrations v1 is complete for the current audited integration
+  boundary baseline. The patch adds inbound/outbound integration contracts,
+  provider placeholders for email/SMS/calendar/OCR-STT/ATS-HRIS/webhooks,
+  governed intake integration routing, outbound redaction/disclosure checks,
+  and integration audit persistence. It does not activate real production
+  providers by itself.
 - Task 51: Multi-organization Boundary Hardening is complete for the current
   tenant-boundary hardening baseline. The patch adds V33 organization-scoped
   identity constraints and same-organization composite FKs for existing
@@ -108,10 +132,9 @@
   `PilotAcceptanceReport` now encode the eight pilot flows, negative gates, and
   validation gates, and `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`
   records the honest result as `CONTROLLED_PILOT_READY` for the Task 42 Usable v1
-  gate. This does not certify public production readiness; remaining Tasks
-  49-50, 55-58, and 60 still cover integrations, governance/eval console depth,
-  import/migration, support tooling, reporting/export/legal audit packages,
-  release management, and final full product acceptance.
+  gate. This does not certify public production readiness; remaining Tasks 50,
+  58, and 60 still cover governance/eval console depth, release management, and
+  final full product acceptance.
 - Task 41: Security and Privacy Hardening v1 remains the controlled-pilot hardening baseline on `main` through `58529e4`: controlled-pilot backend hardening for login email/password input policy, configurable in-memory throttling for auth login/refresh and consultant document endpoints, unsafe upload filename rejection before storage/source-item persistence, UUID/email path-segment masking in request logs, explicit Admin same-organization disclosure-audit export permission, persistent access audit for Task 41 sensitive document/export surfaces, data-retention/vulnerability-scan baseline docs, pinned Maven dependency-check configuration, and focused security/privacy regressions. Task 52 now adds the newer production security compliance baseline, but neither task is a production-security certification or full completion of MFA, password reset, SSO/OIDC, distributed rate limiting, product-wide field-level access audit, product-wide PII log audit, destructive retention execution, or vulnerability remediation reporting.
 - Task 40: Observability, Audit, and Replay v1 remains on `main` through `68647b5` for the provider-neutral backend subset: `/api/**` request correlation, safe structured staging/production logs, admin-only observability read APIs for WorkflowEvents, ReviewEvents, AITaskRuns, disclosure audit export, safe API response DTOs, PostgreSQL-backed narrow readers, and `infra/observability/README.md` as the incident runbook. It adds no external observability vendor, no raw Candidate/Profile/source payload logging, no frontend dashboard, no error dashboard, no AI cost/latency dashboard UI, and no broad owner raw-audit export.
 - Task 39: Deployment v1 remains the latest deployment baseline on `main` through `984b329`: provider-neutral local-production compose/runbook baseline, staging/production environment validation, profile precedence hardening, PostgreSQL migration runbook, backup/restore/rollback/smoke-test runbooks, object-storage deployment wiring, staging MinIO endpoint handling, and local MinIO bucket initialization. It remains a deployment baseline, not production-ready.
@@ -270,6 +293,12 @@
 - Task 36/37 latest known-good closure snapshot: frontend `npm --workspace @rto/web run build` passed, focused `OwnerPortal` frontend tests passed, and backend `PATH=/opt/homebrew/bin:$PATH mvn -f services/core-api/pom.xml test` passed after the placement/commission closure, governance V31 migration updates, bulk Flyway assertion refresh to version `31`, and API-boundary regression adjustments for the new owner/admin governance controllers. This line records the latest confirmed successful validation before the current doc-sync-only edits.
 - Task 47 verification passed targeted backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest test`, targeted Admin governance `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=GovernanceReadServicePostgresIntegrationTest#industryPackGovernanceShowsTask47CalibrationQueue test`, broader backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml -Dtest=JdbcIndustryPackReadPortIntegrationTest,GovernanceReadServicePostgresIntegrationTest,GovernanceReadServiceTest,ConsultantMatchingSurfaceServiceTest,ScoreCapPolicyTest test`, `rtk git diff --check`, `rtk docker info`, and full backend `PATH=/opt/homebrew/bin:$PATH rtk mvn -f services/core-api/pom.xml test`. Full Maven reached 1062 tests, 0 failures, 0 errors, and 3 skipped after the V32 industry-pack calibration migration, Admin review queue read model, Flyway-version regression updates, semiconductor active-ontology role-family preservation fix, and deadline-expired production-pack review-queue fix.
 - Task 48/52/53/54/59 integration verification passed `rtk git diff --check`, `rtk docker info`, full backend `rtk mvn -f services/core-api/pom.xml test`, frontend `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, and `rtk npm run build:web` on merged local `main`. Full Maven reached 1083 tests, 0 failures, 0 errors, and 3 skipped. Web Vitest reached 9 files and 38 tests passed.
+- Task 49/55/56/57 integration verification passed `rtk git diff --check`,
+  `rtk docker info`, full backend `rtk mvn -f services/core-api/pom.xml test`,
+  frontend `rtk npm --workspace @rto/web run test`,
+  `rtk npm run typecheck:web`, and `rtk npm run build:web` on merged local
+  `main`. Full Maven reached 1144 tests, 0 failures, 0 errors, and 3 skipped.
+  Web Vitest reached 9 files and 38 tests passed.
 - Docker/Testcontainers PostgreSQL is part of required validation.
 - `docker info` must pass before full Maven validation.
 - Maven command:

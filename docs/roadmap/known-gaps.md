@@ -1,5 +1,58 @@
 # Known Gaps
 
+## Task 57 Reporting/Exports Closed; External BI and Legal Systems Still Deferred
+
+- Task 57 now provides backend-owned export package contracts and adapters for
+  Owner reporting, Consultant activity, Client shortlist feedback, Candidate
+  personal-data export, disclosure audit, placement/commission export, and
+  retention evidence.
+- Export payloads are governed by role, target scope, consent/disclosure, and
+  field-visibility policies rather than raw entity dumps.
+- Remaining gaps:
+  - No BI warehouse, dashboarding product, or scheduled external report
+    delivery exists.
+  - No legal hold platform, e-discovery platform, or accounting system is
+    integrated.
+  - Product-wide field-level audit coverage remains broader than this export
+    package baseline.
+
+## Task 56 Support Operations Closed; Full Support UI Still Deferred
+
+- Task 56 now adds audited support lookup/action contracts, failed-notification
+  retry, AI task replay adapter boundaries, support transaction boundaries,
+  support user lookup, and support action audit persistence.
+- Support actions remain service-owned and audited; Task 56 does not create a
+  database backdoor.
+- Remaining gaps:
+  - No complete support console UI exists.
+  - No external ticketing/helpdesk integration exists.
+  - Product-wide data correction workflows remain limited to the current
+    backend-owned support operation contracts.
+
+## Task 55 Import/Migration Closed; Customer-specific Migration Still Deferred
+
+- Task 55 now adds governed import planning, validation/reporting, legacy
+  ATS/CRM mapping contracts, duplicate/import safeguards, rollback/reset
+  planning, and governed-intake import gateway boundaries.
+- Historical data is modeled as a governed pipeline through SourceItem,
+  InformationPacket, claim, and canonical gates rather than direct ungated
+  writes.
+- Remaining gaps:
+  - No real customer dataset has been migrated in this repository.
+  - No vendor-specific ATS/CRM connector is activated.
+  - Large-scale migration performance evidence remains deferred.
+
+## Task 49 Integration Boundaries Closed; Live Providers Still Deferred
+
+- Task 49 now adds audited inbound/outbound integration boundaries, provider
+  placeholders for email, SMS, calendar, OCR/STT, ATS/HRIS, and webhooks,
+  governed-intake integration routing, outbound disclosure/redaction checks, and
+  PostgreSQL integration audit persistence.
+- Remaining gaps:
+  - Real production providers are not activated by this baseline.
+  - Provider credentials, delivery SLAs, retries against live vendors, and
+    customer-specific channel configuration remain deployment work.
+
 ## Task 59 Onboarding Playbooks Closed; Public Launch Readiness Still Deferred
 
 - Task 59 now packages customer onboarding, consultant training, client
@@ -11,10 +64,9 @@
 - Remaining gaps:
   - Public SaaS onboarding still depends on remaining production tasks and
     release acceptance.
-  - Real integrations remain Task 49 scope.
-  - Governed real customer import remains Task 55 scope.
-  - Support tooling, report/legal-audit packages, and release gates remain
-    Tasks 56-58 scope.
+  - Real provider activation, customer-specific migration execution, external
+    support systems, external BI/legal systems, and release gates remain beyond
+    the current baselines.
 
 ## Task 54 Performance/Load/Cost Targets Closed; Live Performance Evidence Still Deferred
 
@@ -80,8 +132,8 @@
 - Remaining gaps:
   - No invoice issuing, payment collection, tax handling, GL posting, or
     accounting-system integration exists.
-  - Broad export/legal-audit packages remain Task 57 scope.
-  - Support actions remain Task 56 scope.
+  - External BI/legal/accounting integrations remain deferred beyond the Task 57
+    export package baseline.
 
 ## Task 51 Multi-organization Boundary Hardening Closed; Membership Switching and Full Support Tooling Still Deferred
 
@@ -95,10 +147,12 @@
 - Remaining gaps:
   - No multi-organization membership/session switching exists; a user account
     remains directly scoped to one organization.
-  - Full support tooling and support UI workflows remain Task 56 scope.
-  - Real customer import/migration workflows remain Task 55 scope.
-  - Broad reporting, export packages, and legal audit packages remain Task 57
-    scope.
+  - Full support UI workflows remain deferred beyond the Task 56 backend
+    support-operations baseline.
+  - Real customer import/migration execution remains deferred beyond the Task 55
+    governed import/migration baseline.
+  - External reporting, BI, and legal-audit system integrations remain deferred
+    beyond the Task 57 export package baseline.
   - Product-wide field-level access audit rollout remains deferred beyond the
     current access-audit and protected-surface coverage.
 
@@ -136,10 +190,8 @@
 - Remaining gaps:
   - Task 43 is route-depth and workflow-continuity closure, not full production
     integration implementation.
-  - Remaining Tasks 49-50, 55-58, and 60 still need integrations,
-    governance/eval console depth, import and migration, support workflows,
-    reporting/export/legal audit packages, release management, and final
-    full-product acceptance.
+  - Remaining Tasks 50, 58, and 60 still need governance/eval console depth,
+    release management, and final full-product acceptance.
 
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
@@ -163,10 +215,8 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Remaining Tasks 49-50, 55-58, and 60 still need to broaden integrations,
-    governance/eval console depth, import and migration, support workflows,
-    reporting/export/legal audit packages, release management, and final
-    full-product acceptance.
+  - Remaining Tasks 50, 58, and 60 still need to broaden governance/eval
+    console depth, release management, and final full-product acceptance.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 

@@ -1242,6 +1242,9 @@ or official accounting-system replacement.
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `d777456` for the current audited integration
+boundary baseline.
+
 Goal: Connect the product to real operating channels.
 
 Must deliver:
@@ -1262,6 +1265,13 @@ Forbidden scope:
 Acceptance:
 
 - External inputs become SourceItem/InformationPacket/claims first, and outbound messages are audited.
+
+Closeout status: completed for the current backend integration-boundary gate.
+Inbound/outbound contracts, provider placeholders, governed-intake integration
+routing, outbound redaction/disclosure checks, webhook boundaries, and
+PostgreSQL integration audit persistence are now present. This does not
+activate real production providers, credentials, delivery SLAs, or
+customer-specific channel configuration.
 
 ## Task 50: Governance, Eval, and Ontology Production Console
 
@@ -1406,6 +1416,9 @@ budget.
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `02fbda9` for the current governed import/migration
+baseline.
+
 Goal: Let real teams bring historical recruiting data into the governed system.
 
 Must deliver:
@@ -1421,9 +1434,18 @@ Acceptance:
 
 - Historical data imports into SourceItem/InformationPacket/claims/canonical records through governed paths, with validation and rollback.
 
+Closeout status: completed for the current backend import/migration-safety
+gate. Import planning, validation/reporting, legacy ATS/CRM mapping contracts,
+duplicate/import safeguards, rollback/reset planning, and governed-intake import
+gateway boundaries are now present. This does not execute a real customer
+migration, activate vendor-specific connectors, or allow direct ungated writes.
+
 ## Task 56: Support and Operations Tooling
 
 Priority: P2 after pilot, required for 100%
+
+Status: **Completed** at `68cef32` for the current backend support-operations
+baseline.
 
 Goal: Give operators safe tools to support users without direct database fixes.
 
@@ -1444,9 +1466,19 @@ Acceptance:
 
 - Common support issues can be handled through audited tools rather than manual database edits.
 
+Closeout status: completed for the current backend support-operations gate.
+Audited support lookup/action contracts, failed-notification retry, AI task
+replay adapter boundaries, support transaction boundaries, support user lookup,
+and support action audit persistence are now present. This does not add a full
+support console UI, external ticketing integration, or any domain-service
+backdoor.
+
 ## Task 57: Reporting, Exports, and Legal Audit Packages
 
 Priority: P2 after pilot, required for 100%
+
+Status: **Completed** at `cd81acc` for the current backend export package
+baseline.
 
 Goal: Make business and compliance exports productized.
 
@@ -1463,6 +1495,13 @@ Must deliver:
 Acceptance:
 
 - Exports respect role, organization, consent, disclosure, and field-level visibility policies.
+
+Closeout status: completed for the current backend reporting/export/legal-audit
+package gate. Role/scope-safe export payload contracts and adapters now exist
+for Owner reports, Consultant activity, Client shortlist feedback, Candidate
+personal-data export, disclosure audit, placement/commission export, and
+retention evidence. This does not add a BI warehouse, external legal hold
+system, accounting integration, or unrestricted raw data export.
 
 ## Task 58: Release Management and Regression Suite
 

@@ -1154,6 +1154,8 @@ posting、通用导出包或替代正式财务系统。
 
 ## Task 49：Integrations v1
 
+状态：**已完成**，当前 audited integration boundary baseline 位于 `d777456`。
+
 目标：连接真实运营渠道。
 
 必须交付：
@@ -1169,6 +1171,12 @@ posting、通用导出包或替代正式财务系统。
 完成标准：
 
 - 外部输入先成为 SourceItem/InformationPacket/claims；外发消息全部可审计。
+
+关闭说明：当前 backend integration-boundary gate 已完成。Inbound/outbound
+contracts、provider placeholders、governed-intake integration routing、outbound
+redaction/disclosure checks、webhook boundaries、PostgreSQL integration audit
+persistence 已经存在。这不是激活真实生产 provider、credentials、delivery SLA 或
+customer-specific channel configuration。
 
 ## Task 50：Governance, Eval, and Ontology Production Console
 
@@ -1295,6 +1303,8 @@ interview-feedback cost row 仍是接近预算的 `WATCH` 项。
 
 ## Task 55：Data Import and Migration from Existing Systems
 
+状态：**已完成**，当前 governed import/migration baseline 位于 `02fbda9`。
+
 目标：让真实团队把历史招聘数据迁移进 governed system。
 
 必须交付：
@@ -1310,7 +1320,15 @@ interview-feedback cost row 仍是接近预算的 `WATCH` 项。
 
 - 历史数据通过 governed paths 导入 SourceItem/InformationPacket/claims/canonical records，并有 validation/rollback。
 
+关闭说明：当前 backend import/migration-safety gate 已完成。Import planning、
+validation/reporting、legacy ATS/CRM mapping contracts、duplicate/import
+safeguards、rollback/reset planning、governed-intake import gateway boundaries
+已经存在。这不是执行真实客户迁移，也不是 vendor-specific connector 激活或绕过
+governed paths 的直接写入。
+
 ## Task 56：Support and Operations Tooling
+
+状态：**已完成**，当前 backend support-operations baseline 位于 `68cef32`。
 
 目标：让运营支持不靠手工改数据库。
 
@@ -1327,7 +1345,15 @@ interview-feedback cost row 仍是接近预算的 `WATCH` 项。
 
 - 常见支持问题能通过 audited tools 处理，而不是直接 DB edits。
 
+关闭说明：当前 backend support-operations gate 已完成。Audited support
+lookup/action contracts、failed-notification retry、AI task replay adapter
+boundary、support transaction boundary、support user lookup、support action
+audit persistence 已经存在。这不是完整 support console UI、external ticketing
+integration，也不是绕过 domain services 的后门。
+
 ## Task 57：Reporting, Exports, and Legal Audit Packages
+
+状态：**已完成**，当前 backend export package baseline 位于 `cd81acc`。
 
 目标：产品化业务和合规导出。
 
@@ -1344,6 +1370,13 @@ interview-feedback cost row 仍是接近预算的 `WATCH` 项。
 完成标准：
 
 - exports 遵守 role、organization、consent、disclosure、field-level visibility policies。
+
+关闭说明：当前 backend reporting/export/legal-audit package gate 已完成。
+Role/scope-safe export payload contracts 和 adapters 已覆盖 Owner reports、
+Consultant activity、Client shortlist feedback、Candidate personal-data
+export、Disclosure audit、Placement/commission export、Retention evidence。这不是
+BI warehouse、external legal hold system、accounting integration，也不是不受限制的
+raw data export。
 
 ## Task 58：Release Management and Regression Suite
 
