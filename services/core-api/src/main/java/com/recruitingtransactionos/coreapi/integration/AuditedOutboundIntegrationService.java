@@ -2,8 +2,14 @@ package com.recruitingtransactionos.coreapi.integration;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public final class AuditedOutboundIntegrationService {
+
+  private static final Pattern EMAIL_ADDRESS_PATTERN =
+      Pattern.compile("\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", Pattern.CASE_INSENSITIVE);
+  private static final Pattern PHONE_NUMBER_PATTERN =
+      Pattern.compile("(?<!\\w)\\+?\\d[\\d\\s().-]{6,}\\d(?!\\w)");
 
   private final IntegrationAuditRecorder auditRecorder;
   private final EmailIntegrationProvider emailProvider;
@@ -34,7 +40,7 @@ public final class AuditedOutboundIntegrationService {
     this.webhookProvider = Objects.requireNonNull(webhookProvider, "webhookProvider must not be null");
   }
 
-  static AuditedOutboundIntegrationService withProviders(
+  public static AuditedOutboundIntegrationService withProviders(
       IntegrationAuditRecorder auditRecorder,
       EmailIntegrationProvider emailProvider,
       SmsIntegrationProvider smsProvider,
@@ -58,7 +64,7 @@ public final class AuditedOutboundIntegrationService {
           OutboundIntegrationStatus.BLOCKED_CROSS_ORG,
           "cross_org_outbound_blocked");
     }
-    if (command.hasRawSensitivePayload()
+    if ((command.hasRawSensitivePayload() || safeSummaryPayloadCarriesRawIdentity(command))
         && (command.redactionDecision() != RedactionDecision.DISCLOSURE_UNLOCK_CONFIRMED
             || command.disclosureState() != DisclosureState.DISCLOSED)) {
       return auditedBlocked(
@@ -112,7 +118,14 @@ public final class AuditedOutboundIntegrationService {
       case ACCEPTED, DELIVERED -> OutboundIntegrationStatus.AUDITED_PROVIDER_ACCEPTED;
       case UNCONFIGURED -> OutboundIntegrationStatus.AUDITED_PROVIDER_UNCONFIGURED;
       case PRODUCTION_PLACEHOLDER -> OutboundIntegrationStatus.AUDITED_PROVIDER_PLACEHOLDER;
-      case FAILED_CLOSED, REJECTED -> OutboundIntegrationStatus.BLOCKED_SENSITIVE_DATA;
+      case FAILED_CLOSED -> OutboundIntegrationStatus.AUDITED_PROVIDER_FAILED_CLOSED;
+      case REJECTED -> OutboundIntegrationStatus.AUDITED_PROVIDER_REJECTED;
     };
+  }
+
+  private static boolean safeSummaryPayloadCarriesRawIdentity(OutboundIntegrationCommand command) {
+    String payload = command.safeSummaryPayload();
+    return EMAIL_ADDRESS_PATTERN.matcher(payload).find()
+        || PHONE_NUMBER_PATTERN.matcher(payload).find();
   }
 }

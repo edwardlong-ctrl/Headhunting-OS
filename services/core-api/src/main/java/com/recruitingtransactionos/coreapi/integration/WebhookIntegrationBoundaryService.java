@@ -1,5 +1,6 @@
 package com.recruitingtransactionos.coreapi.integration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.governedintake.InformationPacketType;
@@ -9,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Objects;
 
 public final class WebhookIntegrationBoundaryService {
@@ -23,7 +25,7 @@ public final class WebhookIntegrationBoundaryService {
         inboundIntegrationBoundaryService, "inboundIntegrationBoundaryService must not be null");
   }
 
-  WebhookInboundResult acceptInbound(WebhookInboundCommand command) {
+  public WebhookInboundResult acceptInbound(WebhookInboundCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     if (!command.routeOrganizationId().equals(command.eventOrganizationId())) {
       return rejected(WebhookInboundStatus.BLOCKED_CROSS_ORG, null, "cross_org_webhook_blocked");
@@ -53,7 +55,7 @@ public final class WebhookIntegrationBoundaryService {
             InformationPacketType.MIXED,
             IntendedEntityType.CANDIDATE,
             command.payloadJson(),
-            "{\"eventType\":\"" + command.eventType() + "\",\"schemaVersion\":\"v1\"}",
+            metadataJson(command),
             InboundIntegrationPurpose.SOURCE_INTAKE));
     if (inboundResult.status() != InboundIntegrationStatus.ACCEPTED_FOR_REVIEW) {
       return rejected(
@@ -82,6 +84,16 @@ public final class WebhookIntegrationBoundaryService {
       return node != null && node.isObject();
     } catch (Exception exception) {
       return false;
+    }
+  }
+
+  private static String metadataJson(WebhookInboundCommand command) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(Map.of(
+          "eventType", command.eventType(),
+          "schemaVersion", "v1"));
+    } catch (JsonProcessingException exception) {
+      throw new IllegalStateException("Failed to serialize webhook metadata", exception);
     }
   }
 

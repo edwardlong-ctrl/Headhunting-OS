@@ -1,7 +1,9 @@
 package com.recruitingtransactionos.coreapi.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class WebhookIntegrationBoundaryServiceTest {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final UUID ORG_A = UUID.fromString("00000000-0000-0000-0000-000000490301");
   private static final UUID ORG_B = UUID.fromString("00000000-0000-0000-0000-000000490302");
   private static final UUID ACTOR_ID = UUID.fromString("00000000-0000-0000-0000-000000490303");
@@ -75,6 +78,27 @@ class WebhookIntegrationBoundaryServiceTest {
     assertThat(sink.commands).hasSize(2);
     assertThat(sink.commands).allSatisfy(command ->
         assertThat(command.purpose()).isEqualTo(InboundIntegrationPurpose.SOURCE_INTAKE));
+  }
+
+  @Test
+  void inboundWebhookMetadataIsSafeJsonEvenWhenEventTypeContainsQuotes() {
+    RecordingInboundSink sink = new RecordingInboundSink();
+    WebhookIntegrationBoundaryService service = new WebhookIntegrationBoundaryService(
+        new InboundIntegrationBoundaryService(sink));
+
+    WebhookInboundResult result = service.acceptInbound(webhookCommand(
+        ORG_A,
+        ORG_A,
+        "candidate.email.\"received\"",
+        "v1",
+        "{\"body\":\"hello\"}",
+        "quoted-event-key"));
+
+    assertThat(result.status()).isEqualTo(WebhookInboundStatus.ACCEPTED_FOR_REVIEW);
+    assertThat(sink.commands).singleElement().satisfies(command -> {
+      assertThat(command.metadataJson()).contains("\\\"received\\\"");
+      assertThatCode(() -> OBJECT_MAPPER.readTree(command.metadataJson())).doesNotThrowAnyException();
+    });
   }
 
   private static WebhookInboundCommand webhookCommand(

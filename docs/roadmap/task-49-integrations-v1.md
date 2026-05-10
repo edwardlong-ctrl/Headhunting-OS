@@ -23,6 +23,8 @@ Implemented behavior:
 - Raw candidate payload fields are blocked before disclosure/unlock unless the
   command carries an explicit `DISCLOSURE_UNLOCK_CONFIRMED` decision and
   `DISCLOSED` state.
+- Safe-summary payload text carrying raw email/phone identity markers is also
+  blocked before disclosure/unlock.
 - Inbound integration commands route through a review-first sink that can create
   `SourceItem` and `InformationPacket` records via the governed intake service.
   The result is `ACCEPTED_FOR_REVIEW`; it never reports a confirmed fact write.
@@ -59,8 +61,8 @@ the disclosure/unlock decision state required by the privacy boundary.
 
 Focused Task 49 TDD loop:
 
-- `rtk mvn -f services/core-api/pom.xml -Dtest=IntegrationProviderPlaceholderTest,InboundIntegrationBoundaryServiceTest,OutboundIntegrationBoundaryServiceTest,WebhookIntegrationBoundaryServiceTest,AtsHrisIntegrationBoundaryTest,JdbcIntegrationAuditRecorderPostgresIntegrationTest test`
-- Result: 14 tests, 0 failures, 0 errors, 0 skipped.
+- `rtk mvn -f services/core-api/pom.xml -Dtest=IntegrationProviderPlaceholderTest,InboundIntegrationBoundaryServiceTest,OutboundIntegrationBoundaryServiceTest,WebhookIntegrationBoundaryServiceTest,AtsHrisIntegrationBoundaryTest,JdbcIntegrationAuditRecorderPostgresIntegrationTest,IntegrationPublicApiContractTest test`
+- Result after review fixes: 18 tests, 0 failures, 0 errors, 0 skipped.
 
 Full required validation for Task 49 is recorded in the final handoff for the
 commit that adds this file.

@@ -117,6 +117,69 @@ class OutboundIntegrationBoundaryServiceTest {
         .isEqualTo("raw_candidate_fields_blocked_before_disclosure");
   }
 
+  @Test
+  void safeSummaryPayloadCannotCarryRawCandidateIdentityBeforeDisclosureUnlock() {
+    RecordingAuditRecorder auditRecorder = new RecordingAuditRecorder();
+    RecordingEmailProvider emailProvider = new RecordingEmailProvider();
+    AuditedOutboundIntegrationService service = AuditedOutboundIntegrationService.withProviders(
+        auditRecorder,
+        emailProvider,
+        new NoOpSmsIntegrationProvider(),
+        new NoOpCalendarIntegrationProvider(),
+        new NoOpWebhookEventProvider());
+
+    OutboundIntegrationCommand unsafeSafeSummary = new OutboundIntegrationCommand(
+        ORG_A,
+        ACTOR_ID,
+        ORG_A,
+        "safe_summary_must_be_redacted",
+        IntegrationChannel.EMAIL,
+        new OutboundIntegrationTarget("client@example.com", ORG_A),
+        IntegrationPayloadKind.SAFE_SUMMARY_EXPORT,
+        "Shortlist summary",
+        "Candidate Jane Zhang can be reached at jane.zhang@example.com.",
+        null,
+        RedactionDecision.SAFE_SUMMARY_ONLY,
+        DisclosureState.NOT_DISCLOSED,
+        "task49-unsafe-safe-summary");
+
+    OutboundIntegrationResult result = service.send(unsafeSafeSummary);
+
+    assertThat(result.status()).isEqualTo(OutboundIntegrationStatus.BLOCKED_SENSITIVE_DATA);
+    assertThat(result.sensitiveDataSent()).isFalse();
+    assertThat(emailProvider.commands).isEmpty();
+    assertThat(auditRecorder.records).singleElement()
+        .extracting(record -> record.providerResult().safeStatusCode())
+        .isEqualTo("raw_candidate_fields_blocked_before_disclosure");
+  }
+
+  @Test
+  void providerFailedClosedStatusIsAuditedWithoutClaimingSensitiveBoundaryBlock() {
+    RecordingAuditRecorder auditRecorder = new RecordingAuditRecorder();
+    EmailIntegrationProvider failedProvider = command ->
+        IntegrationProviderResult.failedClosed("test_email", "provider_failed_closed");
+    AuditedOutboundIntegrationService service = AuditedOutboundIntegrationService.withProviders(
+        auditRecorder,
+        failedProvider,
+        new NoOpSmsIntegrationProvider(),
+        new NoOpCalendarIntegrationProvider(),
+        new NoOpWebhookEventProvider());
+
+    OutboundIntegrationResult result = service.send(safeSummaryCommand(
+        ORG_A,
+        ACTOR_ID,
+        ORG_A,
+        ORG_A,
+        "provider_failure"));
+
+    assertThat(result.status()).isEqualTo(OutboundIntegrationStatus.AUDITED_PROVIDER_FAILED_CLOSED);
+    assertThat(result.providerStatus()).isEqualTo(IntegrationProviderStatus.FAILED_CLOSED);
+    assertThat(result.sensitiveDataSent()).isFalse();
+    assertThat(auditRecorder.records).singleElement()
+        .extracting(record -> record.providerResult().safeStatusCode())
+        .isEqualTo("provider_failed_closed");
+  }
+
   private static OutboundIntegrationCommand safeSummaryCommand(
       UUID organizationId,
       UUID actorId,

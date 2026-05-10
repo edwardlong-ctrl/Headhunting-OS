@@ -10,7 +10,7 @@ public final class InboundIntegrationBoundaryService {
     this.intakeSink = Objects.requireNonNull(intakeSink, "intakeSink must not be null");
   }
 
-  InboundIntegrationResult acceptInbound(InboundIntegrationCommand command) {
+  public InboundIntegrationResult acceptInbound(InboundIntegrationCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     if (!command.organizationId().equals(command.actorOrganizationId())) {
       return new InboundIntegrationResult(

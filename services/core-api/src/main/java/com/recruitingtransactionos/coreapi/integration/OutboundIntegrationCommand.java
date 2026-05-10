@@ -34,7 +34,7 @@ public record OutboundIntegrationCommand(
     idempotencyKey = optionalNonBlank(idempotencyKey, "idempotencyKey");
   }
 
-  boolean hasRawSensitivePayload() {
+  public boolean hasRawSensitivePayload() {
     return rawSensitivePayload != null;
   }
 

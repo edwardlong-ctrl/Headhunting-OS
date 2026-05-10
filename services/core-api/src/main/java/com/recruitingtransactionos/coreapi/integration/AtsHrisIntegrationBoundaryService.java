@@ -11,7 +11,7 @@ public final class AtsHrisIntegrationBoundaryService {
     this.provider = Objects.requireNonNull(provider, "provider must not be null");
   }
 
-  AtsHrisMappingResult validateMapping(AtsHrisMappingCommand command) {
+  public AtsHrisMappingResult validateMapping(AtsHrisMappingCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     boolean canonicalTargetRequested = command.confirmedFactWriteRequested()
         || command.fieldMappings().values().stream()
