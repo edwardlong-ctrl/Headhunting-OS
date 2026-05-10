@@ -48,7 +48,8 @@ canonical fact writes.
   - low-confidence duplicate decisions remain reportable warnings.
 - Added resume/document batch import:
   - each document enters the existing document-upload path;
-  - SourceItem and InformationPacket lineage is preserved;
+  - SourceItem, InformationPacket, filename, and legacy external ID lineage is
+    preserved;
   - document imports remain pending governed review and do not write confirmed
     facts.
 - Added rollback/reset behavior:
@@ -75,6 +76,7 @@ canonical fact writes.
   - invalid CSV returns a validation report and writes no partial accepted
     data;
   - cross-organization references are rejected before governed writes;
+  - wrong-entity job references are rejected before governed writes;
   - duplicate rows are detected and reported using Task 46 duplicate decision
     concepts;
   - accepted CSV rows enter SourceItem/InformationPacket/claim-ledger governed
@@ -82,6 +84,10 @@ canonical fact writes.
   - rollback/reset touches only records from the requested batch and
     organization;
   - document batch import preserves document/source lineage;
+  - invalid document batches return validation reports before any partial
+    governed document writes;
+  - oversized document batches fail validation before any partial governed
+    document writes;
   - legacy ATS/CRM mappings normalize external fields into draft records, not
     canonical facts.
 
@@ -102,7 +108,7 @@ Focused green evidence after implementation:
 rtk mvn -f services/core-api/pom.xml -Dtest=ImportMigrationServiceTest test
 ```
 
-Result: 7 tests, 0 failures, 0 errors, 0 skipped.
+Result: 10 tests, 0 failures, 0 errors, 0 skipped.
 
 Required regression evidence:
 
@@ -118,10 +124,10 @@ Results:
 
 - `rtk git diff --check`: passed.
 - `rtk docker info`: Docker client/server reachable.
-- Task 55 focused suite: 7 tests, 0 failures, 0 errors, 0 skipped.
+- Task 55 focused suite: 10 tests, 0 failures, 0 errors, 0 skipped.
 - Required pilot/governed-intake/data-lifecycle regression batch: 38 tests, 0
   failures, 0 errors, 0 skipped.
-- Full core-api Maven suite: 1100 tests, 0 failures, 0 errors, 3 skipped.
+- Full core-api Maven suite: 1103 tests, 0 failures, 0 errors, 3 skipped.
 
 ## Remaining Gaps
 

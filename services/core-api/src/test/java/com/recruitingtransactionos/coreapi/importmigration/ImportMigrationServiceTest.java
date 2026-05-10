@@ -110,6 +110,34 @@ class ImportMigrationServiceTest {
   }
 
   @Test
+  void wrongEntityReferencesAreRejectedBeforeGovernedWrites() {
+    String csv = """
+        external_id,title,company_external_id
+        job-1,Senior DV Engineer,candidate-id-used-as-company
+        """;
+    Map<String, ImportEntityReference> refs = Map.of(
+        "candidate-id-used-as-company",
+        new ImportEntityReference(ORG_A, EXISTING_CANDIDATE_ID, ImportEntityType.CANDIDATE));
+
+    ImportBatchReport report = service.importCsv(CsvImportCommand.builder()
+        .organizationId(ORG_A)
+        .actorId(ACTOR_ID)
+        .actorRole(ActorRole.CONSULTANT)
+        .sourceType(ImportSourceType.CSV_JOB)
+        .mapping(LegacyAtsCrmMapping.jobMapping(LegacySystemKind.ATS))
+        .csvContent(csv)
+        .knownExternalReferences(refs)
+        .occurredAt(NOW)
+        .build());
+
+    assertThat(report.validationStatus()).isEqualTo(ImportValidationStatus.VALIDATION_FAILED);
+    assertThat(report.validationReport().rowErrors())
+        .extracting(error -> error.field() + ":" + error.code())
+        .contains("company_external_id:wrong_entity_reference_rejected");
+    assertThat(governedGateway.createdDrafts).isEmpty();
+  }
+
+  @Test
   void duplicateRecordsAreDetectedAndReportedWithTask46DecisionConcepts() {
     String csv = """
         external_id,full_name,email,identity_fingerprint_hash
@@ -240,10 +268,77 @@ class ImportMigrationServiceTest {
     assertThat(report.lineages()).singleElement().satisfies(lineage -> {
       assertThat(lineage.sourceItemId()).isNotNull();
       assertThat(lineage.informationPacketId()).isNotNull();
+      assertThat(lineage.importExternalId()).contains("resume-1");
       assertThat(lineage.documentOriginalFilename()).contains("Li Wei Resume.pdf");
       assertThat(lineage.claimLedgerPathUsed()).isFalse();
       assertThat(lineage.confirmedFactWritePerformed()).isFalse();
     });
+  }
+
+  @Test
+  void invalidDocumentBatchReturnsValidationReportAndDoesNotPartiallyWriteDocuments() {
+    DocumentImportDraft validResume = new DocumentImportDraft(
+        "resume-1",
+        "Li Wei Resume.pdf",
+        "application/pdf",
+        "resume pdf bytes".getBytes(StandardCharsets.UTF_8),
+        ImportEntityType.CANDIDATE,
+        Map.of("source_system", "legacy_drive"));
+    DocumentImportDraft invalidResume = new DocumentImportDraft(
+        "resume-2",
+        "Malware Blob.bin",
+        "application/octet-stream",
+        "unsupported bytes".getBytes(StandardCharsets.UTF_8),
+        ImportEntityType.CANDIDATE,
+        Map.of("source_system", "legacy_drive"));
+
+    ImportBatchReport report = service.importDocuments(new DocumentBatchImportCommand(
+        ORG_A,
+        ACTOR_ID,
+        ActorRole.CONSULTANT,
+        ImportSourceType.RESUME_DOCUMENT_BATCH,
+        List.of(validResume, invalidResume),
+        NOW));
+
+    assertThat(report.validationStatus()).isEqualTo(ImportValidationStatus.VALIDATION_FAILED);
+    assertThat(report.acceptedCount()).isZero();
+    assertThat(report.rejectedCount()).isOne();
+    assertThat(report.validationReport().rowErrors())
+        .extracting(error -> error.field() + ":" + error.code())
+        .contains("mimeType:unsupported_document_mime_type");
+    assertThat(governedGateway.createdDocuments).isEmpty();
+  }
+
+  @Test
+  void oversizedDocumentBatchReturnsValidationReportAndDoesNotPartiallyWriteDocuments() {
+    DocumentImportDraft validResume = new DocumentImportDraft(
+        "resume-1",
+        "Li Wei Resume.pdf",
+        "application/pdf",
+        "resume pdf bytes".getBytes(StandardCharsets.UTF_8),
+        ImportEntityType.CANDIDATE,
+        Map.of());
+    DocumentImportDraft oversizedNotes = new DocumentImportDraft(
+        "notes-1",
+        "Large Notes.txt",
+        "text/plain",
+        new byte[(5 * 1024 * 1024) + 1],
+        ImportEntityType.CANDIDATE,
+        Map.of());
+
+    ImportBatchReport report = service.importDocuments(new DocumentBatchImportCommand(
+        ORG_A,
+        ACTOR_ID,
+        ActorRole.CONSULTANT,
+        ImportSourceType.RESUME_DOCUMENT_BATCH,
+        List.of(validResume, oversizedNotes),
+        NOW));
+
+    assertThat(report.validationStatus()).isEqualTo(ImportValidationStatus.VALIDATION_FAILED);
+    assertThat(report.validationReport().rowErrors())
+        .extracting(error -> error.field() + ":" + error.code())
+        .contains("content:document_size_exceeds_limit");
+    assertThat(governedGateway.createdDocuments).isEmpty();
   }
 
   @Test
@@ -312,6 +407,7 @@ class ImportMigrationServiceTest {
           batchId,
           organizationId,
           draft.recordId(),
+          draft.externalId(),
           UUID.randomUUID(),
           UUID.randomUUID(),
           UUID.randomUUID(),
@@ -332,6 +428,7 @@ class ImportMigrationServiceTest {
           batchId,
           organizationId,
           UUID.randomUUID(),
+          document.externalId(),
           UUID.randomUUID(),
           UUID.randomUUID(),
           document.originalFilename(),

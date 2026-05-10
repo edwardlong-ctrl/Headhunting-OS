@@ -180,6 +180,7 @@ public final class ImportMigrationModels {
       UUID batchId,
       UUID organizationId,
       UUID importRecordId,
+      Optional<String> importExternalId,
       UUID sourceItemId,
       UUID informationPacketId,
       UUID extractionRunId,
@@ -192,6 +193,9 @@ public final class ImportMigrationModels {
       Objects.requireNonNull(batchId, "batchId must not be null");
       Objects.requireNonNull(organizationId, "organizationId must not be null");
       Objects.requireNonNull(importRecordId, "importRecordId must not be null");
+      importExternalId = importExternalId == null
+          ? Optional.empty()
+          : importExternalId.map(externalId -> requireNonBlank(externalId, "importExternalId"));
       Objects.requireNonNull(sourceItemId, "sourceItemId must not be null");
       Objects.requireNonNull(informationPacketId, "informationPacketId must not be null");
       documentOriginalFilename = documentOriginalFilename == null
@@ -208,6 +212,7 @@ public final class ImportMigrationModels {
         UUID batchId,
         UUID organizationId,
         UUID importRecordId,
+        String importExternalId,
         UUID sourceItemId,
         UUID informationPacketId,
         UUID extractionRunId,
@@ -218,6 +223,7 @@ public final class ImportMigrationModels {
           batchId,
           organizationId,
           importRecordId,
+          Optional.of(importExternalId),
           sourceItemId,
           informationPacketId,
           extractionRunId,
@@ -231,6 +237,7 @@ public final class ImportMigrationModels {
         UUID batchId,
         UUID organizationId,
         UUID importRecordId,
+        String importExternalId,
         UUID sourceItemId,
         UUID informationPacketId,
         String originalFilename,
@@ -241,6 +248,7 @@ public final class ImportMigrationModels {
           batchId,
           organizationId,
           importRecordId,
+          Optional.of(importExternalId),
           sourceItemId,
           informationPacketId,
           null,

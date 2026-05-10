@@ -29,9 +29,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public final class ImportMigrationService {
+
+  private static final Map<String, Long> MAX_DOCUMENT_SIZE_BY_MIME_TYPE = Map.of(
+      "application/pdf", 25L * 1024 * 1024,
+      "application/msword", 25L * 1024 * 1024,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 25L * 1024 * 1024,
+      "image/png", 10L * 1024 * 1024,
+      "image/jpeg", 10L * 1024 * 1024,
+      "image/webp", 10L * 1024 * 1024,
+      "text/plain", 5L * 1024 * 1024,
+      "text/markdown", 5L * 1024 * 1024);
+  private static final Set<String> ALLOWED_DOCUMENT_MIME_TYPES =
+      MAX_DOCUMENT_SIZE_BY_MIME_TYPE.keySet();
 
   private final ImportBatchRepository importBatchRepository;
   private final GovernedImportGateway governedImportGateway;
@@ -158,6 +171,37 @@ public final class ImportMigrationService {
   public ImportBatchReport importDocuments(DocumentBatchImportCommand command) {
     Objects.requireNonNull(command, "command must not be null");
     UUID batchId = UUID.randomUUID();
+    List<ImportRowError> documentErrors = validateDocuments(command.documents());
+    if (!documentErrors.isEmpty()) {
+      ValidationReport validationReport = new ValidationReport(
+          0,
+          documentErrors.size(),
+          0,
+          0,
+          0,
+          documentErrors,
+          List.of());
+      ImportBatchReport report = new ImportBatchReport(
+          batchId,
+          command.organizationId(),
+          command.actorId(),
+          command.actorRole(),
+          command.sourceType(),
+          ImportValidationStatus.VALIDATION_FAILED,
+          0,
+          command.documents().size(),
+          0,
+          documentErrors.size(),
+          0,
+          0,
+          0,
+          ImportRollbackStatus.NOT_REQUESTED,
+          validationReport,
+          List.of(),
+          command.occurredAt(),
+          Optional.empty());
+      return importBatchRepository.save(report);
+    }
     List<GovernedImportLineage> lineages = new ArrayList<>();
     for (DocumentImportDraft document : command.documents()) {
       lineages.add(governedImportGateway.createDocument(
@@ -262,6 +306,38 @@ public final class ImportMigrationService {
           "cross_org_reference_rejected",
           "Referenced company belongs to a different organization."));
     }
+    if (reference != null && reference.entityType() != ImportEntityType.COMPANY) {
+      rowErrors.add(new ImportRowError(
+          draft.rowNumber(),
+          "company_external_id",
+          "wrong_entity_reference_rejected",
+          "Referenced entity is not a company."));
+    }
+  }
+
+  private static List<ImportRowError> validateDocuments(List<DocumentImportDraft> documents) {
+    List<ImportRowError> documentErrors = new ArrayList<>();
+    for (int index = 0; index < documents.size(); index++) {
+      DocumentImportDraft document = documents.get(index);
+      int rowNumber = index + 2;
+      if (!ALLOWED_DOCUMENT_MIME_TYPES.contains(document.mimeType())) {
+        documentErrors.add(new ImportRowError(
+            rowNumber,
+            "mimeType",
+            "unsupported_document_mime_type",
+            "Document MIME type is not accepted by governed document intake."));
+        continue;
+      }
+      long maxSizeBytes = MAX_DOCUMENT_SIZE_BY_MIME_TYPE.get(document.mimeType());
+      if (document.content().length > maxSizeBytes) {
+        documentErrors.add(new ImportRowError(
+            rowNumber,
+            "content",
+            "document_size_exceeds_limit",
+            "Document content exceeds governed document intake size limits."));
+      }
+    }
+    return documentErrors;
   }
 
   private static boolean hasRowError(List<ImportRowError> rowErrors, int rowNumber) {
