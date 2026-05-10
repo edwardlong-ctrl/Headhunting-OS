@@ -4,10 +4,12 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` feature baseline after the Task 58 release-management
-  package: Task 58 Release Management and Regression Suite, on top of the Task
-  50 governance console, Task 49/55/56/57 integration batch, and Task 51/54
-  boundaries.
+- latest local `main` feature baseline after the Task 60 full-product
+  acceptance gate: `FULL_PRODUCT_100_READY` for the current v2.1/v2.0
+  specification. Task 60 adds the final evidence report and tightens the
+  Consultant route contract to assert `/consultant/placements`; it does not
+  claim public SaaS launch, managed-cloud signoff, formal certification,
+  external systems completion, or customer go-live approval.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
 - latest production security compliance baseline: Task 52 at `afc6942`.
 - latest Task 42 gate work on local `main`: Task 42
@@ -15,6 +17,11 @@ This file contains mutable short-term engineering state. Update it after future 
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
+  - Task 60 - Full Product Acceptance Gate, including the final acceptance
+    matrix in `docs/roadmap/task-60-full-product-acceptance-gate.md`, the
+    missing Consultant `/consultant/placements` route-contract assertion, and
+    passing local release-gate evidence with browser E2E on API `8097`, web
+    `4197`, and isolated PostgreSQL `55432`.
   - Task 50 - Governance, Eval, and Ontology Production Console, including Admin governance surfaces for eval failures, deterministic negative cases, review quality, model routing inspection with the existing governed config overlay, cost/latency, ontology drift, redaction incidents, and AI resume authenticity risk, plus an Owner `ai-quality` summary. This reuses existing Task 44/47/49/51/54/56/57 boundaries and does not add live provider activation/switching, ontology mutation, external BI/legal/accounting integrations, Task 58 release management, or Task 60 final acceptance.
   - Task 58 - Release Management and Regression Suite, including a CI release-regression workflow, local ordered `release:gate`, Flyway/Testcontainers migration validation, full backend and frontend release chain, deterministic pilot browser E2E wrapper with owned PostgreSQL/API cleanup, privacy/security negative regression suite, AI eval artifact/schema regression suite, and strict release checklist/gate docs. This creates the release safety system only and does not add Task 60 final acceptance or public launch signoff.
   - Task 57 at `cd81acc` - Reporting, Exports, and Legal Audit Packages, including backend-owned reporting export adapters for owner reports, consultant activity, client shortlist feedback, candidate personal data, disclosure audit, placement/commission, and retention evidence with role/scope/visibility policy.
@@ -197,10 +204,10 @@ This file contains mutable short-term engineering state. Update it after future 
 - merge status: Task 49, Task 55, Task 56, and Task 57 were rebased onto
   current local `main`, validated in their worktrees, fast-forward merged in
   order, and smoke-validated on `main` after each merge. No push was performed.
-- next recommended task: continue with remaining Task 60 for final full-product
-  acceptance. Task 42
-  readiness remains scoped to the controlled-pilot Usable v1 gate, not public
-  production certification.
+- next recommended task: move from Task 60 closure into post-100 roadmap
+  selection. Task 42 readiness remains scoped to the controlled-pilot Usable v1
+  gate, and Task 60 readiness remains scoped to the current v2.1/v2.0
+  specification rather than public SaaS launch certification.
 
 ## Completed Major Tasks
 
@@ -275,7 +282,12 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 52: Production Security Compliance Baseline ✅ threat model, access review, privacy/retention and secret-rotation runbooks, dependency/pen-test remediation workflow, issue register, and compliance documentation regression coverage.
 - Task 53: Disaster Recovery and Business Continuity ✅ local backup/restore drill, document/object recovery, migration rollback invariants, AI/notification outage playbooks, and incident severity levels.
 - Task 54: Performance, Load, and Cost Targets ✅ documented latency/throughput/cost targets, backend budget policy, and deterministic local performance/load/cost harness.
+- Task 55: Data Import and Migration from Existing Systems ✅ governed CSV/document import, validation/reporting, duplicate safeguards, rollback/reset planning, and governed-intake import gateway boundaries.
+- Task 56: Support and Operations Tooling ✅ ticketed same-organization support lookup, failed-notification retry, AI task replay boundary, data-correction request workflow, and support action audit.
+- Task 57: Reporting, Exports, and Legal Audit Packages ✅ role/scope-safe Owner, Consultant, Client, Candidate, disclosure, placement/commission, and retention evidence export package boundaries.
+- Task 58: Release Management and Regression Suite ✅ CI and local release gates, migration validation, backend/frontend regression chain, deterministic pilot E2E wrapper, privacy/security negatives, AI eval artifact/schema regression, and release checklist/gate docs.
 - Task 59: Pilot-to-Production Onboarding Playbooks ✅ customer onboarding, consultant/client training, candidate consent FAQ, admin setup, data import, risk review, and go-live playbooks for repeatable controlled-pilot onboarding.
+- Task 60: Full Product Acceptance Gate ✅ current v2.1/v2.0 specification accepted as `FULL_PRODUCT_100_READY` with final evidence matrix, `/consultant/placements` route-contract coverage, and passing release-gate browser E2E evidence.
 - Task 18C: Consultant Shortlist CRUD + Sub-entity CREATE Endpoints ✅ ShortlistPersistencePort.update() + JdbcShortlistPersistencePort.update() with optimistic locking (WHERE organization_id = ? AND version = ?, SET version = version + 1), ShortlistService.updateShortlist(), FieldAccessPolicy.decideConsultantAccess() extended for SHORTLIST CREATE/UPDATE, 5 new request DTOs (ShortlistCreateRequest, ShortlistUpdateRequest, CompanyContactCreateRequest, JobRequirementCreateRequest, JobScorecardCreateRequest), ConsultantApiCommandService extended with createShortlist/updateShortlist/createCompanyContact/createJobRequirement/createJobScorecard, ConsultantShortlistController @PostMapping + @PutMapping("/{shortlistId}"), ConsultantCompanyController @PostMapping("/{companyId}/contacts"), ConsultantJobController @PostMapping("/{jobId}/requirements") + @PostMapping("/{jobId}/scorecard"), ApiBoundaryRegressionClosureTest updated for ShortlistController POST/PUT whitelisting, ConsultantControllerLeakageTest extended with 15 new write-operation tests, ConsultantWriteOrgIsolationIntegrationTest extended with 4 shortlist org-isolation + optimistic-locking tests. All sub-entity CREATE endpoints return parent detail response.
 - Task 19A: Identity/Auth Infrastructure Baseline ✅ V15 migration adds `identity.user_account.password_hash` and new `identity.session` table. Backend now has Spring Security stateless filter chain, JWT issuance/validation, `RtoAuthenticatedPrincipal`, refresh-token-backed session persistence, `AuthenticationService`, `AuthenticationController` with `POST /api/auth/login`, `POST /api/auth/refresh`, and `POST /api/auth/logout`, auth-safe response DTOs, invalid-token fail-closed handling, focused auth controller coverage, and PostgreSQL/Testcontainers login-refresh-logout regression coverage.
 - Task 19B: Product Controller Migration to JWT-backed Security Context ✅ consultant/client-safe/document product endpoints now read identity from Spring Security principal instead of temporary role/org headers, `SecurityConfig` now requires authentication for `/api/**` except `/api/auth/**` and `/health`, client-safe access context adapts from authenticated principal plus explicit field/disclosure headers, consultant/client-safe/document WebMvc regression tests now use `SecurityMockMvcRequestPostProcessors.authentication(...)`, and the backend Maven suite passes after the migration.
@@ -399,8 +411,13 @@ This file contains mutable short-term engineering state. Update it after future 
 ## Next Recommended Task
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
-`CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with remaining
-Task 60 for final full product acceptance. Use:
+`CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate, and Task 60 now
+returns `FULL_PRODUCT_100_READY` for the current v2.1/v2.0 specification. The
+next task should be chosen from the post-100 roadmap items, such as public
+launch operations, managed infrastructure, formal security/compliance
+certification, live provider activation, external systems integration, customer
+migration execution, support UI, or additional production-calibrated industry
+packs. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`
@@ -411,7 +428,7 @@ Task 60 for final full product acceptance. Use:
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Task 34 closes the combined notification/reminder system plus candidate/client portal session and follow-up participation hardening stream.
 Task 35 closes the first interview-feedback and interaction-scoped outcome-loop stream.
-Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 49 integration boundaries, Task 51 multi-organization boundary hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, Task 55 import/migration, Task 56 support operations, Task 57 reporting/export/legal audit packages, Task 58 release management/regression suite, and Task 59 onboarding playbooks are now complete on `main` for their documented scopes. Remaining production-depth work stays tracked in `known-gaps.md` and `productization-roadmap.md`.
+Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 49 integration boundaries, Task 51 multi-organization boundary hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, Task 55 import/migration, Task 56 support operations, Task 57 reporting/export/legal audit packages, Task 58 release management/regression suite, Task 59 onboarding playbooks, and Task 60 full-product acceptance are now complete on `main` for their documented scopes. Remaining items are post-100 roadmap or deployment/customer-go-live work tracked in `known-gaps.md` and `productization-roadmap.md`.
 
 ## Future Prompt Strategy
 

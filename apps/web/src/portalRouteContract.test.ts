@@ -40,6 +40,7 @@ describe("Task 43 portal route contract", () => {
       "jobs/:jobId/shortlist",
       "follow-ups",
       "workflow",
+      "placements",
     ]) {
       expect(consultantPortalSource).toContain(`path="${routePath}"`);
     }

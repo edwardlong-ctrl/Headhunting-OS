@@ -1,16 +1,21 @@
 # Known Gaps
 
-## Task 58 Release Management Closed; Final Product Acceptance Still Deferred
+## Task 60 Full Product Acceptance Closed; Post-100 Roadmap Remains
 
-- Task 58 now packages release safety into CI and local commands:
-  `release:gate`, `release:migrations`, `release:e2e:pilot`,
-  `release:privacy-security`, and `release:ai-eval`.
-- The release system requires backend, frontend, migration, browser E2E,
-  privacy/security, and AI eval evidence before a release can be called ready.
-- Remaining gaps:
-  - Task 60 final full-product acceptance remains separate.
+- Task 60 now classifies the current v2.1/v2.0 specification as
+  `FULL_PRODUCT_100_READY` in
+  `docs/roadmap/task-60-full-product-acceptance-gate.md`.
+- The release system still requires backend, frontend, migration, browser E2E,
+  privacy/security, and AI eval evidence before a release can be called ready;
+  the Task 60 run consumed passing local `release:gate` evidence.
+- Remaining post-100 roadmap items:
   - Public launch operation signoff, managed infrastructure signoff, formal
-    certification, and live customer go-live approval remain outside Task 58.
+    certification, and live customer go-live approval.
+  - Live production provider activation and vendor-specific delivery SLAs.
+  - External BI/legal/accounting systems and customer-specific migration
+    execution.
+  - Full support console UI, external helpdesk integration, billing, and
+    marketplace-scale product surfaces.
 
 ## Task 50 Governance Console Closed; Live Provider Governance Still Deferred
 
@@ -28,7 +33,8 @@
   - No ML resume-fraud detector is claimed; authenticity risk is surfaced from
     existing deterministic/eval/review signals.
   - No ontology editing UI or automatic ontology mutation exists.
-  - Task 60 final acceptance remains a separate production-readiness gate.
+  - These are now post-100 roadmap items after Task 60, not blockers to the
+    current v2.1/v2.0 acceptance gate.
 
 ## Task 57 Reporting/Exports Closed; External BI and Legal Systems Still Deferred
 

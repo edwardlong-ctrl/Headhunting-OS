@@ -1390,8 +1390,8 @@ raw data export。
 状态：**已完成**，当前 release-safety baseline 已加入 CI、local release
 gates、migration validation、backend/frontend regression chain、deterministic
 pilot browser E2E wrapper、privacy/security negative regressions、AI eval
-artifact/schema regressions，以及 release checklist/gate docs。这不是 Task 60
-final acceptance。
+artifact/schema regressions，以及 release checklist/gate docs。Task 60 现在使用
+这套 release-safety evidence 作为当前规格 final acceptance 的一部分。
 
 目标：让发布变得可重复、可验证。
 
@@ -1438,6 +1438,10 @@ real integration completion 或未批准的生产客户数据导入。
 
 ## Task 60：Full Product Acceptance Gate
 
+状态：**已完成**，当前 v2.1/v2.0 规格的 Task 60 report 位于
+`docs/roadmap/task-60-full-product-acceptance-gate.md`，结果为
+`FULL_PRODUCT_100_READY`，并包含通过的 release gate / browser E2E 证据。
+
 目标：判断当前 v2.1/v2.0 产品计划是否 100% 实现。
 
 必须通过：
@@ -1457,6 +1461,12 @@ real integration completion 或未批准的生产客户数据导入。
 - 可以称为当前 v2.1/v2.0 规格 Full Product 100%。
 - 这不等于未来所有商业 SaaS 功能都完成。billing、marketplace scale、深度 ATS ecosystem、更多 production-calibrated industry packs 可以作为 v2.1/v2.0 之后的新 roadmap。
 
+关闭说明：当前规格的 full-product acceptance gate 已完成。Task 60 修复了
+一个 evidence blocker：把 Consultant `/consultant/placements` 加入 route
+contract 断言；实际 route 和 backend API 在此前已经存在。剩余事项属于
+post-100 roadmap、deployment 或 customer go-live work，不是隐藏的 v2.1/v2.0
+blocker。
+
 ## 现在不要做什么
 
 - 不要先做 8 个假 production-ready industry packs。
@@ -1466,7 +1476,8 @@ real integration completion 或未批准的生产客户数据导入。
 - 不要优先做装饰性 UI，而忽略真实 workflow、privacy gates、consent、disclosure、audit。
 - 不要让 seed data 绕过真实 workflow。
 - Task 42 gate 通过前不要声称 pilot-ready。
-- Task 60 前不要声称 full product 100%。
+- 不要把 Task 60 误写成 public SaaS launch、managed infrastructure readiness、
+formal certification 或 customer go-live approval。
 
 ## 后续每个任务的固定格式
 

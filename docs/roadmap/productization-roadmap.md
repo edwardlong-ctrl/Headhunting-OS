@@ -1519,7 +1519,8 @@ Status: **Completed** for the current release-safety baseline. The Task 58
 package adds CI, local release gates, migration validation, backend/frontend
 regression chaining, deterministic pilot browser E2E wrapping, privacy/security
 negative regressions, AI eval artifact/schema regressions, and release
-checklist/gate docs. This is not Task 60 final acceptance.
+checklist/gate docs. Task 60 now consumes this release safety evidence for
+current-spec final acceptance.
 
 Goal: Make releases repeatable and safe.
 
@@ -1572,6 +1573,10 @@ unapproved production customer data import.
 
 Priority: P2, final 100% gate for current v2.1/v2.0 spec
 
+Status: **Completed** for the current v2.1/v2.0 specification. The Task 60
+report is `docs/roadmap/task-60-full-product-acceptance-gate.md` and records
+`FULL_PRODUCT_100_READY` with passing release-gate/browser-E2E evidence.
+
 Goal: Decide whether the current v2.1/v2.0 product plan is fully implemented.
 
 Must pass:
@@ -1590,6 +1595,13 @@ Acceptance:
 
 - The system can be called Full v2.1/v2.0 Product 100% for the current specification.
 - This still does not mean every future commercial SaaS feature exists. Billing, marketplace scale, advanced analytics, deep ATS ecosystems, and additional industry production packs may continue as post-100% roadmap items if they were not required by v2.1/v2.0.
+
+Closeout status: completed for the current-spec full-product acceptance gate.
+Task 60 fixed one evidence blocker by adding the missing Consultant
+`/consultant/placements` assertion to the route contract, then validated the
+checkout with local release gates including browser E2E. Remaining items are
+post-100 roadmap / deployment / customer-go-live work, not hidden v2.1/v2.0
+blockers.
 
 ## Recommended Execution Order
 
@@ -1618,4 +1630,5 @@ After Task 42, complete Tasks 43-60 to reach full v2.1/v2.0 implementation.
 - Do not prioritize decorative UI over real workflow actions, privacy gates, consent, disclosure, and audit.
 - Do not let seed data bypass the same workflow that real data must use.
 - Do not claim pilot readiness until Task 42 passes.
-- Do not claim full product completion until Task 60 passes.
+- Do not claim public SaaS launch, managed infrastructure readiness, formal
+  certification, or customer go-live approval from Task 60 alone.
