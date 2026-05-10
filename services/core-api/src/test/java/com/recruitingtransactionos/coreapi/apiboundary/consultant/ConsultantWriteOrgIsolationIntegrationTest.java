@@ -30,6 +30,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessRequest;
 import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.shortlist.Shortlist;
 import com.recruitingtransactionos.coreapi.shortlist.ShortlistCandidateCard;
@@ -714,25 +715,25 @@ class ConsultantWriteOrgIsolationIntegrationTest {
   private static AccessRequest jobCreateAccessRequest() {
     return new AccessRequest(
         PortalRole.CONSULTANT, ResourceType.JOB, AccessAction.CREATE,
-        FieldClassification.CLIENT_SAFE, Set.of(), false);
+        FieldClassification.CLIENT_SAFE, Set.of(RelationshipScope.SAME_ORGANIZATION), false);
   }
 
   private static AccessRequest jobUpdateAccessRequest() {
     return new AccessRequest(
         PortalRole.CONSULTANT, ResourceType.JOB, AccessAction.UPDATE,
-        FieldClassification.CLIENT_SAFE, Set.of(), false);
+        FieldClassification.CLIENT_SAFE, Set.of(RelationshipScope.SAME_ORGANIZATION), false);
   }
 
   private static AccessRequest shortlistCreateAccessRequest() {
     return new AccessRequest(
         PortalRole.CONSULTANT, ResourceType.SHORTLIST, AccessAction.CREATE,
-        FieldClassification.CLIENT_SAFE, Set.of(), false);
+        FieldClassification.CLIENT_SAFE, Set.of(RelationshipScope.SAME_ORGANIZATION), false);
   }
 
   private static AccessRequest shortlistUpdateAccessRequest() {
     return new AccessRequest(
         PortalRole.CONSULTANT, ResourceType.SHORTLIST, AccessAction.UPDATE,
-        FieldClassification.CLIENT_SAFE, Set.of(), false);
+        FieldClassification.CLIENT_SAFE, Set.of(RelationshipScope.SAME_ORGANIZATION), false);
   }
 
   private static CandidateService candidateService() {

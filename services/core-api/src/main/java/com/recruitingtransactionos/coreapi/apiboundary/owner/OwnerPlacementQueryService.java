@@ -51,8 +51,12 @@ public final class OwnerPlacementQueryService {
 
   public PagedResult<OwnerPlacementSummaryResponse> listPlacements(AccessRequest accessRequest, PagedQuery pagedQuery) {
     requirePlacementRead(accessRequest);
-    List<Placement> all = placementWorkflowService.listPlacements(pagedQuery.organizationId());
-    List<Commission> commissions = commissionWorkflowService.listCommissions(pagedQuery.organizationId());
+    List<Placement> all = placementWorkflowService.listPlacements(pagedQuery.organizationId()).stream()
+        .filter(placement -> pagedQuery.organizationId().equals(placement.organizationId()))
+        .toList();
+    List<Commission> commissions = commissionWorkflowService.listCommissions(pagedQuery.organizationId()).stream()
+        .filter(commission -> pagedQuery.organizationId().equals(commission.organizationId()))
+        .toList();
     Map<PlacementId, List<Commission>> commissionsByPlacement = commissions.stream()
         .collect(Collectors.groupingBy(Commission::placementId));
     List<OwnerPlacementSummaryResponse> items = all.stream()
@@ -67,7 +71,9 @@ public final class OwnerPlacementQueryService {
 
   public PagedResult<OwnerCommissionSummaryResponse> listCommissions(AccessRequest accessRequest, PagedQuery pagedQuery) {
     requireCommissionRead(accessRequest);
-    List<Commission> all = commissionWorkflowService.listCommissions(pagedQuery.organizationId());
+    List<Commission> all = commissionWorkflowService.listCommissions(pagedQuery.organizationId()).stream()
+        .filter(commission -> pagedQuery.organizationId().equals(commission.organizationId()))
+        .toList();
     List<OwnerCommissionSummaryResponse> items = all.stream()
         .skip(pagedQuery.offset())
         .limit(pagedQuery.limit())

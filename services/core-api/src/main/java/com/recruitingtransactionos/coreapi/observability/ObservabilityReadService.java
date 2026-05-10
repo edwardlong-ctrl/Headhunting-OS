@@ -4,6 +4,10 @@ import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentDisclosureWo
 import com.recruitingtransactionos.coreapi.consentdisclosure.ConsentRecord;
 import com.recruitingtransactionos.coreapi.consentdisclosure.DisclosureRecord;
 import com.recruitingtransactionos.coreapi.consentdisclosure.UnlockDecision;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditRecord;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditSearchQuery;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditSearchReader;
+import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityAccessAuditSearchResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityAITaskRunSearchResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityDisclosureAuditExportResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityReviewEventSearchResponse;
@@ -26,6 +30,7 @@ public final class ObservabilityReadService {
   private final ObservabilityDisclosureRecordReader disclosureRecordReader;
   private final ObservabilityConsentRecordReader consentRecordReader;
   private final ObservabilityUnlockDecisionReader unlockDecisionReader;
+  private final AccessAuditSearchReader accessAuditSearchReader;
 
   public ObservabilityReadService(
       ObservabilityWorkflowEventReader workflowEventReader,
@@ -38,7 +43,29 @@ public final class ObservabilityReadService {
         aiTaskRunReader,
         disclosureRecordReader,
         (organizationId, consentRecordRef) -> Optional.empty(),
-        (organizationId, unlockDecisionRef) -> Optional.empty());
+        (organizationId, unlockDecisionRef) -> Optional.empty(),
+        query -> List.of());
+  }
+
+  public ObservabilityReadService(
+      ObservabilityWorkflowEventReader workflowEventReader,
+      ObservabilityReviewEventReader reviewEventReader,
+      ObservabilityAITaskRunReader aiTaskRunReader,
+      ObservabilityDisclosureRecordReader disclosureRecordReader,
+      ObservabilityConsentRecordReader consentRecordReader,
+      ObservabilityUnlockDecisionReader unlockDecisionReader,
+      AccessAuditSearchReader accessAuditSearchReader) {
+    this.workflowEventReader = Objects.requireNonNull(workflowEventReader, "workflowEventReader must not be null");
+    this.reviewEventReader = Objects.requireNonNull(reviewEventReader, "reviewEventReader must not be null");
+    this.aiTaskRunReader = Objects.requireNonNull(aiTaskRunReader, "aiTaskRunReader must not be null");
+    this.disclosureRecordReader = Objects.requireNonNull(
+        disclosureRecordReader,
+        "disclosureRecordReader must not be null");
+    this.consentRecordReader = Objects.requireNonNull(consentRecordReader, "consentRecordReader must not be null");
+    this.unlockDecisionReader = Objects.requireNonNull(unlockDecisionReader, "unlockDecisionReader must not be null");
+    this.accessAuditSearchReader = Objects.requireNonNull(
+        accessAuditSearchReader,
+        "accessAuditSearchReader must not be null");
   }
 
   public ObservabilityReadService(
@@ -48,14 +75,14 @@ public final class ObservabilityReadService {
       ObservabilityDisclosureRecordReader disclosureRecordReader,
       ObservabilityConsentRecordReader consentRecordReader,
       ObservabilityUnlockDecisionReader unlockDecisionReader) {
-    this.workflowEventReader = Objects.requireNonNull(workflowEventReader, "workflowEventReader must not be null");
-    this.reviewEventReader = Objects.requireNonNull(reviewEventReader, "reviewEventReader must not be null");
-    this.aiTaskRunReader = Objects.requireNonNull(aiTaskRunReader, "aiTaskRunReader must not be null");
-    this.disclosureRecordReader = Objects.requireNonNull(
+    this(
+        workflowEventReader,
+        reviewEventReader,
+        aiTaskRunReader,
         disclosureRecordReader,
-        "disclosureRecordReader must not be null");
-    this.consentRecordReader = Objects.requireNonNull(consentRecordReader, "consentRecordReader must not be null");
-    this.unlockDecisionReader = Objects.requireNonNull(unlockDecisionReader, "unlockDecisionReader must not be null");
+        consentRecordReader,
+        unlockDecisionReader,
+        query -> List.of());
   }
 
   public ObservabilityWorkflowEventSearchResponse searchWorkflowEvents(ObservabilityWorkflowEventQuery query) {
@@ -86,6 +113,19 @@ public final class ObservabilityReadService {
         .map(ObservabilityReadService::aiTaskRunResponse)
         .toList();
     return new ObservabilityAITaskRunSearchResponse(items, query.limit(), query.offset(), items.size() == query.limit());
+  }
+
+  public ObservabilityAccessAuditSearchResponse searchAccessAudit(AccessAuditSearchQuery query) {
+    validateLimit(query.limit(), query.offset());
+    List<ObservabilityAccessAuditEventResponse> items = accessAuditSearchReader.search(query)
+        .stream()
+        .map(ObservabilityReadService::accessAuditResponse)
+        .toList();
+    return new ObservabilityAccessAuditSearchResponse(
+        items,
+        query.limit(),
+        query.offset(),
+        items.size() == query.limit());
   }
 
   public ObservabilityDisclosureAuditExportResponse disclosureAuditExport(
@@ -235,6 +275,20 @@ public final class ObservabilityReadService {
         record.sourceSpanRef(),
         safeReasonCode(record.reason()),
         record.createdAt().toString());
+  }
+
+  private static ObservabilityAccessAuditEventResponse accessAuditResponse(AccessAuditRecord record) {
+    return new ObservabilityAccessAuditEventResponse(
+        record.auditLogId().toString(),
+        record.actorUserId().toString(),
+        record.actorRole(),
+        record.action(),
+        record.targetEntityType(),
+        record.targetEntityId().toString(),
+        record.result(),
+        safeReasonCode(record.reason()),
+        record.sensitivityLevel(),
+        record.occurredAt().toString());
   }
 
   private static ObservabilityAITaskRunResponse aiTaskRunResponse(AITaskRunRecord record) {

@@ -62,11 +62,12 @@ class IdentityAuthPostgresIntegrationTest {
 
   @Test
   void migrationAddsPasswordHashAndIdentitySessionTable() throws SQLException {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(32);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(33);
     assertThat(appliedMigrationVersions()).containsExactly(
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32");
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33");
     assertThat(columnExists("identity", "user_account", "password_hash")).isTrue();
     assertThat(tableExists("identity", "session")).isTrue();
+    assertThat(constraintExists("identity", "user_account", "uq_user_account_id_org")).isTrue();
   }
 
   @Test
@@ -190,6 +191,46 @@ class IdentityAuthPostgresIntegrationTest {
         PortalRole.CONSULTANT))
         .isInstanceOf(AuthenticationFailureException.class)
         .hasMessage("role_assignment_required");
+  }
+
+  @Test
+  void roleAssignmentRejectsUserAccountFromAnotherOrganization() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000190501");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-000000190502");
+    UUID otherUserAccountId = uuid("00000000-0000-0000-0000-000000190503");
+    insertOrganization(organizationId);
+    insertOrganization(otherOrganizationId);
+    insertUserAccount(otherOrganizationId, otherUserAccountId, "cross-role@example.com", "Cross Role",
+        "active", passwordEncoder.encode("secret123"));
+
+    assertThatThrownBy(() -> insertRoleAssignment(organizationId, otherUserAccountId, "consultant"))
+        .isInstanceOf(SQLException.class);
+  }
+
+  @Test
+  void sessionRejectsUserAccountFromAnotherOrganization() throws SQLException {
+    UUID organizationId = uuid("00000000-0000-0000-0000-000000190601");
+    UUID otherOrganizationId = uuid("00000000-0000-0000-0000-000000190602");
+    UUID otherUserAccountId = uuid("00000000-0000-0000-0000-000000190603");
+    insertOrganization(organizationId);
+    insertOrganization(otherOrganizationId);
+    insertUserAccount(otherOrganizationId, otherUserAccountId, "cross-session@example.com", "Cross Session",
+        "active", passwordEncoder.encode("secret123"));
+    JdbcIdentityAuthenticationPort port = new JdbcIdentityAuthenticationPort(dataSource);
+
+    assertThatThrownBy(() -> port.createSession(new IdentityAuthSession(
+        uuid("00000000-0000-0000-0000-000000190604"),
+        organizationId,
+        otherUserAccountId,
+        PortalRole.CONSULTANT,
+        AuthenticationService.hashToken(JwtService.generateOpaqueToken()),
+        jwtService.refreshTokenExpiresAt(NOW),
+        null,
+        NOW,
+        NOW,
+        1)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Failed to create identity.session");
   }
 
   private static AuthenticationService service() {
@@ -329,6 +370,24 @@ class IdentityAuthPostgresIntegrationTest {
              """)) {
       statement.setString(1, schema);
       statement.setString(2, table);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next();
+      }
+    }
+  }
+
+  private static boolean constraintExists(String schema, String table, String constraint) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         PreparedStatement statement = connection.prepareStatement("""
+             SELECT 1
+             FROM information_schema.table_constraints
+             WHERE table_schema = ?
+               AND table_name = ?
+               AND constraint_name = ?
+             """)) {
+      statement.setString(1, schema);
+      statement.setString(2, table);
+      statement.setString(3, constraint);
       try (ResultSet resultSet = statement.executeQuery()) {
         return resultSet.next();
       }

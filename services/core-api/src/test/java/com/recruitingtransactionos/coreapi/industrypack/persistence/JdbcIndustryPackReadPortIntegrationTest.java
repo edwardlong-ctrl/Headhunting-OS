@@ -46,7 +46,7 @@ class JdbcIndustryPackReadPortIntegrationTest {
 
   @Test
   void readsSeededSemiconductorPackOntologyAndRoleTemplate() {
-    assertThat(migrateResult.migrationsExecuted).isEqualTo(32);
+    assertThat(migrateResult.migrationsExecuted).isEqualTo(33);
     JdbcIndustryPackReadPort port = new JdbcIndustryPackReadPort(dataSource);
 
     var semiconductor = port.findByKey(new IndustryPackKey("semiconductor"));

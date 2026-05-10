@@ -107,25 +107,84 @@ class JdbcAccessAuditRecorderPostgresIntegrationTest {
     }
   }
 
+  @Test
+  void accessAuditSearchIsTenantScopedAndDoesNotRevealOtherOrganizationRows() throws SQLException {
+    UUID otherOrganizationId = UUID.fromString("00000000-0000-0000-0000-000000410201");
+    UUID otherActorUserId = UUID.fromString("00000000-0000-0000-0000-000000410202");
+    UUID otherTargetEntityId = UUID.fromString("00000000-0000-0000-0000-000000410203");
+    try (Connection connection = dataSource.getConnection()) {
+      insertOrganizationAndUser(connection, otherOrganizationId, otherActorUserId, "other-access-audit@example.test");
+    }
+    JdbcAccessAuditRecorder recorder = new JdbcAccessAuditRecorder(dataSource);
+    recorder.record(new AccessAuditEvent(
+        new AccessRequest(
+            PortalRole.ADMIN,
+            ResourceType.DISCLOSURE_RECORD,
+            AccessAction.EXPORT,
+            FieldClassification.SYSTEM_GOVERNANCE,
+            Set.of(RelationshipScope.SAME_ORGANIZATION),
+            false),
+        new AccessDecision(true, "admin_disclosure_audit_export_allowed", "Admin export allowed."),
+        new AccessAuditContext(ORGANIZATION_ID, ACTOR_USER_ID, TARGET_ENTITY_ID, "system_governance")));
+    recorder.record(new AccessAuditEvent(
+        new AccessRequest(
+            PortalRole.ADMIN,
+            ResourceType.DISCLOSURE_RECORD,
+            AccessAction.EXPORT,
+            FieldClassification.SYSTEM_GOVERNANCE,
+            Set.of(RelationshipScope.SAME_ORGANIZATION),
+            false),
+        new AccessDecision(true, "admin_disclosure_audit_export_allowed", "Admin export allowed."),
+        new AccessAuditContext(otherOrganizationId, otherActorUserId, otherTargetEntityId, "system_governance")));
+
+    JdbcAccessAuditSearchReader reader = new JdbcAccessAuditSearchReader(dataSource);
+    var records = reader.search(new AccessAuditSearchQuery(
+        ORGANIZATION_ID,
+        null,
+        null,
+        null,
+        null,
+        null,
+        50,
+        0));
+
+    assertThat(records).extracting(AccessAuditRecord::organizationId)
+        .containsOnly(ORGANIZATION_ID);
+    assertThat(records).extracting(AccessAuditRecord::targetEntityId)
+        .contains(TARGET_ENTITY_ID)
+        .doesNotContain(otherTargetEntityId);
+  }
+
   private static void insertOrganizationAndUser(Connection connection) throws SQLException {
+    insertOrganizationAndUser(connection, ORGANIZATION_ID, ACTOR_USER_ID, "access-audit@example.test");
+  }
+
+  private static void insertOrganizationAndUser(
+      Connection connection,
+      UUID organizationId,
+      UUID userAccountId,
+      String email) throws SQLException {
     try (PreparedStatement organization = connection.prepareStatement("""
         INSERT INTO identity.organization (
           organization_id, legal_name, display_name, status, default_timezone
         )
-        VALUES (?, 'Access Audit Org', 'Access Audit Org', 'active', 'UTC')
+        VALUES (?, ?, ?, 'active', 'UTC')
         ON CONFLICT DO NOTHING
         """);
         PreparedStatement user = connection.prepareStatement("""
         INSERT INTO identity.user_account (
           user_account_id, organization_id, email, display_name, status
         )
-        VALUES (?, ?, 'access-audit@example.test', 'Access Audit User', 'active')
+        VALUES (?, ?, ?, 'Access Audit User', 'active')
         ON CONFLICT DO NOTHING
         """)) {
-      organization.setObject(1, ORGANIZATION_ID);
+      organization.setObject(1, organizationId);
+      organization.setString(2, "Access Audit Org " + organizationId);
+      organization.setString(3, "Access Audit Org " + organizationId);
       organization.executeUpdate();
-      user.setObject(1, ACTOR_USER_ID);
-      user.setObject(2, ORGANIZATION_ID);
+      user.setObject(1, userAccountId);
+      user.setObject(2, organizationId);
+      user.setString(3, email);
       user.executeUpdate();
     }
   }

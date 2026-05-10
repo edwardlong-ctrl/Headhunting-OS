@@ -19,7 +19,8 @@ public enum ResourceType {
   PLACEMENT("placement"),
   COMMISSION("commission"),
   REVENUE_REPORT("revenue_report"),
-  ADMIN_GOVERNANCE("admin_governance");
+  ADMIN_GOVERNANCE("admin_governance"),
+  USER_ACCOUNT("user_account");
 
   private final String wireValue;
 

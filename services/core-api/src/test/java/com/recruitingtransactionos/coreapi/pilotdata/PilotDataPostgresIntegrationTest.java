@@ -41,7 +41,7 @@ class PilotDataPostgresIntegrationTest {
         .cleanDisabled(true)
         .load()
         .migrate();
-    assertThat(result.migrationsExecuted).isEqualTo(32);
+    assertThat(result.migrationsExecuted).isEqualTo(33);
     dataSource = postgresDataSource();
   }
 
@@ -294,6 +294,58 @@ class PilotDataPostgresIntegrationTest {
     assertThat(countRows("recruiting.job", dataset.organization().organizationId())).isZero();
     assertThat(countRows("intake.source_item", dataset.organization().organizationId())).isZero();
     assertThat(countRows("recruiting.candidate", dataset.organization().organizationId())).isZero();
+  }
+
+  @Test
+  void importFailsClosedBeforeWritesWhenSeededIdentityIdsAlreadyBelongToAnotherOrganization()
+      throws SQLException {
+    PilotDataset dataset = PilotDatasetLoader.defaultLoader().loadDefault();
+    UUID organizationId = dataset.organization().organizationId();
+    UUID otherOrganizationId = UUID.fromString("00000000-0000-0000-0000-00000038f001");
+    UUID reusedAccountId = UUID.fromString("00000000-0000-0000-0000-00000038f002");
+    List<PilotDataset.AccountSeed> accounts = new ArrayList<>(dataset.accounts());
+    accounts.add(new PilotDataset.AccountSeed(
+        reusedAccountId,
+        "cross-org-seed@example.test",
+        "Cross Org Seed",
+        "client",
+        "pilotpass123"));
+    PilotDataset invalidDataset = new PilotDataset(
+        dataset.version(),
+        dataset.organization(),
+        accounts,
+        dataset.companies(),
+        dataset.jobs(),
+        dataset.candidates(),
+        dataset.sourceDocuments());
+    PilotDataService service = new PilotDataService(
+        dataSource,
+        new BCryptPasswordEncoder(),
+        new PilotDataPrivacyValidator());
+    service.reset(organizationId, true);
+    executeUpdate("""
+        INSERT INTO identity.organization (
+          organization_id, legal_name, display_name, status, default_timezone
+        ) VALUES (?, 'Other Pilot Org', 'Other Pilot Org', 'active', 'UTC')
+        ON CONFLICT DO NOTHING
+        """, otherOrganizationId);
+    executeUpdate("""
+        INSERT INTO identity.user_account (
+          user_account_id, organization_id, email, display_name, status, password_hash
+        ) VALUES (?, ?, 'already-bound@example.test', 'Already Bound', 'active', 'hash')
+        ON CONFLICT DO NOTHING
+        """, reusedAccountId, otherOrganizationId);
+
+    PilotDataReport report = service.importDataset(invalidDataset);
+
+    assertThat(report.valid()).isFalse();
+    assertThat(report.failedGateReasons()).contains("seed_account_id_cross_org");
+    assertThat(countRows("identity.user_account", organizationId)).isZero();
+    assertThat(countRows("identity.role_assignment", organizationId)).isZero();
+    assertThat(countRows("recruiting.company", organizationId)).isZero();
+    assertThat(countRows("recruiting.job", organizationId)).isZero();
+    assertThat(countRows("recruiting.candidate", organizationId)).isZero();
+    assertThat(countRows("identity.user_account", otherOrganizationId)).isEqualTo(1);
   }
 
   @Test

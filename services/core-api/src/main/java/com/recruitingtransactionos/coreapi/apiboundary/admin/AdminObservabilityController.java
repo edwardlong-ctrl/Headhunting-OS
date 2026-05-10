@@ -4,6 +4,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiAccessDeniedResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditSearchQuery;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAuditContext;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -166,6 +167,32 @@ public final class AdminObservabilityController {
             causationId,
             startedFrom,
             startedTo,
+            limit,
+            offset))));
+  }
+
+  @GetMapping("/access-audit")
+  public ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> accessAudit(
+      @AuthenticationPrincipal RtoAuthenticatedPrincipal principal,
+      @RequestParam(required = false) String action,
+      @RequestParam(required = false) String targetEntityType,
+      @RequestParam(required = false) String result,
+      @RequestParam(required = false) UUID actorUserId,
+      @RequestParam(defaultValue = "50") int limit,
+      @RequestParam(defaultValue = "0") int offset) {
+    ResponseEntity<ApiResponseEnvelope<ApiSafeResponseBody>> denied = denyUnlessAdmin(principal);
+    if (denied != null) {
+      return denied;
+    }
+    permissionEnforcer.requireAllowed(adminGovernanceReadAccessRequest(principal.portalRole()));
+    return ResponseEntity.ok(ApiResponseEnvelope.success(observabilityReadService.searchAccessAudit(
+        new AccessAuditSearchQuery(
+            principal.organizationId(),
+            action,
+            targetEntityType,
+            result,
+            actorUserId,
+            null,
             limit,
             offset))));
   }

@@ -175,6 +175,49 @@ class PermissionEnforcerTest {
   }
 
   @Test
+  void consultantProductAccessRequiresExplicitSameOrganizationScope() {
+    for (ResourceType resourceType : List.of(
+        ResourceType.COMPANY,
+        ResourceType.JOB,
+        ResourceType.SHORTLIST,
+        ResourceType.PLACEMENT,
+        ResourceType.COMMISSION)) {
+      assertDenied(new AccessRequest(
+          PortalRole.CONSULTANT,
+          resourceType,
+          AccessAction.READ,
+          FieldClassification.INTERNAL,
+          Set.of(),
+          false));
+      assertDenied(new AccessRequest(
+          PortalRole.CONSULTANT,
+          resourceType,
+          AccessAction.CREATE,
+          FieldClassification.INTERNAL,
+          Set.of(),
+          false));
+
+      AccessDecision read = enforcer.requireAllowed(new AccessRequest(
+          PortalRole.CONSULTANT,
+          resourceType,
+          AccessAction.READ,
+          FieldClassification.INTERNAL,
+          Set.of(RelationshipScope.SAME_ORGANIZATION),
+          false));
+      assertThat(read.reasonCode()).isEqualTo("consultant_read_allowed");
+
+      AccessDecision write = enforcer.requireAllowed(new AccessRequest(
+          PortalRole.CONSULTANT,
+          resourceType,
+          AccessAction.CREATE,
+          FieldClassification.INTERNAL,
+          Set.of(RelationshipScope.SAME_ORGANIZATION),
+          false));
+      assertThat(write.reasonCode()).isEqualTo("consultant_write_allowed");
+    }
+  }
+
+  @Test
   void candidateProfileAccessRequiresSelfScopeAndStillDeniesUnsafeFields() {
     assertDenied(new AccessRequest(
         PortalRole.CANDIDATE,

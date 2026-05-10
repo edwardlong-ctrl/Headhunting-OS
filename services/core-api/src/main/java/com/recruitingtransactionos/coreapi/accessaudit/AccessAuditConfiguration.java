@@ -17,6 +17,11 @@ public class AccessAuditConfiguration {
   }
 
   @Bean
+  AccessAuditSearchReader accessAuditSearchReader(DataSource dataSource) {
+    return new JdbcAccessAuditSearchReader(dataSource);
+  }
+
+  @Bean
   PermissionEnforcer permissionEnforcer(AccessAuditRecorder accessAuditRecorder) {
     return new PermissionEnforcer(new PermissionEvaluator(), accessAuditRecorder);
   }

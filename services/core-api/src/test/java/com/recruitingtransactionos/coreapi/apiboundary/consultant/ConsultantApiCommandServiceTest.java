@@ -19,6 +19,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.Job;
@@ -580,7 +581,7 @@ class ConsultantApiCommandServiceTest {
         ResourceType.SHORTLIST,
         AccessAction.UPDATE,
         FieldClassification.CLIENT_SAFE,
-        Set.of(),
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
   }
 
@@ -590,7 +591,7 @@ class ConsultantApiCommandServiceTest {
         ResourceType.SHORTLIST,
         AccessAction.CREATE,
         FieldClassification.CLIENT_SAFE,
-        Set.of(),
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
   }
 
@@ -600,7 +601,7 @@ class ConsultantApiCommandServiceTest {
         ResourceType.JOB,
         AccessAction.UPDATE,
         FieldClassification.CLIENT_SAFE,
-        Set.of(),
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
   }
 
@@ -610,7 +611,7 @@ class ConsultantApiCommandServiceTest {
         ResourceType.JOB,
         AccessAction.CREATE,
         FieldClassification.CLIENT_SAFE,
-        Set.of(),
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
   }
 }

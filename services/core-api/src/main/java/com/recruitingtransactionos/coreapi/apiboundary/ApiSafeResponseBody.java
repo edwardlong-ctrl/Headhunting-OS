@@ -68,6 +68,7 @@ public sealed interface ApiSafeResponseBody
         OwnerAccountingExportResponse,
         GovernanceSectionResponse,
         GovernanceConfigUpdateResponse,
+        ObservabilityAccessAuditSearchResponse,
         ObservabilityWorkflowEventSearchResponse,
         ObservabilityReviewEventSearchResponse,
         ObservabilityAITaskRunSearchResponse,

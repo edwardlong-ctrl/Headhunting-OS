@@ -198,6 +198,11 @@ public final class FieldAccessPolicy {
           || request.resourceType() == ResourceType.SHORTLIST
           || request.resourceType() == ResourceType.PLACEMENT
           || request.resourceType() == ResourceType.COMMISSION) {
+        if (!request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+          return deny(
+              "consultant_same_org_scope_required",
+              "Consultant role may read product resources only with explicit same-organization scope.");
+        }
         return AccessDecision.allow(
             "consultant_read_allowed",
             "Consultant role may read company, job, shortlist, placement, and commission resources.");
@@ -239,6 +244,11 @@ public final class FieldAccessPolicy {
           || request.resourceType() == ResourceType.SHORTLIST
           || request.resourceType() == ResourceType.PLACEMENT
           || request.resourceType() == ResourceType.COMMISSION) {
+        if (!request.hasRelationshipScope(RelationshipScope.SAME_ORGANIZATION)) {
+          return deny(
+              "consultant_same_org_scope_required",
+              "Consultant role may write product resources only with explicit same-organization scope.");
+        }
         return AccessDecision.allow(
             "consultant_write_allowed",
             "Consultant role may create and update company, job, shortlist, placement, and commission resources.");

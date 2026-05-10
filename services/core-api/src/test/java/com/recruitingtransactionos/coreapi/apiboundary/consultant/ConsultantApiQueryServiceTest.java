@@ -13,6 +13,7 @@ import com.recruitingtransactionos.coreapi.identityaccess.FieldClassification;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEnforcer;
 import com.recruitingtransactionos.coreapi.identityaccess.PermissionEvaluator;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
+import com.recruitingtransactionos.coreapi.identityaccess.RelationshipScope;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.industrypack.service.IndustryPackService;
 import com.recruitingtransactionos.coreapi.job.service.JobService;
@@ -205,7 +206,7 @@ class ConsultantApiQueryServiceTest {
         ResourceType.SHORTLIST,
         AccessAction.READ,
         FieldClassification.CLIENT_SAFE,
-        Set.of(),
+        Set.of(RelationshipScope.SAME_ORGANIZATION),
         false);
   }
 }

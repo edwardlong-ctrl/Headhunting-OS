@@ -3,6 +3,7 @@ package com.recruitingtransactionos.coreapi.observability;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.ConsentRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.DisclosureRecordPort;
 import com.recruitingtransactionos.coreapi.consentdisclosure.port.UnlockDecisionPort;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditSearchReader;
 import com.recruitingtransactionos.coreapi.truthlayer.port.ActorRole;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowAuditQuery;
 import com.recruitingtransactionos.coreapi.truthlayer.port.WorkflowCausationId;
@@ -70,14 +71,16 @@ public class ObservabilityConfiguration {
       ObservabilityAITaskRunReader aiTaskRunReader,
       ObservabilityDisclosureRecordReader disclosureRecordReader,
       ObservabilityConsentRecordReader consentRecordReader,
-      ObservabilityUnlockDecisionReader unlockDecisionReader) {
+      ObservabilityUnlockDecisionReader unlockDecisionReader,
+      AccessAuditSearchReader accessAuditSearchReader) {
     return new ObservabilityReadService(
         workflowEventReader,
         reviewEventReader,
         aiTaskRunReader,
         disclosureRecordReader,
         consentRecordReader,
-        unlockDecisionReader);
+        unlockDecisionReader,
+        accessAuditSearchReader);
   }
 
   private static WorkflowAuditQuery toWorkflowAuditQuery(ObservabilityWorkflowEventQuery query) {

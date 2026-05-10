@@ -16,7 +16,9 @@ import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityDisclosureAuditExportResponse;
+import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityAccessAuditSearchResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ObservabilityWorkflowEventSearchResponse;
+import com.recruitingtransactionos.coreapi.accessaudit.AccessAuditSearchQuery;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityReadService;
 import com.recruitingtransactionos.coreapi.observability.ObservabilityWorkflowEventQuery;
 import java.time.Instant;
@@ -114,6 +116,36 @@ class AdminObservabilityControllerPolicyTest {
     assertThat(captor.getValue().actorId()).isEqualTo(actorId);
     assertThat(captor.getValue().occurredFrom()).isEqualTo(occurredFrom);
     assertThat(captor.getValue().occurredTo()).isEqualTo(occurredTo);
+  }
+
+  @Test
+  void accessAuditSearchUsesPrincipalOrganizationAndAdminPolicy() {
+    when(observabilityReadService.searchAccessAudit(any()))
+        .thenReturn(new ObservabilityAccessAuditSearchResponse(List.of(), 50, 0, false));
+
+    controller.accessAudit(
+        principal(PortalRole.ADMIN),
+        "access.export",
+        "disclosure_record",
+        "allowed",
+        USER_ID,
+        50,
+        0);
+
+    AccessRequest accessRequest = capturedAccessRequest();
+    assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);
+    assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.ADMIN_GOVERNANCE);
+    assertThat(accessRequest.action()).isEqualTo(AccessAction.READ);
+    assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
+
+    ArgumentCaptor<AccessAuditSearchQuery> captor =
+        ArgumentCaptor.forClass(AccessAuditSearchQuery.class);
+    verify(observabilityReadService).searchAccessAudit(captor.capture());
+    assertThat(captor.getValue().organizationId()).isEqualTo(ORGANIZATION_ID);
+    assertThat(captor.getValue().action()).isEqualTo("access.export");
+    assertThat(captor.getValue().targetEntityType()).isEqualTo("disclosure_record");
+    assertThat(captor.getValue().result()).isEqualTo("allowed");
+    assertThat(captor.getValue().actorUserId()).isEqualTo(USER_ID);
   }
 
   @Test

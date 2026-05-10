@@ -9,7 +9,8 @@ public enum AccessAction {
   DISCLOSE("disclose"),
   UNLOCK("unlock"),
   AUDIT("audit"),
-  EXPORT("export");
+  EXPORT("export"),
+  IMPERSONATE("impersonate");
 
   private final String wireValue;
 

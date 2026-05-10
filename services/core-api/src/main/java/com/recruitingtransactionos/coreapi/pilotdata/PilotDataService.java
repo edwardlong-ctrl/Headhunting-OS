@@ -135,7 +135,7 @@ public final class PilotDataService {
     return validate(dataset.organization().organizationId()).withCommand("import");
   }
 
-  private static PilotDataValidationResult validateImportPreconditions(PilotDataset dataset) {
+  private PilotDataValidationResult validateImportPreconditions(PilotDataset dataset) {
     List<PilotDataValidationResult.Issue> issues = new ArrayList<>();
     Set<UUID> accountIds = new HashSet<>();
     boolean consultantPresent = false;
@@ -150,6 +150,16 @@ public final class PilotDataService {
           "pilot_consultant_account_missing",
           "accounts",
           "Pilot import requires one consultant account for source lineage and ownership"));
+    }
+    for (PilotDataset.AccountSeed account : dataset.accounts()) {
+      if (userAccountIdExistsOutsideOrganization(
+          dataset.organization().organizationId(),
+          account.userAccountId())) {
+        issues.add(new PilotDataValidationResult.Issue(
+            "seed_account_id_cross_org",
+            account.userAccountId().toString(),
+            "Pilot import cannot reuse an identity.user_account id already bound to another organization"));
+      }
     }
 
     Set<UUID> companyIds = new HashSet<>();
@@ -222,6 +232,24 @@ public final class PilotDataService {
     }
 
     return new PilotDataValidationResult(issues.isEmpty(), issues);
+  }
+
+  private boolean userAccountIdExistsOutsideOrganization(UUID organizationId, UUID userAccountId) {
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT 1
+            FROM identity.user_account
+            WHERE user_account_id = ?
+              AND organization_id <> ?
+            """)) {
+      statement.setObject(1, userAccountId);
+      statement.setObject(2, organizationId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next();
+      }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to validate pilot identity organization scope", exception);
+    }
   }
 
   private static UUID parseUuid(

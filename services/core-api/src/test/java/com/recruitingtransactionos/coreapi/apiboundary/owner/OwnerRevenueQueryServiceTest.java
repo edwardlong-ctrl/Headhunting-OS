@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 class OwnerRevenueQueryServiceTest {
 
   private static final UUID ORG_ID = UUID.fromString("00000000-0000-0000-0000-00000000d101");
+  private static final UUID OTHER_ORG_ID = UUID.fromString("00000000-0000-0000-0000-00000000d201");
   private static final UUID CONSULTANT_ID = UUID.fromString("00000000-0000-0000-0000-00000000d102");
 
   @Test
@@ -293,6 +294,49 @@ class OwnerRevenueQueryServiceTest {
     assertThat(export.content()).contains("20000.00");
   }
 
+  @Test
+  void exportAccountingHandoffFiltersOutRowsThatDoNotBelongToRequestedOrganization() {
+    PlacementWorkflowService placementWorkflowService = mock(PlacementWorkflowService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    OwnerRevenueQueryService service = new OwnerRevenueQueryService(
+        placementWorkflowService,
+        commissionWorkflowService,
+        new PermissionEnforcer(new PermissionEvaluator()));
+    Placement sameOrgPlacement = placement(
+        "00000000-0000-0000-0000-00000000d131",
+        "100000.00",
+        "20.0",
+        PlacementStatus.INVOICE_SENT);
+    Placement otherOrgPlacement = placement(
+        "00000000-0000-0000-0000-00000000d132",
+        "200000.00",
+        "30.0",
+        PlacementStatus.INVOICE_SENT,
+        OTHER_ORG_ID);
+    Commission sameOrgCommission = commission(
+        "00000000-0000-0000-0000-00000000d133",
+        sameOrgPlacement.placementId(),
+        "20000.00",
+        CommissionStatus.PENDING);
+    Commission otherOrgCommission = commission(
+        "00000000-0000-0000-0000-00000000d134",
+        otherOrgPlacement.placementId(),
+        "60000.00",
+        CommissionStatus.PENDING,
+        OTHER_ORG_ID);
+    when(placementWorkflowService.listPlacements(ORG_ID))
+        .thenReturn(List.of(sameOrgPlacement, otherOrgPlacement));
+    when(commissionWorkflowService.listCommissions(ORG_ID))
+        .thenReturn(List.of(sameOrgCommission, otherOrgCommission));
+
+    var export = service.exportAccountingHandoff(ownerRevenueReadRequest(), ORG_ID);
+
+    assertThat(export.content()).contains(sameOrgPlacement.placementId().value().toString());
+    assertThat(export.content()).contains("20000.00");
+    assertThat(export.content()).doesNotContain(otherOrgPlacement.placementId().value().toString());
+    assertThat(export.content()).doesNotContain("60000.00");
+  }
+
   private static AccessRequest ownerRevenueReadRequest() {
     return new AccessRequest(
         PortalRole.OWNER,
@@ -308,9 +352,18 @@ class OwnerRevenueQueryServiceTest {
       String salaryAmount,
       String feeRatePercentage,
       PlacementStatus status) {
+    return placement(placementId, salaryAmount, feeRatePercentage, status, ORG_ID);
+  }
+
+  private static Placement placement(
+      String placementId,
+      String salaryAmount,
+      String feeRatePercentage,
+      PlacementStatus status,
+      UUID organizationId) {
     return Placement.builder()
         .placementId(new PlacementId(UUID.fromString(placementId)))
-        .organizationId(ORG_ID)
+        .organizationId(organizationId)
         .jobId(new JobId(UUID.fromString("00000000-0000-0000-0000-00000000d106")))
         .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-00000000d107")))
         .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-00000000d108")))
@@ -361,9 +414,18 @@ class OwnerRevenueQueryServiceTest {
       PlacementId placementId,
       String amount,
       CommissionStatus status) {
+    return commission(commissionId, placementId, amount, status, ORG_ID);
+  }
+
+  private static Commission commission(
+      String commissionId,
+      PlacementId placementId,
+      String amount,
+      CommissionStatus status,
+      UUID organizationId) {
     var builder = Commission.builder()
         .commissionId(new CommissionId(UUID.fromString(commissionId)))
-        .organizationId(ORG_ID)
+        .organizationId(organizationId)
         .placementId(placementId)
         .consultantId(CONSULTANT_ID)
         .status(status)

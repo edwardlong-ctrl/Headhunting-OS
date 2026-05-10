@@ -52,8 +52,12 @@ public final class OwnerRevenueQueryService {
 
   public OwnerRevenueSummaryResponse load(AccessRequest accessRequest, java.util.UUID organizationId) {
     requireRevenueRead(accessRequest);
-    List<Placement> placements = placementWorkflowService.listPlacements(organizationId);
-    List<Commission> commissions = commissionWorkflowService.listCommissions(organizationId);
+    List<Placement> placements = sameOrganizationPlacements(
+        placementWorkflowService.listPlacements(organizationId),
+        organizationId);
+    List<Commission> commissions = sameOrganizationCommissions(
+        commissionWorkflowService.listCommissions(organizationId),
+        organizationId);
     Map<PlacementId, List<Commission>> commissionsByPlacement = commissions.stream()
         .collect(Collectors.groupingBy(Commission::placementId));
     BigDecimal totalExpectedFee = placements.stream()
@@ -103,8 +107,12 @@ public final class OwnerRevenueQueryService {
       AccessRequest accessRequest,
       java.util.UUID organizationId) {
     requireRevenueRead(accessRequest);
-    List<Placement> placements = placementWorkflowService.listPlacements(organizationId);
-    List<Commission> commissions = commissionWorkflowService.listCommissions(organizationId);
+    List<Placement> placements = sameOrganizationPlacements(
+        placementWorkflowService.listPlacements(organizationId),
+        organizationId);
+    List<Commission> commissions = sameOrganizationCommissions(
+        commissionWorkflowService.listCommissions(organizationId),
+        organizationId);
     Map<PlacementId, List<Commission>> commissionsByPlacement = commissions.stream()
         .collect(Collectors.groupingBy(Commission::placementId));
     StringBuilder csv = new StringBuilder();
@@ -170,6 +178,22 @@ public final class OwnerRevenueQueryService {
       return "";
     }
     return "\"" + value.replace("\"", "\"\"") + "\"";
+  }
+
+  private static List<Placement> sameOrganizationPlacements(
+      List<Placement> placements,
+      java.util.UUID organizationId) {
+    return placements.stream()
+        .filter(placement -> organizationId.equals(placement.organizationId()))
+        .toList();
+  }
+
+  private static List<Commission> sameOrganizationCommissions(
+      List<Commission> commissions,
+      java.util.UUID organizationId) {
+    return commissions.stream()
+        .filter(commission -> organizationId.equals(commission.organizationId()))
+        .toList();
   }
 
   private void requireRevenueRead(AccessRequest accessRequest) {
