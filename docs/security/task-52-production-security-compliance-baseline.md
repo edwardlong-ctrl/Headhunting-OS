@@ -155,7 +155,7 @@ Required local baseline commands:
 
 ```sh
 rtk npm audit --omit=dev
-DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check
+rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check
 ```
 
 Default dependency-check mode should use `NVD_API_KEY`. The prewarmed-cache mode
@@ -205,11 +205,10 @@ Minimum Task 52 gate:
 ```sh
 rtk git diff --check
 rtk docker info
-rtk mvn -f services/core-api/pom.xml -Dtest=SensitiveEndpointRateLimitFilterTest,JwtAuthenticationFilterTest,FivePortalBoundaryRegressionTest,PermissionEnforcerTest,JdbcAccessAuditRecorderPostgresIntegrationTest test
-rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest test
+rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest,SensitiveEndpointRateLimitFilterTest,JwtAuthenticationFilterTest,FivePortalBoundaryRegressionTest,PermissionEnforcerTest,JdbcAccessAuditRecorderPostgresIntegrationTest test
 rtk mvn -f services/core-api/pom.xml test
 rtk npm audit --omit=dev
-DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check
+rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check
 ```
 
 Suite coverage:
@@ -235,8 +234,9 @@ Suite coverage:
 | T52-SEC-003 | Task 41 gap review | Medium | Product-wide field-level access audit rollout | Security owner | Status: RISK_ACCEPTED | Task 41 wired consultant document and disclosure export access-audit paths; full field-level expansion must be planned without conflicting with Task 51 tenant hardening. | 2026-06-30 |
 | T52-SEC-004 | Task 52 baseline | Low | Missing formal threat model, access review, retention, secret rotation, dependency, and pen-test runbooks | Task 52 branch | Status: CLOSED | Closed by this document and README linkage. | 2026-05-10 |
 | T52-SEC-005 | Task 52 baseline | Low | Missing runnable regression protecting the compliance baseline artifact | Task 52 branch | Status: CLOSED | Closed by `SecurityComplianceBaselineDocumentationTest`. | 2026-05-10 |
-| T52-SEC-006 | Task 52 verification | Medium | Dependency scan result for this branch | Task 52 branch | Status: CLOSED | `rtk npm audit --omit=dev` found 0 vulnerabilities; `DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check` exited 0, generated JSON/HTML reports, and report JSON showed 0 dependencies with vulnerabilities. | 2026-05-10 |
+| T52-SEC-006 | Task 52 verification | Medium | Dependency scan result for this branch | Task 52 branch | Status: CLOSED | `rtk npm audit --omit=dev` found 0 vulnerabilities; `rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check` exited 0, generated JSON/HTML reports, and report JSON showed 0 dependencies with vulnerabilities. | 2026-05-10 |
 | T52-SEC-007 | Dependency-Check local scanner limitation | Low | Optional .NET Assembly Analyzer unavailable in local Java core-api scan | Task 52 branch | Status: RISK_ACCEPTED | Dependency-Check logged missing `dotnet` runtime but completed with `BUILD SUCCESS`; core-api is a Java service and the JSON report showed 0 vulnerable dependencies. Re-review if .NET binaries become part of the scanned artifact set. | 2026-06-30 |
+| T52-SEC-008 | Baseline review | Medium | AI prompt/model-output retention window | Security owner | Status: RISK_ACCEPTED | Task 52 documents the privacy handling rule and relies on Task 46 lifecycle review paths; exact production retention windows and enforcement are a public-SaaS governance dependency before launch. | 2026-06-30 |
 
 ## Task 52 Verification Evidence
 
@@ -247,7 +247,7 @@ The final Task 52 closeout must record fresh command results for:
 - Focused security Maven test command from the security regression suite.
 - `rtk mvn -f services/core-api/pom.xml test`
 - `rtk npm audit --omit=dev`
-- `DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check`
+- `rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check`
 
 If dependency-check cannot run because no NVD key or prepared cache exists, the
 branch is not allowed to claim the dependency scan passed. The finding must be
@@ -260,7 +260,7 @@ Current branch evidence captured on 2026-05-10:
 | `rtk git diff --check` | Exit 0. |
 | `rtk docker info` | Exit 0; Docker Desktop server 29.4.1 reachable for Testcontainers. |
 | `rtk npm audit --omit=dev` | Exit 0; found 0 vulnerabilities. |
-| `DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check` | Exit 0; Maven `BUILD SUCCESS`; JSON and HTML reports generated under `services/core-api/target/`; JSON vulnerability dependency count was 0. |
-| `rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest test` | Exit 0; 2 tests run, 0 failures, 0 errors. |
-| `rtk mvn -f services/core-api/pom.xml -Dtest=SensitiveEndpointRateLimitFilterTest,JwtAuthenticationFilterTest,FivePortalBoundaryRegressionTest,PermissionEnforcerTest,JdbcAccessAuditRecorderPostgresIntegrationTest test` | Exit 0; 31 tests run, 0 failures, 0 errors. |
-| `rtk mvn -f services/core-api/pom.xml test` | Exit 0; 1064 tests run, 0 failures, 0 errors, 3 skipped. |
+| `rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check` | Exit 0; Maven `BUILD SUCCESS`; JSON and HTML reports generated under `services/core-api/target/`; JSON vulnerability dependency count was 0. |
+| `rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest test` | Exit 0; 4 tests run, 0 failures, 0 errors. |
+| `rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest,SensitiveEndpointRateLimitFilterTest,JwtAuthenticationFilterTest,FivePortalBoundaryRegressionTest,PermissionEnforcerTest,JdbcAccessAuditRecorderPostgresIntegrationTest test` | Exit 0; 35 tests run, 0 failures, 0 errors. |
+| `rtk mvn -f services/core-api/pom.xml test` | Exit 0; 1066 tests run, 0 failures, 0 errors, 3 skipped. |

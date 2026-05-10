@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SecurityComplianceBaselineDocumentationTest {
@@ -48,5 +50,57 @@ class SecurityComplianceBaselineDocumentationTest {
         .contains("task-52-production-security-compliance-baseline.md");
     assertThat(Files.readString(PACKAGE_JSON))
         .contains("\"security:core-api:dependency-check\"");
+  }
+
+  @Test
+  void issueRegisterRowsHaveClosureOrExplicitRiskAcceptanceEvidence() throws IOException {
+    String document = Files.readString(TASK_52_DOC);
+    List<String> issueRows = document.lines()
+        .filter(line -> line.startsWith("| T52-SEC-"))
+        .toList();
+
+    assertThat(issueRows)
+        .extracting(SecurityComplianceBaselineDocumentationTest::cellValueCount)
+        .containsOnly(8);
+    assertThat(issueRows).allSatisfy(row -> {
+      List<String> cells = cells(row);
+      assertThat(cells.get(4)).as("owner for " + cells.get(0)).isNotBlank();
+      assertThat(cells.get(5)).as("status for " + cells.get(0))
+          .satisfiesAnyOf(
+              status -> assertThat(status).isEqualTo("Status: CLOSED"),
+              status -> assertThat(status).isEqualTo("Status: RISK_ACCEPTED"));
+      assertThat(cells.get(6)).as("evidence for " + cells.get(0)).isNotBlank();
+      assertThat(cells.get(7)).as("review date for " + cells.get(0))
+          .matches("\\d{4}-\\d{2}-\\d{2}");
+    });
+
+    assertThat(document)
+        .contains("| T52-SEC-008 | Baseline review | Medium | AI prompt/model-output retention window");
+  }
+
+  @Test
+  void documentedSecurityScanCommandsRemainRtkWrapped() throws IOException {
+    String document = Files.readString(TASK_52_DOC);
+
+    assertThat(document)
+        .contains("rtk npm audit --omit=dev")
+        .contains("rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check");
+    assertThat(document.lines()
+        .filter(line -> line.contains("npm run security:core-api:dependency-check"))
+        .toList())
+        .allMatch(line -> line.contains(
+            "rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check"));
+  }
+
+  private static int cellValueCount(String markdownRow) {
+    return cells(markdownRow).size();
+  }
+
+  private static List<String> cells(String markdownRow) {
+    return Arrays.stream(markdownRow.split("\\|", -1))
+        .skip(1)
+        .limit(8)
+        .map(String::trim)
+        .toList();
   }
 }
