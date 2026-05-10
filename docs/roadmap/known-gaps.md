@@ -82,7 +82,25 @@
     accounting-system integration exists.
   - Broad export/legal-audit packages remain Task 57 scope.
   - Support actions remain Task 56 scope.
-  - Tenant-wide finance hardening remains Task 51 scope.
+
+## Task 51 Multi-organization Boundary Hardening Closed; Membership Switching and Full Support Tooling Still Deferred
+
+- Task 51 now hardens existing organization boundaries through V33
+  organization-scoped identity constraints, same-organization composite FKs for
+  existing identity/auth/audit/governance/workflow/notification/commission
+  actor links, tenant-aware access-audit search, tenant-aware Owner
+  placement/revenue export filtering, tenant-aware pilot seed/import preflight,
+  consultant same-organization access enforcement, and audited support/admin
+  impersonation policy.
+- Remaining gaps:
+  - No multi-organization membership/session switching exists; a user account
+    remains directly scoped to one organization.
+  - Full support tooling and support UI workflows remain Task 56 scope.
+  - Real customer import/migration workflows remain Task 55 scope.
+  - Broad reporting, export packages, and legal audit packages remain Task 57
+    scope.
+  - Product-wide field-level access audit rollout remains deferred beyond the
+    current access-audit and protected-surface coverage.
 
 ## Task 44 AI Task Registry Coverage Closed; Full AI Orchestration Still Deferred
 
@@ -118,10 +136,10 @@
 - Remaining gaps:
   - Task 43 is route-depth and workflow-continuity closure, not full production
     integration implementation.
-  - Remaining Tasks 49-51, 55-58, and 60 still need integrations,
-    governance/eval console depth, multi-organization hardening, import and
-    migration, support workflows, reporting/export/legal audit packages,
-    release management, and final full-product acceptance.
+  - Remaining Tasks 49-50, 55-58, and 60 still need integrations,
+    governance/eval console depth, import and migration, support workflows,
+    reporting/export/legal audit packages, release management, and final
+    full-product acceptance.
 
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
@@ -145,10 +163,10 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Remaining Tasks 49-51, 55-58, and 60 still need to broaden integrations,
-    governance/eval console depth, multi-organization hardening, import and
-    migration, support workflows, reporting/export/legal audit packages,
-    release management, and final full-product acceptance.
+  - Remaining Tasks 49-50, 55-58, and 60 still need to broaden integrations,
+    governance/eval console depth, import and migration, support workflows,
+    reporting/export/legal audit packages, release management, and final
+    full-product acceptance.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 
@@ -161,7 +179,9 @@
   privacy/security regressions.
 - Remaining gaps:
   - No MFA, password reset, email verification, SSO/OIDC, account lockout
-    persistence, or multi-organization membership switching.
+    persistence, or multi-organization membership switching. Task 51 hardens
+    same-organization boundaries for the current one-organization-per-account
+    model but does not add membership switching.
   - Rate limiting is in-memory and per-node, not distributed or gateway-level.
   - No product-wide field-level access audit exists beyond the Task 41
     sensitive document/export surfaces.

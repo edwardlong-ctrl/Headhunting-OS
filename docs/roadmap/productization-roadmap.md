@@ -1288,6 +1288,14 @@ Acceptance:
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `c14723a` for the current multi-organization
+boundary-hardening scope. This closes organization-scoped identity constraints,
+cross-org negative coverage for the hardened surfaces, tenant-aware access-audit
+search, tenant-aware owner exports, tenant-aware pilot seed/import preflight,
+and an explicit support/admin impersonation policy with audit. It does not add
+multi-organization membership/session switching, full support tooling, broad
+reporting/legal export packages, or real customer import/migration workflows.
+
 Goal: Make organization boundaries production-grade across all product surfaces.
 
 Must deliver:

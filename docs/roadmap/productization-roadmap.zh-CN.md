@@ -1191,6 +1191,14 @@ posting、通用导出包或替代正式财务系统。
 
 ## Task 51：Multi-organization Boundary Hardening
 
+状态：当前 multi-organization boundary-hardening 范围已在 `c14723a`
+完成。该范围关闭 organization-scoped identity constraints、已硬化 surface
+的 cross-org negative coverage、tenant-aware access-audit search、
+tenant-aware owner exports、tenant-aware pilot seed/import preflight，以及带
+audit 的 support/admin impersonation policy。它不包含
+multi-organization membership/session switching、完整 support tooling、广义
+reporting/legal export packages，或真实客户 import/migration workflows。
+
 目标：全产品组织边界 production-grade。
 
 必须交付：

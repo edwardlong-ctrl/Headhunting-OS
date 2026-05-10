@@ -4,8 +4,9 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` feature baseline before this docs drift commit:
-  integration batch through Task 48/52/53/54/59 at `5dfcf71`.
+- latest local `main` feature baseline after this Task 51 merge: Task 51
+  Multi-organization Boundary Hardening at `c14723a` plus this docs drift
+  closeout, on top of the integration batch through Task 48/52/53/54/59.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
 - latest production security compliance baseline: Task 52 at `afc6942`.
 - latest Task 42 gate work on local `main`: Task 42
@@ -13,6 +14,7 @@ This file contains mutable short-term engineering state. Update it after future 
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
+  - Task 51 at `c14723a` - Multi-organization Boundary Hardening, including V33 organization-scoped identity constraints, same-organization composite FKs for identity/auth/audit/workflow/governance/notification/commission actor links, tenant-aware access-audit search, tenant-aware Owner export filtering, tenant-aware pilot seed/import preflight, consultant same-organization access enforcement, and explicit audited support/admin impersonation policy.
   - Task 48 at `5dfcf71` - Commercial and Finance Operations Hardening, including fee agreement snapshots, invoice readiness gates, invoice sent/paid/guarantee workflow enforcement, commission calculation inputs, Owner revenue/accounting export read models, and the explicit non-accounting-system boundary.
   - Task 54 at `13cc42a` - Performance, Load, and Cost Targets, including target envelopes, backend budget policy, deterministic local performance/load/cost harness, and cost alert classifications.
   - Task 53 at `add4d5f` - Disaster Recovery and Business Continuity, including backup/restore runbook evidence, migration rollback invariants, local document/object recovery, AI/notification outage playbooks, and incident severity levels.
@@ -83,6 +85,18 @@ This file contains mutable short-term engineering state. Update it after future 
   Owner revenue reporting, and a read-only accounting export handoff. This is
   not invoice issuing, payment collection, tax handling, GL posting, or an
   accounting-system replacement.
+- current Task 51 baseline: organization boundaries are hardened across the
+  existing backend-owned surfaces for the Task 51 scope. V33 adds an
+  organization-scoped `identity.user_account` parent key and same-organization
+  composite FKs for identity role/session, access audit, workflow/review,
+  canonical-write, AI task, unlock, notification/follow-up, and commission
+  actor links. Admin access-audit search, Owner placement/revenue exports, and
+  pilot seed/import preflight are tenant-aware. Consultant product access now
+  requires explicit same-organization scope, and support/admin impersonation is
+  explicitly same-organization, ticketed, break-glass approved, and audited.
+  This is boundary hardening, not multi-organization membership/session
+  switching, full support tooling, broad legal/reporting export packages, or
+  real customer import/migration workflow delivery.
 - current Task 52 baseline: production security compliance documentation now
   records a threat model, access review, retention and secret-rotation
   runbooks, dependency and pen-test remediation process, security issue
@@ -116,13 +130,19 @@ This file contains mutable short-term engineering state. Update it after future 
   `rtk npm run build:web` all passed. Full Maven reported 1083 tests, 0
   failures, 0 errors, and 3 skipped. Web Vitest reported 9 test files and 38
   tests passed.
-- merge status: Task 59, Task 52, Task 53, Task 54, and Task 48 were rebased
-  onto current local `main`, validated in their worktrees, and fast-forward
-  merged in order. No push was performed.
-- next recommended task: continue with remaining Tasks 49-51, 55-58, and 60
-  for integrations, governance/eval console depth, multi-organization
-  hardening, import/migration, support tooling, reporting/export/legal audit
-  packages, release management, and final full-product acceptance. Task 42
+- latest Task 51 validation snapshot: `rtk git diff --check`, `rtk docker info`,
+  `rtk mvn -f services/core-api/pom.xml -Dtest=FivePortalBoundaryRegressionTest,PermissionEnforcerTest,AccessControlContractTest,JdbcAccessAuditRecorderPostgresIntegrationTest test`,
+  `rtk mvn -f services/core-api/pom.xml -Dtest=IdentityAuthPostgresIntegrationTest,SupportImpersonationPolicyTest,AdminObservabilityControllerPolicyTest,OwnerRevenueQueryServiceTest,PilotDataPostgresIntegrationTest,ConsultantApiCommandServiceTest,ConsultantApiQueryServiceTest,ConsultantWriteOrgIsolationIntegrationTest test`,
+  and `rtk mvn -f services/core-api/pom.xml test` passed in the Task 51
+  worktree. Full Maven reported 1093 tests, 0 failures, 0 errors, and 3
+  skipped.
+- merge status: Task 59, Task 52, Task 53, Task 54, Task 48, and Task 51 were
+  rebased or built on current local `main`, validated in their worktrees, and
+  fast-forward merged in order. No push was performed.
+- next recommended task: continue with remaining Tasks 49-50, 55-58, and 60
+  for integrations, governance/eval console depth, import/migration, support
+  tooling, reporting/export/legal audit packages, release management, and final
+  full-product acceptance. Task 42
   readiness remains scoped to the controlled-pilot Usable v1 gate, not public
   production certification.
 
@@ -195,6 +215,7 @@ This file contains mutable short-term engineering state. Update it after future 
 - Task 46: Full Data Lifecycle, Deduplication, Conflict, Stale, and Merge ✅ decision/audit baseline for candidate/company/job duplicate detection, merge proposals, confirmed-fact conflict blocking, conflict-resolution recording, stale refresh requests, and retention/deletion decisions with tombstone protection. Scope remains no physical row deletion, direct merge mutation, fuzzy-search infrastructure, external data-quality queue, or canonical fact overwrite.
 - Task 47: Industry Pack Expansion and Calibration ✅ backend-owned calibration metadata baseline for all 8 v2.1 packs, with only `semiconductor` marked production and the other packs honestly seeded for review.
 - Task 48: Commercial and Finance Operations Hardening ✅ fee agreement snapshots, invoice readiness gates, invoice sent/paid/guarantee workflow enforcement, commission calculation inputs, Owner revenue reporting, and read-only accounting export handoff.
+- Task 51: Multi-organization Boundary Hardening ✅ organization-scoped identity constraints, same-organization composite FKs for existing identity/auth/audit/governance/workflow/notification/commission actor links, tenant-aware access-audit search, tenant-aware Owner exports, tenant-aware pilot seed/import preflight, consultant same-organization enforcement, and audited same-organization support/admin impersonation policy.
 - Task 52: Production Security Compliance Baseline ✅ threat model, access review, privacy/retention and secret-rotation runbooks, dependency/pen-test remediation workflow, issue register, and compliance documentation regression coverage.
 - Task 53: Disaster Recovery and Business Continuity ✅ local backup/restore drill, document/object recovery, migration rollback invariants, AI/notification outage playbooks, and incident severity levels.
 - Task 54: Performance, Load, and Cost Targets ✅ documented latency/throughput/cost targets, backend budget policy, and deterministic local performance/load/cost harness.
@@ -294,7 +315,11 @@ This file contains mutable short-term engineering state. Update it after future 
 - No broad raw Candidate/Profile REST surface exists, but product-controller/API/UI slices do now exist for auth, consultant portal, client portal, document workflows, governed intake, workflow/audit, follow-ups, and the narrow client-safe candidate-card route.
 - Task 19A closes the "no auth/login/session" gap only for the baseline auth infrastructure slice: login/refresh/logout exist, JWT issuance/validation exists, Spring Security exists, and refresh-token-backed persisted sessions exist.
 - Existing product controllers now evaluate identity through JWT-backed `SecurityContext`, and Task 19C closes the session revocation, stale-session, and broader auth regression gap for the current baseline.
-- No multi-organization membership/session switching exists yet; `identity.user_account` remains directly organization-scoped in this baseline.
+- Task 51 hardens the current directly organization-scoped identity model with
+  organization-scoped constraints, composite same-organization FKs, tenant-aware
+  audit/export/import boundaries, and audited same-organization support
+  impersonation. No multi-organization membership/session switching exists yet;
+  `identity.user_account` remains directly organization-scoped in this baseline.
 - No SSO/OIDC/external identity provider integration exists yet.
 - No password reset, MFA, email verification, or auth hardening flow exists yet.
 - Task 33 added the first Consent/Disclosure/Unlock API/controller/UI end-to-end: candidate consent confirmation, client disclosed-candidate read, and consultant unlock approval queue. Real external notification delivery (email/WeChat/SMS), candidate self-registration flow, prior-contact/prior-application review, and fee-agreement validation remain future work.
@@ -319,10 +344,9 @@ This file contains mutable short-term engineering state. Update it after future 
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
 `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with remaining
-Tasks 49-51, 55-58, and 60 for integrations, governance/eval console depth,
-multi-organization hardening, import/migration, support tooling,
-reporting/export/legal audit packages, release management, and final full
-product acceptance. Use:
+Tasks 49-50, 55-58, and 60 for integrations, governance/eval console depth,
+import/migration, support tooling, reporting/export/legal audit packages,
+release management, and final full product acceptance. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`
@@ -333,7 +357,7 @@ product acceptance. Use:
 Task 19A, Task 19B, and Task 19C close the baseline auth infrastructure, controller migration, and auth/session hardening slice.
 Task 34 closes the combined notification/reminder system plus candidate/client portal session and follow-up participation hardening stream.
 Task 35 closes the first interview-feedback and interaction-scoped outcome-loop stream.
-Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, and Task 59 onboarding playbooks are now complete on `main` for their documented scopes. Remaining production-depth work stays tracked in `known-gaps.md` and `productization-roadmap.md`.
+Task 23 backend/API scope, Task 24 Consultant Portal v1, Task 25 Company and Job Intake v1, Task 26 Workflow Engine v1, Task 27 Matching and Evidence v1, Task 28 Semiconductor Industry Pack v1, Task 29 Shortlist Builder v1, Task 30 Privacy Redaction and Re-identification v1, Task 31 Candidate Portal v1, Task 32 Client Portal v1, Task 33 Consent/Disclosure/Unlock end-to-end, Task 34 Notification/Follow-up/session closure, Task 35 Interview Feedback and Outcome Loop v1, Task 36 Placement and Commission v1, Task 37 Owner/Admin Governance v1, Task 38 Pilot Seed Data and Import Tools, Task 39 Deployment v1, Task 40 Observability, Audit, and Replay v1 backend/API/runbook subset, Task 41 Security and Privacy Hardening v1, Task 42 Pilot E2E Acceptance Gate, Task 43 route-depth closure, Task 44 AI task registry coverage, Task 45 workflow automation/SLA, Task 46 data lifecycle, Task 47 industry-pack calibration, Task 48 commercial finance hardening, Task 51 multi-organization boundary hardening, Task 52 security compliance baseline, Task 53 DR/BCP, Task 54 performance/load/cost targets, and Task 59 onboarding playbooks are now complete on `main` for their documented scopes. Remaining production-depth work stays tracked in `known-gaps.md` and `productization-roadmap.md`.
 
 ## Future Prompt Strategy
 
