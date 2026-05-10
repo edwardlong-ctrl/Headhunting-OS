@@ -33,8 +33,8 @@ public final class ReportingExportService {
     ReportingExportAdapter adapter = adapterRegistry.adapterFor(request.exportType())
         .orElseThrow(ReportingExportService::denied);
     ReportingExportPayload rawPayload = adapter.export(request);
+    requirePackageEvidence(request, rawPayload);
     ReportingExportPayload safePayload = filterPayload(request, rawPayload);
-    requirePackageEvidence(request, safePayload);
     Instant generatedAt = Instant.now(clock);
     return new ReportingExportResult(
         "export-" + request.auditId() + "-" + request.exportType().wireValue(),

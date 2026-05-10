@@ -26,17 +26,11 @@ public enum FieldVisibilityPolicy {
       case CLIENT_SAFE -> this == CLIENT_SAFE || this == GENERALIZED;
       case GENERALIZED -> this == GENERALIZED;
       case CANDIDATE_SELF -> this == CANDIDATE_SELF || this == CLIENT_SAFE || this == GENERALIZED;
-      case OWNER_INTERNAL -> this == OWNER_INTERNAL
-          || this == COMMERCIAL_READ_ONLY
-          || this == SYSTEM_GOVERNANCE
-          || this == RETENTION_EVIDENCE;
-      case CONSULTANT_INTERNAL -> this == CONSULTANT_INTERNAL
-          || this == OWNER_INTERNAL
-          || this == COMMERCIAL_READ_ONLY
-          || this == SYSTEM_GOVERNANCE;
-      case SYSTEM_GOVERNANCE -> this == SYSTEM_GOVERNANCE || this == RETENTION_EVIDENCE;
+      case OWNER_INTERNAL -> this == OWNER_INTERNAL || this == CLIENT_SAFE || this == GENERALIZED;
+      case CONSULTANT_INTERNAL -> this == CONSULTANT_INTERNAL || this == CLIENT_SAFE || this == GENERALIZED;
+      case SYSTEM_GOVERNANCE -> this == SYSTEM_GOVERNANCE;
       case COMMERCIAL_READ_ONLY -> this == COMMERCIAL_READ_ONLY;
-      case RETENTION_EVIDENCE -> this == RETENTION_EVIDENCE || this == SYSTEM_GOVERNANCE;
+      case RETENTION_EVIDENCE -> this == RETENTION_EVIDENCE;
       case RAW_PII -> false;
     };
   }

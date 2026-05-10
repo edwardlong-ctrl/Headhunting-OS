@@ -61,11 +61,14 @@ adapters:
 - `ReportingExportServicePolicyTest`
   - cross-org exports fail closed before adapter lookup;
   - role-ineligible exports do not reveal target refs;
+  - owner and consultant reports do not pass broader admin, retention, or
+    commercial fields through their export policies;
   - client shortlist exports withhold raw undisclosed candidate fields;
   - candidate personal-data exports require self candidate scope and same org;
   - placement/commission export remains read-only accounting handoff;
   - disclosure legal package includes audit/provenance evidence;
-  - retention evidence package does not silently delete.
+  - retention evidence package does not silently delete or mask adapter-side
+    mutation attempts.
 - `ReportingExportSafeDtoTest`
   - reporting export DTO is `ApiSafeResponseBody` and field-whitelisted.
 
@@ -86,7 +89,8 @@ Focused Task 57 green evidence:
 rtk mvn -f services/core-api/pom.xml -Dtest=ReportingExportServicePolicyTest,ReportingExportSafeDtoTest test
 ```
 
-Result: 8 tests, 0 failures, 0 errors, 0 skipped.
+Result: 11 tests, 0 failures, 0 errors, 0 skipped after the review-fix
+regressions were added.
 
 The full validation evidence for branch closeout is recorded in the final
 handoff response after the required verification commands complete.

@@ -58,6 +58,66 @@ class ReportingExportServicePolicyTest {
   }
 
   @Test
+  void consultantActivityExportDoesNotIncludeOwnerCommercialOrGovernanceFields() {
+    ReportingExportPayload payload = new ReportingExportPayload(
+        "json",
+        "consultant_activity_report",
+        "same_organization_consultant_activity_supervision",
+        false,
+        List.of(new ReportingExportSection("consultant-activity", List.of(
+            new ReportingExportField("consultantActionCount", "7", FieldVisibilityPolicy.CONSULTANT_INTERNAL),
+            new ReportingExportField("ownerMargin", "90000", FieldVisibilityPolicy.OWNER_INTERNAL),
+            new ReportingExportField("commissionStatus", "pending", FieldVisibilityPolicy.COMMERCIAL_READ_ONLY),
+            new ReportingExportField("adminAuditReason", "legal-hold", FieldVisibilityPolicy.SYSTEM_GOVERNANCE)))),
+        List.of("observability activity source"),
+        List.of());
+    ReportingExportService service = service(new RecordingAdapter(payload));
+
+    ReportingExportResult result = service.export(request(
+        PortalRole.CONSULTANT,
+        ReportingExportType.CONSULTANT_ACTIVITY,
+        FieldVisibilityPolicy.CONSULTANT_INTERNAL,
+        new ReportingExportTargetScope(ORG, "consultant", "consultant-1", "consultant-1", null)));
+
+    assertThat(result.sections())
+        .flatExtracting(ReportingExportSection::fields)
+        .extracting(ReportingExportField::name)
+        .containsExactly("consultantActionCount");
+    assertThat(result.redactedOrWithheldFields())
+        .contains("ownerMargin", "commissionStatus", "adminAuditReason");
+  }
+
+  @Test
+  void ownerReportExportDoesNotIncludeAdminRetentionOrCommercialFields() {
+    ReportingExportPayload payload = new ReportingExportPayload(
+        "json",
+        "owner_operating_report",
+        "owner_same_organization_operating_supervision",
+        false,
+        List.of(new ReportingExportSection("owner-report", List.of(
+            new ReportingExportField("placementCount", "3", FieldVisibilityPolicy.OWNER_INTERNAL),
+            new ReportingExportField("adminAuditReason", "legal-hold", FieldVisibilityPolicy.SYSTEM_GOVERNANCE),
+            new ReportingExportField("retentionEligibility", "blocked", FieldVisibilityPolicy.RETENTION_EVIDENCE),
+            new ReportingExportField("commissionStatus", "pending", FieldVisibilityPolicy.COMMERCIAL_READ_ONLY)))),
+        List.of("owner report source"),
+        List.of());
+    ReportingExportService service = service(new RecordingAdapter(payload));
+
+    ReportingExportResult result = service.export(request(
+        PortalRole.OWNER,
+        ReportingExportType.OWNER_REPORT,
+        FieldVisibilityPolicy.OWNER_INTERNAL,
+        new ReportingExportTargetScope(ORG, "organization", ORG.toString(), "owner-1", null)));
+
+    assertThat(result.sections())
+        .flatExtracting(ReportingExportSection::fields)
+        .extracting(ReportingExportField::name)
+        .containsExactly("placementCount");
+    assertThat(result.redactedOrWithheldFields())
+        .contains("adminAuditReason", "retentionEligibility", "commissionStatus");
+  }
+
+  @Test
   void clientShortlistExportDropsRawUndisclosedCandidateFields() {
     ReportingExportPayload payload = new ReportingExportPayload(
         "json",
@@ -193,6 +253,28 @@ class ReportingExportServicePolicyTest {
         .flatExtracting(ReportingExportSection::fields)
         .extracting(ReportingExportField::name, ReportingExportField::value)
         .contains(org.assertj.core.groups.Tuple.tuple("deleteMutationPerformed", "false"));
+  }
+
+  @Test
+  void retentionPackageRejectsAdapterMutationBeforeMasking() {
+    ReportingExportPayload payload = new ReportingExportPayload(
+        "json",
+        "retention_delete_evidence_package",
+        "retention_policy_evidence",
+        true,
+        List.of(new ReportingExportSection("retention", List.of(
+            new ReportingExportField("eligibility", "eligible", FieldVisibilityPolicy.RETENTION_EVIDENCE)))),
+        List.of("DataLifecycleService retention decision evidence"),
+        List.of());
+    ReportingExportService service = service(new RecordingAdapter(payload));
+
+    assertThatThrownBy(() -> service.export(request(
+        PortalRole.ADMIN,
+        ReportingExportType.RETENTION_DELETE_EVIDENCE,
+        FieldVisibilityPolicy.RETENTION_EVIDENCE,
+        new ReportingExportTargetScope(ORG, "candidate", "candidate-57", "admin-1", null))))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("must not silently perform deletion");
   }
 
   private static ReportingExportService service(ReportingExportAdapter adapter) {
