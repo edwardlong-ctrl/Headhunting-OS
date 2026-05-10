@@ -92,6 +92,25 @@ public final class ApiBoundaryContractRules {
   private static final Set<String> OWNER_ACCOUNTING_EXPORT_RESPONSE_FIELDS =
       Set.of("format", "process", "disclaimer", "generatedAt", "content");
 
+  private static final Set<String> REPORTING_EXPORT_RESULT_FIELDS =
+      Set.of(
+          "exportId",
+          "exportType",
+          "organizationId",
+          "actorRole",
+          "targetEntityType",
+          "targetEntityRef",
+          "fieldVisibilityPolicy",
+          "auditId",
+          "generatedAt",
+          "format",
+          "semantics",
+          "legalBasis",
+          "mutationPerformed",
+          "sections",
+          "provenance",
+          "redactedOrWithheldFields");
+
   private static final Set<String> CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS =
       Set.of("shortlistId", "title", "jobId", "status", "candidateCount", "createdAt");
 
@@ -438,6 +457,17 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> ownerAccountingExportResponseFieldNames() {
     return new LinkedHashSet<>(OWNER_ACCOUNTING_EXPORT_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedReportingExportResultField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return REPORTING_EXPORT_RESULT_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> reportingExportResultFieldNames() {
+    return new LinkedHashSet<>(REPORTING_EXPORT_RESULT_FIELDS);
   }
 
   public static boolean isAllowedConsultantShortlistSummaryResponseField(String fieldName) {

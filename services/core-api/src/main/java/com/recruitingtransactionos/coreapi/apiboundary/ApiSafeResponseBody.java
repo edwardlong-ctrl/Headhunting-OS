@@ -73,4 +73,5 @@ public sealed interface ApiSafeResponseBody
         ObservabilityReviewEventSearchResponse,
         ObservabilityAITaskRunSearchResponse,
         ObservabilityDisclosureAuditExportResponse,
+        ReportingExportResult,
         PagedResult {}
