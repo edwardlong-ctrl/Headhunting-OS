@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
+import com.recruitingtransactionos.coreapi.governanceconsole.GovernanceConsoleReadService;
 import com.recruitingtransactionos.coreapi.governancequery.GovernanceReadService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -30,16 +31,21 @@ class OwnerGovernanceControllerPolicyTest {
   private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000370303");
 
   private GovernanceReadService governanceReadService;
+  private GovernanceConsoleReadService governanceConsoleReadService;
   private PermissionEnforcer permissionEnforcer;
   private OwnerGovernanceController controller;
 
   @BeforeEach
   void setUp() {
     governanceReadService = mock(GovernanceReadService.class);
+    governanceConsoleReadService = mock(GovernanceConsoleReadService.class);
     permissionEnforcer = mock(PermissionEnforcer.class);
     when(permissionEnforcer.requireAllowed(any()))
         .thenReturn(new AccessDecision(true, "allowed", "allowed"));
-    controller = new OwnerGovernanceController(governanceReadService, permissionEnforcer);
+    controller = new OwnerGovernanceController(
+        governanceReadService,
+        governanceConsoleReadService,
+        permissionEnforcer);
   }
 
   @Test
@@ -56,6 +62,16 @@ class OwnerGovernanceControllerPolicyTest {
     assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.ADMIN_GOVERNANCE);
     assertThat(accessRequest.action()).isEqualTo(AccessAction.READ);
     assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
+  }
+
+  @Test
+  void ownerAiQualityUsesTask50GovernanceConsoleSummary() {
+    when(governanceConsoleReadService.loadOwnerSummary(ORGANIZATION_ID))
+        .thenReturn(section("ai-quality"));
+
+    controller.loadSection(principal(), request("/api/owner/ai-quality"));
+
+    verify(governanceConsoleReadService).loadOwnerSummary(ORGANIZATION_ID);
   }
 
   private static GovernanceSectionResponse section(String sectionKey) {

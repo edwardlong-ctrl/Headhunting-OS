@@ -7,6 +7,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceConfigUpdateResponse;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigRecord;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
+import com.recruitingtransactionos.coreapi.governanceconsole.GovernanceConsoleReadService;
 import com.recruitingtransactionos.coreapi.governancequery.GovernanceReadService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -42,16 +43,19 @@ public final class AdminGovernanceController {
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
   private final GovernanceReadService governanceReadService;
+  private final GovernanceConsoleReadService governanceConsoleReadService;
   private final GovernanceConfigService governanceConfigService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
   public AdminGovernanceController(
       GovernanceReadService governanceReadService,
-      GovernanceConfigService governanceConfigService) {
+      GovernanceConfigService governanceConfigService,
+      GovernanceConsoleReadService governanceConsoleReadService) {
     this(
         governanceReadService,
         governanceConfigService,
+        governanceConsoleReadService,
         new PermissionEnforcer(new PermissionEvaluator()));
   }
 
@@ -59,9 +63,18 @@ public final class AdminGovernanceController {
       GovernanceReadService governanceReadService,
       GovernanceConfigService governanceConfigService,
       PermissionEnforcer permissionEnforcer) {
+    this(governanceReadService, governanceConfigService, null, permissionEnforcer);
+  }
+
+  AdminGovernanceController(
+      GovernanceReadService governanceReadService,
+      GovernanceConfigService governanceConfigService,
+      GovernanceConsoleReadService governanceConsoleReadService,
+      PermissionEnforcer permissionEnforcer) {
     this.governanceReadService = Objects.requireNonNull(
         governanceReadService,
         "governanceReadService must not be null");
+    this.governanceConsoleReadService = governanceConsoleReadService;
     this.governanceConfigService = Objects.requireNonNull(
         governanceConfigService,
         "governanceConfigService must not be null");
@@ -75,6 +88,12 @@ public final class AdminGovernanceController {
       "/privacy-redaction",
       "/model-routing",
       "/eval-feedback",
+      "/eval-dashboard",
+      "/negative-cases",
+      "/cost-latency",
+      "/ontology-drift",
+      "/redaction-incidents",
+      "/ai-resume-authenticity-risk",
       "/ai-policy",
       "/ai-task-registry",
       "/industry-packs",
@@ -91,6 +110,10 @@ public final class AdminGovernanceController {
     requireAdminRole(principal.portalRole());
     permissionEnforcer.requireAllowed(governanceAccessRequest(principal.portalRole(), AccessAction.READ));
     String sectionKey = request.getRequestURI().substring(request.getRequestURI().lastIndexOf('/') + 1);
+    if (governanceConsoleReadService != null && GovernanceConsoleReadService.isTask50AdminSection(sectionKey)) {
+      return ResponseEntity.ok(ApiResponseEnvelope.success(
+          governanceConsoleReadService.loadAdminSection(principal.organizationId(), sectionKey)));
+    }
     return ResponseEntity.ok(ApiResponseEnvelope.success(
         governanceReadService.loadAdminSection(principal.organizationId(), sectionKey)));
   }

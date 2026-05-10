@@ -4,6 +4,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.ApiAccessDeniedResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiErrorResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiResponseEnvelope;
 import com.recruitingtransactionos.coreapi.apiboundary.ApiSafeResponseBody;
+import com.recruitingtransactionos.coreapi.governanceconsole.GovernanceConsoleReadService;
 import com.recruitingtransactionos.coreapi.governancequery.GovernanceReadService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -32,19 +33,33 @@ import org.springframework.web.bind.annotation.RestController;
 public final class OwnerGovernanceController {
 
   private final GovernanceReadService governanceReadService;
+  private final GovernanceConsoleReadService governanceConsoleReadService;
   private final PermissionEnforcer permissionEnforcer;
 
   @Autowired
-  public OwnerGovernanceController(GovernanceReadService governanceReadService) {
-    this(governanceReadService, new PermissionEnforcer(new PermissionEvaluator()));
+  public OwnerGovernanceController(
+      GovernanceReadService governanceReadService,
+      GovernanceConsoleReadService governanceConsoleReadService) {
+    this(
+        governanceReadService,
+        governanceConsoleReadService,
+        new PermissionEnforcer(new PermissionEvaluator()));
   }
 
   OwnerGovernanceController(
       GovernanceReadService governanceReadService,
       PermissionEnforcer permissionEnforcer) {
+    this(governanceReadService, null, permissionEnforcer);
+  }
+
+  OwnerGovernanceController(
+      GovernanceReadService governanceReadService,
+      GovernanceConsoleReadService governanceConsoleReadService,
+      PermissionEnforcer permissionEnforcer) {
     this.governanceReadService = Objects.requireNonNull(
         governanceReadService,
         "governanceReadService must not be null");
+    this.governanceConsoleReadService = governanceConsoleReadService;
     this.permissionEnforcer = Objects.requireNonNull(permissionEnforcer, "permissionEnforcer must not be null");
   }
 
@@ -55,6 +70,10 @@ public final class OwnerGovernanceController {
     requireOwnerRole(principal.portalRole());
     permissionEnforcer.requireAllowed(ownerGovernanceReadAccessRequest());
     String sectionKey = request.getRequestURI().substring(request.getRequestURI().lastIndexOf('/') + 1);
+    if ("ai-quality".equals(sectionKey) && governanceConsoleReadService != null) {
+      return ResponseEntity.ok(ApiResponseEnvelope.success(
+          governanceConsoleReadService.loadOwnerSummary(principal.organizationId())));
+    }
     return ResponseEntity.ok(ApiResponseEnvelope.success(
         governanceReadService.loadOwnerSection(principal.organizationId(), sectionKey)));
   }

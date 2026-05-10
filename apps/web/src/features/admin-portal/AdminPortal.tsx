@@ -14,11 +14,17 @@ import { loadAdminSession, saveAdminSession, signOutAdminSession } from "./admin
 type Loadable<T> = ApiResult<T> | { status: "idle" | "loading" };
 
 type SectionKey =
+  | "eval-dashboard"
+  | "negative-cases"
   | "review-quality"
   | "claim-ledger"
   | "ontology-governance"
+  | "ontology-drift"
   | "privacy-redaction"
+  | "redaction-incidents"
   | "model-routing"
+  | "cost-latency"
+  | "ai-resume-authenticity-risk"
   | "eval-feedback"
   | "ai-policy"
   | "ai-task-registry"
@@ -31,11 +37,17 @@ type SectionKey =
   | "security";
 
 const ADMIN_SECTIONS: Array<{ key: SectionKey; label: string }> = [
+  { key: "eval-dashboard", label: "Eval Dashboard" },
+  { key: "negative-cases", label: "Negative Cases" },
   { key: "review-quality", label: "Review Quality" },
   { key: "claim-ledger", label: "Claim Ledger" },
   { key: "ontology-governance", label: "Ontology" },
+  { key: "ontology-drift", label: "Ontology Drift" },
   { key: "privacy-redaction", label: "Privacy" },
+  { key: "redaction-incidents", label: "Redaction Incidents" },
   { key: "model-routing", label: "Model Routing" },
+  { key: "cost-latency", label: "Cost & Latency" },
+  { key: "ai-resume-authenticity-risk", label: "Resume Authenticity" },
   { key: "eval-feedback", label: "Eval Feedback" },
   { key: "ai-policy", label: "AI Policy" },
   { key: "ai-task-registry", label: "Task Registry" },
@@ -143,7 +155,7 @@ function GovernanceSectionPage({ sectionKey }: { sectionKey: SectionKey }) {
             <h3>Recent governance rows</h3>
           </div>
         </div>
-        {section.items.length === 0 ? <p className="helper-copy">No rows returned.</p> : (
+        {section.items.length === 0 ? <p className="helper-copy">No events returned by this read model; instrumentation gaps appear as warning metrics instead of hidden zeroes.</p> : (
           <div className="stack-form">
             {section.items.map((item, index) => (
               <article key={`${item.primaryText}-${index}`} className="portal-panel">
@@ -212,7 +224,7 @@ function AdminSignInPage({ onSignedIn }: { onSignedIn: (session: AuthSession) =>
       saveAccessToken(next.data.accessToken, "admin");
       saveAdminSession(next.data);
       onSignedIn(next.data);
-      navigate("/admin/review-quality", { replace: true });
+      navigate("/admin/eval-dashboard", { replace: true });
     }
   }
 
@@ -294,11 +306,11 @@ export function AdminPortal() {
         {signOutError ? <p className="helper-copy">{signOutError}</p> : null}
       </section>
       <Routes>
-        <Route path="/" element={<Navigate to="review-quality" replace />} />
+        <Route path="/" element={<Navigate to="eval-dashboard" replace />} />
         {ADMIN_SECTIONS.map((section) => (
           <Route key={section.key} path={section.key} element={<GovernanceSectionPage sectionKey={section.key} />} />
         ))}
-        <Route path="*" element={<Navigate to="review-quality" replace />} />
+        <Route path="*" element={<Navigate to="eval-dashboard" replace />} />
       </Routes>
     </PortalShell>
   );

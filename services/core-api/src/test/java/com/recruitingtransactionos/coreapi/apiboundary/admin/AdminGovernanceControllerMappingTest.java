@@ -10,6 +10,7 @@ import com.recruitingtransactionos.coreapi.apiboundary.GovernanceConfigUpdateRes
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigRecord;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
+import com.recruitingtransactionos.coreapi.governanceconsole.GovernanceConsoleReadService;
 import com.recruitingtransactionos.coreapi.governancequery.GovernanceReadService;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessAction;
 import com.recruitingtransactionos.coreapi.identityaccess.AccessDecision;
@@ -36,6 +37,7 @@ class AdminGovernanceControllerMappingTest {
   private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000370203");
 
   private GovernanceReadService governanceReadService;
+  private GovernanceConsoleReadService governanceConsoleReadService;
   private GovernanceConfigService governanceConfigService;
   private PermissionEnforcer permissionEnforcer;
   private AdminGovernanceController controller;
@@ -43,6 +45,7 @@ class AdminGovernanceControllerMappingTest {
   @BeforeEach
   void setUp() {
     governanceReadService = mock(GovernanceReadService.class);
+    governanceConsoleReadService = mock(GovernanceConsoleReadService.class);
     governanceConfigService = mock(GovernanceConfigService.class);
     permissionEnforcer = mock(PermissionEnforcer.class);
     when(permissionEnforcer.requireAllowed(any()))
@@ -50,6 +53,7 @@ class AdminGovernanceControllerMappingTest {
     controller = new AdminGovernanceController(
         governanceReadService,
         governanceConfigService,
+        governanceConsoleReadService,
         permissionEnforcer);
   }
 
@@ -77,6 +81,20 @@ class AdminGovernanceControllerMappingTest {
     assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.ADMIN_GOVERNANCE);
     assertThat(accessRequest.action()).isEqualTo(AccessAction.READ);
     assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
+  }
+
+  @Test
+  void task50AdminConsoleReadsUseFocusedConsoleService() {
+    when(governanceConsoleReadService.loadAdminSection(ORGANIZATION_ID, "eval-dashboard"))
+        .thenReturn(section("eval-dashboard"));
+
+    controller.loadSection(principal(PortalRole.ADMIN), request("/api/admin/eval-dashboard"));
+
+    verify(governanceConsoleReadService).loadAdminSection(ORGANIZATION_ID, "eval-dashboard");
+    AccessRequest accessRequest = capturedAccessRequest();
+    assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);
+    assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.ADMIN_GOVERNANCE);
+    assertThat(accessRequest.action()).isEqualTo(AccessAction.READ);
   }
 
   @Test

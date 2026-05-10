@@ -1180,6 +1180,13 @@ customer-specific channel configuration。
 
 ## Task 50：Governance, Eval, and Ontology Production Console
 
+状态：当前 read-only governance console baseline 已完成。Admin 现在可以看到
+eval failures、deterministic negative cases、review quality、model routing
+inspection、cost/latency、ontology drift、redaction incidents、AI resume
+authenticity risk 等一线治理页面。Owner `ai-quality` 提供更窄的管理摘要。该范围
+不包含 live provider activation/switching、ML resume-fraud detector、
+ontology editing UI、Task 58 release management，或 Task 60 final acceptance。
+
 目标：把质量治理做成 Owner/Admin 正式产品能力。
 
 必须交付：

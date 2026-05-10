@@ -446,7 +446,7 @@ function OwnerGovernanceSectionPage({ sectionKey }: { sectionKey: GovernanceSect
           </div>
         </div>
         {section.items.length === 0 ? (
-          <p className="helper-copy">No rows returned.</p>
+          <p className="helper-copy">No events returned by this read model; instrumentation gaps appear as warning metrics instead of hidden zeroes.</p>
         ) : (
           <div className="stack-form">
             {section.items.map((item, index) => (

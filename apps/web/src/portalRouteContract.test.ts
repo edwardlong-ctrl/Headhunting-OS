@@ -86,6 +86,12 @@ describe("Task 43 portal route contract", () => {
       "privacy-redaction",
       "model-routing",
       "eval-feedback",
+      "eval-dashboard",
+      "negative-cases",
+      "cost-latency",
+      "ontology-drift",
+      "redaction-incidents",
+      "ai-resume-authenticity-risk",
     ]) {
       expect(adminPortalSource).toContain(`"${sectionKey}"`);
     }

@@ -1,5 +1,24 @@
 # Known Gaps
 
+## Task 50 Governance Console Closed; Live Provider Governance and Release Gates Still Deferred
+
+- Task 50 now exposes first-class Admin governance console sections for eval
+  failures, deterministic negative cases, review quality, model routing
+  inspection, cost/latency, ontology drift, redaction incidents, and AI resume
+  authenticity risk.
+- Owner `ai-quality` now surfaces a narrower summary of AI failures,
+  hallucination risks, stale ontology warnings, privacy incidents,
+  low-quality review patterns, and high authenticity risk without database
+  access.
+- Remaining gaps:
+  - No live provider activation, live provider switching, or production
+    provider-health governance is added.
+  - No ML resume-fraud detector is claimed; authenticity risk is surfaced from
+    existing deterministic/eval/review signals.
+  - No ontology editing UI or automatic ontology mutation exists.
+  - Task 58 release management and Task 60 final acceptance remain separate
+    production-readiness gates.
+
 ## Task 57 Reporting/Exports Closed; External BI and Legal Systems Still Deferred
 
 - Task 57 now provides backend-owned export package contracts and adapters for
@@ -190,8 +209,8 @@
 - Remaining gaps:
   - Task 43 is route-depth and workflow-continuity closure, not full production
     integration implementation.
-  - Remaining Tasks 50, 58, and 60 still need governance/eval console depth,
-    release management, and final full-product acceptance.
+  - Remaining Tasks 58 and 60 still need release management and final
+    full-product acceptance.
 
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
@@ -215,8 +234,8 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Remaining Tasks 50, 58, and 60 still need to broaden governance/eval
-    console depth, release management, and final full-product acceptance.
+  - Remaining Tasks 58 and 60 still need release management and final
+    full-product acceptance.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 

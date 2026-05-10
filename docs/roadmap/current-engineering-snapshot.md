@@ -4,10 +4,9 @@ This file contains mutable short-term engineering state. Update it after future 
 
 ## Current Main Baseline
 
-- latest local `main` feature baseline after the Task 49/55/56/57 integration
-  batch: Task 57 Reporting, Exports, and Legal Audit Packages at `cd81acc`
-  plus this docs drift closeout, on top of Task 49 integrations, Task 55
-  governed import/migration, and Task 56 support operations tooling.
+- latest local `main` feature baseline after the Task 50 governance console
+  implementation: Task 50 Governance, Eval, and Ontology Production Console,
+  on top of the Task 49/55/56/57 integration batch and Task 51/54 boundaries.
 - latest pre-Task 43 local `main` baseline commit: `ce0944e` (`Resolve Task 42 local main docs drift`)
 - latest production security compliance baseline: Task 52 at `afc6942`.
 - latest Task 42 gate work on local `main`: Task 42
@@ -15,6 +14,7 @@ This file contains mutable short-term engineering state. Update it after future 
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
+  - Task 50 - Governance, Eval, and Ontology Production Console, including a read-only Admin governance console for eval failures, deterministic negative cases, review quality, model routing inspection, cost/latency, ontology drift, redaction incidents, and AI resume authenticity risk, plus an Owner `ai-quality` summary. This reuses existing Task 44/47/49/51/54/56/57 boundaries and does not add live provider activation/switching, ontology mutation, external BI/legal/accounting integrations, Task 58 release management, or Task 60 final acceptance.
   - Task 57 at `cd81acc` - Reporting, Exports, and Legal Audit Packages, including backend-owned reporting export adapters for owner reports, consultant activity, client shortlist feedback, candidate personal data, disclosure audit, placement/commission, and retention evidence with role/scope/visibility policy.
   - Task 56 at `68cef32` - Support and Operations Tooling, including audited support lookup/action contracts, safe failed-notification retry, AI task replay adapter boundary, support transaction boundary, support user lookup, and support action audit persistence.
   - Task 55 at `02fbda9` - Data Import and Migration from Existing Systems, including governed import batch planning, validation/reporting, legacy ATS/CRM mapping contracts, duplicate/import safeguards, rollback/reset planning, and governed-intake import gateway boundaries.
@@ -108,6 +108,16 @@ This file contains mutable short-term engineering state. Update it after future 
   disclosure-state decisions, and provider implementations remain explicit
   placeholders unless real providers are configured. This is integration
   boundary hardening, not live production provider activation.
+- current Task 50 baseline: governance/eval production console depth now exists
+  as read-only Admin/Owner product surfaces. Admin can locate AI task failures,
+  schema/eval/hallucination risks, deterministic negative cases, low-quality
+  review patterns, model-routing config issues, Task 54 cost/latency warnings,
+  Task 47 ontology drift/stale deadlines, redaction/re-identification
+  incidents, and AI resume authenticity risk without database access. Owner
+  `ai-quality` shows a narrower safe summary. This is visibility and triage
+  aggregation, not live provider activation/switching, ontology editing,
+  support mutation, external BI/legal/accounting integration, Task 58 release
+  management, or Task 60 final acceptance.
 - current Task 55 baseline: governed import/migration now has planning,
   validation, mapping, duplicate/reporting, rollback/reset, and governed-intake
   gateway contracts. Historical data is modeled as a governed import pipeline,
@@ -171,12 +181,20 @@ This file contains mutable short-term engineering state. Update it after future 
   `rtk npm run build:web` all passed. Full Maven reported 1144 tests, 0
   failures, 0 errors, and 3 skipped. Web Vitest reported 9 test files and 38
   tests passed.
+- latest Task 50 validation snapshot on `main`: `rtk git diff --check`,
+  `rtk docker info`,
+  `rtk mvn -f services/core-api/pom.xml -Dtest=GovernanceConsoleReadServicePostgresIntegrationTest,AdminGovernanceControllerMappingTest,OwnerGovernanceControllerPolicyTest test`,
+  `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,OwnerGovernanceControllerPolicyTest,GovernanceReadServiceTest,GovernanceReadServicePostgresIntegrationTest,ObservabilityReadServiceTest,AITaskRunnerServiceTest,JdbcIndustryPackReadPortIntegrationTest,RedactionAuditPostgresIntegrationTest test`,
+  `rtk mvn -f services/core-api/pom.xml test`,
+  `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, and
+  `rtk npm run build:web` all passed. Full Maven reported 1160 tests, 0
+  failures, 0 errors, and 3 skipped. Web Vitest reported 9 test files and 38
+  tests passed.
 - merge status: Task 49, Task 55, Task 56, and Task 57 were rebased onto
   current local `main`, validated in their worktrees, fast-forward merged in
   order, and smoke-validated on `main` after each merge. No push was performed.
-- next recommended task: continue with remaining Tasks 50, 58, and 60 for
-  governance/eval console depth, release management, and final full-product
-  acceptance. Task 42
+- next recommended task: continue with remaining Tasks 58 and 60 for release
+  management and final full-product acceptance. Task 42
   readiness remains scoped to the controlled-pilot Usable v1 gate, not public
   production certification.
 
@@ -378,8 +396,7 @@ This file contains mutable short-term engineering state. Update it after future 
 
 Task 42 Pilot E2E Acceptance Gate closure now returns
 `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate. Continue with remaining
-Tasks 50, 58, and 60 for governance/eval console depth, release management, and
-final full product acceptance. Use:
+Tasks 58 and 60 for release management and final full product acceptance. Use:
 
 - `docs/roadmap/productization-roadmap.md`
 - `docs/roadmap/v2.1-capability-split.md`

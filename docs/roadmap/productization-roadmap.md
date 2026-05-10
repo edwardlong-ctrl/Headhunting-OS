@@ -1277,6 +1277,14 @@ customer-specific channel configuration.
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** for the current read-only governance console baseline.
+Admin now has first-class sections for eval failures, deterministic negative
+cases, review quality, model routing inspection, cost/latency, ontology drift,
+redaction incidents, and AI resume authenticity risk. Owner `ai-quality`
+surfaces a narrower executive summary. This does not add live provider
+activation/switching, an ML resume-fraud detector, ontology editing UI, Task 58
+release management, or Task 60 final acceptance.
+
 Goal: Make quality governance a first-class Admin/Owner product.
 
 Must deliver:
