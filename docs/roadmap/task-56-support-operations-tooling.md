@@ -42,11 +42,14 @@ Delivered capabilities:
 - `NotificationService.retryFailedNotification(...)` enforces organization
   scope, requires an existing failed delivery attempt, and uses
   `support_retry:<notificationId>:<ticketRef>` as the duplicate-safe retry
-  source reference.
+  source reference with a database-level partial unique index for support retry
+  refs.
 - `NotificationServiceFailedNotificationRetryPort` is the supportops adapter
   into the notification boundary.
 - `AITaskReplaySupportAdapter` is the supportops adapter into the existing AI
   replay boundary.
+- `SpringSupportOperationsTransactionBoundary` keeps support side effects and
+  support audit evidence in one rollback boundary for Spring-managed runtime.
 
 ## Verification Added
 
@@ -54,6 +57,7 @@ Delivered capabilities:
   - Cross-organization lookup cannot infer or access another org's user.
   - Retry/replay commands require ticket/reason and write support audit.
   - Failed notification retry command remains duplicate-safe and org-scoped.
+  - AI replay failures are audited and return safe support result codes.
   - AI replay is blocked if canonical fact persistence is reported.
   - Data correction creates review/workflow items and preserves facts.
   - Permission-denied responses do not leak record existence.
@@ -61,5 +65,9 @@ Delivered capabilities:
   - Real PostgreSQL user lookup is organization-scoped and audited.
   - Real failed-notification retry reuses `NotificationService` and is
     duplicate-safe.
+  - Support retry source refs are database-idempotent without changing ordinary
+    notification source-ref semantics.
   - Real data-correction request persists review event, workflow event, and
     support audit evidence without fact mutation.
+  - Audit failure rolls back support-created review/workflow artifacts rather
+    than leaving unaudited support changes behind.

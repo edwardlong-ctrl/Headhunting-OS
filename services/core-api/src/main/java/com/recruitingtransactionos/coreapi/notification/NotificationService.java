@@ -492,20 +492,34 @@ public final class NotificationService {
           }
         }
       }
-      NotificationRecord retry = createNotification(new CreateNotificationCommand(
-          command.organizationId(),
-          source.recipientUserAccountId(),
-          source.recipientPortalRole(),
-          source.record().notificationType(),
-          source.record().title(),
-          source.record().bodySummary(),
-          source.record().deepLink(),
-          source.record().entityType(),
-          source.record().entityId(),
-          retrySourceRef,
-          retryMetadata(source.metadataJson(), command),
-          now));
-      return new RetryFailedNotificationResult(true, retry.notificationId(), "notification_retry_created");
+      try {
+        NotificationRecord retry = createNotification(new CreateNotificationCommand(
+            command.organizationId(),
+            source.recipientUserAccountId(),
+            source.recipientPortalRole(),
+            source.record().notificationType(),
+            source.record().title(),
+            source.record().bodySummary(),
+            source.record().deepLink(),
+            source.record().entityType(),
+            source.record().entityId(),
+            retrySourceRef,
+            retryMetadata(source.metadataJson(), command),
+            now));
+        return new RetryFailedNotificationResult(true, retry.notificationId(), "notification_retry_created");
+      } catch (IllegalStateException exception) {
+        if (!isUniqueConstraintViolation(exception)) {
+          throw exception;
+        }
+        Optional<UUID> existingRetryId = findNotificationIdBySourceRef(connection, command.organizationId(), retrySourceRef);
+        if (existingRetryId.isPresent()) {
+          return new RetryFailedNotificationResult(
+              false,
+              existingRetryId.orElseThrow(),
+              "notification_retry_duplicate_skipped");
+        }
+        throw exception;
+      }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to retry failed notification", exception);
     } finally {
@@ -721,6 +735,33 @@ public final class NotificationService {
         resultSet.getObject("recipient_user_account_id", UUID.class),
         PortalRole.fromWireValue(resultSet.getString("recipient_portal_role")),
         resultSet.getString("metadata"));
+  }
+
+  private static Optional<UUID> findNotificationIdBySourceRef(
+      Connection connection,
+      UUID organizationId,
+      String sourceRef) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement(FIND_NOTIFICATION_BY_SOURCE_REF_SQL)) {
+      statement.setObject(1, organizationId);
+      statement.setString(2, sourceRef);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        if (!resultSet.next()) {
+          return Optional.empty();
+        }
+        return Optional.of(resultSet.getObject("notification_id", UUID.class));
+      }
+    }
+  }
+
+  private static boolean isUniqueConstraintViolation(Throwable throwable) {
+    Throwable cursor = throwable;
+    while (cursor != null) {
+      if (cursor instanceof SQLException sqlException && "23505".equals(sqlException.getSQLState())) {
+        return true;
+      }
+      cursor = cursor.getCause();
+    }
+    return false;
   }
 
   private static String retryMetadata(

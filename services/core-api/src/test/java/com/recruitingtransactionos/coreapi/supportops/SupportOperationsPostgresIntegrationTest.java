@@ -1,6 +1,7 @@
 package com.recruitingtransactionos.coreapi.supportops;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.notification.NotificationService;
@@ -23,6 +24,7 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -140,6 +142,24 @@ class SupportOperationsPostgresIntegrationTest {
   }
 
   @Test
+  void supportRetrySourceRefIsDatabaseIdempotentWithoutBlockingNonSupportSourceRefs() throws SQLException {
+    String supportRetrySourceRef =
+        "support_retry:00000000-0000-0000-0000-000000561499:SUP-56-IDEMPOTENCY";
+    insertNotificationWithSourceRef(UUID.fromString("00000000-0000-0000-0000-000000561501"), supportRetrySourceRef);
+
+    assertThatThrownBy(() ->
+        insertNotificationWithSourceRef(UUID.fromString("00000000-0000-0000-0000-000000561502"), supportRetrySourceRef))
+        .isInstanceOf(SQLException.class)
+        .extracting(exception -> rootSqlState((SQLException) exception))
+        .isEqualTo("23505");
+
+    String ordinarySourceRef = "ordinary-repeated-source-ref";
+    insertNotificationWithSourceRef(UUID.fromString("00000000-0000-0000-0000-000000561503"), ordinarySourceRef);
+    insertNotificationWithSourceRef(UUID.fromString("00000000-0000-0000-0000-000000561504"), ordinarySourceRef);
+    assertThat(notificationSourceRefCount(ordinarySourceRef)).isEqualTo(2);
+  }
+
+  @Test
   void dataCorrectionRequestPersistsReviewWorkflowAndSupportAuditWithoutFactMutation() throws SQLException {
     SupportOperationsService service = service();
 
@@ -159,7 +179,32 @@ class SupportOperationsPostgresIntegrationTest {
     assertThat(supportAuditCount("support.request_data_correction")).isGreaterThanOrEqualTo(1);
   }
 
+  @Test
+  void auditFailureRollsBackDataCorrectionReviewAndWorkflowArtifacts() throws SQLException {
+    SupportOperationsService service = serviceWithAuditPort(command -> {
+      throw new IllegalStateException("audit write unavailable");
+    });
+
+    assertThatThrownBy(() -> service.requestDataCorrection(new DataCorrectionSupportCommand(
+        admin(),
+        ORG_A,
+        new EntityRef(WorkflowEntityType.CANDIDATE.wireValue(), TARGET_CANDIDATE),
+        "profile.rollback_guard",
+        "Rollback if the support audit cannot be recorded.",
+        "SUP-56-ROLLBACK",
+        "Support correction must not survive without audit evidence.")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("audit write unavailable");
+
+    assertThat(reviewEventCountForField("profile.rollback_guard")).isZero();
+    assertThat(workflowEventCountForCorrectionField("profile.rollback_guard")).isZero();
+  }
+
   private static SupportOperationsService service() {
+    return serviceWithAuditPort(new JdbcSupportActionAuditPort(dataSource));
+  }
+
+  private static SupportOperationsService serviceWithAuditPort(SupportActionAuditPort auditPort) {
     NotificationService notificationService =
         new NotificationService(dataSource, new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)));
     return new SupportOperationsService(
@@ -169,7 +214,8 @@ class SupportOperationsPostgresIntegrationTest {
         command -> new AITaskSupportReplayOutcome(new AITaskRunId(UUID.randomUUID()), false, "ai_replay_created"),
         new ReviewEventService(new JdbcReviewEventPort(dataSource)),
         new WorkflowEventService(new JdbcWorkflowEventPort(dataSource)),
-        new JdbcSupportActionAuditPort(dataSource));
+        auditPort,
+        new SpringSupportOperationsTransactionBoundary(new DataSourceTransactionManager(dataSource)));
   }
 
   private static SupportActor admin() {
@@ -210,12 +256,110 @@ class SupportOperationsPostgresIntegrationTest {
     }
   }
 
+  private static int notificationSourceRefCount(String sourceRef) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT count(*)
+            FROM operations.notification
+            WHERE organization_id = ?
+              AND source_ref = ?
+            """)) {
+      statement.setObject(1, ORG_A);
+      statement.setString(2, sourceRef);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private static void insertNotificationWithSourceRef(
+      UUID notificationId,
+      String sourceRef) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO operations.notification (
+              notification_id,
+              organization_id,
+              recipient_user_account_id,
+              recipient_portal_role,
+              notification_type,
+              status,
+              title,
+              body_summary,
+              deep_link,
+              entity_type,
+              entity_id,
+              source_ref,
+              metadata,
+              created_at,
+              updated_at,
+              version
+            ) VALUES (?, ?, ?, 'candidate', 'support_retry_test', 'pending', 'Support retry',
+              'Support retry duplicate guard test.', '/candidate/support', 'notification', ?, ?,
+              '{}'::jsonb, now(), now(), 1)
+            """)) {
+      statement.setObject(1, notificationId);
+      statement.setObject(2, ORG_A);
+      statement.setObject(3, USER_A);
+      statement.setObject(4, notificationId);
+      statement.setString(5, sourceRef);
+      statement.executeUpdate();
+    }
+  }
+
+  private static String rootSqlState(SQLException exception) {
+    SQLException cursor = exception;
+    while (cursor.getNextException() != null) {
+      cursor = cursor.getNextException();
+    }
+    return cursor.getSQLState();
+  }
+
   private static boolean reviewEventExists(UUID reviewEventId) throws SQLException {
     return exists("SELECT 1 FROM governance.review_event WHERE review_event_id = ?", reviewEventId);
   }
 
   private static boolean workflowEventExists(UUID workflowEventId) throws SQLException {
     return exists("SELECT 1 FROM workflow.workflow_event WHERE workflow_event_id = ?", workflowEventId);
+  }
+
+  private static int reviewEventCountForField(String fieldPath) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT count(*)
+            FROM governance.review_event
+            WHERE organization_id = ?
+              AND target_entity_id = ?
+              AND field_path = ?
+            """)) {
+      statement.setObject(1, ORG_A);
+      statement.setObject(2, TARGET_CANDIDATE);
+      statement.setString(3, fieldPath);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  private static int workflowEventCountForCorrectionField(String fieldPath) throws SQLException {
+    try (Connection connection = connection();
+        PreparedStatement statement = connection.prepareStatement("""
+            SELECT count(*)
+            FROM workflow.workflow_event
+            WHERE organization_id = ?
+              AND source_ref_id = ?
+              AND after_state ->> 'targetFieldPath' = ?
+            """)) {
+      statement.setObject(1, ORG_A);
+      statement.setObject(2, TARGET_CANDIDATE);
+      statement.setString(3, fieldPath);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        assertThat(resultSet.next()).isTrue();
+        return resultSet.getInt(1);
+      }
+    }
   }
 
   private static boolean exists(String sql, UUID id) throws SQLException {

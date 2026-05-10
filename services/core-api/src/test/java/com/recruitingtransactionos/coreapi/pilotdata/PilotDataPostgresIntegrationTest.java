@@ -41,7 +41,7 @@ class PilotDataPostgresIntegrationTest {
         .cleanDisabled(true)
         .load()
         .migrate();
-    assertThat(result.migrationsExecuted).isEqualTo(33);
+    assertThat(result.migrationsExecuted).isEqualTo(34);
     dataSource = postgresDataSource();
   }
 

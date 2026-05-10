@@ -8,6 +8,7 @@ import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration(proxyBeanMethods = false)
 public class SupportOperationsConfiguration {
@@ -44,6 +45,13 @@ public class SupportOperationsConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
+  SupportOperationsTransactionBoundary supportOperationsTransactionBoundary(
+      PlatformTransactionManager transactionManager) {
+    return new SpringSupportOperationsTransactionBoundary(transactionManager);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
   SupportOperationsService supportOperationsService(
       SupportOperationsPermissionPolicy permissionPolicy,
       SupportUserLookupPort userLookupPort,
@@ -51,7 +59,8 @@ public class SupportOperationsConfiguration {
       AITaskSupportReplayPort aiTaskSupportReplayPort,
       ReviewEventService reviewEventService,
       WorkflowEventService workflowEventService,
-      SupportActionAuditPort supportActionAuditPort) {
+      SupportActionAuditPort supportActionAuditPort,
+      SupportOperationsTransactionBoundary transactionBoundary) {
     return new SupportOperationsService(
         permissionPolicy,
         userLookupPort,
@@ -59,6 +68,7 @@ public class SupportOperationsConfiguration {
         aiTaskSupportReplayPort,
         reviewEventService,
         workflowEventService,
-        supportActionAuditPort);
+        supportActionAuditPort,
+        transactionBoundary);
   }
 }

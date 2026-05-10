@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 
 public final class JdbcReviewEventPort implements ReviewEventPort {
 
@@ -61,13 +62,15 @@ public final class JdbcReviewEventPort implements ReviewEventPort {
     Objects.requireNonNull(command, "command must not be null");
     ReviewEventId reviewEventId = new ReviewEventId(UUID.randomUUID());
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try (PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
       bind(statement, reviewEventId, command);
       statement.executeUpdate();
       return new ReviewEventAppendResult(reviewEventId);
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to append review event", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
   }
 

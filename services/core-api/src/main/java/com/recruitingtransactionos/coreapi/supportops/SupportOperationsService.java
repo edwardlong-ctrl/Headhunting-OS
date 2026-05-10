@@ -1,5 +1,7 @@
 package com.recruitingtransactionos.coreapi.supportops;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowEntityType;
@@ -22,6 +24,8 @@ import java.util.UUID;
 
 public final class SupportOperationsService {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private final SupportOperationsPermissionPolicy permissionPolicy;
   private final SupportUserLookupPort userLookupPort;
   private final FailedNotificationRetryPort failedNotificationRetryPort;
@@ -29,6 +33,7 @@ public final class SupportOperationsService {
   private final ReviewEventService reviewEventService;
   private final WorkflowEventService workflowEventService;
   private final SupportActionAuditPort supportActionAuditPort;
+  private final SupportOperationsTransactionBoundary transactionBoundary;
 
   public SupportOperationsService(
       SupportOperationsPermissionPolicy permissionPolicy,
@@ -38,6 +43,26 @@ public final class SupportOperationsService {
       ReviewEventService reviewEventService,
       WorkflowEventService workflowEventService,
       SupportActionAuditPort supportActionAuditPort) {
+    this(
+        permissionPolicy,
+        userLookupPort,
+        failedNotificationRetryPort,
+        aiTaskSupportReplayPort,
+        reviewEventService,
+        workflowEventService,
+        supportActionAuditPort,
+        new NoOpSupportOperationsTransactionBoundary());
+  }
+
+  public SupportOperationsService(
+      SupportOperationsPermissionPolicy permissionPolicy,
+      SupportUserLookupPort userLookupPort,
+      FailedNotificationRetryPort failedNotificationRetryPort,
+      AITaskSupportReplayPort aiTaskSupportReplayPort,
+      ReviewEventService reviewEventService,
+      WorkflowEventService workflowEventService,
+      SupportActionAuditPort supportActionAuditPort,
+      SupportOperationsTransactionBoundary transactionBoundary) {
     this.permissionPolicy = Objects.requireNonNull(permissionPolicy, "permissionPolicy must not be null");
     this.userLookupPort = Objects.requireNonNull(userLookupPort, "userLookupPort must not be null");
     this.failedNotificationRetryPort = Objects.requireNonNull(
@@ -48,10 +73,16 @@ public final class SupportOperationsService {
     this.workflowEventService = Objects.requireNonNull(workflowEventService, "workflowEventService must not be null");
     this.supportActionAuditPort = Objects.requireNonNull(
         supportActionAuditPort, "supportActionAuditPort must not be null");
+    this.transactionBoundary = Objects.requireNonNull(
+        transactionBoundary, "transactionBoundary must not be null");
   }
 
   public SupportUserLookupResult lookupUser(SupportUserLookupCommand command) {
     Objects.requireNonNull(command, "command must not be null");
+    return transactionBoundary.run(() -> lookupUserInTransaction(command));
+  }
+
+  private SupportUserLookupResult lookupUserInTransaction(SupportUserLookupCommand command) {
     SupportAuthorizationDecision decision = permissionPolicy.authorize(command);
     if (!decision.allowed()) {
       UUID auditId = audit(command, "denied", permissionMetadata(decision));
@@ -67,6 +98,11 @@ public final class SupportOperationsService {
 
   public SupportActionResult retryFailedNotification(FailedNotificationSupportRetryCommand command) {
     Objects.requireNonNull(command, "command must not be null");
+    return transactionBoundary.run(() -> retryFailedNotificationInTransaction(command));
+  }
+
+  private SupportActionResult retryFailedNotificationInTransaction(
+      FailedNotificationSupportRetryCommand command) {
     SupportAuthorizationDecision decision = permissionPolicy.authorize(command);
     if (!decision.allowed()) {
       UUID auditId = audit(command, "denied", permissionMetadata(decision));
@@ -84,17 +120,33 @@ public final class SupportOperationsService {
 
   public SupportActionResult replayAiTask(AITaskSupportReplayCommand command) {
     Objects.requireNonNull(command, "command must not be null");
+    return transactionBoundary.run(() -> replayAiTaskInTransaction(command));
+  }
+
+  private SupportActionResult replayAiTaskInTransaction(AITaskSupportReplayCommand command) {
     SupportAuthorizationDecision decision = permissionPolicy.authorize(command);
     if (!decision.allowed()) {
       UUID auditId = audit(command, "denied", permissionMetadata(decision));
       return deniedAction(auditId);
     }
-    AITaskSupportReplayOutcome outcome = aiTaskSupportReplayPort.replay(new AITaskSupportReplayRequest(
-        command.targetOrganizationId(),
-        command.aiTaskRunId(),
-        new ActorRef(command.actor().userId(), ActorRole.ADMIN),
-        command.ticketRef(),
-        command.reason()));
+    AITaskSupportReplayOutcome outcome;
+    try {
+      outcome = aiTaskSupportReplayPort.replay(new AITaskSupportReplayRequest(
+          command.targetOrganizationId(),
+          command.aiTaskRunId(),
+          new ActorRef(command.actor().userId(), ActorRole.ADMIN),
+          command.ticketRef(),
+          command.reason()));
+    } catch (IllegalArgumentException exception) {
+      String resultCode = "ai_task_run_not_found".equals(exception.getMessage())
+          ? "ai_replay_not_found"
+          : "ai_replay_failed";
+      UUID auditId = audit(command, resultCode, "{\"replayCompleted\":false}");
+      return new SupportActionResult(false, resultCode, auditId, Optional.empty());
+    } catch (RuntimeException exception) {
+      UUID auditId = audit(command, "ai_replay_failed", "{\"replayCompleted\":false}");
+      return new SupportActionResult(false, "ai_replay_failed", auditId, Optional.empty());
+    }
     if (outcome.canonicalFactsWritten()) {
       UUID auditId = audit(command, "ai_replay_canonical_write_blocked", "{\"canonicalFactsWritten\":true}");
       return new SupportActionResult(false, "ai_replay_canonical_write_blocked", auditId, Optional.empty());
@@ -105,6 +157,11 @@ public final class SupportOperationsService {
 
   public DataCorrectionRequestResult requestDataCorrection(DataCorrectionSupportCommand command) {
     Objects.requireNonNull(command, "command must not be null");
+    return transactionBoundary.run(() -> requestDataCorrectionInTransaction(command));
+  }
+
+  private DataCorrectionRequestResult requestDataCorrectionInTransaction(
+      DataCorrectionSupportCommand command) {
     SupportAuthorizationDecision decision = permissionPolicy.authorize(command);
     if (!decision.allowed()) {
       UUID auditId = audit(command, "denied", permissionMetadata(decision));
@@ -146,11 +203,7 @@ public final class SupportOperationsService {
     UUID auditId = audit(
         command,
         "data_correction_request_created",
-        "{\"canonicalFactsMutated\":false,\"reviewEventId\":\""
-            + reviewResult.reviewEventId().value()
-            + "\",\"workflowEventId\":\""
-            + workflowResult.workflowEventId().value()
-            + "\"}");
+        correctionAuditMetadata(reviewResult, workflowResult));
     return new DataCorrectionRequestResult(
         true,
         "data_correction_request_created",
@@ -185,13 +238,22 @@ public final class SupportOperationsService {
   private static WorkflowStateSnapshot correctionState(
       DataCorrectionSupportCommand command,
       String status) {
-    return new WorkflowStateSnapshot("""
-        {"status":"%s","targetEntityType":"%s","targetEntityId":"%s","targetFieldPath":"%s","ticketRef":"%s"}
-        """.formatted(
-            status,
-            command.targetEntity().entityType(),
-            command.targetEntity().entityId(),
-            command.targetFieldPath(),
-            command.ticketRef()).strip());
+    ObjectNode node = OBJECT_MAPPER.createObjectNode();
+    node.put("status", status);
+    node.put("targetEntityType", command.targetEntity().entityType());
+    node.put("targetEntityId", command.targetEntity().entityId().toString());
+    node.put("targetFieldPath", command.targetFieldPath());
+    node.put("ticketRef", command.ticketRef());
+    return new WorkflowStateSnapshot(node.toString());
+  }
+
+  private static String correctionAuditMetadata(
+      ReviewEventAppendResult reviewResult,
+      WorkflowEventAppendResult workflowResult) {
+    ObjectNode node = OBJECT_MAPPER.createObjectNode();
+    node.put("canonicalFactsMutated", false);
+    node.put("reviewEventId", reviewResult.reviewEventId().value().toString());
+    node.put("workflowEventId", workflowResult.workflowEventId().value().toString());
+    return node.toString();
   }
 }

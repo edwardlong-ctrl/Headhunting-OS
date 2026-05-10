@@ -1,7 +1,9 @@
 package com.recruitingtransactionos.coreapi.supportops;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.truthlayer.RiskTier;
 import com.recruitingtransactionos.coreapi.truthlayer.WorkflowActionCode;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Test;
 
 class SupportOperationsServiceTest {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final UUID ORG_A = UUID.fromString("00000000-0000-0000-0000-000000560001");
   private static final UUID ORG_B = UUID.fromString("00000000-0000-0000-0000-000000560002");
   private static final UUID SUPPORT_ADMIN = UUID.fromString("00000000-0000-0000-0000-000000560101");
@@ -164,6 +167,30 @@ class SupportOperationsServiceTest {
   }
 
   @Test
+  void aiReplayFailureIsAuditedAndDoesNotLeakAdapterException() {
+    RecordingSupportAuditPort auditPort = new RecordingSupportAuditPort();
+    FailingAITaskReplayPort replayPort = new FailingAITaskReplayPort(
+        new IllegalArgumentException("ai_task_run_not_found"));
+    SupportOperationsService service = service(auditPort, replayPort);
+
+    SupportActionResult result = service.replayAiTask(new AITaskSupportReplayCommand(
+        admin(ORG_A),
+        ORG_A,
+        TARGET_AI_RUN,
+        "SUP-56",
+        "Replay failed parser run."));
+
+    assertThat(result.allowed()).isFalse();
+    assertThat(result.resultCode()).isEqualTo("ai_replay_not_found");
+    assertThat(result.targetId()).isEmpty();
+    assertThat(replayPort.commands).hasSize(1);
+    assertThat(auditPort.commands).hasSize(1);
+    assertThat(auditPort.commands.getFirst().actionType()).isEqualTo(SupportActionType.REPLAY_AI_TASK);
+    assertThat(auditPort.commands.getFirst().result()).isEqualTo("ai_replay_not_found");
+    assertThat(auditPort.commands.getFirst().metadataJson()).doesNotContain("ai_task_run_not_found");
+  }
+
+  @Test
   void dataCorrectionRequestCreatesReviewAndWorkflowItemsAndPreservesExistingFacts() {
     RecordingSupportAuditPort auditPort = new RecordingSupportAuditPort();
     RecordingReviewEventPort reviewEventPort = new RecordingReviewEventPort();
@@ -177,9 +204,9 @@ class SupportOperationsServiceTest {
         admin(ORG_A),
         ORG_A,
         new EntityRef(WorkflowEntityType.CANDIDATE.wireValue(), TARGET_CANDIDATE),
-        "profile.summary",
+        "profile.\"summary\"",
         "Candidate says the current summary mixes two employers.",
-        "SUP-56",
+        "SUP-\"56\"",
         "Open a governed correction request instead of editing facts."));
 
     assertThat(result.allowed()).isTrue();
@@ -192,6 +219,8 @@ class SupportOperationsServiceTest {
     assertThat(workflowEventPort.commands).hasSize(1);
     assertThat(workflowEventPort.commands.getFirst().action())
         .isEqualTo(WorkflowActionCode.REVIEW_EVENT_APPENDED.wireValue());
+    assertThatCode(() -> OBJECT_MAPPER.readTree(workflowEventPort.commands.getFirst().afterState().json()))
+        .doesNotThrowAnyException();
     assertThat(auditPort.commands.getFirst().actionType()).isEqualTo(SupportActionType.REQUEST_DATA_CORRECTION);
   }
 
@@ -343,6 +372,21 @@ class SupportOperationsServiceTest {
     public AITaskSupportReplayOutcome replay(AITaskSupportReplayRequest command) {
       commands.add(command);
       return outcome;
+    }
+  }
+
+  private static final class FailingAITaskReplayPort implements AITaskSupportReplayPort {
+    private final RuntimeException failure;
+    private final List<AITaskSupportReplayRequest> commands = new ArrayList<>();
+
+    private FailingAITaskReplayPort(RuntimeException failure) {
+      this.failure = failure;
+    }
+
+    @Override
+    public AITaskSupportReplayOutcome replay(AITaskSupportReplayRequest command) {
+      commands.add(command);
+      throw failure;
     }
   }
 
