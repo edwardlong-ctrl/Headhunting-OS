@@ -8,25 +8,31 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskRunnerProperties;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceItemResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceMetricResponse;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
+import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigRecord;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
 import com.recruitingtransactionos.coreapi.observability.PerformanceCostDashboardPolicy;
-import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.stereotype.Service;
 
 @Service
 public final class GovernanceConsoleReadService {
+
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
   private static final List<String> TASK50_ADMIN_SECTIONS = List.of(
       "eval-dashboard",
@@ -273,7 +279,9 @@ public final class GovernanceConsoleReadService {
                 "Console only inspects configuration and recorded runs; no live provider governance is claimed.")),
         items,
         List.of("Model routing is inspection-only here; broad live provider switching remains outside Task 50."),
-        false);
+        true,
+        configJson(organizationId, "model-routing"),
+        configUpdatedAt(organizationId, "model-routing"));
   }
 
   private GovernanceSectionResponse costLatency(UUID organizationId) {
@@ -560,24 +568,29 @@ public final class GovernanceConsoleReadService {
 
   private List<GovernanceItemResponse> redactionNegativeCaseItems(UUID organizationId) {
     return limitedItems(organizationId, """
-        SELECT candidate_card_id, risk_level, decision, unsafe_features
+        SELECT ROW_NUMBER() OVER (
+                 ORDER BY recorded_at DESC, reidentification_risk_assessment_ref DESC
+               ) AS incident_ordinal,
+               risk_level,
+               decision,
+               unsafe_features
         FROM privacy.reidentification_risk_assessment
         WHERE organization_id = ?
           AND decision <> 'allow'
         ORDER BY recorded_at DESC
         LIMIT 6
         """, resultSet -> item(
-        "privacy." + resultSet.getString(1) + ".reidentification",
-        "risk:" + resultSet.getString(2),
+        "privacy.reidentification.incident-" + resultSet.getLong("incident_ordinal"),
+        "risk:" + resultSet.getString("risk_level"),
         "generated",
-        "source:privacy-redaction | expected:redaction_blocked | decision:" + resultSet.getString(3)
-            + " | unsafeFeatures:" + safeArrayText(resultSet.getArray(4)),
+        "source:privacy-redaction | expected:redaction_blocked | decision:" + resultSet.getString("decision")
+            + " | unsafeFeatures:" + safeArrayText(resultSet.getArray("unsafe_features")),
         "admin/negative-cases"));
   }
 
   private List<GovernanceItemResponse> reviewQualityItems(UUID organizationId) {
     return limitedItems(organizationId, """
-        SELECT field_path, status, review_velocity_bucket, bulk_flag, decision, COALESCE(reason, '')
+        SELECT field_path, status, review_velocity_bucket, bulk_flag, decision
         FROM governance.review_event
         WHERE organization_id = ?
         ORDER BY created_at DESC
@@ -587,7 +600,7 @@ public final class GovernanceConsoleReadService {
         "velocity:" + resultSet.getString(3) + " | bulk:" + resultSet.getBoolean(4),
         resultSet.getString(2),
         "decision:" + resultSet.getString(5)
-            + " | reason:" + resultSet.getString(6)
+            + " | reasonText:omitted"
             + " | bulkAckVerified:false",
         "admin/review-quality"));
   }
@@ -630,20 +643,27 @@ public final class GovernanceConsoleReadService {
 
   private List<GovernanceItemResponse> redactionIncidentItems(UUID organizationId) {
     return limitedItems(organizationId, """
-        SELECT candidate_card_id, risk_level, decision, risk_score, unsafe_features, explanation
+        SELECT ROW_NUMBER() OVER (
+                 ORDER BY recorded_at DESC, reidentification_risk_assessment_ref DESC
+               ) AS incident_ordinal,
+               risk_level,
+               decision,
+               risk_score,
+               unsafe_features,
+               workflow_event_id IS NOT NULL AS workflow_linked
         FROM privacy.reidentification_risk_assessment
         WHERE organization_id = ?
           AND decision <> 'allow'
         ORDER BY recorded_at DESC
         LIMIT 10
         """, resultSet -> item(
-        resultSet.getString("candidate_card_id"),
-        "anonymous-card",
+        "redaction incident " + resultSet.getLong("incident_ordinal"),
+        "client-safe projection gate",
         resultSet.getString("decision"),
         "riskLevel:" + resultSet.getString("risk_level")
             + " | riskScore:" + resultSet.getDouble("risk_score")
             + " | unsafeFeatures:" + safeArrayText(resultSet.getArray("unsafe_features"))
-            + " | explanation:" + resultSet.getString("explanation"),
+            + " | workflowLinked:" + resultSet.getBoolean("workflow_linked"),
         "admin/redaction-incidents"));
   }
 
@@ -783,6 +803,19 @@ public final class GovernanceConsoleReadService {
       List<GovernanceItemResponse> items,
       List<String> warnings,
       boolean editable) {
+    return section(sectionKey, title, description, metrics, items, warnings, editable, "{}", "");
+  }
+
+  private GovernanceSectionResponse section(
+      String sectionKey,
+      String title,
+      String description,
+      List<GovernanceMetricResponse> metrics,
+      List<GovernanceItemResponse> items,
+      List<String> warnings,
+      boolean editable,
+      String configJson,
+      String updatedAt) {
     return new GovernanceSectionResponse(
         sectionKey,
         title,
@@ -791,8 +824,8 @@ public final class GovernanceConsoleReadService {
         items,
         warnings,
         editable,
-        "{}",
-        "");
+        configJson,
+        updatedAt);
   }
 
   private GovernanceMetricResponse metric(
@@ -822,6 +855,20 @@ public final class GovernanceConsoleReadService {
       return String.join(",", strings);
     }
     return String.valueOf(value);
+  }
+
+  private String configJson(UUID organizationId, String sectionKey) {
+    return governanceConfigService.find(organizationId, sectionKey, "default")
+        .map(GovernanceConfigRecord::payloadJson)
+        .orElse("{}");
+  }
+
+  private String configUpdatedAt(UUID organizationId, String sectionKey) {
+    Optional<GovernanceConfigRecord> record =
+        governanceConfigService.find(organizationId, sectionKey, "default");
+    return record
+        .map(value -> TIMESTAMP_FORMATTER.format(OffsetDateTime.ofInstant(value.updatedAt(), ZoneOffset.UTC)))
+        .orElse("");
   }
 
   private static boolean isBlank(String value) {

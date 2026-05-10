@@ -3,11 +3,12 @@
 ## Current Git Main Milestones
 
 - Task 50: Governance, Eval, and Ontology Production Console is complete for
-  the current read-only Admin/Owner governance console baseline. The patch adds
-  a focused governance console read service, Admin API sections for eval
+  the current Admin/Owner governance console baseline. The patch adds a
+  focused governance console read service, Admin API sections for eval
   failures, deterministic negative cases, review quality, model routing
-  inspection, cost/latency, ontology drift, redaction incidents, and AI resume
-  authenticity risk, plus an Owner `ai-quality` summary. It reuses Task 44,
+  inspection with the existing governed config overlay, cost/latency, ontology
+  drift, redaction incidents, and AI resume authenticity risk, plus an Owner
+  `ai-quality` summary. It reuses Task 44,
   Task 47, Task 49, Task 51, Task 54, Task 56, and Task 57 boundaries and does
   not add live provider activation/switching, ontology mutation, direct support
   operations, external BI/legal/accounting integrations, Task 58 release

@@ -9,6 +9,7 @@ import com.recruitingtransactionos.coreapi.aitaskrunner.AITaskRunnerProperties;
 import com.recruitingtransactionos.coreapi.apiboundary.GovernanceSectionResponse;
 import com.recruitingtransactionos.coreapi.governanceconfig.GovernanceConfigService;
 import com.recruitingtransactionos.coreapi.governanceconfig.JdbcGovernanceConfigPort;
+import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.observability.PerformanceCostDashboardPolicy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -84,6 +85,14 @@ class GovernanceConsoleReadServicePostgresIntegrationTest {
     seedTenant(ORGANIZATION_ID, ADMIN_USER_ID, "task50-admin@example.test");
     seedTenant(OTHER_ORGANIZATION_ID, OTHER_ADMIN_USER_ID, "task50-other@example.test");
     seedTask50Signals();
+    configService.save(
+        ORGANIZATION_ID,
+        "model-routing",
+        "default",
+        "{\"defaultProvider\":\"deepseek\",\"mode\":\"inspect-only\"}",
+        true,
+        ADMIN_USER_ID,
+        PortalRole.ADMIN);
   }
 
   @ParameterizedTest
@@ -102,7 +111,7 @@ class GovernanceConsoleReadServicePostgresIntegrationTest {
 
     assertThat(section.sectionKey()).isEqualTo(sectionKey);
     assertThat(section.metrics()).isNotEmpty();
-    assertThat(section.editable()).isFalse();
+    assertThat(section.editable()).isEqualTo("model-routing".equals(sectionKey));
   }
 
   @Test
@@ -155,6 +164,27 @@ class GovernanceConsoleReadServicePostgresIntegrationTest {
   }
 
   @Test
+  void modelRoutingConsolePreservesGovernedConfigOverlayWithoutLiveSwitching() {
+    GovernanceSectionResponse section = consoleReadService.loadAdminSection(ORGANIZATION_ID, "model-routing");
+
+    assertThat(section.editable()).isTrue();
+    assertThat(section.configJson()).contains("\"defaultProvider\": \"deepseek\"", "\"mode\": \"inspect-only\"");
+    assertThat(section.updatedAt()).isNotBlank();
+    assertThat(section.warnings())
+        .contains("Model routing is inspection-only here; broad live provider switching remains outside Task 50.");
+  }
+
+  @Test
+  void reviewQualityDashboardOmitsRawReviewReasonText() {
+    GovernanceSectionResponse section = consoleReadService.loadAdminSection(ORGANIZATION_ID, "review-quality");
+
+    assertThat(metricValue(section, "bulkAckNotVerified")).isEqualTo("1");
+    assertThat(joinedText(section))
+        .contains("reasonText:omitted")
+        .doesNotContain(CANDIDATE_ID.toString(), "raw review reason");
+  }
+
+  @Test
   void tenantBoundaryFiltersOtherOrganizationGovernanceSignals() {
     GovernanceSectionResponse section = consoleReadService.loadAdminSection(ORGANIZATION_ID, "eval-dashboard");
 
@@ -166,12 +196,26 @@ class GovernanceConsoleReadServicePostgresIntegrationTest {
   void redactionAndAuthenticityDashboardsExposeSafeRefsOnly() {
     GovernanceSectionResponse redaction =
         consoleReadService.loadAdminSection(ORGANIZATION_ID, "redaction-incidents");
+    GovernanceSectionResponse negativeCases =
+        consoleReadService.loadAdminSection(ORGANIZATION_ID, "negative-cases");
     GovernanceSectionResponse authenticity =
         consoleReadService.loadAdminSection(ORGANIZATION_ID, "ai-resume-authenticity-risk");
 
     assertThat(metricValue(redaction, "incidents")).isEqualTo("1");
     assertThat(metricValue(authenticity, "highRiskReports")).isEqualTo("1");
-    assertThat(joinedText(redaction)).doesNotContain(CANDIDATE_ID.toString());
+    assertThat(joinedText(redaction))
+        .doesNotContain(
+            CANDIDATE_ID.toString(),
+            "anonymous-card-task50",
+            "task50-redaction-incident",
+            "job-safe-ref",
+            "Unsafe feature combination");
+    assertThat(joinedText(negativeCases))
+        .doesNotContain(
+            CANDIDATE_ID.toString(),
+            "anonymous-card-task50",
+            "task50-redaction-incident",
+            "job-safe-ref");
     assertThat(joinedText(authenticity)).doesNotContain(CANDIDATE_ID.toString());
     assertThat(joinedText(authenticity)).contains(MATCH_REPORT_ID.toString());
   }
@@ -397,14 +441,15 @@ class GovernanceConsoleReadServicePostgresIntegrationTest {
         ) VALUES (
           ?, ?, ?, 'candidate_profile', ?, 'profile.summary',
           'T2_MEDIUM_RISK'::governance.risk_tier, 'approved', true, 500,
-          'bulk_ack_without_verification', 'failed', 'too_fast', 'failed_audit', ?
+          ?, 'failed', 'too_fast', 'failed_audit', ?
         )
         """, statement -> {
       statement.setObject(1, UUID.fromString("00000000-0000-0000-0000-000000500301"));
       statement.setObject(2, ORGANIZATION_ID);
       statement.setObject(3, ADMIN_USER_ID);
       statement.setObject(4, CANDIDATE_ID);
-      statement.setObject(5, OffsetDateTime.parse("2026-05-10T01:06:00Z"));
+      statement.setString(5, "raw review reason for candidate " + CANDIDATE_ID);
+      statement.setObject(6, OffsetDateTime.parse("2026-05-10T01:06:00Z"));
     });
   }
 

@@ -21,12 +21,14 @@ import com.recruitingtransactionos.coreapi.identityaccess.PortalRole;
 import com.recruitingtransactionos.coreapi.identityaccess.ResourceType;
 import com.recruitingtransactionos.coreapi.identityauth.RtoAuthenticatedPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.bind.annotation.PutMapping;
 
@@ -83,14 +85,24 @@ class AdminGovernanceControllerMappingTest {
     assertThat(accessRequest.fieldClassification()).isEqualTo(FieldClassification.SYSTEM_GOVERNANCE);
   }
 
-  @Test
-  void task50AdminConsoleReadsUseFocusedConsoleService() {
-    when(governanceConsoleReadService.loadAdminSection(ORGANIZATION_ID, "eval-dashboard"))
-        .thenReturn(section("eval-dashboard"));
+  @ParameterizedTest
+  @ValueSource(strings = {
+      "eval-dashboard",
+      "negative-cases",
+      "review-quality",
+      "model-routing",
+      "cost-latency",
+      "ontology-drift",
+      "redaction-incidents",
+      "ai-resume-authenticity-risk"
+  })
+  void task50AdminConsoleReadsUseFocusedConsoleService(String sectionKey) {
+    when(governanceConsoleReadService.loadAdminSection(ORGANIZATION_ID, sectionKey))
+        .thenReturn(section(sectionKey));
 
-    controller.loadSection(principal(PortalRole.ADMIN), request("/api/admin/eval-dashboard"));
+    controller.loadSection(principal(PortalRole.ADMIN), request("/api/admin/" + sectionKey));
 
-    verify(governanceConsoleReadService).loadAdminSection(ORGANIZATION_ID, "eval-dashboard");
+    verify(governanceConsoleReadService).loadAdminSection(ORGANIZATION_ID, sectionKey);
     AccessRequest accessRequest = capturedAccessRequest();
     assertThat(accessRequest.actorRole()).isEqualTo(PortalRole.ADMIN);
     assertThat(accessRequest.resourceType()).isEqualTo(ResourceType.ADMIN_GOVERNANCE);

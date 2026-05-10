@@ -14,7 +14,7 @@ This file contains mutable short-term engineering state. Update it after future 
   `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
 - latest Task 39 baseline commit on main: `984b329` (`Initialize local MinIO deployment bucket`)
 - latest product baseline merges on main:
-  - Task 50 - Governance, Eval, and Ontology Production Console, including a read-only Admin governance console for eval failures, deterministic negative cases, review quality, model routing inspection, cost/latency, ontology drift, redaction incidents, and AI resume authenticity risk, plus an Owner `ai-quality` summary. This reuses existing Task 44/47/49/51/54/56/57 boundaries and does not add live provider activation/switching, ontology mutation, external BI/legal/accounting integrations, Task 58 release management, or Task 60 final acceptance.
+  - Task 50 - Governance, Eval, and Ontology Production Console, including Admin governance surfaces for eval failures, deterministic negative cases, review quality, model routing inspection with the existing governed config overlay, cost/latency, ontology drift, redaction incidents, and AI resume authenticity risk, plus an Owner `ai-quality` summary. This reuses existing Task 44/47/49/51/54/56/57 boundaries and does not add live provider activation/switching, ontology mutation, external BI/legal/accounting integrations, Task 58 release management, or Task 60 final acceptance.
   - Task 57 at `cd81acc` - Reporting, Exports, and Legal Audit Packages, including backend-owned reporting export adapters for owner reports, consultant activity, client shortlist feedback, candidate personal data, disclosure audit, placement/commission, and retention evidence with role/scope/visibility policy.
   - Task 56 at `68cef32` - Support and Operations Tooling, including audited support lookup/action contracts, safe failed-notification retry, AI task replay adapter boundary, support transaction boundary, support user lookup, and support action audit persistence.
   - Task 55 at `02fbda9` - Data Import and Migration from Existing Systems, including governed import batch planning, validation/reporting, legacy ATS/CRM mapping contracts, duplicate/import safeguards, rollback/reset planning, and governed-intake import gateway boundaries.
@@ -109,9 +109,11 @@ This file contains mutable short-term engineering state. Update it after future 
   placeholders unless real providers are configured. This is integration
   boundary hardening, not live production provider activation.
 - current Task 50 baseline: governance/eval production console depth now exists
-  as read-only Admin/Owner product surfaces. Admin can locate AI task failures,
-  schema/eval/hallucination risks, deterministic negative cases, low-quality
-  review patterns, model-routing config issues, Task 54 cost/latency warnings,
+  as Admin/Owner product surfaces with read-only observation sections and the
+  existing governed `model-routing` config overlay preserved. Admin can locate
+  AI task failures, schema/eval/hallucination risks, deterministic negative
+  cases, low-quality review patterns, model-routing config issues, Task 54
+  cost/latency warnings,
   Task 47 ontology drift/stale deadlines, redaction/re-identification
   incidents, and AI resume authenticity risk without database access. Owner
   `ai-quality` shows a narrower safe summary. This is visibility and triage
@@ -187,7 +189,7 @@ This file contains mutable short-term engineering state. Update it after future 
   `rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest,OwnerGovernanceControllerPolicyTest,GovernanceReadServiceTest,GovernanceReadServicePostgresIntegrationTest,ObservabilityReadServiceTest,AITaskRunnerServiceTest,JdbcIndustryPackReadPortIntegrationTest,RedactionAuditPostgresIntegrationTest test`,
   `rtk mvn -f services/core-api/pom.xml test`,
   `rtk npm --workspace @rto/web run test`, `rtk npm run typecheck:web`, and
-  `rtk npm run build:web` all passed. Full Maven reported 1160 tests, 0
+  `rtk npm run build:web` all passed. Full Maven reported 1169 tests, 0
   failures, 0 errors, and 3 skipped. Web Vitest reported 9 test files and 38
   tests passed.
 - merge status: Task 49, Task 55, Task 56, and Task 57 were rebased onto

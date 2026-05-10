@@ -10,13 +10,14 @@ Task 50 makes AI quality, model routing, ontology drift, cost/latency,
 redaction, review quality, and AI resume authenticity risk visible as
 Admin/Owner product surfaces.
 
-The implementation is a read-only governance console. It aggregates existing
-signals from the AI task registry/run tables, observability, Task 47 industry
-pack calibration, Task 54 cost policies, privacy redaction risk assessments,
-review events, claim ledger rows, and match-report authenticity risk fields. It
-does not mutate canonical facts, switch live providers, activate real providers,
-or bypass disclosure, redaction, review, domain-service, or canonical-write
-policy.
+The implementation is a governance console that keeps Task 50 observation
+surfaces read-only while preserving the pre-existing governed `model-routing`
+config overlay. It aggregates existing signals from the AI task registry/run
+tables, observability, Task 47 industry pack calibration, Task 54 cost
+policies, privacy redaction risk assessments, review events, claim ledger rows,
+and match-report authenticity risk fields. It does not mutate canonical facts,
+switch live providers, activate real providers, or bypass disclosure,
+redaction, review, domain-service, or canonical-write policy.
 
 ## Delivered Sections
 
@@ -75,7 +76,9 @@ policy.
   `ai-resume-authenticity-risk`.
 - Made Admin default routing land on `eval-dashboard`.
 - Kept the existing governance section renderer and editable-config behavior;
-  Task 50 sections are read-only.
+  Task 50 sections are read-only except `model-routing`, which continues to
+  expose the existing governed config overlay rather than a live provider
+  switch.
 - Updated Owner/Admin empty states so missing instrumentation is not presented
   as a successful zero.
 - Extended the portal route contract test with the new Task 50 Admin routes.
@@ -102,8 +105,9 @@ policy.
   - proves eval failures, schema risks, hallucination-risk claims, deterministic
     negative cases, cost `WATCH`, cost `EVIDENCE_MISSING`, redaction incidents,
     authenticity risk, and Owner summary behavior;
-  - proves cross-organization filtering and no raw candidate id leakage in the
-    Task 50 console text.
+  - proves cross-organization filtering, no raw candidate/card/ref leakage in
+    redaction incident surfaces, and preservation of the existing governed
+    `model-routing` config overlay.
 - `AdminGovernanceControllerMappingTest`
   - proves Task 50 Admin routes use the focused console read service and Admin
     governance permission boundary.
@@ -134,7 +138,7 @@ rtk mvn -f services/core-api/pom.xml -Dtest=AdminGovernanceControllerMappingTest
 rtk npm --workspace @rto/web run test -- portalRouteContract.test.ts
 ```
 
-Result: the focused Task 50 integration test passed with 14 tests, controller
+Result: the focused Task 50 integration test passed with 15 tests, controller
 mapping/policy and existing governance/cost policy tests passed with 15 tests,
 and the portal route contract passed with 5 tests.
 
@@ -152,8 +156,8 @@ rtk npm run build:web
 ```
 
 Results: whitespace check passed; Docker was reachable; Task 50 targeted
-backend set passed with 20 tests; broader backend acceptance subset passed with
-36 tests; full Maven passed with 1160 tests, 0 failures, 0 errors, and 3
+backend set passed with 29 tests; broader backend acceptance subset passed with
+43 tests; full Maven passed with 1169 tests, 0 failures, 0 errors, and 3
 skipped; web Vitest passed with 9 files and 38 tests; TypeScript checking and
 web production build passed.
 
