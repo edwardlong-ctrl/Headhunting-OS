@@ -115,6 +115,7 @@ public class PlacementWorkflowService {
     if (existing.status() == PlacementStatus.OFFER_ACCEPTED) {
       return existing;
     }
+    requireStatus(existing.status(), PlacementStatus.OFFER_PENDING, "offer_pending_required_for_offer_accepted");
     Instant now = Instant.now();
     Placement updated = placementService.updatePlacement(copyPlacement(
         existing,
@@ -146,6 +147,7 @@ public class PlacementWorkflowService {
     if (existing.status() == PlacementStatus.ONBOARDED) {
       return existing;
     }
+    requireStatus(existing.status(), PlacementStatus.OFFER_ACCEPTED, "offer_accepted_required_for_onboarded");
     Instant now = Instant.now();
     Placement updated = placementService.updatePlacement(copyPlacement(
         existing,
@@ -177,8 +179,9 @@ public class PlacementWorkflowService {
     if (existing.status() == PlacementStatus.INVOICE_READY) {
       return existing;
     }
+    requireStatus(existing.status(), PlacementStatus.ONBOARDED, "onboarded_required_for_invoice_ready");
     PlacementOfferDetails offerDetails = PlacementOfferDetails.fromJson(existing.offerDetails());
-    if (!offerDetails.hasActiveFeeAgreement()) {
+    if (!offerDetails.hasConfirmedFeeAgreement()) {
       throw new IllegalArgumentException("fee_agreement_required_for_invoice_ready");
     }
     Instant now = Instant.now();
@@ -215,7 +218,9 @@ public class PlacementWorkflowService {
         expectedVersion,
         PlacementStatus.INVOICE_SENT,
         WorkflowActionCode.INVOICE_SENT,
-        "invoice sent");
+        "invoice sent",
+        "invoice_ready_required_for_invoice_sent",
+        PlacementStatus.INVOICE_READY);
   }
 
   @Transactional
@@ -231,7 +236,9 @@ public class PlacementWorkflowService {
         expectedVersion,
         PlacementStatus.PAID,
         WorkflowActionCode.PAYMENT_MARKED_PAID,
-        "payment marked paid");
+        "payment marked paid",
+        "invoice_sent_required_for_payment_paid",
+        PlacementStatus.INVOICE_SENT);
   }
 
   @Transactional
@@ -245,6 +252,7 @@ public class PlacementWorkflowService {
     if (existing.status() == PlacementStatus.GUARANTEE_ACTIVE) {
       return existing;
     }
+    requireStatus(existing.status(), PlacementStatus.PAID, "paid_required_for_guarantee_active");
     LocalDate guaranteeExpiresAt = existing.guaranteeExpiresAt() != null
         ? existing.guaranteeExpiresAt()
         : guaranteeExpiry(existing.startDate(), existing.guaranteeDays());
@@ -281,7 +289,9 @@ public class PlacementWorkflowService {
         expectedVersion,
         PlacementStatus.GUARANTEE_COMPLETED,
         WorkflowActionCode.GUARANTEE_COMPLETED,
-        "guarantee completed");
+        "guarantee completed",
+        "guarantee_active_required_for_guarantee_completed",
+        PlacementStatus.GUARANTEE_ACTIVE);
   }
 
   @Transactional
@@ -297,7 +307,10 @@ public class PlacementWorkflowService {
         expectedVersion,
         PlacementStatus.REPLACEMENT_REQUIRED,
         WorkflowActionCode.REPLACEMENT_REQUIRED,
-        "replacement required");
+        "replacement required",
+        "guarantee_required_for_replacement_required",
+        PlacementStatus.GUARANTEE_ACTIVE,
+        PlacementStatus.GUARANTEE_COMPLETED);
   }
 
   private Placement transition(
@@ -307,12 +320,15 @@ public class PlacementWorkflowService {
       int expectedVersion,
       PlacementStatus targetStatus,
       WorkflowActionCode actionCode,
-      String reason) {
+      String reason,
+      String invalidStatusMessage,
+      PlacementStatus... allowedBeforeStatuses) {
     Placement existing = getPlacement(organizationId, placementId);
     requireVersion(existing.version(), expectedVersion);
     if (existing.status() == targetStatus) {
       return existing;
     }
+    requireAnyStatus(existing.status(), invalidStatusMessage, allowedBeforeStatuses);
     Instant now = Instant.now();
     Placement updated = placementService.updatePlacement(copyPlacement(
         existing,
@@ -406,6 +422,27 @@ public class PlacementWorkflowService {
       return null;
     }
     return value.strip();
+  }
+
+  private static void requireStatus(
+      PlacementStatus actualStatus,
+      PlacementStatus requiredStatus,
+      String message) {
+    if (actualStatus != requiredStatus) {
+      throw new IllegalArgumentException(message);
+    }
+  }
+
+  private static void requireAnyStatus(
+      PlacementStatus actualStatus,
+      String message,
+      PlacementStatus... requiredStatuses) {
+    for (PlacementStatus requiredStatus : requiredStatuses) {
+      if (actualStatus == requiredStatus) {
+        return;
+      }
+    }
+    throw new IllegalArgumentException(message);
   }
 
   private static void requireVersion(int actualVersion, int expectedVersion) {

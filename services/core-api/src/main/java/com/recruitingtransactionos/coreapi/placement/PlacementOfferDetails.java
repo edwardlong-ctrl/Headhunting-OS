@@ -55,4 +55,14 @@ public record PlacementOfferDetails(
   public boolean hasActiveFeeAgreement() {
     return Boolean.TRUE.equals(feeAgreementActive);
   }
+
+  public boolean hasConfirmedFeeAgreement() {
+    return hasActiveFeeAgreement()
+        && hasText(feeAgreementReference)
+        && hasText(paymentTerms);
+  }
+
+  private static boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
 }

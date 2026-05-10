@@ -483,6 +483,18 @@ class ApiBoundaryContractTest {
       assertThat(ApiBoundaryContractRules.isAllowedOwnerRevenueSummaryResponseField(
           component.getName())).as(component.getName()).isTrue();
     }
+    assertThat(OwnerAccountingExportResponse.class.getRecordComponents())
+        .extracting(RecordComponent::getName)
+        .containsExactly(
+            "format",
+            "process",
+            "disclaimer",
+            "generatedAt",
+            "content");
+    for (RecordComponent component : OwnerAccountingExportResponse.class.getRecordComponents()) {
+      assertThat(ApiBoundaryContractRules.isAllowedOwnerAccountingExportResponseField(
+          component.getName())).as(component.getName()).isTrue();
+    }
   }
 
   @Test
@@ -557,6 +569,7 @@ class ApiBoundaryContractTest {
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(ApiValidationErrorResponse.class);
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(AuthSessionResponse.class);
     assertThat(ApiSafeResponseBody.class).isAssignableFrom(AuthLogoutResponse.class);
+    assertThat(ApiSafeResponseBody.class).isAssignableFrom(OwnerAccountingExportResponse.class);
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(CandidateProfile.class)).isFalse();
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(CandidateProfileId.class)).isFalse();
     assertThat(ApiSafeResponseBody.class.isAssignableFrom(SourceItem.class)).isFalse();

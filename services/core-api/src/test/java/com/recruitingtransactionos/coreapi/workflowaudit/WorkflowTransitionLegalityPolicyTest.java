@@ -139,4 +139,19 @@ class WorkflowTransitionLegalityPolicyTest {
             WorkflowActionCode.DISCLOSURE_UNLOCK_APPROVED.wireValue(),
             WorkflowActionCode.DISCLOSURE_UNLOCK_REJECTED.wireValue());
   }
+
+  @Test
+  void placementPaymentRequiresInvoiceSentInsteadOfSkippingInvoiceSentState() {
+    policy.enforce(
+        WorkflowActionCode.PAYMENT_MARKED_PAID,
+        new WorkflowStateSnapshot("{\"status\":\"invoice_sent\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"paid\"}"));
+
+    assertThatThrownBy(() -> policy.enforce(
+        WorkflowActionCode.PAYMENT_MARKED_PAID,
+        new WorkflowStateSnapshot("{\"status\":\"invoice_ready\"}"),
+        new WorkflowStateSnapshot("{\"status\":\"paid\"}")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("illegal workflow transition before status");
+  }
 }

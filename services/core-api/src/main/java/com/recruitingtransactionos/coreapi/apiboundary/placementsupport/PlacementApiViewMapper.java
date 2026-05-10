@@ -116,7 +116,7 @@ public final class PlacementApiViewMapper {
   public static String accountingExportStatus(
       Placement placement,
       PlacementOfferDetails offerDetails) {
-    if (!offerDetails.hasActiveFeeAgreement()) {
+    if (!offerDetails.hasConfirmedFeeAgreement()) {
       return "blocked_fee_agreement_required";
     }
     return switch (placement.status()) {

@@ -98,6 +98,41 @@ class PlacementWorkflowServiceTest {
   }
 
   @Test
+  void markInvoiceReadyRequiresAuditableFeeAgreementReferenceAndPaymentTerms() {
+    PlacementService placementService = mock(PlacementService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    WorkflowTransitionAuditService workflowTransitionAuditService = mock(WorkflowTransitionAuditService.class);
+    Placement existing = onboardedPlacement("""
+        {
+          "salaryAmount":120000.00,
+          "salaryCurrency":"USD",
+          "feeRatePercentage":25.0,
+          "notes":"offer",
+          "feeAgreementActive":true,
+          "feeAgreementReference":" ",
+          "paymentTerms":""
+        }
+        """);
+    when(placementService.findPlacementByIdAndOrganizationId(ORG_ID, PLACEMENT_ID))
+        .thenReturn(Optional.of(existing));
+
+    PlacementWorkflowService service = new PlacementWorkflowService(
+        placementService,
+        mock(JobService.class),
+        mock(CandidateService.class),
+        mock(CompanyService.class),
+        commissionWorkflowService,
+        workflowTransitionAuditService);
+
+    assertThatThrownBy(() -> service.markInvoiceReady(ORG_ID, PLACEMENT_ID, ACTOR_ID, 3))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("fee_agreement_required_for_invoice_ready");
+
+    verify(placementService, never()).updatePlacement(any());
+    verifyNoInteractions(commissionWorkflowService, workflowTransitionAuditService);
+  }
+
+  @Test
   void markInvoiceReadyAcceptsConfirmedFeeAgreementSnapshotAndCreatesPendingCommission() {
     PlacementService placementService = mock(PlacementService.class);
     CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
@@ -131,14 +166,53 @@ class PlacementWorkflowServiceTest {
     verify(commissionWorkflowService).ensurePendingCommissionForPlacement(updated, ACTOR_ID);
   }
 
+  @Test
+  void markPaymentPaidRequiresInvoiceSentStateBeforeUpdatingOrAuditing() {
+    PlacementService placementService = mock(PlacementService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    WorkflowTransitionAuditService workflowTransitionAuditService = mock(WorkflowTransitionAuditService.class);
+    Placement existing = placementWithStatus(PlacementStatus.INVOICE_READY, """
+        {
+          "salaryAmount":120000.00,
+          "salaryCurrency":"USD",
+          "feeRatePercentage":25.0,
+          "notes":"offer",
+          "feeAgreementActive":true,
+          "feeAgreementReference":"MSA-2026-05",
+          "paymentTerms":"net_30"
+        }
+        """);
+    when(placementService.findPlacementByIdAndOrganizationId(ORG_ID, PLACEMENT_ID))
+        .thenReturn(Optional.of(existing));
+
+    PlacementWorkflowService service = new PlacementWorkflowService(
+        placementService,
+        mock(JobService.class),
+        mock(CandidateService.class),
+        mock(CompanyService.class),
+        commissionWorkflowService,
+        workflowTransitionAuditService);
+
+    assertThatThrownBy(() -> service.markPaymentPaid(ORG_ID, PLACEMENT_ID, ACTOR_ID, 3))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("invoice_sent_required_for_payment_paid");
+
+    verify(placementService, never()).updatePlacement(any());
+    verifyNoInteractions(commissionWorkflowService, workflowTransitionAuditService);
+  }
+
   private static Placement onboardedPlacement(String offerDetails) {
+    return placementWithStatus(PlacementStatus.ONBOARDED, offerDetails);
+  }
+
+  private static Placement placementWithStatus(PlacementStatus status, String offerDetails) {
     return Placement.builder()
         .placementId(PLACEMENT_ID)
         .organizationId(ORG_ID)
         .jobId(new JobId(UUID.fromString("00000000-0000-0000-0000-00000000a104")))
         .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-00000000a105")))
         .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-00000000a106")))
-        .status(PlacementStatus.ONBOARDED)
+        .status(status)
         .offerDetails(offerDetails)
         .offerAcceptedAt(Instant.parse("2026-05-01T00:00:00Z"))
         .startDate(START_DATE)

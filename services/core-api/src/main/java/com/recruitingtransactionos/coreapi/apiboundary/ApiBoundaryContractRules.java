@@ -89,6 +89,9 @@ public final class ApiBoundaryContractRules {
           "invoiceInFlightCount", "invoiceReadyCount", "invoiceSentCount", "paidPlacementCount",
           "guaranteeCompletedCount");
 
+  private static final Set<String> OWNER_ACCOUNTING_EXPORT_RESPONSE_FIELDS =
+      Set.of("format", "process", "disclaimer", "generatedAt", "content");
+
   private static final Set<String> CONSULTANT_SHORTLIST_SUMMARY_RESPONSE_FIELDS =
       Set.of("shortlistId", "title", "jobId", "status", "candidateCount", "createdAt");
 
@@ -424,6 +427,17 @@ public final class ApiBoundaryContractRules {
 
   public static Set<String> ownerRevenueSummaryResponseFieldNames() {
     return new LinkedHashSet<>(OWNER_REVENUE_SUMMARY_RESPONSE_FIELDS);
+  }
+
+  public static boolean isAllowedOwnerAccountingExportResponseField(String fieldName) {
+    if (fieldName == null || fieldName.isBlank()) {
+      return false;
+    }
+    return OWNER_ACCOUNTING_EXPORT_RESPONSE_FIELDS.contains(fieldName.strip());
+  }
+
+  public static Set<String> ownerAccountingExportResponseFieldNames() {
+    return new LinkedHashSet<>(OWNER_ACCOUNTING_EXPORT_RESPONSE_FIELDS);
   }
 
   public static boolean isAllowedConsultantShortlistSummaryResponseField(String fieldName) {

@@ -148,6 +148,37 @@ class OwnerPlacementQueryServiceTest {
   }
 
   @Test
+  void listPlacementsBlocksAccountingExportWhenFeeAgreementSnapshotIsNotAuditable() {
+    PlacementWorkflowService placementWorkflowService = mock(PlacementWorkflowService.class);
+    CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
+    OwnerPlacementQueryService service = new OwnerPlacementQueryService(
+        placementWorkflowService,
+        commissionWorkflowService);
+    Placement placement = placementWithOfferDetails(
+        "00000000-0000-0000-0000-00000000e120",
+        PlacementStatus.INVOICE_SENT,
+        new PlacementOfferDetails(
+            new BigDecimal("120000.00"),
+            "USD",
+            new BigDecimal("25.0"),
+            "offer",
+            true,
+            " ",
+            "").toJson());
+
+    when(placementWorkflowService.listPlacements(ORG_ID)).thenReturn(List.of(placement));
+    when(commissionWorkflowService.listCommissions(ORG_ID)).thenReturn(List.of());
+
+    var response = service.listPlacements(
+        ownerPlacementReadRequest(),
+        PagedQuery.builder(ORG_ID).limit(20).offset(0).build());
+
+    assertThat(response.items()).hasSize(1);
+    assertThat(response.items().getFirst().accountingExportStatus())
+        .isEqualTo("blocked_fee_agreement_required");
+  }
+
+  @Test
   void listPlacementsDoesNotUsePartialCommissionSubtotalWhenPlacementExpectedFeeIsUnknown() {
     PlacementWorkflowService placementWorkflowService = mock(PlacementWorkflowService.class);
     CommissionWorkflowService commissionWorkflowService = mock(CommissionWorkflowService.class);
@@ -225,6 +256,20 @@ class OwnerPlacementQueryServiceTest {
   private static Placement placementWithUnknownFee(
       String placementId,
       PlacementStatus status) {
+    return placementWithOfferDetails(
+        placementId,
+        status,
+        new PlacementOfferDetails(
+            null,
+            "USD",
+            null,
+            "offer").toJson());
+  }
+
+  private static Placement placementWithOfferDetails(
+      String placementId,
+      PlacementStatus status,
+      String offerDetails) {
     return Placement.builder()
         .placementId(new PlacementId(UUID.fromString(placementId)))
         .organizationId(ORG_ID)
@@ -232,11 +277,7 @@ class OwnerPlacementQueryServiceTest {
         .candidateId(new CandidateId(UUID.fromString("00000000-0000-0000-0000-00000000e115")))
         .companyId(new CompanyId(UUID.fromString("00000000-0000-0000-0000-00000000e116")))
         .status(status)
-        .offerDetails(new PlacementOfferDetails(
-            null,
-            "USD",
-            null,
-            "offer").toJson())
+        .offerDetails(offerDetails)
         .startDate(LocalDate.parse("2026-05-01"))
         .guaranteeDays(90)
         .guaranteeExpiresAt(LocalDate.parse("2026-07-30"))

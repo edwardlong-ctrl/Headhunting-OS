@@ -85,7 +85,7 @@ public final class WorkflowTransitionLegalityPolicy {
           rule(WorkflowActionCode.CANDIDATE_ONBOARDED, Set.of("offer_accepted"), "onboarded"),
           rule(WorkflowActionCode.INVOICE_READY, Set.of("onboarded"), "invoice_ready"),
           rule(WorkflowActionCode.INVOICE_SENT, Set.of("invoice_ready"), "invoice_sent"),
-          rule(WorkflowActionCode.PAYMENT_MARKED_PAID, Set.of("invoice_ready", "invoice_sent"), "paid"),
+          rule(WorkflowActionCode.PAYMENT_MARKED_PAID, Set.of("invoice_sent"), "paid"),
           rule(WorkflowActionCode.GUARANTEE_ACTIVATED, Set.of("paid"), "guarantee_active"),
           rule(WorkflowActionCode.GUARANTEE_COMPLETED, Set.of("guarantee_active"), "guarantee_completed"),
           rule(WorkflowActionCode.REPLACEMENT_REQUIRED, Set.of("guarantee_active", "guarantee_completed"), "replacement_required"),

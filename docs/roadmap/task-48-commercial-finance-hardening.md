@@ -7,8 +7,9 @@ Task 48 hardens the placement-to-paid commercial workflow without replacing the 
 Implemented behavior:
 
 - Placement creation can capture a backend-owned fee agreement snapshot: active flag, reference, and payment terms.
-- Invoice readiness is blocked unless the placement has a confirmed fee agreement snapshot.
+- Invoice readiness is blocked unless the placement has a confirmed, auditable fee agreement snapshot: active flag, non-blank reference, and non-blank payment terms.
 - Invoice ready, invoice sent, paid, guarantee active, guarantee completed, and replacement required states remain placement workflow states and continue to be audited through `WorkflowEvent`.
+- Payment cannot skip the invoice sent state; the placement lifecycle is enforced as invoice ready -> invoice sent -> paid before guarantee activation.
 - Pending commission creation from invoice readiness carries calculation inputs from the placement fee agreement snapshot: salary amount, fee rate, expected fee amount, fee agreement reference, payment terms, and calculation source.
 - Owner placement reporting exposes fee agreement state, invoice readiness, and accounting export readiness.
 - Owner revenue reporting separates invoice ready, invoice sent, paid placement, active guarantee, completed guarantee, and replacement counts.
@@ -18,7 +19,7 @@ Implemented behavior:
 
 State transitions still go through `PlacementWorkflowService` / `CommissionWorkflowService` and create `WorkflowEvent` via `WorkflowTransitionAuditService`.
 
-The accounting export endpoint is read-only and derived from placement and commission read models. It does not mutate commercial state, does not write confirmed facts, and therefore does not create a workflow transition event.
+The accounting export endpoint is read-only and derived from placement and commission read models. It does not mutate commercial state, does not write confirmed facts, and therefore does not create a workflow transition event. Rows with legacy or incomplete fee agreement snapshots are surfaced as blocked instead of treated as accounting-ready.
 
 ## Out of Scope
 
