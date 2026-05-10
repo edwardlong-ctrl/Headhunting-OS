@@ -1211,6 +1211,9 @@ Admin review queue.
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `5dfcf71` for the current commercial-finance
+hardening baseline.
+
 Goal: Complete placement, fee protection, invoice, guarantee, and commission
 operations to v2.1 scope.
 
@@ -1227,6 +1230,13 @@ Must deliver:
 Acceptance:
 
 - Placement-to-paid lifecycle is auditable without pretending to replace the official accounting system.
+
+Closeout status: completed for the current placement-to-paid hardening gate.
+Fee agreement snapshots, invoice readiness gates, invoice sent/paid/guarantee
+state enforcement, commission calculation inputs, Owner revenue reporting, and
+read-only accounting export handoff are now present. This does not add invoice
+issuing, payment collection, tax handling, GL posting, broad export packages,
+or official accounting-system replacement.
 
 ## Task 49: Integrations v1
 
@@ -1297,6 +1307,9 @@ Acceptance:
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `afc6942` for the current security compliance
+baseline.
+
 Goal: Complete security and privacy controls beyond pilot hardening.
 
 Must deliver:
@@ -1313,9 +1326,20 @@ Acceptance:
 
 - Security issues found in baseline scan and review are tracked to closure or explicitly risk-accepted before 100% claim.
 
+Closeout status: completed for the current baseline documentation and
+regression gate. Threat model, access review, privacy/data-retention runbook,
+key/secret rotation runbook, dependency and pen-test remediation workflow,
+issue register, and `SecurityComplianceBaselineDocumentationTest` are now in
+place. This is not SOC 2, ISO certification, public pen-test attestation, or
+full completion of MFA/SSO, distributed rate limiting, product-wide field-level
+access audit, or exact production retention-window enforcement.
+
 ## Task 53: Disaster Recovery and Business Continuity
 
 Priority: P2 after pilot, required for 100%
+
+Status: **Completed** at `add4d5f` for the current provider-neutral local
+DR/BCP baseline.
 
 Goal: Prove the system can recover from operational failure.
 
@@ -1333,9 +1357,19 @@ Acceptance:
 
 - Restore drill proves a recent backup can recover database and documents into a working environment.
 
+Closeout status: completed for the current local DR/BCP gate. Backup schedule,
+restore drill evidence, migration rollback invariants, document/object recovery,
+AI provider outage playbook, notification provider outage playbook, and incident
+severity levels are now documented. This does not prove managed cloud backups,
+multi-region failover, external vendor SLAs, or public production incident
+communications.
+
 ## Task 54: Performance, Load, and Cost Targets
 
 Priority: P2 after pilot, required for 100%
+
+Status: **Completed** at `13cc42a` for the current deterministic
+performance/load/cost target baseline.
 
 Goal: Define and meet realistic performance and AI cost envelopes.
 
@@ -1352,6 +1386,13 @@ Must deliver:
 Acceptance:
 
 - Pilot-sized and expected production-sized workloads meet documented latency and cost targets.
+
+Closeout status: completed for the current target and harness gate. Latency,
+throughput, and AI cost envelopes, backend budget policy, deterministic local
+performance/load/cost harness, and alert classifications now exist. This is
+capacity-model evidence, not deployed API/browser/provider performance proof;
+the expected-production interview-feedback cost row remains a `WATCH` item near
+budget.
 
 ## Task 55: Data Import and Migration from Existing Systems
 
@@ -1440,6 +1481,9 @@ Acceptance:
 
 Priority: P2 after pilot, required for 100%
 
+Status: **Completed** at `a2173d0` for the current controlled-pilot onboarding
+playbook package.
+
 Goal: Turn controlled pilot learnings into repeatable customer onboarding.
 
 Must deliver:
@@ -1456,6 +1500,12 @@ Must deliver:
 Acceptance:
 
 - A new pilot customer can be onboarded without engineering intervention except configured integrations and approved data import.
+
+Closeout status: completed for the current controlled-pilot onboarding gate.
+Customer onboarding, consultant training, client training, candidate consent
+FAQ, admin setup, data import, risk review, and go-live playbooks now exist.
+This does not claim public SaaS readiness, real integration completion, or
+unapproved production customer data import.
 
 ## Task 60: Full Product Acceptance Gate
 

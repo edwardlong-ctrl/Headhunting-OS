@@ -55,7 +55,7 @@ Collect a source inventory before import approval.
 | Company data | Company profile, contacts, preferences | Which client users can view or edit it? |
 | Job data | JD files, scorecards, must-have requirements | Which jobs are in pilot scope? |
 | Feedback | Interview notes, client feedback, rejection reasons | Which feedback can become claims? |
-| Commercial data | Fee agreements, invoice, guarantee, commission | Is this in Task 48-ready scope or deferred? |
+| Commercial data | Fee agreements, invoice, guarantee, commission | Does this fit the Task 48 read-only accounting handoff scope, or does it require external accounting integration? |
 | ATS/CRM export | CSV, spreadsheets, API export | Does Task 55 mapping exist for this source? |
 
 ## Pre-Import Approval
@@ -86,7 +86,7 @@ The data owner and security approver must sign off on:
 | Job requirement | Job intake claim or scorecard field after consultant/client review |
 | Interview feedback | Feedback record and suggested update for human review |
 | Prior contact/application | Risk claim requiring review before disclosure |
-| Fee agreement, invoice, commission | Commercial workflow only if Task 48 scope is available |
+| Fee agreement, invoice, commission | Commercial workflow only inside the Task 48 fee agreement, invoice readiness, commission input, and read-only accounting export scope |
 
 ## Dry-Run Import Review
 
@@ -139,4 +139,3 @@ Stop the import if:
 - Rollback/reset behavior is undefined for the import type.
 - The source depends on Task 55 mapping that is not present in the current
   branch.
-

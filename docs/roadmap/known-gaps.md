@@ -1,5 +1,89 @@
 # Known Gaps
 
+## Task 59 Onboarding Playbooks Closed; Public Launch Readiness Still Deferred
+
+- Task 59 now packages customer onboarding, consultant training, client
+  training, candidate consent FAQ, admin setup, data import, risk review, and
+  go-live checklist material for repeatable controlled-pilot onboarding.
+- The playbooks preserve the product boundary: AI assists intake, matching,
+  follow-up, and workflow coordination, while humans and backend service gates
+  own facts, consent, disclosure, commercial terms, and audit-sensitive state.
+- Remaining gaps:
+  - Public SaaS onboarding still depends on remaining production tasks and
+    release acceptance.
+  - Real integrations remain Task 49 scope.
+  - Governed real customer import remains Task 55 scope.
+  - Support tooling, report/legal-audit packages, and release gates remain
+    Tasks 56-58 scope.
+
+## Task 54 Performance/Load/Cost Targets Closed; Live Performance Evidence Still Deferred
+
+- Task 54 now defines latency, throughput, and AI cost target envelopes for
+  pilot and expected production workloads.
+- `PerformanceCostPolicies` and
+  `scripts/performance/task54_performance_load_cost_harness.py` provide a
+  deterministic bounded harness for budget-policy evidence.
+- The harness passes with `PASS failures=0`; expected-production
+  `interview-feedback-structurer` cost is intentionally classified as `WATCH`
+  because projected monthly cost is near budget.
+- Remaining gaps:
+  - No deployed API p95/p99 evidence exists yet.
+  - No stable browser timing evidence exists yet.
+  - Provider billing integration is still required to convert provider-neutral
+    `costUnits` into actual money.
+  - Expected-production rows remain capacity-planning assumptions, not staging
+    load-test proof.
+
+## Task 53 DR/BCP Baseline Closed; Managed Production DR Still Deferred
+
+- Task 53 now records backup schedule, local restore drill evidence, migration
+  rollback invariants, document/object recovery, AI provider outage playbook,
+  notification provider outage playbook, and incident severity levels.
+- The local restore drill recovered a PostgreSQL dump and document archive into
+  an isolated database/document root, validated pilot data, and booted the API
+  against the restored database with health check success.
+- Remaining gaps:
+  - No managed cloud database backup policy has been executed.
+  - No managed object storage versioning or cross-region replication has been
+    configured.
+  - No real production email/SMS/WeChat failover has been executed.
+  - No production AI multi-provider failover has been executed.
+  - No public production incident communications process has been tested.
+
+## Task 52 Security Compliance Baseline Closed; Certification and Extended Controls Still Deferred
+
+- Task 52 now records the production security compliance baseline: threat
+  model, access review, privacy/data-retention runbook, key/secret rotation
+  runbook, dependency vulnerability remediation, pen-test issue remediation,
+  security regression suite, and issue register.
+- The baseline includes regression coverage through
+  `SecurityComplianceBaselineDocumentationTest` and records dependency-scan
+  closure evidence from the Task 52 branch.
+- Remaining gaps:
+  - This is not a SOC 2 report, ISO certification, or public penetration-test
+    attestation.
+  - MFA, SSO/OIDC, persistent lockout, password reset, and email verification
+    remain deferred.
+  - Distributed/gateway rate limiting remains deferred.
+  - Product-wide field-level access audit rollout remains deferred.
+  - Exact production AI prompt/model-output retention windows remain a
+    governance dependency before public SaaS launch.
+
+## Task 48 Commercial Finance Hardening Closed; Accounting Replacement Still Deferred
+
+- Task 48 now hardens the placement-to-paid lifecycle with fee agreement
+  snapshots, invoice readiness gates, invoice sent/paid ordering, guarantee
+  state enforcement, commission calculation inputs, Owner revenue reporting,
+  and read-only accounting export handoff.
+- The accounting export is explicitly a CSV handoff and does not replace the
+  official accounting system.
+- Remaining gaps:
+  - No invoice issuing, payment collection, tax handling, GL posting, or
+    accounting-system integration exists.
+  - Broad export/legal-audit packages remain Task 57 scope.
+  - Support actions remain Task 56 scope.
+  - Tenant-wide finance hardening remains Task 51 scope.
+
 ## Task 44 AI Task Registry Coverage Closed; Full AI Orchestration Still Deferred
 
 - Task 44 now gives all 28 v2.1 production AI task definitions a governed
@@ -34,9 +118,10 @@
 - Remaining gaps:
   - Task 43 is route-depth and workflow-continuity closure, not full production
     integration implementation.
-  - Tasks 44-60 still need full AI registry production coverage, workflow/SLA
-    automation, production integrations, support workflows, managed deployment,
-    and final full-product acceptance.
+  - Remaining Tasks 49-51, 55-58, and 60 still need integrations,
+    governance/eval console depth, multi-organization hardening, import and
+    migration, support workflows, reporting/export/legal audit packages,
+    release management, and final full-product acceptance.
 
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
@@ -60,8 +145,10 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Tasks 44-60 still need to broaden operations, support workflows, production
-    hardening, and non-pilot product depth.
+  - Remaining Tasks 49-51, 55-58, and 60 still need to broaden integrations,
+    governance/eval console depth, multi-organization hardening, import and
+    migration, support workflows, reporting/export/legal audit packages,
+    release management, and final full-product acceptance.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 

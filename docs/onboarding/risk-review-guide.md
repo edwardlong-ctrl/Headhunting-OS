@@ -71,8 +71,9 @@ Review:
 - Prior-contact and prior-application claims are captured and reviewed before
   disclosure.
 - Fee/commercial preconditions are checked before unlock where required.
-- Customer understands Task 48 commercial depth may still be pending in this
-  branch.
+- Customer understands the Task 48 commercial baseline is limited to fee
+  agreement snapshots, invoice readiness, commission inputs, Owner revenue
+  reporting, and read-only accounting export handoff.
 
 Red conditions:
 
@@ -132,7 +133,8 @@ Red conditions:
 Review:
 
 - Task 41 controlled-pilot controls are enabled where applicable.
-- Production security claims are not made before Task 52 evidence.
+- Task 52 compliance-baseline evidence is present where production-security
+  baseline language is used.
 - Vulnerability, pen-test, privacy-retention, key rotation, MFA, SSO, and full
   access-review gaps are recorded when in scope.
 
@@ -180,4 +182,3 @@ Do not launch a pilot unless:
 - Data import is approved, deferred, or out of pilot scope.
 - Integration gaps have an approved manual or deferred path.
 - Support and escalation path is known to all trained users.
-

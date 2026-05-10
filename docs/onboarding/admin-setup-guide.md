@@ -134,7 +134,8 @@ sensitive data.
 
 ## Step 7: Security Setup
 
-Confirm Task 41 controlled-pilot controls are enabled where applicable:
+Confirm Task 41 controlled-pilot controls and Task 52 compliance-baseline
+runbooks are enabled or explicitly recorded where applicable:
 
 - Login payload validation.
 - Rate limiting for auth and consultant document endpoints.
@@ -142,9 +143,13 @@ Confirm Task 41 controlled-pilot controls are enabled where applicable:
 - URL path masking for UUID and email-like segments in request logs.
 - Explicit Admin disclosure-audit export permission.
 - Persistent access audit for wired sensitive document/export surfaces.
+- Threat model and access-review owner.
+- Privacy/data-retention and key/secret rotation runbooks.
+- Security issue register with CLOSED or RISK_ACCEPTED statuses.
 
-Record remaining security gaps as dependencies on Task 52. Do not call this a
-production security certification.
+Record remaining security gaps as dependencies on public-production security
+work. Do not call this a production security certification, SOC 2 report, ISO
+certification, or public penetration-test attestation.
 
 ## Step 8: Data Setup
 

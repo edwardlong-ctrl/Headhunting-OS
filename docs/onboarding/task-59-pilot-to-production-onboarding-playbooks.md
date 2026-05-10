@@ -52,11 +52,11 @@ That does not equal public production readiness.
 | Client workflow | Use the Client portal for company profile/preferences, job submission, clarification, shortlist review, unlock request, and feedback surfaces that exist in the current product slice. |
 | Candidate workflow | Use Candidate portal surfaces for `/candidate/opportunities/:opportunityId`, `/candidate/consent/:requestId`, `/candidate/follow-up/:formId`, `/candidate/upload`, `/candidate/profile/ai-review`, and `/candidate/status`; do not describe broader candidate self-registration or external notification delivery as complete. |
 | Admin governance | Use Admin governance sections for `/admin/ai-task-registry`, `/admin/workflow-rules`, `/admin/integrations`, `/admin/security`, `/admin/audit-log`, `/admin/model-routing`, and `/admin/industry-packs`; if a setup decision needs deeper governance console behavior, record the dependency instead of involving engineering ad hoc. |
-| Security | Task 41 is a controlled-pilot security baseline only. Task 52 remains required before production security claims. |
+| Security | Task 41 is a controlled-pilot security baseline and Task 52 now adds the production security compliance baseline. Do not describe this as SOC 2, ISO certification, public pen-test attestation, or full public SaaS security completion. |
 | Data import | Task 38 deterministic pilot data exists. Real customer import and migration depend on Task 55 tooling and approval. |
 | Integrations | Real email, SMS, calendar, OCR/STT, ATS/HRIS, webhook, and safe outbound integration depth depends on Task 49. |
-| Commercial operations | Placement, invoice, guarantee, commission, and accounting export depth depends on Task 48. |
-| DR and performance | Production DR and load/cost certification depend on Tasks 53 and 54. |
+| Commercial operations | Task 48 now adds fee agreement snapshots, invoice readiness, invoice sent/paid/guarantee workflow enforcement, commission inputs, Owner revenue reporting, and read-only accounting export handoff. Do not describe it as invoice issuing, payment collection, tax handling, GL posting, or official accounting-system replacement. |
+| DR and performance | Tasks 53 and 54 now add local DR/BCP and deterministic performance/load/cost target baselines. Do not describe them as managed cloud DR, multi-region failover, live deployed performance proof, or provider billing certification. |
 | Support tooling | Support action tooling, resend/retry, and audited correction workflows depend on Task 56. |
 | Reports and exports | Productized report/legal-audit packages depend on Task 57. |
 | Release gate | Repeatable release evidence depends on Task 58. |

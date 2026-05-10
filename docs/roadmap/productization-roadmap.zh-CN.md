@@ -1128,6 +1128,8 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 
 ## Task 48：Commercial and Finance Operations Hardening
 
+状态：**已完成**，当前 commercial-finance hardening baseline 位于 `5dfcf71`。
+
 目标：补齐 placement、fee protection、invoice、guarantee、commission。
 
 必须交付：
@@ -1143,6 +1145,12 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 完成标准：
 
 - placement-to-paid lifecycle 全链路可审计，同时不假装替代正式财务系统。
+
+关闭说明：当前 placement-to-paid hardening gate 已完成。系统已有 fee
+agreement snapshot、invoice readiness gate、invoice sent/paid/guarantee 状态约束、
+commission calculation inputs、Owner revenue reporting 和 read-only accounting
+export handoff。仍不包含 invoice issuing、payment collection、tax handling、GL
+posting、通用导出包或替代正式财务系统。
 
 ## Task 49：Integrations v1
 
@@ -1200,6 +1208,8 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 
 ## Task 52：Production Security Compliance Baseline
 
+状态：**已完成**，当前 security compliance baseline 位于 `afc6942`。
+
 目标：完成 pilot 之外的安全隐私基线。
 
 必须交付：
@@ -1216,7 +1226,16 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 
 - baseline scan/review 发现的问题被关闭或明确 risk-accepted，才能进入 100%。
 
+关闭说明：当前 baseline documentation and regression gate 已完成。Threat model、
+access review、privacy/data-retention runbook、key/secret rotation runbook、
+dependency / pen-test remediation workflow、issue register 和
+`SecurityComplianceBaselineDocumentationTest` 已存在。这不是 SOC 2、ISO 认证、
+公开渗透测试证明，也不代表 MFA/SSO、distributed rate limiting、product-wide
+field-level access audit 或精确生产 retention window 全部完成。
+
 ## Task 53：Disaster Recovery and Business Continuity
+
+状态：**已完成**，当前 provider-neutral local DR/BCP baseline 位于 `add4d5f`。
 
 目标：证明系统能从运营失败中恢复。
 
@@ -1234,7 +1253,15 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 
 - restore drill 能从近期备份恢复数据库和文档到可工作环境。
 
+关闭说明：当前 local DR/BCP gate 已完成。Backup schedule、restore drill evidence、
+migration rollback invariants、document/object recovery、AI provider outage
+playbook、notification provider outage playbook 和 incident severity levels
+已文档化。仍不代表 managed cloud backup、multi-region failover、external vendor
+SLA 或 public production incident communications 已验证。
+
 ## Task 54：Performance, Load, and Cost Targets
+
+状态：**已完成**，当前 deterministic performance/load/cost target baseline 位于 `13cc42a`。
 
 目标：定义并达到真实性能和 AI 成本边界。
 
@@ -1251,6 +1278,12 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 完成标准：
 
 - pilot 规模和预期生产规模 workload 都达到文档化 latency/cost targets。
+
+关闭说明：当前 target and harness gate 已完成。Latency、throughput、AI cost
+envelope、backend budget policy、deterministic local performance/load/cost
+harness 和 alert classification 已存在。这是 capacity-model evidence，不是
+deployed API/browser/provider performance proof；expected-production 的
+interview-feedback cost row 仍是接近预算的 `WATCH` 项。
 
 ## Task 55：Data Import and Migration from Existing Systems
 
@@ -1325,6 +1358,8 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 
 ## Task 59：Pilot-to-Production Onboarding Playbooks
 
+状态：**已完成**，当前 controlled-pilot onboarding playbook package 位于 `a2173d0`。
+
 目标：把 controlled pilot 经验变成可复制客户 onboarding。
 
 必须交付：
@@ -1341,6 +1376,11 @@ Task 47 收口说明：`docs/roadmap/task-47-industry-pack-expansion-and-calibra
 完成标准：
 
 - 新 pilot 客户无需工程介入即可完成大部分 onboarding，除非涉及已批准的数据导入和集成配置。
+
+关闭说明：当前 controlled-pilot onboarding gate 已完成。Customer onboarding、
+consultant training、client training、candidate consent FAQ、admin setup、data
+import、risk review 和 go-live playbook 已存在。仍不代表 public SaaS readiness、
+real integration completion 或未批准的生产客户数据导入。
 
 ## Task 60：Full Product Acceptance Gate
 
