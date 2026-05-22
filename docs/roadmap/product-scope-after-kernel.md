@@ -15,20 +15,34 @@ user-facing product. Future roadmap work must keep that distinction clear.
 - v2.0 UI images, five-portal definitions, page tables, AI Task Registry, data objects, workflow state machines, Industry Pack structure, delivery plan, and acceptance structure must be preserved.
 - Consultant is one unified portal. The two Consultant UI boards in v2.0/v2.1 are two design boards for one portal, not two portals.
 
-## Current Completion Estimate
+## Current Completion Status
 
-The honest product completion estimate is:
+Task 60 now classifies the current v2.1/v2.0 specification as
+`FULL_PRODUCT_100_READY`. The acceptance report is
+`docs/roadmap/task-60-full-product-acceptance-gate.md`.
 
-| Target | Current estimate | Meaning |
+This status is scoped to the current product specification. It does not claim
+public SaaS launch, managed cloud operation, formal security/compliance
+certification, customer go-live approval, live external provider activation,
+external BI/legal/accounting systems, billing, marketplace-scale surfaces, or
+customer-specific migrations.
+
+## Historical Task 14 Estimate
+
+The estimate below was true when this document was first written after Task 14.
+It is retained as historical context only and must not be used as the current
+project status after Task 60.
+
+| Target | Historical Task 14 estimate | Meaning at Task 14 |
 | --- | ---: | --- |
-| Production Kernel | 85-90% | Core truth/audit/governance/access foundations are mostly complete for the current kernel scope. Some kernel-adjacent gaps remain, especially blocked-attempt audit ledger and schema cleanup. |
-| Controlled Pilot / Usable v1 | 25-30% | The safety foundations exist, but real daily user workflows, auth, real AI execution, document intake, full portals, deployment, and operations are still missing. |
-| Full v2.1/v2.0 Product | 30% +/- 5% | The backend foundation is valuable and deep, but the complete product still requires broad API, real workflows, real AI, five complete portals, integrations, deployment, governance consoles, and full acceptance gates. |
+| Production Kernel | 85-90% | Core truth/audit/governance/access foundations were mostly complete for the then-current kernel scope. |
+| Controlled Pilot / Usable v1 | 25-30% | Safety foundations existed, but daily user workflows, auth, real AI execution, document intake, full portals, deployment, and operations were still ahead. |
+| Full v2.1/v2.0 Product | 30% +/- 5% | The backend foundation was valuable and deep, but the complete product still required broad API, real workflows, real AI, five complete portals, integrations, deployment, governance consoles, and full acceptance gates. |
 
-This estimate intentionally does not count a backend contract as a completed
-user-facing feature. A feature is product-complete only when it has durable data,
-service-layer enforcement, safe API contracts, appropriate UI workflow, audit,
-negative tests, and acceptance evidence.
+The product-complete definition below remains valid: a feature is complete only
+when it has durable data or an explicit derived-only reason, service-layer
+enforcement, safe API contracts, appropriate UI workflow, audit, negative tests,
+and acceptance evidence.
 
 ## What Task 0-14 Has Actually Built
 
@@ -52,9 +66,11 @@ The completed work is a production-first backend kernel:
 - Consent/Disclosure/Unlock backend policy, persistence, audited service boundary, and Task 14 chain hardening.
 - Route-aware five-portal web shell with one narrow client-safe candidate-card flow.
 
-## What Is Not Yet Built
+## What Was Not Yet Built After Task 14
 
-The following are not complete product features yet:
+The following list was the Task 14 forward plan. Most items were closed by
+Tasks 16-60; use `docs/roadmap/known-gaps.md` for the current post-100 gap
+list.
 
 - Real auth/login/session and Spring Security beyond the current baseline hardening.
 - Production user/organization membership and full product-wide RBAC/ABAC.
@@ -86,9 +102,9 @@ However, several statements in that suggestion are now stale:
 - It says the transaction boundary is only a skeleton. The current repo has a real Spring/JDBC transaction boundary with rollback tests.
 - It says API DTO/client-safe response contracts are absent. The current repo has a narrow API-safe DTO/envelope contract and one client-safe card endpoint.
 - It says CandidateProfile persistence is absent. The current repo has a minimal CandidateProfile persistence and one explicit gated field-write path.
-- It says RBAC/ABAC is absent. The current repo has a backend kernel, not production auth.
-- It says AITaskRun is only a skeleton. The current repo has metadata persistence and governance policy, but still no real execution.
-- It says matching/privacy/consent are mostly absent. The current repo has backend kernels and placeholders, not full product workflows.
+- It said RBAC/ABAC was absent. The repo first added a backend kernel and later added JWT-backed product controller enforcement for the current Task 60 scope.
+- It said AITaskRun was only a skeleton. The repo now has metadata persistence, governance policy, executable task baselines, eval/reporting, and release-gate coverage for the current scope.
+- It said matching/privacy/consent were mostly absent. The repo now has current-scope product workflows for evidence-backed matching, deterministic client-safe redaction, consent/disclosure/unlock, and guarded client/candidate/consultant participation.
 
 Therefore the next roadmap should reuse the product direction, but not repeat
 already-finished kernel work as if it does not exist.

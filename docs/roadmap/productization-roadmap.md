@@ -6,12 +6,18 @@ This roadmap starts after Task 14.
 
 Chinese companion document: `docs/roadmap/productization-roadmap.zh-CN.md`.
 
+Current status after Task 60: the current v2.1/v2.0 specification is
+`FULL_PRODUCT_100_READY`. The current acceptance proof is
+`docs/roadmap/task-60-full-product-acceptance-gate.md`. This roadmap remains
+useful as the historical execution plan from Task 15 through Task 60; it is not
+a claim that the project is still at the Task 14 completion percentage.
+
 Task 0-14 produced the Production Kernel: backend-owned truth, audit,
 governance, access, privacy, and narrow portal/API foundations. It is not a
 complete user-facing product.
 
-The next objective is to turn the kernel into a usable recruiting transaction
-system:
+At Task 14, the next objective was to turn the kernel into a usable recruiting
+transaction system:
 
 ```text
 Real job/candidate/company data
@@ -36,9 +42,12 @@ Real job/candidate/company data
 - v2.0 UI/portal definitions must not be deleted, compressed, or replaced.
 - Consultant remains one unified portal.
 
-## Honest Current State
+## Historical Task 14 State
 
-| Area | Current state after Task 14 | Product interpretation |
+This table records the state when this roadmap was written after Task 14. It is
+historical context only after Task 60.
+
+| Area | State after Task 14 | Product interpretation at Task 14 |
 | --- | --- | --- |
 | Truth layer | ClaimLedger, ReviewEvent, WorkflowEvent, CanonicalWriteGate, transaction boundary, and minimal CandidateProfile write path exist | Strong kernel foundation |
 | Governed intake | SourceItem/InformationPacket/extraction/claim/review/write bridge exists with deterministic placeholder | Not real AI intake yet |
@@ -52,9 +61,10 @@ Real job/candidate/company data
 | UI | Five-portal route shell plus narrow client-safe card flow exists | Not complete portals |
 | Deployment/security | Development validation exists | Not production deployment |
 
-Current completion against the full v2.1/v2.0 product is approximately
-30% +/- 5%. The foundation is deeper than a demo, but daily usable product
-workflows are mostly still ahead.
+After Task 60, the current v2.1/v2.0 product plan is accepted as
+`FULL_PRODUCT_100_READY`. Remaining work is post-100 deployment,
+customer-go-live, external-provider, certification, billing, marketplace, or
+customer-specific migration work.
 
 ## Roadmap Milestones
 
@@ -131,7 +141,7 @@ Status: **Completed** at `d5045ce`. V10 migration added 15 new tables; domain/po
 Goal: Expand from kernel tables and minimal CandidateProfile persistence into
 real product aggregates.
 
-Current baseline:
+Baseline before this task:
 
 - `recruiting.candidate` and `recruiting.candidate_profile` exist.
 - CandidateProfile minimal field writes exist through CanonicalWriteService.
@@ -173,7 +183,7 @@ Status: **Completed** at `66e416c`. V11 migration added `governance.canonical_wr
 Goal: Close the current kernel gap where allowed writes audit correctly, but
 blocked canonical attempts do not yet have a separate persisted audit ledger.
 
-Current baseline:
+Baseline before this task:
 
 - Real Spring transaction boundary exists.
 - Allowed canonical CandidateProfile field writes can commit WorkflowEvent and profile field together.
@@ -205,7 +215,7 @@ Priority: P0
 
 Goal: Build a broad but safe API boundary for real portal workflows.
 
-Current baseline:
+Baseline before this task:
 
 - One narrow `GET /api/client-safe/candidate-cards/{anonymousCardRef}` endpoint exists.
 - API-safe DTO/envelope/error contracts exist.
@@ -241,7 +251,7 @@ Priority: P0
 Goal: Turn backend access-policy kernel into production identity and access
 control.
 
-Current baseline:
+Baseline before this task:
 
 - Portal role vocabulary, field classifications, PermissionEvaluator, and PermissionEnforcer exist.
 - Temporary header-based API context exists for the narrow client-safe endpoint.
@@ -278,7 +288,7 @@ Priority: P0
 Goal: Let the system receive real CV, JD, notes, screenshots, and feedback
 files while preserving raw-input-is-not-fact.
 
-Current baseline:
+Baseline before this task:
 
 - SourceItem and InformationPacket backend records exist.
 - No real upload/object-storage/document lifecycle exists.
@@ -314,7 +324,7 @@ Priority: P0
 Goal: Convert AITaskRun metadata governance into executable, replayable,
 auditable AI tasks.
 
-Current baseline:
+Baseline before this task:
 
 - AITaskRun metadata persistence and governance policy exist.
 - No real model calls, prompt execution, routing, queue, retry, or replay execution exists.
@@ -352,7 +362,7 @@ Priority: P1 for pilot credibility, P0 for evidence-heavy deployments
 Goal: Add real document parsing, chunks, source highlights, and evidence
 retrieval.
 
-Current baseline:
+Baseline before this task:
 
 - Source spans exist as metadata references.
 - No real parsing/OCR/RAG/source-highlight service exists.
@@ -386,7 +396,7 @@ Priority: P0
 Goal: Complete the first real AI intake loop:
 upload/source -> AI extraction -> Claim Ledger -> review -> canonical write.
 
-Current baseline:
+Baseline before this task:
 
 - Safe backend chain exists with deterministic placeholder and minimal single-field write.
 
@@ -422,7 +432,7 @@ Priority: P0
 
 Goal: Make Consultant the daily operating surface.
 
-Current baseline:
+Baseline before this task:
 
 - Five-portal route shell exists.
 - Consultant portal is not yet a workflow application.
@@ -488,7 +498,7 @@ Priority: P0
 
 Goal: Move from append-only audit events to legal workflow state machines.
 
-Current baseline:
+Baseline before this task:
 
 - WorkflowEvent append/audit/read-model skeleton exists.
 - Transition legality validation, blocker modeling, consultant workflow timeline enrichment, and entity-state preview are now implemented on main in `c63d79a`.
@@ -535,7 +545,7 @@ Priority: P0
 Goal: Turn matching contracts into persisted, explainable, evidence-backed
 matching.
 
-Current baseline:
+Baseline before this task:
 
 - MatchReport contract, score-cap policy, and deterministic placeholder generation exist.
 
@@ -626,7 +636,7 @@ Priority: P0
 Goal: Replace placeholder privacy checks with real anonymous-summary risk
 control.
 
-Current baseline:
+Baseline before this task:
 
 - Re-identification placeholder and L0-L4 vocabulary exist.
 
@@ -687,7 +697,7 @@ Priority: P0
 Goal: Let client companies create jobs, answer clarification, review anonymous
 shortlists, request unlock, and submit feedback.
 
-Current baseline:
+Baseline before this task:
 
 - Client dashboard, manual job creation, clarification, shortlist review, anonymous candidate detail, unlock request capture, feedback submission, and client profile/preferences are implemented in the current main baseline.
 - Unlock remains request-only in this task; final identity disclosure release still belongs to Task 33.
@@ -723,7 +733,7 @@ Priority: P0
 Goal: Turn backend consent/disclosure kernel into full transaction protection
 workflow.
 
-Current baseline:
+Baseline before this task:
 
 - Backend persistence, policy, service, and chain hardening exist.
 - No API/UI/workflow product flow exists.
@@ -1011,13 +1021,14 @@ Priority: P0
 
 Goal: Decide whether the product is honestly Usable v1 / Controlled Pilot Ready.
 
-Current gate status: `CONTROLLED_PILOT_READY` for the Task 42 Usable v1 gate.
+Historical gate status at Task 42: `CONTROLLED_PILOT_READY` for the Task 42
+Usable v1 gate.
 The Task 42 acceptance-gate model and report now have current evidence for the
 Task 38 pilot CLI chain, five-portal Playwright login coverage, S01-S08
 business-flow Playwright coverage, and Task 39 backup/restore validation. See
 `docs/roadmap/task-42-pilot-e2e-acceptance-gate.md`. This does not certify
-public production readiness; Tasks 43-60 remain required for broader
-operations, security, support, managed deployment, and product depth.
+public production readiness. Tasks 43-60 were the later path to current-spec
+full-product acceptance and are now complete on `main`.
 
 Must pass:
 
@@ -1041,7 +1052,9 @@ Acceptance:
 - All eight pilot flows pass.
 - Negative privacy, permission, canonical-write, and AI-boundary tests pass.
 - System can be called Usable v1 / Controlled Commercial Pilot Ready.
-- System is still not full public SaaS or full v2.1/v2.0 completion.
+- At Task 42, the system was still not full public SaaS or full v2.1/v2.0
+  completion. Task 60 later closed current-spec v2.1/v2.0 acceptance; public
+  SaaS launch remains separate post-100 work.
 
 ## Task 43: Full Portal Depth and UX Completion
 

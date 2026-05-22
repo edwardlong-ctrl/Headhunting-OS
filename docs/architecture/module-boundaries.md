@@ -2,9 +2,13 @@
 
 ## apps/web
 
-Frontend route shell only. It owns browser routing, application frame setup, and future portal composition. It does not own facts, permissions, workflow transitions, matching decisions, disclosure decisions, or AI task execution.
+The Vite/React web app owns browser routing, portal composition, and the
+current five-portal user surfaces for Owner, unified Consultant, Client,
+Candidate, and Admin workflows. It still does not own facts, permissions,
+workflow transitions, matching decisions, disclosure decisions, or AI task
+execution.
 
-Task 1 includes only these route shells:
+The preserved v2.0/v2.1 portal taxonomy is:
 
 - `/owner`
 - `/consultant`
@@ -16,40 +20,39 @@ Consultant is one unified portal. The v2.0 Consultant design boards are historic
 
 ## services/core-api
 
-Future Java 21 Spring Boot modular monolith. It will own the domain service boundary, write gates, audit requirements, workflow events, and access policy enforcement.
+Java 21 Spring Boot modular monolith. It owns the domain service boundary,
+write gates, audit requirements, workflow events, access policy enforcement,
+AI task governance, integration boundaries, release-safe APIs, and PostgreSQL
+persistence adapters.
 
-Task 1 includes only:
-
-- Spring Boot application entrypoint
-- `/health` endpoint
-- application configuration
-- Flyway migration location and schema namespace migration
-
-No business logic exists here yet.
+Current scope includes the Task 60 accepted v2.1/v2.0 product baseline:
+governed intake, document intelligence, AI task registry/runner, matching,
+shortlist, consent/disclosure/unlock, workflow legality and automation,
+placement/commission, governance consoles, reporting/export, support
+operations, tenant hardening, release gates, and acceptance evidence. Public
+SaaS operation, managed-cloud signoff, live provider activation, formal
+certification, and customer go-live remain outside this module-boundary
+document's current acceptance claim.
 
 ## services/workers-go
 
 Reserved for future high-throughput auxiliary services such as file conversion, OCR/STT routing, batch embeddings, crawler/enrichment workers, notification gateways, or matching pre-computation.
 
-Task 1 does not create Go runtime code.
+No Go runtime module is required for the current Task 60 v2.1/v2.0 acceptance
+gate. Future workers must remain auxiliary and must not become a fact source.
 
 ## packages/contracts
 
-Reserved for shared schema and API contracts. Contracts must be the only shared language across frontend, backend, tests, and future workers.
-
-Task 1 does not define product data models yet.
+Shared schema and API contract assets. Contracts are the shared language across
+frontend, backend, tests, release checks, and future workers.
 
 ## packages/design-system
 
 Reserved for reusable UI primitives and tokens. It must not encode product state or role-specific workflow behavior.
 
-Task 1 does not create design components yet.
-
 ## packages/test-fixtures
 
 Reserved for synthetic non-production fixtures and contract-test payloads. Fixtures must never become runtime truth.
-
-Task 1 does not add demo data.
 
 ## infra
 

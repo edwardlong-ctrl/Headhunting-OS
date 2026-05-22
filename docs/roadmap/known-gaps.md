@@ -98,11 +98,12 @@
   follow-up, and workflow coordination, while humans and backend service gates
   own facts, consent, disclosure, commercial terms, and audit-sensitive state.
 - Remaining gaps:
-  - Public SaaS onboarding still depends on remaining production tasks and
-    release acceptance.
+  - Public SaaS onboarding still depends on managed infrastructure,
+    certification, live-provider activation, support operations, and customer
+    go-live decisions beyond the current-spec Task 60 gate.
   - Real provider activation, customer-specific migration execution, external
-    support systems, external BI/legal systems, and final acceptance remain
-    beyond the current baselines.
+    support systems, and external BI/legal systems remain beyond the current
+    baselines.
 
 ## Task 54 Performance/Load/Cost Targets Closed; Live Performance Evidence Still Deferred
 
@@ -206,8 +207,9 @@
   - Registry-only tasks are still not broad executable business orchestrators.
   - No worker queue, async scheduling, retry dashboard, or product-wide AI
     operation console is added by Task 44.
-  - Broad governed write-back execution remains deferred to later workflow,
-    data-quality, and final acceptance tasks.
+  - Broader runtime orchestration, automatic reviewer assignment, and
+    production operations control-plane depth remain post-100 enhancements, not
+    blockers to the Task 60 current-spec gate.
 
 ## Task 43 Portal Route Depth Closed; Production Readiness Still Deferred
 
@@ -226,8 +228,8 @@
 - Remaining gaps:
   - Task 43 is route-depth and workflow-continuity closure, not full production
     integration implementation.
-  - Remaining Tasks 58 and 60 still need release management and final
-    full-product acceptance.
+  - Task 58 release management and Task 60 final full-product acceptance later
+    closed the remaining current-spec acceptance path.
 
 ## Task 42 Pilot E2E Acceptance Gate Passed; Production Readiness Still Deferred
 
@@ -251,8 +253,8 @@
   - Task 42 does not certify public production operation, managed cloud
     deployment, HTTPS/domain setup, production incident process, MFA/SSO, or
     product-wide security certification.
-  - Remaining Tasks 58 and 60 still need release management and final
-    full-product acceptance.
+  - Task 58 and Task 60 later closed release management and current-spec
+    full-product acceptance; public production readiness remains post-100.
 
 ## Task 41 Security and Privacy Hardening v1 Baseline Exists; Production Security Still Deferred
 
@@ -392,8 +394,8 @@
 - `DocumentUploadService` validates MIME type against a fixed whitelist (PDF/DOCX 25MB, images 10MB, text 5MB), computes SHA-256 content hashes, deduplicates by (organization_id, content_hash), and idempotently returns existing SourceItem on duplicate.
 - `ConsultantDocumentController` provides `POST /api/consultant/documents/upload` (multipart) and `GET /api/consultant/documents/{sourceItemId}/download` (proxy download). Download uses proxy streaming (not presigned URLs) and validates organization scope.
 - No real virus scanning exists — `scan_status` defaults to `not_scanned` and `NoOpVirusScanPort` always returns CLEAN.
-- No AI extraction or text parsing from uploaded documents (deferred to Task 22).
-- No Client or Candidate upload endpoints (deferred to portal tasks 31/32).
+- Text parsing and consultant-facing evidence retrieval were later added by Task 22, and governed AI extraction/publish paths were added by later tasks. Remaining document gaps are OCR/STT execution workers, broader automatic review orchestration, and broader client-safe evidence exposure.
+- Client/Candidate upload breadth remains intentionally narrower than Consultant document intake; final JD-upload intake and broader self-service upload variants are post-100/customer-flow depth.
 - No presigned URL download (proxy-only for v1).
 - No `MinioDocumentStore` or `FileSystemDocumentStore` production implementations exist — only `InMemoryDocumentStore` for tests.
 - V2 `recruiting.source_item` and V4 `intake.source_item` tables remain separate (no merge).
@@ -409,14 +411,12 @@
   - PDF
   - DOCX
 - Image/OCR/STT inputs now fail closed into explicit non-success states instead of silently pretending parsing succeeded.
-- Remaining gaps:
-  - No real OCR/STT/file-conversion execution worker yet; images remain `PENDING_EXTERNAL_PROCESSING`.
-  - No AI task queue/worker, retry scheduler, or long-running execution orchestration yet.
-  - No ClaimLedger proposal append, review-queue append, WorkflowEvent append, or canonical write-back from document parsing outputs yet.
-  - No client-safe evidence exposure yet.
-  - Task 23 backend/API plus Task 24 now add governed AI extraction, clean-fact generation, and the first consultant-facing upload/review/publish UI, but broader productization still remains: no async worker orchestration, no automatic reviewer workflow, and no broader company/job canonical publish path.
-  - No automatic human review workflow or broader AI product integration yet. Task 37 now adds the first owner/admin governance API/UI and admin-side AI governance workbench surface, but deeper runtime execution control, richer task-level replay tooling, and automatic reviewer orchestration remain future work.
-  - No multi-provider product routing; the current real provider baseline is still DeepSeek only.
+- Remaining post-100/document-intelligence gaps:
+  - Real OCR/STT/file-conversion execution worker remains absent; images remain `PENDING_EXTERNAL_PROCESSING`.
+  - Workerized AI queues, retry scheduling, and long-running execution orchestration remain future runtime-control work.
+  - Broad autonomous canonical write-back from arbitrary document parsing output remains intentionally absent; current governed publish paths stay bounded by review, mapping, and gate rules.
+  - Broad client-safe evidence exposure remains future work outside the current safe shortlist/query surfaces.
+  - Task 23, Task 24, Task 25, Task 37, and Task 60 add governed AI extraction, review/publish UI, current-scope candidate/company/job publish paths, owner/admin governance surfaces, AI eval/reporting, and release gates. Remaining depth is async worker orchestration, automatic reviewer workflow, richer task-level replay tooling, live provider activation, and multi-provider runtime routing.
 
 ## Task 11 Matching / Evidence Kernel Closed for Backend Scope; Task 28 Seeds One Real Industry Pack; Broader Matching Engine Still Deferred
 
@@ -458,16 +458,12 @@
 - Broader gaps remain: no real learned AI matching, no learned calibration
   executor, no automatic ontology update from outcome labels, no admin
   industry-pack editing UI, no client-facing match report delivery, and no
-  Task 42 browser E2E proof for the full match-to-shortlist-to-disclosure
-  release path. Task 33 adds the first identity-disclosed client read path
-  after approved unlock, and Task 35 adds the first interaction-scoped interview
-  feedback and outcome-loop baseline, but broader cross-job ontology learning
-  and admin eval-feedback tooling remain future work. The current consultant
-  matching API/controller/UI baseline remains internal evidence-aware review
-  only, while Task 29 now covers the consultant-side shortlist builder/send
-  slice and Task 32 covers the first client review surface.
+  automatic production calibration executor. Task 42 and Task 60 browser E2E
+  now cover the current match-to-shortlist-to-disclosure release path. Broader
+  cross-job ontology learning, learned calibration, and dedicated admin editing
+  workflows remain post-100 enhancement work.
 
-## Task 7 Backend Client-safe Boundary Exists; Full Privacy Pipeline Deferred
+## Task 7 Backend Client-safe Boundary Exists; Privacy Calibration and External Delivery Depth Deferred
 
 - Task 7A adds a backend-only `ClientSafeCandidateCard` contract using opaque anonymous/card identifiers, generalized profile fields, safe summary fields, safe evidence summary placeholders, and safe match narrative placeholders.
 - Task 7A adds `ClientVisibleCandidateFieldPolicy` as an explicit deny-by-default forbidden-field policy for client-visible candidate fields.
@@ -480,9 +476,9 @@
 - Task 7C covers required unsafe categories: exact company + rare title + exact year, exact current employer, exact project/product/chip code name, public identifier before consent, exact location/address, direct contact/profile URL, small-team unique ownership claim, and overly specific identifying achievement number.
 - Task 7C high-risk or L4 assessments cannot be treated as safe anonymous client output.
 - Task 7 is complete only for the current backend kernel scope: client-safe contract, forbidden-field policy, L0-L4 vocabulary, projection/read-model boundary, raw exposure negative tests, and re-identification placeholder.
-- Task 7C by itself did not add API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, database migration, AI/model wiring, or identity disclosure behavior. Later Task 30 adds a real deterministic redaction pipeline plus persisted re-identification audit, while broader UI/disclosure/productization still remains deferred.
+- Task 7C by itself did not add API/controller/UI, RBAC/ABAC, Consent/Disclosure/Unlock, database migration, AI/model wiring, or identity disclosure behavior. Later tasks add the current deterministic redaction pipeline, persisted re-identification audit, client-safe query/send call sites, consent/disclosure/unlock workflow, and five-portal product surfaces. Remaining privacy work is calibration, maintenance tooling, external delivery, and customer-specific disclosure depth.
 
-## Canonical Persistence Minimal Path Exists; Metadata Hardened; Full Profile Deferred
+## Canonical Persistence Minimal Path Exists; Raw Profile CRUD/Search Deferred by Design
 
 - Task 6D adds the first real but minimal canonical CandidateProfile field write path.
 - Task 6E hardens CandidateProfile lineage, stale, and conflict metadata persistence for that field-write surface.
@@ -496,7 +492,10 @@
 - Task 6B implements backend-internal CandidateProfile persistence.
 - Task 6C hardens the canonical write transaction boundary.
 - Task 6F proves the current safe chain from ClaimLedgerItem + ReviewEvent evidence to gated transaction-boundary audit/profile write, plus gate-blocked no-write behavior, rollback no-partial-write behavior, wrong-organization isolation, and no client/API/UI/projection exposure.
-- Full CandidateProfile behavior, broad field families, conflict resolution, stale detection, API/UI exposure, client-safe projection service/read model, Consent/Disclosure, RBAC/ABAC, and real AI extraction remain deferred.
+- Broad raw CandidateProfile CRUD/search UI remains deferred by design. Current
+  product paths use governed intake, claim/review/canonical gates,
+  consultant-safe read models, client-safe projection, consent/disclosure, and
+  JWT-backed access boundaries rather than a generic raw profile editor.
 
 ## Transaction Boundary Hardened; Full Canonical Flow Still Deferred
 
@@ -509,7 +508,7 @@
 - This is still not a generic canonical write engine and does not implement full CandidateProfile.
 - `CanonicalWriteGate` remains mandatory and must not be bypassed.
 
-## CandidateProfile Persistence Minimal Write Exists; Full Promotion Deferred
+## CandidateProfile Persistence Minimal Write Exists; Broad Raw Promotion Deferred by Design
 
 - Task 6A adds pure backend-owned CandidateProfile contract vocabulary.
 - Task 6B adds a backend-internal `CandidateProfileService`, `CandidateProfilePersistencePort`, and `JdbcCandidateProfilePersistencePort`.
@@ -533,7 +532,11 @@
 - Task 6D allows governed-intake ClaimLedgerItem plus ReviewEvent evidence to flow to one explicit CandidateProfile field only after `CanonicalWriteGate` allows it and `CanonicalWriteService` runs the transaction boundary.
 - Low-authority governed-intake placeholder claims remain blocked by the existing gate and do not write CandidateProfile.
 - Task 6D does not mutate ClaimLedger verification status, does not mutate ReviewEvent, and does not treat ReviewEvent as fact promotion.
-- No CandidateProfile REST/API/controller/DTO, UI, redaction pipeline, RBAC/ABAC, Consent/Disclosure, AI model wiring, or real AI extraction exists after Task 7B.
+- Generic raw CandidateProfile REST/API/controller/DTO/UI still does not exist
+  and should not be added casually. Later tasks added redaction, RBAC/access
+  enforcement, consent/disclosure/unlock, AI execution, and governed intake
+  product paths through controlled boundaries rather than exposing raw profile
+  mutation.
 
 ## Task 12A Consent / Disclosure Protection Kernel Exists; Full Unlock Flow Deferred
 
@@ -547,7 +550,11 @@
 - Task 12A tests prove missing, invalid, expired, revoked, or not-human-approved consent/disclosure/unlock state fails closed, and role alone cannot grant L4 disclosure.
 - Task 12 itself did not add Consent/Disclosure REST/controller/API or UI; later Task 33 adds the first candidate consent, consultant unlock, and client disclosed-candidate product path.
 - Real auth/login/session infrastructure now exists, and product-endpoint enforcement now runs through JWT-backed `SecurityContext` with Task 19C strong session revocation.
-- No full WorkflowEvent-driven workflow engine, prior-contact/prior-application review flow, fee-agreement validation, or Task 42 browser E2E proof exists yet.
+- Task 26, Task 33, Task 45, Task 48, and Task 60 now provide current-scope
+  workflow legality, consent/disclosure/unlock, SLA automation visibility,
+  commercial gates, and browser E2E proof. Full BPMN-style orchestration,
+  external dispatch, and broader persisted task queues remain post-100
+  enhancements.
 
 ## Task 10 Metadata Governance + Task 21 Audited Execution Baseline Exist; Full AI Productization Deferred
 
@@ -567,7 +574,7 @@
 - Task 10C strengthens `packages/contracts/schemas/ai-task-run.schema.json` so write-back target and human-review status vocabularies are explicit metadata-only schema vocabulary, not executable write-back or approval behavior.
 - Task 10 is complete only for the current backend kernel scope: AITaskRun metadata contract exists, AITaskRun metadata persistence exists, model/prompt/schema/task version fields exist, write-back target vocabulary exists, human-review status vocabulary exists, deterministic fail-closed governance policy exists, and regression tests prove no AI execution, no write-back, and no canonical mutation.
 - Task 21 adds the first real AI execution baseline on top of that governance kernel: prompt registry, schema validator, model router, DeepSeek provider adapter, replay, and two audited executable tasks.
-- Broader AI gaps remain: no document intelligence/OCR/text extraction, no AI task queue/worker, no retries scheduler, no actual write-back execution, no automatic human review workflow, and no canonical write execution from AI governance. Task 37 now adds the first owner/admin governance API/UI surface and governance-config workbench, but not full AI runtime control-plane productization.
+- Broader AI runtime-control gaps remain after the current Task 60 baseline: no OCR/STT execution worker, no AI task queue/worker, no retries scheduler, no live multi-provider failover, no automatic human-review workflow engine, and no broad autonomous canonical write execution from AI governance. Document intelligence, governed extraction/publish paths, owner/admin governance APIs, governance-config workbench, AI eval/reporting, and release-gate coverage now exist for the current specification scope.
 
 ## Governed Intake Minimal Slice Closed; Downstream Work Deferred
 
@@ -606,17 +613,16 @@
 - Neither the Task 5A `intake.*` table family nor the earlier V2 `recruiting.*` source/packet table family is canonical fact storage, CandidateProfile persistence, ClaimLedger, or a canonical profile.
 - For the Task 5C, Task 5D, and Task 5E bridges, `intake.*` is the operational governed-intake source. Earlier `recruiting.source_item` and `recruiting.information_packet` remain V2 skeleton artifacts and are not read or written by these bridges.
 - Future cleanup, deprecation, or migration of the earlier `recruiting.*` source/packet skeleton remains a schema cleanup gap.
-- Governed AI extraction now exists for the Task 23 backend/API slice through `GOVERNED_AI_V1`, but it is still constrained to the governed-intake pipeline rather than a broad AI product surface.
-- Full canonical persistence from governed intake remains future work beyond the Task 6D/6E minimal single-field path.
+- Governed AI extraction exists through `GOVERNED_AI_V1` and later current-scope product paths. It remains constrained by governed-intake, review, mapping, and canonical gates rather than becoming a broad autonomous AI product surface.
+- Current-scope canonical publish behavior exists for the supported candidate/company/job mappings. Broad raw canonical persistence from arbitrary intake output remains intentionally excluded.
 - No default-placeholder business ClaimLedger append from intake exists.
-- Governed intake CanonicalWrite boundary attempts can now perform the Task 6D minimal field write only with an explicit CandidateProfile target after gate allow.
-- No CandidateProfile persistence exists from intake outside the Task 6D gated CanonicalWriteService path.
-- Candidate publish now fails closed unless an existing candidate/profile target is supplied; the current Task 23 candidate path supports only the mapped stable AI keys that land on canonical CandidateProfile field paths (`profile.headline`, `profile.summary`, `skills.primary_skills`, `experience.projects`, `experience.timeline_highlights`), requires matchable evidence quotes during extraction, and company/job publish remains blocked until a governed canonical write plus audit path is designed.
-- Consultant intake API exposure and the first Consultant Portal v1 frontend now exist for upload, extract, review, decide, publish, workflow, follow-up, and blocked-action handling. Remaining gaps are narrower productization items such as richer async worker orchestration, broader company/job canonical publish, and deeper follow-up automation beyond the current real consultant queue.
-- No Consent/Disclosure, RBAC/ABAC, Client-safe projection API/UI, redaction pipeline, unlock/disclosure, or client exposure exists for governed intake.
-- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; downstream privacy/access surfaces, full profile behavior, conflict resolution, stale detection, and `recruiting.*` source/packet cleanup remain future work.
+- Governed intake CanonicalWrite boundary attempts remain gated and auditable; they do not create a raw bypass around `CanonicalWriteService`.
+- Candidate publish fails closed outside the supported mapped stable AI keys and evidence requirements. Company/job publish paths were added later for the current scope, but arbitrary schema-free canonical publish remains blocked.
+- Consultant intake API exposure and Consultant Portal frontend exist for upload, extract, review, decide, publish, workflow, follow-up, and blocked-action handling. Remaining gaps are narrower post-100 productization items such as async worker orchestration, external notification delivery, broader profile behavior, and `recruiting.*` source/packet cleanup.
+- Governed intake is no longer blocked on the earlier missing Consent/Disclosure, client-safe, redaction, unlock/disclosure, and client-exposure primitives: later tasks added controlled product paths for these surfaces.
+- Task 5 Governed Intake Minimal Slice is closed as a safe, regression-covered backend chain. Task 6F closes one gated CandidateProfile field write and metadata regression coverage; later tasks add the current privacy/access/product surfaces.
 
-## Minimal Client-safe Projection Service Exists; Product Privacy Pipeline Still Deferred
+## Client-safe Projection Service Exists; Learned Privacy Calibration Still Deferred
 
 - Raw Candidate must never be exposed to Client.
 - `ClientSafeCandidateCard` exists as a backend contract after Task 7A.
@@ -624,8 +630,7 @@
 - Task 7B adds a minimal backend projection service/read model that returns only `ClientSafeCandidateCard`.
 - Task 7B does not add client-facing serialization, API, controller, UI, RBAC/ABAC, Consent, Disclosure, Unlock, identity disclosure, database migration, or AI/model wiring.
 - Task 7C adds only a deterministic placeholder for re-identification assessment; it does not perform real scoring.
-- No broad redaction implementation exists beyond the current deterministic client-safe summary pipeline and its shortlist/query integrations.
-- No learned or calibrated re-identification scoring exists yet; the current scorer is deterministic and policy-coded.
+- A deterministic client-safe redaction/summary pipeline now exists for the current shortlist/query integrations. Remaining redaction work is post-100 depth: learned or outcome-calibrated re-identification scoring, broader automatic text rewriting, and production tuning against real customer leakage patterns.
 
 ## Task 8 Identity Access Kernel Exists for Current Backend Scope
 
@@ -647,7 +652,7 @@
 - Task 8C proves `ClientSafeCandidateCard` remains the only Client-readable candidate-facing output at this layer, while raw Candidate and raw CandidateProfile remain denied to Client.
 - Task 8 is complete only for the current backend kernel scope: role/resource/action/field policy contracts exist, deterministic `PermissionEvaluator` exists, `PermissionEnforcer` exists, a sensitive backend guard slice exists, and five-portal boundary negative tests exist.
 - Real auth/login/session baseline now exists. Spring Security and JWT are now the enforcement source for product controllers, with Task 19C adding strong session checks before principal establishment.
-- No API/controller/UI exists for this access layer.
+- This early access layer still does not expose a standalone access-management UI. Product controllers now enforce JWT-backed identity and reuse access boundaries through controlled API/UI paths; generic role-alone L4/identity access remains denied.
 - Task 33 now adds the first Consent/Disclosure/Unlock product workflow beyond the earlier Task 12A/12B/14 backend kernel, while Task 8 still proves role-alone L4/identity access is denied.
 - Identity-disclosed Client access behavior now exists only through the approved Task 33 unlock/disclosure path; it is not granted by generic Client role.
 - No complete product-wide RBAC/ABAC enforcement exists beyond the Task 8B/8C backend guard surfaces and regression tests.
@@ -671,8 +676,8 @@
 - Task 26 adds consultant-facing workflow timeline and entity-state API/UI integration on top of the audit/read-model foundation.
 - It is not a client-safe projection.
 - It does not expose raw Candidate/Profile payloads or business entity internals.
-- It is still not dashboard analytics, full reporting, full-text search, generic repository search, or arbitrary SQL filtering.
-- Correlation and causation identifiers remain queryable for backend audit lineage, but only the consultant workflow slice is surfaced today.
+- It is still not arbitrary SQL filtering, generic repository search, or a full BPMN/task-runtime query engine.
+- Correlation and causation identifiers remain queryable for backend audit lineage. Later Owner/Admin, Consultant, Client, Candidate, reporting/export, and release-gate surfaces cover the current product-scope views; richer drill-down analytics and external operating views remain post-100 depth.
 
 ## Task 9 API Boundary Slice Exists; Broad API Deferred
 
@@ -686,19 +691,18 @@
 - Task 13A adds the route-aware five-portal shell while preserving Consultant as one unified portal, keeping the v2.0/v2.1 portal taxonomy intact, and exposing only a narrow Client portal entry flow for anonymous client-safe candidate cards. It adds fail-closed client-safe loading states and a typed frontend helper for the existing endpoint, but it does not add raw Candidate/Profile client exposure, identity-disclosed client read behavior, auth/session/Spring Security, or backend-truth drift.
 - Task 13B adds a real backend-internal PostgreSQL query/read-model implementation behind the existing client-safe candidate-card endpoint. It reads only safe projection metadata from `recruiting.candidate_profile`, reuses the existing projection and re-identification boundaries, and fails closed for missing/ambiguous/invalid/unsafe data.
 - Task 14 hardens the backend Consent / Disclosure persistence and service path only. It preserves fail-closed L3/L4 separation, binds approved disclosure records to the requested consent/unlock chain, makes final disclosure persistence retry-safe, adds organization-scoped linkage hardening in `V9`, and denies legacy cross-organization unlock approvers at runtime.
-- Only the existing client-safe candidate-card read endpoint exists; no raw Candidate/Profile API endpoints, broad REST API, or general API runtime layer exists yet.
-- Broad frontend product UI, Consent/Disclosure/Unlock product workflow, and identity disclosure workflow still do not exist here. Spring Security/auth/login/session now exist, and product controllers now enforce JWT-backed identity rather than temporary header context.
+- This Task 9 section is historical for the first API-boundary slice. Raw Candidate/Profile API endpoints are still intentionally absent, but the product now has authenticated Consultant, Client, Candidate, Owner/Admin, document, governed-intake, workflow, reporting/export, consent/disclosure/unlock, placement/commission, support, and narrow client-safe product APIs beyond the original candidate-card endpoint.
+- Broad frontend product UI, Consent/Disclosure/Unlock workflow, and identity-disclosed client read behavior were added by later tasks. Spring Security/auth/login/session now exist, and product controllers enforce JWT-backed identity rather than temporary header context.
 
-## UI / AI / Access Boundaries Not Implemented
+## Post-100 UI / AI / Access Boundaries
 
-- No UI integration exists for WorkflowEvent audit guardrails.
-- No broad real AI model wiring exists for workflow actions outside the current governed-intake task path.
-- API/controller integration and the first governed-intake frontend UI now exist through `ConsultantIntakeController` plus the unified Consultant Portal intake/upload/review/publish surfaces.
-- No API/controller/UI integration exists for CandidateProfile.
-- No Consent/Disclosure API/controller/UI or broad workflow behavior exists beyond the current backend-only Task 12A/12B/14 kernel.
-- No broad service-level RBAC/ABAC enforcement exists beyond the Task 8B/8C minimal projection/raw CandidateProfile guard surfaces and five-portal boundary tests.
-- No broad client-safe product UI exists. Task 13A adds only a narrow route-aware portal shell plus anonymous client-safe candidate-card flow, while Task 30 hardening now adds real backend redaction behavior behind the shortlist send and client-safe candidate-card query paths.
-- No full governed-intake or CanonicalWriteService-driven CandidateProfile implementation exists beyond the narrowed Task 23 existing-target candidate publish path and Task 6E metadata hardening; broad profile CRUD/update surfaces still do not exist.
+- Current product UI now covers the five-portal Task 60 scope, including workflow/audit guardrails, Consultant intake/review/publish, Client shortlist/unlock/feedback, Candidate consent/opportunity/follow-up, Owner/Admin governance, reporting/export, support, and release-gate-visible operations.
+- Real model execution exists for the governed current-scope AI paths. Post-100 AI gaps remain in live-provider activation, workerized retries, multi-provider failover, runtime control-plane depth, and broader workflow-action autonomy.
+- Candidate/Profile behavior is available through controlled read models, consultant/candidate-facing surfaces, and governed publish paths. Raw generic CandidateProfile CRUD/search APIs remain intentionally absent.
+- Consent/Disclosure API/controller/UI exists for the current product slice. Post-100 work remains in notification delivery, prior-contact/prior-application depth, fee-agreement validation, and public customer-ready support operations.
+- RBAC/ABAC is enforced through current JWT-backed controller boundaries and service guard slices, but a standalone product-wide access-management console and multi-org membership/session switching remain out of current scope.
+- Client-safe product UI exists for the current shortlist/candidate-card/unlock/feedback paths. Broader marketplace-style client workspaces, external delivery channels, and customer-specific disclosure workflows remain post-100.
+- Governed-intake and CanonicalWriteService-driven publish paths exist for the supported current-scope candidate/company/job mappings. Broad raw profile CRUD/update and autonomous canonical mutation remain intentionally excluded.
 
 ## Task 16 Product Data Model Baseline Complete; DB Org-Scope Hardening RESOLVED (V12)
 
@@ -731,7 +735,7 @@
   - Successful responses return only allowlisted fields with no internal entity leakage.
   - Not-found returns sanitized 404; invalid UUID returns sanitized 400.
   - No raw Candidate, CandidateProfile, PII, internal entity types, stack traces, or internal package names leak through response bodies or denial messages.
-- Task 18A is complete only for the original Consultant read-only API layer on companies, jobs, and shortlists. Later work extends shortlist detail and command behavior through Task 18C and Task 29, but no Client-safe candidate projection read endpoints exist through the product API layer, no Client portal product API endpoints exist, no filtering beyond optional status (list) and optional companyId/jobId (job/shortlist lists) exists, no full-text search exists, and no composite FK org-scope hardening at DB level for Company/Job/Shortlist child tables has been added. Real auth/login/session/Spring Security now exists, the consultant product API uses JWT-backed `SecurityContext`, and Task 19C closes the baseline auth/session hardening slice.
+- Task 18A is complete only for the original Consultant read-only API layer on companies, jobs, and shortlists. Later work extends shortlist detail and command behavior through Task 18C and Task 29, adds client-safe/client-portal product endpoints, hardens org-scope FKs through Task 16-Hardening V12, and moves active controller paths onto JWT-backed `SecurityContext`. Remaining API gaps are not the old Task 18A missing primitives; they are richer filtering/search, batch operations, DELETE semantics where appropriate, public ecosystem APIs, and customer-specific integration depth.
 
 ## Task 18B (Partial) Consultant Write Endpoints for Company and Job
 

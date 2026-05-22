@@ -4,11 +4,21 @@ AI Headhunting Transaction OS, also referred to in the codebase as Recruiting Tr
 
 ## Current Status
 
-- `apps/web` provides the Vite + React portal shell.
+- Current local and remote `main` are accepted as `FULL_PRODUCT_100_READY` for
+  the current v2.1/v2.0 specification through Task 60. This is current-spec
+  product acceptance, not public SaaS launch, managed-cloud signoff, formal
+  certification, customer go-live approval, or live external-provider
+  activation.
+- `apps/web` provides the Vite + React five-portal product surface for Owner,
+  unified Consultant, Client, Candidate, and Admin workflows.
 - `services/core-api` provides the main Java 21 Spring Boot backend with:
   - JWT-based authentication and persisted identity sessions
-  - consultant and client-safe API boundaries
-  - governed intake and document upload flows
+  - consultant, client, candidate, owner, admin, support, governance, and
+    release-safe API boundaries
+  - governed intake, document upload, document intelligence, AI task runner,
+    review/publish, matching, shortlist, consent/disclosure/unlock,
+    placement/commission, reporting/export, support, and workflow automation
+    baselines
   - Flyway-managed PostgreSQL schema migrations
   - regression and integration coverage with Testcontainers
 - `packages/*` holds shared contracts, design-system scaffolding, and fixtures.
@@ -27,7 +37,7 @@ Read these before making product, architecture, UI, AI, workflow, data model, or
 
 - `apps/web` - Vite React TypeScript frontend shell
 - `services/core-api` - Spring Boot core API
-- `services/workers-go` - placeholder for future Go workers
+- `services/workers-go` - reserved placeholder for future Go auxiliary workers
 - `packages/contracts` - shared schema and contract assets
 - `packages/design-system` - design-system package boundary
 - `packages/test-fixtures` - shared non-production fixtures
