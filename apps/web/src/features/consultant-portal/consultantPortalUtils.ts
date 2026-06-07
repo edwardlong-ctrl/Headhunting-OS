@@ -19,6 +19,21 @@ export const CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS = [
   { value: "SOURCE_ITEM", label: "source_item" },
 ] as const;
 
+export type ShortlistPreSendCheckSummary = {
+  code: string;
+  label: string;
+  passed: boolean;
+};
+
+export type ShortlistSendReadiness = {
+  canSend: boolean;
+  tone: "neutral" | "warning";
+  title: string;
+  detail: string;
+  nextAction: string;
+  blockedItems: string[];
+};
+
 export function isShortlistBuilderEditable(status: string): boolean {
   return SHORTLIST_BUILDER_EDITABLE_STATUSES.includes(
     status as (typeof SHORTLIST_BUILDER_EDITABLE_STATUSES)[number],
@@ -33,6 +48,47 @@ export function canSaveShortlistBuilder(
   return title.trim().length > 0
     && isShortlistBuilderEditable(currentStatus)
     && isShortlistBuilderEditable(nextStatus);
+}
+
+export function describeShortlistSendReadiness(
+  status: string,
+  preSendChecks: ShortlistPreSendCheckSummary[],
+): ShortlistSendReadiness {
+  const blockedChecks = preSendChecks.filter((check) => !check.passed);
+  const blockedItems = blockedChecks.map((check) => `${check.code} · ${check.label}`);
+  const checksPassed = blockedChecks.length === 0;
+  const statusReady = status === "ready_for_review";
+
+  if (checksPassed && statusReady) {
+    return {
+      canSend: true,
+      tone: "neutral",
+      title: "Shortlist is ready to send",
+      detail: "All pre-send checks passed and the shortlist is ready_for_review.",
+      nextAction: "Approve the send action to create the client-visible workflow event.",
+      blockedItems,
+    };
+  }
+
+  const blockedCount = blockedChecks.length;
+  const blockedPhrase = blockedCount === 0
+    ? "No blocked pre-send checks remain"
+    : `Resolve ${blockedCount} blocked pre-send ${blockedCount === 1 ? "check" : "checks"}`;
+  const statusPhrase = statusReady
+    ? "keep the shortlist in ready_for_review"
+    : "move the shortlist to ready_for_review";
+  const firstBlocked = blockedChecks[0];
+
+  return {
+    canSend: false,
+    tone: "warning",
+    title: "Shortlist send is blocked",
+    detail: `${blockedPhrase}, then ${statusPhrase}.`,
+    nextAction: firstBlocked
+      ? `Start with ${firstBlocked.code}: ${firstBlocked.label}.`
+      : "Move the shortlist to ready_for_review after consultant review.",
+    blockedItems,
+  };
 }
 
 export function describeWorkflowPageWindow(itemCount: number, offset: number): string {

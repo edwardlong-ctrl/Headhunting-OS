@@ -132,6 +132,7 @@ import {
   SHORTLIST_BUILDER_INITIAL_STATUS,
   CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS,
   canSaveShortlistBuilder,
+  describeShortlistSendReadiness,
   describeWorkflowTransition,
   describeWorkflowPageWindow,
   isShortlistBuilderEditable,
@@ -2615,7 +2616,7 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
   }
 
   const includedCards = shortlist.cards.filter((card) => card.status === "included");
-  const canSend = shortlist.preSendChecks.every((check) => check.passed) && shortlist.status === "ready_for_review";
+  const sendReadiness = describeShortlistSendReadiness(shortlist.status, shortlist.preSendChecks);
 
   return (
     <DetailPageShell title={shortlist.title} eyebrow="Consultant shortlist detail">
@@ -2743,10 +2744,13 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
       </section>
       <section className="portal-panel">
         <h3>Pre-send checks</h3>
+        <SafeState title={sendReadiness.title} tone={sendReadiness.tone} detail={sendReadiness.detail} />
+        <p className="helper-copy">{sendReadiness.nextAction}</p>
         <SafeList
           title="Current gate results"
           items={shortlist.preSendChecks.map((check) => `${check.passed ? "PASS" : "BLOCK"} · ${check.label}`)}
         />
+        <SafeList title="Blocked next actions" items={sendReadiness.blockedItems} />
       </section>
       <section className="portal-panel">
         <h3>Delivery preview</h3>
@@ -2759,7 +2763,7 @@ function ShortlistDetailWorkspace({ initialShortlist }: { initialShortlist: Cons
             shortlist.deliveryPreview.wechatSummary,
           ]}
         />
-        <button type="button" disabled={!canSend || currentStatusIsBeyondBuilder} onClick={onSend}>
+        <button type="button" disabled={!sendReadiness.canSend || currentStatusIsBeyondBuilder} onClick={onSend}>
           Approve and mark sent_to_client
         </button>
       </section>

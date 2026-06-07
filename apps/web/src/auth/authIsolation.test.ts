@@ -8,6 +8,7 @@ import {
 import {
   CONSULTANT_WORKFLOW_ENTITY_TYPE_OPTIONS,
   canSaveShortlistBuilder,
+  describeShortlistSendReadiness,
   describeWorkflowPageWindow,
   isShortlistBuilderEditable,
 } from "../features/consultant-portal/consultantPortalUtils";
@@ -84,6 +85,39 @@ describe("shortlist builder boundary", () => {
     expect(canSaveShortlistBuilder("sent_to_client", "ready_for_review", "Alpha")).toBe(false);
     expect(canSaveShortlistBuilder("draft", "sent_to_client", "Alpha")).toBe(false);
     expect(canSaveShortlistBuilder("draft", "draft", "   ")).toBe(false);
+  });
+
+  it("explains why a shortlist cannot be sent and names the next operator action", () => {
+    const readiness = describeShortlistSendReadiness("draft", [
+      { code: "anonymous_cards_generated", label: "All included cards have anonymous client-safe summaries", passed: true },
+      { code: "reidentification_risk_within_gate", label: "All included cards remain below the client-send re-identification risk threshold", passed: false },
+      { code: "delivery_preview_ready", label: "PDF, email, and WeChat delivery previews are ready", passed: false },
+    ]);
+
+    expect(readiness).toEqual({
+      canSend: false,
+      tone: "warning",
+      title: "Shortlist send is blocked",
+      detail: "Resolve 2 blocked pre-send checks, then move the shortlist to ready_for_review.",
+      nextAction: "Start with reidentification_risk_within_gate: All included cards remain below the client-send re-identification risk threshold.",
+      blockedItems: [
+        "reidentification_risk_within_gate · All included cards remain below the client-send re-identification risk threshold",
+        "delivery_preview_ready · PDF, email, and WeChat delivery previews are ready",
+      ],
+    });
+  });
+
+  it("confirms when pre-send gates and review status allow sending", () => {
+    const readiness = describeShortlistSendReadiness("ready_for_review", [
+      { code: "anonymous_cards_generated", label: "All included cards have anonymous client-safe summaries", passed: true },
+    ]);
+
+    expect(readiness).toMatchObject({
+      canSend: true,
+      tone: "neutral",
+      title: "Shortlist is ready to send",
+      blockedItems: [],
+    });
   });
 
   afterEach(() => {
