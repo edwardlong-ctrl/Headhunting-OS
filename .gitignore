@@ -15,6 +15,8 @@ test-results/
 # Local evidence payloads can contain database dumps and document archives.
 artifacts/**/*.dump
 artifacts/**/*.tar.gz
+.codex/
+audit-reports/
 
 # Java build output
 target/
