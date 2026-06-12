@@ -1,0 +1,10 @@
+
+> ai-headhunting-transaction-os@0.1.0 typecheck:web
+> npm --workspace @rto/web run typecheck
+
+
+> @rto/web@0.0.0 typecheck
+> tsc --noEmit --pretty false
+
+
+[exit_code=0]

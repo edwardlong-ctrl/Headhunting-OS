@@ -1,0 +1,24 @@
+RC1-04 Web Test Evidence
+
+Run At: Fri Jun 12 15:49:54 CST 2026
+Command: rtk npm --workspace @rto/web run test
+Exit Code: 0
+Result: Vitest web workspace suite passed.
+
+Route Contract Inclusion:
+- Source inspected: apps/web/src/portalRouteContract.test.ts.
+- The web test command reported 9 test files passed; portalRouteContract.test.ts is in apps/web/src and was included in the workspace test suite.
+- portalRouteContract.test.ts imports owner, consultant, client, candidate, and admin portal sources via ?raw and checks v2.1/v2.0 route strings.
+
+Evidence Level: E1 source-level/unit-test evidence.
+
+Boundary:
+- No browser/E2E route walk was run.
+- No full render-level smoke covering all five portals was observed or run in RC1-04.
+- Existing owner-portal render tests are part of the web suite, but the five-portal route-preservation contract remains source-string evidence.
+
+Relevant Summary:
+> vitest run
+> Test Files 9 passed (9)
+> Tests 40 passed (40)
+> Duration 1.29s

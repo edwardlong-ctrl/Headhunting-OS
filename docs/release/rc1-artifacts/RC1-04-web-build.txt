@@ -1,0 +1,25 @@
+RC1-04 Web Build Evidence
+
+Run At: Fri Jun 12 15:49:54 CST 2026
+Command: rtk npm run build:web
+Exit Code: 0
+Result: TypeScript and Vite production build completed.
+
+Relevant Summary:
+> tsc --noEmit && vite build
+> vite v7.3.2 building client environment for production...
+> 84 modules transformed.
+> dist/index.html 0.41 kB gzip: 0.28 kB
+> dist/assets/index-DOR-Kjww.css 21.34 kB gzip: 4.48 kB
+> dist/assets/index-BGt5O77o.js 463.34 kB gzip: 120.82 kB
+> built in 576ms
+
+Cleanup:
+- rtk git status --short after build showed no tracked or untracked generated web build outputs.
+- No generated build artifact cleanup was required.
+
+Evidence Level: E1 frontend build evidence.
+
+Boundary:
+- This does not prove backend/API/runtime/browser behavior.
+- This does not advance RC1 backend, privacy/security, AI eval, E2E, release, ops, or final decision gates.

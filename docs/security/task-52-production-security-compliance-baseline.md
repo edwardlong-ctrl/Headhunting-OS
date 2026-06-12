@@ -253,12 +253,12 @@ If dependency-check cannot run because no NVD key or prepared cache exists, the
 branch is not allowed to claim the dependency scan passed. The finding must be
 left OPEN or explicitly Status: RISK_ACCEPTED with owner and review date.
 
-Current branch evidence captured on 2026-05-10:
+Current branch evidence captured on 2026-05-10, with Docker version evidence refreshed on 2026-06-12 after the local Docker Desktop update:
 
 | Command | Result |
 | --- | --- |
 | `rtk git diff --check` | Exit 0. |
-| `rtk docker info` | Exit 0; Docker Desktop server 29.4.1 reachable for Testcontainers. |
+| `rtk docker info` | Exit 0; Docker Desktop 4.77.0 / Engine 29.5.3 reachable for Testcontainers on 2026-06-12. |
 | `rtk npm audit --omit=dev` | Exit 0; found 0 vulnerabilities. |
 | `rtk env DEPENDENCY_CHECK_PREWARMED_CACHE=1 npm run security:core-api:dependency-check` | Exit 0; Maven `BUILD SUCCESS`; JSON and HTML reports generated under `services/core-api/target/`; JSON vulnerability dependency count was 0. |
 | `rtk mvn -f services/core-api/pom.xml -Dtest=SecurityComplianceBaselineDocumentationTest test` | Exit 0; 4 tests run, 0 failures, 0 errors. |

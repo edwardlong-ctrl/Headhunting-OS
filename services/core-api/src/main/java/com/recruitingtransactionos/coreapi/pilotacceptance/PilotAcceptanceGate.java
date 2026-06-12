@@ -165,7 +165,7 @@ public final class PilotAcceptanceGate {
                 "validation-docker-info",
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
                 "rtk docker info",
-                Set.of("Docker Desktop 29.4.1 server reachable on 2026-05-08.")),
+                Set.of("Docker Desktop 4.77.0 / Engine 29.5.3 server reachable on 2026-06-12.")),
             PilotAcceptanceRequirement.passed(
                 "validation-core-api-maven-test",
                 PilotAcceptanceCategory.VALIDATION_COMMAND,
