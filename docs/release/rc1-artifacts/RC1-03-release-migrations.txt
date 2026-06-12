@@ -21,8 +21,8 @@ Evidence excerpts
   - `Testcontainers version: 1.21.4`
   - `Found Docker environment with local Unix socket (unix:///var/run/docker.sock)`
   - `Container postgres:16-alpine started`
-  - `Container is started (JDBC URL: jdbc:postgresql://localhost:63883/test?loggerLevel=OFF)`
-  - `Database: jdbc:postgresql://localhost:63883/test (PostgreSQL 16.13)`
+  - `Container is started (Testcontainers datasource redacted)`
+  - `Database: Testcontainers datasource redacted (PostgreSQL 16.13)`
   - `Successfully validated 34 migrations`
   - `Successfully applied 34 migrations to schema "public", now at version v34`
   - `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0`
