@@ -18,18 +18,20 @@ Record IDs as they are created so later evidence can be correlated instead of tr
 
 | Entity | ID / Ref | Source Step | Evidence Artifact | Correlation Notes |
 | --- | --- | --- | --- | --- |
-| Organization | not-recorded | pilot data |  |  |
-| Consultant account/session | not-recorded | login/session |  |  |
-| Client account/session | not-recorded | login/session |  |  |
-| Candidate account/session | not-recorded | login/session |  |  |
-| Candidate | not-recorded | intake/seed |  |  |
+| Organization | `semiconductor-pilot-v1` pilot organization; DB UUID not emitted | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Deterministic pilot organization documented in Task 38 and validated by RC1-03A seed checks. |
+| Owner account/session | `owner@pilot.example.test`; session not-recorded | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Synthetic reserved-domain owner account documented in Task 38; login/session not exercised in RC1-03A. |
+| Consultant account/session | `consultant@pilot.example.test`; session not-recorded | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Synthetic reserved-domain consultant account documented in Task 38; login/session not exercised in RC1-03A. |
+| Client account/session | `client@pilot.example.test`; session not-recorded | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Synthetic reserved-domain client account documented in Task 38; login/session not exercised in RC1-03A. |
+| Candidate account/session | `candidate@pilot.example.test`; session not-recorded | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Synthetic reserved-domain candidate account documented in Task 38; login/session not exercised in RC1-03A. |
+| Admin account/session | `admin@pilot.example.test`; session not-recorded | pilot data seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | Synthetic reserved-domain admin account documented in Task 38; login/session not exercised in RC1-03A. |
+| Candidate | 75 synthetic candidate records; individual IDs not emitted | intake/seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | RC1-03A validate reported 75 candidates and 75 current profiles; no browser/API transaction exercised. |
 | Candidate profile | not-recorded | intake/canonical |  |  |
-| Source document | not-recorded | candidate intake |  |  |
+| Source document | 83 synthetic source documents; individual IDs not emitted | candidate intake seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | RC1-03A validate reported sourceDocuments=83. |
 | AI task run | not-recorded | AI draft claims |  |  |
 | Claim ledger item | not-recorded | AI draft claims |  |  |
 | Canonical write / reviewed fact | not-recorded | human review |  |  |
-| Company | not-recorded | job/client intake |  |  |
-| Job | not-recorded | job/client intake |  |  |
+| Company | 4 fictional client companies; individual IDs not emitted | job/client intake seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | RC1-03A validate reported companies=4. |
+| Job | 8 synthetic jobs; 5 active and 3 under review; individual IDs not emitted | job/client intake seed | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt | RC1-03A validate reported jobs=8, activeJobs=5, underReviewJobs=3. |
 | Match report | not-recorded | matching |  |  |
 | Shortlist | not-recorded | shortlist |  |  |
 | Shortlist card | not-recorded | shortlist |  |  |
@@ -145,7 +147,7 @@ Record IDs as they are created so later evidence can be correlated instead of tr
 | Working tree freeze | Release owner | `rtk git rev-parse --abbrev-ref HEAD`; `rtk git rev-parse HEAD`; `rtk git status --short` | Fri Jun 12 14:49:25 CST 2026 | exit 0; branch `main`; commit `b15f652a4facbf803a936ede86f1569f09c411bd`; dirty files: `D docs/release/RC1-next-execution-checklist.md` (existing RC1 docs deletion), `?? docs/release/RC1-capability-map.md` (untracked RC1 evidence/capability artifact), `?? docs/release/RC1-pilot-readiness-evidence.md` (untracked RC1 evidence artifact); no additional dirty files observed | passed | E0 | inline git snapshot summary | not-applicable |  | none; read-only git inspection | Proceed to RC1-02 Docker/Testcontainers gate |
 | Docker/Testcontainers | Release owner | `rtk proxy open -a Docker`; `rtk docker version`; `rtk docker info` | Fri Jun 12 15:03:53 CST 2026 | exit 0; Docker client/server reachable; client 29.4.1 on context `desktop-linux`; Docker Desktop 4.71.0 (225177); Engine/Server Version 29.4.1; server `docker-desktop`, Docker Desktop linux/aarch64; `docker info` observed 2 running containers and 5 images, with no containers created or started by this task | passed | E0 | docs/release/rc1-artifacts/RC1-02-docker.txt | not-applicable |  | none; Docker Desktop launch request and read-only Docker inspection; no containers started | Proceed to RC1-03 Migration validation gate |
 | Migration validation | Backend owner | `rtk npm run release:migrations` | Fri Jun 12 15:09:35 CST 2026 | exit 0; Flyway filename validation reported 34 migrations contiguous from V1 to V34; `TruthLayerPostgresMigrationIntegrationTest` ran against Testcontainers PostgreSQL 16.13, validated 34 migrations, applied 34 migrations to schema `public` through v34, and reported `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0` with `BUILD SUCCESS` | passed | E2 | docs/release/rc1-artifacts/RC1-03-release-migrations.txt | not-applicable |  | Testcontainers disposable PostgreSQL via Ryuk on JVM exit; no manual cleanup performed | Proceed to RC1-03A Pilot data contract gate |
-| Pilot data contract | Backend owner | `RC1-03A rebuild + validate` | not-recorded | not-recorded | not-verified | E2 |  | pilot org / dataset refs |  | reset isolated datasource if approved |  |
+| Pilot data contract | Backend owner | `RC1-03A isolated PostgreSQL rebuild + validate` | Fri Jun 12 15:28:54 CST 2026 | exit 0; rebuild valid=true after 34 migrations applied; validate valid=true with 75 candidates, 75 current profiles, 5 accounts, 5 seeded role assignments, 8 jobs, 4 companies, 83 source documents, privacy checks passed, no seeded shortlists, no seeded disclosure records, and no canonical write attempts seeded | passed | E2 | docs/release/rc1-artifacts/RC1-03A-pilot-data.txt; docs/release/rc1-artifacts/RC1-03A-synthetic-data-attestation.md | pilot org: `semiconductor-pilot-v1`; seed accounts: `owner@pilot.example.test`, `consultant@pilot.example.test`, `client@pilot.example.test`, `candidate@pilot.example.test`, `admin@pilot.example.test` |  | temporary isolated PostgreSQL container removed by trap; post-run Docker container filter returned no rows | Proceed to RC1-04 Frontend gates |
 | Frontend regression | Frontend owner | `rtk npm --workspace @rto/web run test` | not-recorded | not-recorded | not-verified | E1 |  | not-applicable |  | none |  |
 | Frontend route preservation | Frontend owner | `portalRouteContract.test.ts` within web test | not-recorded | not-recorded | not-verified | E1 |  | not-applicable |  | none |  |
 | Frontend typecheck | Frontend owner | `rtk npm run typecheck:web` | not-recorded | not-recorded | not-verified | E1 |  | not-applicable |  | none |  |

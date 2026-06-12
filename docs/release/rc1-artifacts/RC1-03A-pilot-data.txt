@@ -1,0 +1,55 @@
+# RC1-03A Pilot Data Contract Evidence
+
+Timestamp: Fri Jun 12 15:28:54 CST 2026
+Task: RC1-03A Pilot Data Contract Gate
+Operator: Codex
+Datasource shape: isolated-container
+Exit code: 0
+
+## Command Shape
+
+- Pre-checked datasource overrides without printing values: none were present for the checked variables.
+- Started a temporary PostgreSQL 16 container bound to loopback port 55433.
+- Scoped pilot datasource and user environment variables to the child shell.
+- Ran `npm run pilot:data:rebuild`.
+- Ran `npm run pilot:data:validate`.
+- Did not run against the default local database.
+- Did not use the reset allow flag.
+
+## Implementation Observations
+
+- `scripts/pilot-data.sh` invokes the core API pilot data CLI through Maven with the requested command.
+- The CLI datasource precedence is pilot-data URL override, then Spring datasource URL override, then the local default.
+- Rebuild and import run Flyway migrations before the data operation.
+- Reset is a separate destructive command path and was not used in RC1-03A.
+
+## Rebuild Evidence
+
+- Flyway validated 34 migrations and applied 34 migrations through v34 in the isolated database.
+- JSON report: `command=rebuild`, `valid=true`.
+- Counts: candidates=75, candidatesWithCurrentProfiles=75, accounts=5, seededRoleAssignments=5, jobs=8, activeJobs=5, underReviewJobs=3, companies=4, sourceDocuments=83.
+- Privacy checks: reserved account email domains true, candidate profile fields true, passed true.
+- Workflow/audit seed checks: no shortcut disclosure records, no canonical write attempts seeded, no shortcut shortlists, candidate current profiles linked, source documents present.
+- Failed gate reasons: empty.
+- Issues: empty.
+
+## Validate Evidence
+
+- JSON report: `command=validate`, `valid=true`.
+- Counts matched the rebuild report for the synthetic pilot seed shape.
+- Privacy checks passed.
+- Seeded account checks passed.
+- Workflow/audit seed checks passed.
+- Failed gate reasons: empty.
+- Issues: empty.
+
+## Cleanup Evidence
+
+- The shell trap removed the temporary isolated PostgreSQL container.
+- Post-run cleanup check: `rtk docker ps -a --filter name=rto-rc1-pilot-data- --format '{{.Names}} {{.Status}}'` returned no rows.
+
+## Data Boundary
+
+- The seed source is the deterministic `semiconductor-pilot-v1` pilot dataset.
+- No real candidate, client, customer, or production data was intentionally used for this RC1 run.
+- Terminal output contained runtime datasource logging; this artifact records only datasource shape and non-secret seed counts.
