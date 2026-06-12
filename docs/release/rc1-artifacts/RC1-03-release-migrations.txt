@@ -1,0 +1,49 @@
+RC1-03 Migration Validation Gate
+
+Timestamp
+- Fri Jun 12 15:09:35 CST 2026
+
+Command run
+- rtk npm run release:migrations
+
+Exit code / result
+- exit 0
+- Migration/Flyway/Testcontainers PostgreSQL gate passed for this command run only.
+
+Evidence excerpts
+- Script entry: `> bash scripts/release/validate-migrations.sh`
+- Flyway filename/order validation:
+  - `[release:migrations] Checking Flyway migration filename versions and order.`
+  - `[release:migrations] 34 migrations are contiguous from V1 to V34.`
+- PostgreSQL/Testcontainers migration application:
+  - `[release:migrations] Running Testcontainers Flyway apply/validation coverage against PostgreSQL.`
+  - `[INFO] Running com.recruitingtransactionos.coreapi.truthlayer.TruthLayerPostgresMigrationIntegrationTest`
+  - `Testcontainers version: 1.21.4`
+  - `Found Docker environment with local Unix socket (unix:///var/run/docker.sock)`
+  - `Container postgres:16-alpine started`
+  - `Container is started (JDBC URL: jdbc:postgresql://localhost:63883/test?loggerLevel=OFF)`
+  - `Database: jdbc:postgresql://localhost:63883/test (PostgreSQL 16.13)`
+  - `Successfully validated 34 migrations`
+  - `Successfully applied 34 migrations to schema "public", now at version v34`
+  - `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0`
+  - `BUILD SUCCESS`
+
+Cleanup / rollback evidence
+- Testcontainers Ryuk started and reported it will monitor and terminate Testcontainers containers on JVM exit.
+- Disposable PostgreSQL container was used for the migration application test.
+- No manual cleanup was performed.
+
+Capability-map schema inspection boundary
+- `services/core-api/src/main/resources/db/migration/V2__create_truth_layer_core_tables.sql` defines `recruiting.candidate`, `recruiting.candidate_profile`, `governance.claim_ledger_item`, `governance.review_event`, `workflow.workflow_event`, and `audit.audit_log`.
+- `V3__add_workflow_event_causality_guardrails.sql` adds WorkflowEvent idempotency/correlation/causation guardrail indexes and comments.
+- `V8__add_consent_disclosure_persistence.sql` defines `privacy.consent_record`, `privacy.unlock_decision`, and `privacy.disclosure_record`.
+- `V10__create_product_data_model_completion.sql` adds searchable canonical profile columns, `recruiting.profile_field_lineage`, `recruiting.placement`, and `recruiting.commission`.
+- `V11__create_canonical_write_attempt_table.sql` defines `governance.canonical_write_attempt` with claim/review/AI/workflow references.
+- `V20__add_consent_disclosure_workflow_entity_ids.sql` adds workflow entity ids for consent and disclosure records.
+- `V26__add_client_unlock_request_persistence.sql` defines `privacy.client_unlock_request`.
+- `V27__add_client_unlock_workflow_entity_id.sql` adds a workflow entity id to client unlock requests.
+- `V33__harden_identity_tenant_boundaries.sql` adds organization-scoped actor/user constraints for audit, workflow, review, canonical write, client unlock, and commission links.
+
+Evidence boundary
+- This artifact proves only migration filename contiguity and PostgreSQL/Testcontainers application of the migration set at RC1-03.
+- It does not verify UI, API runtime behavior, pilot data, browser privacy, commercial closure, broad backend tests, E2E behavior, operations readiness, or final RC1 readiness.
